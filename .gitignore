@@ -1,0 +1,19 @@
+# Java - Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.iml
+.idea/
+*.log
+
+# Node.js - React
+node_modules/
+dist/
+build/
+.env
+.vite/
+
+# OS generated
+.DS_Store
+Thumbs.db
