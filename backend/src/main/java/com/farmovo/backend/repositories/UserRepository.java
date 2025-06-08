@@ -1,7 +1,7 @@
 package com.farmovo.backend.repositories;
 
-import com.farmovo.backend.models.User;
+import com.farmovo.backend.models.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<Users, Long> {
 }

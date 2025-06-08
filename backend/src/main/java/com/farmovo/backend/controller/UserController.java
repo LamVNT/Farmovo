@@ -1,6 +1,6 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.models.User;
+import com.farmovo.backend.models.Users;
 import com.farmovo.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,24 +16,24 @@ public class UserController {
     private UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<Users> createUser(@RequestBody Users user) {
         return ResponseEntity.ok(userRepository.save(user));
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<Users>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<Users> getUserById(@PathVariable Long id) {
         return userRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<Users> updateUser(@PathVariable Long id, @RequestBody Users user) {
         return userRepository.findById(id)
                 .map(existingUser -> {
                     user.setId(id);
