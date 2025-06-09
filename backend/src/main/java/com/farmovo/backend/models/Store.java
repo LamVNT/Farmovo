@@ -1,5 +1,6 @@
 package com.farmovo.backend.models;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -45,6 +46,7 @@ public class Store {
     private Long deletedBy;
 
     @OneToMany(mappedBy = "store")
+    @JsonManagedReference
     private List<Users> users;
 
     public Long getId() {

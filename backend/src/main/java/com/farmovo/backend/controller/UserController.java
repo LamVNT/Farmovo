@@ -1,7 +1,7 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.models.Users;
-import com.farmovo.backend.repositories.UserRepository;
+import com.farmovo.backend.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,42 +13,37 @@ import java.util.List;
 public class UserController {
 
     @Autowired
-    private UserRepository userRepository;
-
-    @PostMapping
-    public ResponseEntity<Users> createUser(@RequestBody Users user) {
-        return ResponseEntity.ok(userRepository.save(user));
-    }
+    private UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<Users>> getAllUsers() {
-        return ResponseEntity.ok(userRepository.findAll());
+    public List<Users> getAllUsers() {
+        return userService.getAllUsers();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Users> getUserById(@PathVariable Long id) {
-        return userRepository.findById(id)
+        return userService.getUserById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public Users createUser(@RequestBody Users user) {
+        return userService.saveUser(user);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Users> updateUser(@PathVariable Long id, @RequestBody Users user) {
-        return userRepository.findById(id)
-                .map(existingUser -> {
-                    user.setId(id);
-                    return ResponseEntity.ok(userRepository.save(user));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return userService.updateUser(id, user)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(user -> {
-                    userRepository.delete(user);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        if (userService.deleteUser(id)) {
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }

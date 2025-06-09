@@ -1,5 +1,6 @@
 package com.farmovo.backend.models;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,6 +33,7 @@ public class Users {
     private String status;
 
     @ManyToOne
+    @JsonBackReference
     @JoinColumn(name = "StoreId", nullable = false)
     private Store store;
 
