@@ -7,8 +7,13 @@ const EggTest = () => {
     const [quantity, setQuantity] = useState('');
 
     const fetchEggs = async () => {
-        const data = await getEggs();
-        setEggs(data);
+        try {
+            const data = await getEggs();
+            setEggs(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách trứng:', error);
+            setEggs([]);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -29,11 +34,15 @@ const EggTest = () => {
         <div style={{ padding: '20px' }}>
             <h2>Danh sách Trứng</h2>
             <ul>
-                {eggs.map((egg) => (
-                    <li key={egg.id}>
-                        {egg.type} - {egg.quantity} quả
-                    </li>
-                ))}
+                {Array.isArray(eggs) && eggs.length > 0 ? (
+                    eggs.map((egg) => (
+                        <li key={egg.id}>
+                            {egg.type} - {egg.quantity} quả
+                        </li>
+                    ))
+                ) : (
+                    <li>Không có dữ liệu trứng</li>
+                )}
             </ul>
 
             <h3>Thêm Trứng Mới</h3>
