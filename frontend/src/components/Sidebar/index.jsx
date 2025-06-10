@@ -33,11 +33,13 @@ const Sidebar = () => {
 
                 <ul className="mt-4">
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                            !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                            <RxDashboard className="text-[20px]"/> <span>Dashboard</span>
-                        </Button>
+                        <Link to="/">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <RxDashboard className="text-[20px]"/> <span>Dashboard</span>
+                            </Button>
+                        </Link>
                     </li>
                     <li>
                         <Button
@@ -72,16 +74,18 @@ const Sidebar = () => {
 
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                            <FiUsers className="text-[20px]"/> <span>Users</span>
-                        </Button>
+                        <Link to="/users">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FiUsers className="text-[20px]"/> <span>Users</span>
+                            </Button>
+                        </Link>
                     </li>
                     <li>
                         <Button
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-         !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
+                            !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(3)}
                         >
                             <RiProductHuntLine className="text-[20px]"/> <span>Products</span>
@@ -92,20 +96,24 @@ const Sidebar = () => {
                         <Collapse isOpened={submenuIndex === 3}>
                             <ul className="w-full">
                                 <li className="w-full">
+                                    <Link to="/products">
                                     <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
-                 !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Products
                                         List
                                     </Button>
+                                    </Link>
                                 </li>
                                 <li className="w-full">
+                                    <Link to="/product/add">
                                     <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
-                 !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                         !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
                                         Product
                                     </Button>
+                                    </Link>
                                 </li>
                             </ul>
                         </Collapse>
@@ -113,7 +121,7 @@ const Sidebar = () => {
                     <li>
                         <Button
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-         !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
+                                        !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(4)}
                         >
                             <TbCategory className="text-[20px]"/> <span>Category</span>
@@ -124,31 +132,37 @@ const Sidebar = () => {
                         <Collapse isOpened={submenuIndex === 4}>
                             <ul className="w-full">
                                 <li className="w-full">
+                                <Link to="/categories">
                                     <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                  !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Category
                                         List
                                     </Button>
+                            </Link>
                                 </li>
                                 <li className="w-full">
+                                    <Link to="/category/add">
                                     <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
                  !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
                                         Category
                                     </Button>
+                                    </Link>
                                 </li>
                             </ul>
                         </Collapse>
                     </li>
 
                     <li>
+                        <Link to="/category/add">
                         <Button
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                              !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                             <IoBagCheckOutline className="text-[20px]"/> <span>Orders</span>
                         </Button>
+                        </Link>
                     </li>
                     <li>
                         <Button

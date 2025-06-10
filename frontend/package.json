@@ -33,6 +33,7 @@
     "react-icons": "^5.5.0",
     "react-pro-sidebar": "^1.1.0",
     "react-router-dom": "^6.30.1",
+    "swiper": "^11.2.8",
     "tailwindcss": "^4.1.8",
     "yup": "^1.6.1"
   },
