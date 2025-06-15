@@ -1,10 +1,14 @@
 spring:
   application:
     name: demo
+  app:
+    jwtSecret: oWgZyJ5nQh4Kg7LqRJryMz6IlAV2c3XWkNF9s7xIEGo=
+    jwtExpirationMs: 86400000  # 1 ngày
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/certmanagement
-    username: sa         # ✅ Đổi thành user của bạn
-    password: 123123    # ✅ Đổi thành password của bạn
+    url: jdbc:postgresql://localhost:5432/test
+    username: admin
+    password: 123123
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -16,21 +20,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           time_zone: Asia/Ho_Chi_Minh
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: YOUR_GOOGLE_CLIENT_ID
-            client-secret: YOUR_GOOGLE_CLIENT_SECRET
-            scope: profile, email
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-        provider:
-          google:
-            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
-            token-uri: https://oauth2.googleapis.com/token
-            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-
 
 server:
   port: 8080
+
