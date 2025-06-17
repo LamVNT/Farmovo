@@ -11,4 +11,6 @@ public interface UserService {
     Users saveUser(Users user);
     Optional<Users> updateUser(Long id, Users user);
     boolean deleteUser(Long id);
+    Optional<Users> updateUserStatus(Long id, String status);
+    Optional<Users> toggleUserStatus(Long id);
 }
