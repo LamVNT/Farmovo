@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { createBrowserRouter, RouterProvider} from "react-router-dom";
 import Dashboard from "./pages/dashboard"; // Capital D
 import Header from "./components/Header"
