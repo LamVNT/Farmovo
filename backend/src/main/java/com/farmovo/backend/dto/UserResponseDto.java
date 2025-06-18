@@ -1,57 +1,17 @@
-package com.farmovo.backend.models;
-
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
+package com.farmovo.backend.dto;
 
 import java.sql.Timestamp;
 
-@Entity
-@Table(name = "Users")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class Users {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class UserResponseDto {
     private Long id;
-
-    @Column(name = "FullName", nullable = false, length = 50)
     private String fullName;
-
-    @Column(name = "Role", length = 20)
-    private String role;
-
-    @Column(name = "Account", nullable = false, length = 50)
     private String account;
-
-    @Column(name = "Password", nullable = false, length = 64)
-    private String password;
-
-    @Column(name = "Status")
     private Boolean status;
-
-    @ManyToOne
-    @JsonBackReference
-    @JoinColumn(name = "StoreId", nullable = false)
-    private Store store;
-
-    @Column(name = "CreatedBy")
+    private Long storeId;
     private Long createdBy;
-
-    @Column(name = "CreatedAt", insertable = false, updatable = false)
     private Timestamp createdAt;
-
-    @Column(name = "UpdatedAt")
     private Timestamp updatedAt;
-
-    @Column(name = "DeletedAt")
     private Timestamp deletedAt;
-
-    @Column(name = "DeletedBy")
     private Long deletedBy;
 
     public Long getId() {
@@ -70,28 +30,12 @@ public class Users {
         this.fullName = fullName;
     }
 
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
     public String getAccount() {
         return account;
     }
 
     public void setAccount(String account) {
         this.account = account;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public Boolean getStatus() {
@@ -102,12 +46,12 @@ public class Users {
         this.status = status;
     }
 
-    public Store getStore() {
-        return store;
+    public Long getStoreId() {
+        return storeId;
     }
 
-    public void setStore(Store store) {
-        this.store = store;
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 
     public Long getCreatedBy() {
