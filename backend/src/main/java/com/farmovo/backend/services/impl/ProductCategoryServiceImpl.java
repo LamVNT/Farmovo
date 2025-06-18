@@ -1,5 +1,6 @@
 package com.farmovo.backend.services.impl;
 
+import com.farmovo.backend.exception.ProductCategoryNotFoundException;
 import com.farmovo.backend.models.ProductCategory;
 import com.farmovo.backend.repositories.ProductCategoryRepository;
 import com.farmovo.backend.services.ProductCategoryService;
@@ -43,9 +44,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     @Override
     public void deleteCategory(Long id, Long deletedBy) {
         ProductCategory category = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new ProductCategoryNotFoundException("Category not found with id: " + id));
         category.setDeletedAt(LocalDateTime.now());
         category.setDeletedBy(deletedBy);
-        repository.save(category); // Soft delete
+        repository.save(category);
     }
 }
