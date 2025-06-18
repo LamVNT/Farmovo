@@ -1,4 +1,4 @@
-package com.farmovo.backend.config;
+package com.farmovo.backend.security;
 
 import com.farmovo.backend.Jwt.AuthEntryPointJwt;
 import com.farmovo.backend.Jwt.AuthTokenFilter;
