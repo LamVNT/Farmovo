@@ -1,85 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { createBrowserRouter, RouterProvider} from "react-router-dom";
+import Dashboard from "./pages/dashboard"; // Capital D
+import Header from "./components/Header"
+import Sidebar from "./components/Sidebar";
+import Login from "./pages/login"
+import Category from "./pages/category";
+import { createContext, useState} from "react";
+import './app.css';
+import Signup from "./pages/signup/index.jsx";
+import UserManagement from "./pages/user/index.jsx";
 
+const MyContext = createContext();
 function App() {
-    const [eggs, setEggs] = useState([]);
-    const [type, setType] = useState('');
-    const [quantity, setQuantity] = useState('');
+    const [isSidebarOpen, setisSidebarOpen] = useState(true);
+    const [isLogin, setIslogin] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL + '/eggs';
+    const router = createBrowserRouter([
+        {
+            path: "/",
+            exact:true,
+            element: (
+                <>
+                    <section className="main">
+                        <Header/>
+                        <div className="contentMain flex">
+                            <div
+                                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? 'w-[18%]' : 'w-[0px] opacity-0'} transition-all`}>
+                                <Sidebar/>
+                            </div>
+                            <div
+                                className={`contentRight py-4 px-5 w-[82%] ${isSidebarOpen === false ? 'w-[100%]' : 'w-[82%]'} transition-all`}>
+                                <Dashboard/>
+                            </div>
+                        </div>
+                    </section>
+                </>
+            ),
+        },
+        {
+            path: "/login",
+            exact:true,
+            element: (
+                <>
+                    <Login/>
+                </>
+            ),
+        },
+        {
+            path: "/sign-up",
+            exact:true,
+            element: (
+                <>
+                    <Signup/>
+                </>
+            ),
+        },
+        {
+            path: "/category",
+            element: (
+                <>
+                    <section className="main">
+                        <Header/>
+                        <div className="contentMain flex">
+                            <div
+                                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? 'w-[18%]' : 'w-[0px] opacity-0'} transition-all`}>
+                                <Sidebar/>
+                            </div>
+                            <div
+                                className={`contentRight py-4 px-5 w-[82%] ${isSidebarOpen === false ? 'w-[100%]' : 'w-[82%]'} transition-all`}>
+                                <Category/>
+                            </div>
+                        </div>
+                    </section>
+                </>
+            ),
+        },
+        {
+            path: "/users",
+            element: (
+                <>
+                    <section className="main">
+                        <Header/>
+                        <div className="contentMain flex">
+                            <div
+                                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? 'w-[18%]' : 'w-[0px] opacity-0'} transition-all`}>
+                                <Sidebar/>
+                            </div>
+                            <div
+                                className={`contentRight py-4 px-5 w-[82%] ${isSidebarOpen === false ? 'w-[100%]' : 'w-[82%]'} transition-all`}>
+                                <UserManagement/>
+                            </div>
+                        </div>
+                    </section>
+                </>
+            ),
+        },
+    ]);
 
-    const fetchEggs = async () => {
-        try {
-            const response = await axios.get(API_URL);
-            // Đảm bảo luôn gán mảng, ngay cả khi data rỗng
-            setEggs(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error('Lỗi khi lấy danh sách trứng:', error);
-            setEggs([]); // Gán mảng rỗng nếu có lỗi
-        }
+    const values = {
+        isSidebarOpen,
+        setisSidebarOpen,
+        isLogin,
+        setIslogin
     };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!type || !quantity) return;
-
-        try {
-            await axios.post(API_URL, {
-                type,
-                quantity: parseInt(quantity),
-            });
-            setType('');
-            setQuantity('');
-            fetchEggs(); // reload danh sách
-        } catch (error) {
-            console.error('Lỗi khi thêm trứng:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchEggs();
-    }, []);
 
     return (
-        <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
-            <h1>Farmovo - Quản lý Trứng</h1>
-
-            <h2>📦 Danh sách trứng</h2>
-            <ul>
-                {Array.isArray(eggs) && eggs.length > 0 ? (
-                    eggs.map((egg) => (
-                        <li key={egg.id}>
-                            🥚 {egg.type} - {egg.quantity} quả
-                        </li>
-                    ))
-                ) : (
-                    <li>Không có dữ liệu trứng</li>
-                )}
-            </ul>
-
-            <h2>➕ Thêm trứng mới</h2>
-            <form onSubmit={handleSubmit} style={{ marginTop: '1rem' }}>
-                <input
-                    type="text"
-                    placeholder="Loại trứng"
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    required
-                />
-                <input
-                    type="number"
-                    placeholder="Số lượng"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required
-                    style={{ marginLeft: '1rem' }}
-                />
-                <button type="submit" style={{ marginLeft: '1rem' }}>
-                    Lưu
-                </button>
-            </form>
-        </div>
+        <MyContext.Provider value={values}>
+            <RouterProvider router={router}/>
+        </MyContext.Provider>
     );
 }
 
 export default App;
+export {MyContext}
