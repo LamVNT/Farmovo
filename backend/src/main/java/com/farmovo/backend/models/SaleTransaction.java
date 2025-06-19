@@ -1,34 +1,45 @@
 package com.farmovo.backend.models;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import lombok.AllArgsConstructor;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Store")
+@Table(name = "Sale_Transaction")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Store {
+public class SaleTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
-    private String name;
+    @ManyToOne
+    @JoinColumn(name = "customerID")
+    private Customer customer;
 
-    @Column(name = "description", length = 1000)
-    private String description;
+    @ManyToOne
+    @JoinColumn(name = "storeID")
+    private Store store;
 
-    @Column(name = "address", length = 500)
-    private String address;
+    @Column(name = "total")
+    private BigDecimal total;
 
-    @Column(name = "bank_account", length = 50)
-    private String bankAccount;
+    @Column(name = "paid")
+    private BigDecimal paid;
+
+    @Column(name = "detail", length = 1000)
+    private String detail;
+
+    @Column(name = "note", length = 1000)
+    private String note;
+
+    @Column(name = "status", length = 50)
+    private String status;
 
     @Column(name = "create_by")
     private Long createBy;

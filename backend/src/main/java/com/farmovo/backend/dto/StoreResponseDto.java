@@ -4,15 +4,17 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class UserResponseDto {
+public class StoreResponseDto {
+
     private Long id;
-    private String fullName;
-    private String account;
-    private Boolean status;
+    private String name;
+    private String description;
+    private String address;
+    private String bankAccount;
+
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
-    private String storeName;
 }

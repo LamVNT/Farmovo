@@ -6,29 +6,47 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Store")
+@Table(name = "Dept_Note")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Store {
+public class DeptNote {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
-    private String name;
+    @ManyToOne
+    @JoinColumn(name = "customerID")
+    private Customer customer;
+
+    @Column(name = "amount")
+    private BigDecimal amount;
+
+    @Column(name = "dept_date")
+    private LocalDateTime deptDate;
+
+    @ManyToOne
+    @JoinColumn(name = "storeID")
+    private Store store;
+
+    @Column(name = "type", length = 50)
+    private String type;
 
     @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "address", length = 500)
-    private String address;
+    @Column(name = "evidences", length = 1000)
+    private String evidences;
 
-    @Column(name = "bank_account", length = 50)
-    private String bankAccount;
+    @Column(name = "from_source", length = 255)
+    private String fromSource;
+
+    @Column(name = "sourceID")
+    private Long sourceId;
 
     @Column(name = "create_by")
     private Long createBy;

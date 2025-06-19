@@ -1,18 +1,20 @@
 package com.farmovo.backend.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Data
-public class UserResponseDto {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ZoneResponseDto {
     private Long id;
-    private String fullName;
-    private String account;
-    private Boolean status;
+    private String description;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
-    private String storeName;
 }
