@@ -1,6 +1,6 @@
 package com.farmovo.backend.services.impl;
 
-import com.farmovo.backend.Jwt.JwtUtils;
+import com.farmovo.backend.jwt.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

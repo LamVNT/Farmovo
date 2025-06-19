@@ -1,7 +1,7 @@
 package com.farmovo.backend.security;
 
-import com.farmovo.backend.Jwt.AuthEntryPointJwt;
-import com.farmovo.backend.Jwt.AuthTokenFilter;
+import com.farmovo.backend.jwt.AuthEntryPointJwt;
+import com.farmovo.backend.jwt.AuthTokenFilter;
 import com.farmovo.backend.services.impl.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

@@ -1,4 +1,4 @@
-package com.farmovo.backend.Jwt;
+package com.farmovo.backend.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;

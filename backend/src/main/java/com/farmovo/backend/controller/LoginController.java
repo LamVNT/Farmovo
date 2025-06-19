@@ -1,24 +1,20 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.Jwt.JwtUtils;
+import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.dto.LoginRequest;
 import com.farmovo.backend.dto.LoginResponse;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController

@@ -1,4 +1,4 @@
-package com.farmovo.backend.Jwt;
+package com.farmovo.backend.jwt;
 
 import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.FilterChain;
