@@ -1,12 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import {
-    Button, IconButton, TextField, Dialog, DialogActions,
-    DialogContent, DialogTitle
-} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { Button, TextField } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
+import CategoryFormDialog from "../../components/category/CategoryFormDialog.jsx";
+import CategoryTable from "../../components/category/CategoryTable.jsx";
 
 const initialCategories = [
     { id: 1, name: "Laptop", description: "Portable computers" },
@@ -21,11 +17,10 @@ const Category = () => {
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({ id: null, name: "", description: "" });
 
-    const filteredCategories = useMemo(() => {
-        return categories.filter(cat =>
+    const filteredCategories = useMemo(() =>
+        categories.filter(cat =>
             cat.name.toLowerCase().includes(searchText.toLowerCase())
-        );
-    }, [searchText, categories]);
+        ), [searchText, categories]);
 
     const handleOpenCreate = () => {
         setForm({ id: null, name: "", description: "" });
@@ -51,33 +46,12 @@ const Category = () => {
         if (editMode) {
             setCategories(prev => prev.map(cat => (cat.id === form.id ? form : cat)));
         } else {
-            const newId = Math.max(...categories.map(c => c.id)) + 1;
+            const newId = categories.length ? Math.max(...categories.map(c => c.id)) + 1 : 1;
             setCategories(prev => [...prev, { ...form, id: newId }]);
         }
 
         setOpenDialog(false);
     };
-
-    const categoryColumns = [
-        { field: "name", headerName: "Category Name", flex: 1 },
-        { field: "description", headerName: "Description", flex: 2 },
-        {
-            field: "actions",
-            headerName: "Actions",
-            flex: 1,
-            sortable: false,
-            renderCell: (params) => (
-                <>
-                    <IconButton onClick={() => handleOpenEdit(params.row)}>
-                        <EditIcon color="primary" />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(params.id)}>
-                        <DeleteIcon color="error" />
-                    </IconButton>
-                </>
-            ),
-        },
-    ];
 
     return (
         <div className="p-5 bg-white shadow-md rounded-md">
@@ -96,53 +70,20 @@ const Category = () => {
                 </div>
             </div>
 
-            <div style={{ height: 400 }}>
-                <DataGrid
-                    rows={filteredCategories}
-                    columns={categoryColumns}
-                    pageSize={5}
-                    rowsPerPageOptions={[5, 10]}
-                    checkboxSelection
-                    disableSelectionOnClick
-                    sx={{
-                        borderRadius: 2,
-                        '& .MuiDataGrid-columnHeaders': {
-                            backgroundColor: '#f5f5f5',
-                            fontWeight: 'bold',
-                        },
-                    }}
-                />
-            </div>
+            <CategoryTable
+                rows={filteredCategories}
+                onEdit={handleOpenEdit}
+                onDelete={handleDelete}
+            />
 
-            {/* Create/Edit Dialog */}
-            <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-                <DialogTitle>{editMode ? "Edit Category" : "Create Category"}</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Category Name"
-                        fullWidth
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Description"
-                        fullWidth
-                        multiline
-                        rows={2}
-                        value={form.description}
-                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} variant="contained">
-                        {editMode ? "Update" : "Create"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <CategoryFormDialog
+                open={openDialog}
+                onClose={() => setOpenDialog(false)}
+                form={form}
+                setForm={setForm}
+                onSubmit={handleSubmit}
+                editMode={editMode}
+            />
         </div>
     );
 };

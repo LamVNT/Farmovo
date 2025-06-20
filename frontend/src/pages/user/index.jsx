@@ -1,12 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import {
-    Button, IconButton, TextField, Dialog, DialogActions,
-    DialogContent, DialogTitle
-} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { TextField, Button } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
+import UserTable from "../../components/user/UserTable";
+import UserFormDialog from "../../components/user/UserFormDialog";
 
 const initialUsers = [
     { id: 1, name: "Alice", email: "alice@example.com", role: "Admin" },
@@ -59,28 +55,6 @@ const UserManagement = () => {
         setOpenDialog(false);
     };
 
-    const userColumns = [
-        { field: "name", headerName: "Name", flex: 1 },
-        { field: "email", headerName: "Email", flex: 1.5 },
-        { field: "role", headerName: "Role", flex: 1 },
-        {
-            field: "actions",
-            headerName: "Actions",
-            flex: 1,
-            sortable: false,
-            renderCell: (params) => (
-                <>
-                    <IconButton onClick={() => handleOpenEdit(params.row)}>
-                        <EditIcon color="primary" />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(params.id)}>
-                        <DeleteIcon color="error" />
-                    </IconButton>
-                </>
-            ),
-        },
-    ];
-
     return (
         <div className="p-5 bg-white shadow-md rounded-md">
             <div className="flex justify-between items-center mb-4">
@@ -98,58 +72,16 @@ const UserManagement = () => {
                 </div>
             </div>
 
-            <div style={{ height: 400 }}>
-                <DataGrid
-                    rows={filteredUsers}
-                    columns={userColumns}
-                    pageSize={5}
-                    rowsPerPageOptions={[5, 10]}
-                    checkboxSelection
-                    disableSelectionOnClick
-                    sx={{
-                        borderRadius: 2,
-                        '& .MuiDataGrid-columnHeaders': {
-                            backgroundColor: '#f5f5f5',
-                            fontWeight: 'bold',
-                        },
-                    }}
-                />
-            </div>
+            <UserTable users={filteredUsers} onEdit={handleOpenEdit} onDelete={handleDelete} />
 
-            {/* Dialog */}
-            <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-                <DialogTitle>{editMode ? "Edit User" : "Create User"}</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Name"
-                        fullWidth
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Email"
-                        fullWidth
-                        value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    />
-                    <TextField
-                        margin="dense"
-                        label="Role"
-                        fullWidth
-                        value={form.role}
-                        onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} variant="contained">
-                        {editMode ? "Update" : "Create"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <UserFormDialog
+                open={openDialog}
+                onClose={() => setOpenDialog(false)}
+                onSubmit={handleSubmit}
+                form={form}
+                setForm={setForm}
+                editMode={editMode}
+            />
         </div>
     );
 };
