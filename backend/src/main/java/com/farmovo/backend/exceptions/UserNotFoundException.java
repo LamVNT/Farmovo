@@ -1,4 +1,4 @@
-package com.farmovo.backend.exception;
+package com.farmovo.backend.exceptions;
 
 public class UserNotFoundException extends RuntimeException{
     public UserNotFoundException(String message) {

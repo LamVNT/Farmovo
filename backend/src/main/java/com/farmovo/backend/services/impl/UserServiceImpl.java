@@ -3,7 +3,7 @@ package com.farmovo.backend.services.impl;
 import com.farmovo.backend.dto.UserRequestDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.models.Store;
-import com.farmovo.backend.models.Users;
+import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.services.UserService;
 import com.farmovo.backend.exceptions.InvalidStatusException;
@@ -31,23 +31,23 @@ public class UserServiceImpl implements UserService {
     private InputUserValidation inputUserValidation;
 
     @Override
-    public List<Users> getAllUsers() {
+    public List<User> getAllUsers() {
         logger.info("Retrieving all users");
         return userRepository.findAll();
     }
 
     @Override
-    public Optional<Users> getUserById(Long id) {
+    public Optional<User> getUserById(Long id) {
         logger.info("Retrieving user with id: {}", id);
         return userRepository.findById(id);
     }
 
     @Override
-    public Users saveUser(Users user) {
-        logger.info("Saving new user with account: {}", user.getAccount());
+    public User saveUser(User user) {
+        logger.info("Saving new user with account: {}", user.getUsername());
         try {
             // Kiểm tra các trường bắt buộc
-            inputUserValidation.validateUserFields(user.getFullName(), user.getAccount(), user.getPassword());
+            inputUserValidation.validateUserFields(user.getFullName(), user.getUsername(), user.getPassword());
             if (user.getStatus() == null) {
                 user.setStatus(true); // Mặc định là active (true)
                 logger.info("Default status set to true for new user");
@@ -68,11 +68,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<Users> updateUser(Long id, Users user) {
+    public Optional<User> updateUser(Long id, User user) {
         logger.info("Updating user with id: {}", id);
         if (userRepository.existsById(id)) {
             try {
-                inputUserValidation.validateUserFields(user.getFullName(), user.getAccount(), user.getPassword());
+                inputUserValidation.validateUserFields(user.getFullName(), user.getUsername(), user.getPassword());
                 if (user.getStatus() != null) {
                     // Không cần validate status vì đã dùng converter
                 }
@@ -108,7 +108,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<Users> updateUserStatus(Long id, Boolean status) {
+    public Optional<User> updateUserStatus(Long id, Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
         return userRepository.findById(id).map(user -> {
             user.setStatus(status);
@@ -118,7 +118,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<Users> toggleUserStatus(Long id) {
+    public Optional<User> toggleUserStatus(Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userRepository.findById(id).map(user -> {
             Boolean currentStatus = user.getStatus();
