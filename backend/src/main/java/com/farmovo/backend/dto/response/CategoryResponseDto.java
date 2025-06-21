@@ -13,9 +13,6 @@ public class CategoryResponseDto {
     private Long id;
     private String name;
     private String description;
-    private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
-    private LocalDateTime deleteAt;
-    private Long deleteBy;
 }

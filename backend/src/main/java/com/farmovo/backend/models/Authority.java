@@ -1,44 +1,27 @@
 package com.farmovo.backend.models;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import lombok.AllArgsConstructor;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 
 @Entity
-@Table(name = "authority")
+@Table(name = "authorities")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Authority implements GrantedAuthority {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
-    @Column(name = "role")
-    private String authority;
-
-    public Authority() {
-    }
-
-    public Authority(Long id, String authority) {
-        this.id = id;
-        this.authority = authority;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @Column(name = "role", length = 100, nullable = false, unique = true)
+    private String role;
 
     @Override
     public String getAuthority() {
-        return authority;
-    }
-
-    public void setAuthority(String authority) {
-        this.authority = authority;
+        return role;
     }
 }

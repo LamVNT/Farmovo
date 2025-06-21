@@ -1,21 +1,33 @@
-import React, { useState, useMemo } from "react";
+// pages/Category/index.jsx
+import React, { useState, useEffect, useMemo } from "react";
 import { Button, TextField } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
-import CategoryFormDialog from "../../components/category/CategoryFormDialog.jsx";
-import CategoryTable from "../../components/category/CategoryTable.jsx";
-
-const initialCategories = [
-    { id: 1, name: "Laptop", description: "Portable computers" },
-    { id: 2, name: "Phone", description: "Smart mobile devices" },
-    { id: 3, name: "Accessories", description: "Mouse, keyboards, etc." },
-];
+import CategoryFormDialog from "../../components/category/CategoryFormDialog";
+import CategoryTable from "../../components/category/CategoryTable";
+import { getCategories, createCategory, updateCategory, deleteCategory } from "../../services/categoryService";
 
 const Category = () => {
-    const [categories, setCategories] = useState(initialCategories);
+    const [categories, setCategories] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({ id: null, name: "", description: "" });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetch = async () => {
+            try {
+                const data = await getCategories();
+                setCategories(data);
+            } catch (err) {
+                setError("Failed to fetch categories");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetch();
+    }, []);
 
     const filteredCategories = useMemo(() =>
         categories.filter(cat =>
@@ -34,24 +46,36 @@ const Category = () => {
         setOpenDialog(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this category?")) {
-            setCategories(prev => prev.filter(cat => cat.id !== id));
+            try {
+                await deleteCategory(id);
+                setCategories(prev => prev.filter(cat => cat.id !== id));
+            } catch {
+                setError("Failed to delete category");
+            }
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!form.name.trim()) return;
 
-        if (editMode) {
-            setCategories(prev => prev.map(cat => (cat.id === form.id ? form : cat)));
-        } else {
-            const newId = categories.length ? Math.max(...categories.map(c => c.id)) + 1 : 1;
-            setCategories(prev => [...prev, { ...form, id: newId }]);
+        try {
+            if (editMode) {
+                const updated = await updateCategory(form.id, form);
+                setCategories(prev => prev.map(cat => (cat.id === form.id ? updated : cat)));
+            } else {
+                const created = await createCategory(form);
+                setCategories(prev => [...prev, created]);
+            }
+            setOpenDialog(false);
+        } catch {
+            setError(`Failed to ${editMode ? "update" : "create"} category`);
         }
-
-        setOpenDialog(false);
     };
+
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div>{error}</div>;
 
     return (
         <div className="p-5 bg-white shadow-md rounded-md">

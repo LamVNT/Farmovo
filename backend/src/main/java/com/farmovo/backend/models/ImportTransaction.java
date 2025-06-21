@@ -1,22 +1,23 @@
 package com.farmovo.backend.models;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import lombok.AllArgsConstructor;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Table(name = "Import_Transaction")
+@Table(name = "import_transactions")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImportTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @Column(name = "name", length = 255)
@@ -52,16 +53,18 @@ public class ImportTransaction {
     @Column(name = "delete_by")
     private Long deleteBy;
 
-    @ManyToOne
-    @JoinColumn(name = "customer_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
-    @ManyToOne
-    @JoinColumn(name = "store_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
     private Store store;
 
-    @ManyToOne
-    @JoinColumn(name = "staff_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "staff_id")
     private User staff;
-}
 
+    @OneToMany(mappedBy = "importTransaction", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ImportTransactionDetail> details;
+}
