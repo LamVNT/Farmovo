@@ -1,9 +1,8 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.dto.UserRequestDto;
-import com.farmovo.backend.dto.UserResponseDto;
+import com.farmovo.backend.dto.request.UserRequestDto;
+import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
-import com.farmovo.backend.models.Store;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import jakarta.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -22,30 +23,36 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @GetMapping
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    @GetMapping("/userList")
+    public List<UserResponseDto> getAllUsers() {
+        logger.info("Fetching all users");
+        return userService.getAllUsers().stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
-                .map(ResponseEntity::ok)
+                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
-    @PostMapping
-    public User createUser(@RequestBody User user) {
-        logger.info("Creating new user: {}", user.getUsername());
-        return userService.saveUser(user);
+    @PostMapping("/createUser")
+    public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto) {
+        logger.info("Creating new user: {}", dto.getUsername());
+        User user = userService.convertToEntity(dto);
+        User savedUser = userService.saveUser(user);
+        return convertToResponseDTO(savedUser);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserRequestDto dto) {
         logger.info("Updating user with id: {}", id);
+        User user = userService.convertToEntity(dto);
         return userService.updateUser(id, user)
-                .map(ResponseEntity::ok)
+                .map(updatedUser -> ResponseEntity.ok(convertToResponseDTO(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
@@ -59,44 +66,37 @@ public class UserController {
         throw new UserManagementException("User not found with id: " + id);
     }
 
-    @PatchMapping("/{id}/toggle-status")
-    public ResponseEntity<User> toggleUserStatus(@PathVariable Long id) {
-        logger.info("Toggling status for user with id: {}", id);
-        return userService.toggleUserStatus(id)
-                .map(ResponseEntity::ok)
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<UserResponseDto> updateUserStatus(@PathVariable Long id, @RequestBody Boolean status) {
+        logger.info("Updating status for user with id: {} to {}", id, status);
+        return userService.updateUserStatus(id, status)
+                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
-//    private Users convertToEntity(UserRequestDto dto) {
-//        Users user = new Users();
-//        user.setFullName(dto.getFullName());
-//        user.setAccount(dto.getAccount());
-//        user.setPassword(dto.getPassword());
-//        user.setStatus(dto.getStatus());
-//        if (dto.getStoreId() != null) {
-//            Store store = storeRepository.findById(dto.getStoreId())
-//                    .orElseThrow(() -> new UserManagementException("Store not found with id: " + dto.getStoreId()));
-//            user.setStore(store);
-//        } else {
-//            throw new UserManagementException("StoreId is required");
-//        }
-//        return user;
-//    }
-//
-//    private UserResponseDto convertToResponseDTO(Users user) {
-//        UserResponseDto dto = new UserResponseDto();
-//        dto.setId(user.getId());
-//        dto.setFullName(user.getFullName());
-//        dto.setAccount(user.getAccount());
-//        dto.setStatus(user.getStatus());
-//        dto.setStoreId(user.getStore() != null ? user.getStore().getId() : null);
-//        dto.setCreatedBy(user.getCreatedBy());
-//        dto.setCreatedAt(user.getCreatedAt());
-//        dto.setUpdatedAt(user.getUpdatedAt());
-//        dto.setDeletedAt(user.getDeletedAt());
-//        dto.setDeletedBy(user.getDeletedBy());
-//        return dto;
-//    }
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<UserResponseDto> toggleUserStatus(@PathVariable Long id) {
+        logger.info("Toggling status for user with id: {}", id);
+        return userService.toggleUserStatus(id)
+                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
+                .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
+    }
+
+    private UserResponseDto convertToResponseDTO(User user) {
+        return UserResponseDto.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .username(user.getUsername())
+                .status(user.getStatus())
+                .createBy(user.getCreateBy())
+                .createAt(user.getCreateAt())
+                .updateAt(user.getUpdateAt())
+                .deleteAt(user.getDeleteAt())
+                .deleteBy(user.getDeleteBy())
+                .storeName(user.getStore() != null ? user.getStore().getName() : null)
+                .build();
+    }
 
     @ExceptionHandler(UserManagementException.class)
     public ResponseEntity<String> handleUserManagementException(UserManagementException ex) {

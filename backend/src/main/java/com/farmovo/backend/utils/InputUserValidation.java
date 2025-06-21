@@ -11,11 +11,11 @@ public class InputUserValidation {
         }
     }
 
-    public void validateUserFields(String fullName, String account, String password) {
+    public void validateUserFields(String fullName, String username, String password) {
         if (fullName == null || fullName.trim().isEmpty() || fullName.length() > 50) {
             throw new IllegalArgumentException("Full name must be non-empty and not exceed 50 characters");
         }
-        if (account == null || account.trim().isEmpty() || account.length() > 50) {
+        if (username == null || username.trim().isEmpty() || username.length() > 50) {
             throw new IllegalArgumentException("Account must be non-empty and not exceed 50 characters");
         }
         if (password == null || password.trim().isEmpty() || password.length() > 64) {

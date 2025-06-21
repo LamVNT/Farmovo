@@ -1,4 +1,4 @@
-package com.farmovo.backend.dto;
+package com.farmovo.backend.dto.response;
 
 import java.util.List;
 

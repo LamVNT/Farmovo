@@ -1,4 +1,5 @@
 package com.farmovo.backend.models;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import lombok.AllArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "Store")
@@ -44,4 +46,8 @@ public class Store {
 
     @Column(name = "delete_by")
     private Long deleteBy;
+
+    @OneToMany(mappedBy = "store")
+    @JsonManagedReference
+    private List<User> users;
 }

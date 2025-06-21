@@ -1,6 +1,8 @@
 package com.farmovo.backend.models;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,6 +17,7 @@ import java.util.Set;
 @Entity
 @Table(name = "Users")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class User implements UserDetails {
@@ -40,8 +43,15 @@ public class User implements UserDetails {
     @Column(name = "create_at")
     private LocalDateTime createAt;
 
+    @PrePersist
+    protected void onCreate() {
+        this.createAt = LocalDateTime.now();
+        this.updateAt = LocalDateTime.now();
+    }
+
     @Column(name = "update_at")
     private LocalDateTime updateAt;
+
 
     @Column(name = "delete_at")
     private LocalDateTime deleteAt;
@@ -51,6 +61,7 @@ public class User implements UserDetails {
 
     @ManyToOne
     @JoinColumn(name = "storeID")
+    @JsonBackReference
     private Store store;
 
 

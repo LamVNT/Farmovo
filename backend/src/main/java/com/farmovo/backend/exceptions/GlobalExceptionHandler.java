@@ -1,7 +1,6 @@
 package com.farmovo.backend.exceptions;
 
-import com.farmovo.backend.dto.ErrorResponse;
-import com.farmovo.backend.exceptions.UserNotFoundException;
+import com.farmovo.backend.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

@@ -1,4 +1,4 @@
-package com.farmovo.backend.dto;
+package com.farmovo.backend.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,25 +1,24 @@
-package com.farmovo.backend.dto;
+package com.farmovo.backend.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class StocktakeResponseDto {
+public class SaleTransactionResponseDto {
     private Long id;
+    private Long customerId;
     private Long storeId;
-    private Long zoneId;
-    private Long productId;
-    private LocalDate stocktakeDate;
-    private Integer actualQuantity;
-    private Integer recordedQuantity;
-    private Integer difference;
+    private BigDecimal total;
+    private BigDecimal paid;
+    private String detail;
     private String note;
+    private String status;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
