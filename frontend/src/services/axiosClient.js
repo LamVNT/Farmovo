@@ -1,18 +1,17 @@
+// src/axiosConfig.js
 import axios from 'axios'
 
-const axiosClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-})
+const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL, // ✅ Đọc từ file .env
+    withCredentials: true                 // ✅ Nếu dùng JWT cookie từ backend
+});
 
-axiosClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token')
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+        config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
-})
+    return config;
+}, error => Promise.reject(error));
 
-export default axiosClient
+export default api;

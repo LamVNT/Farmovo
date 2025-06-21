@@ -48,14 +48,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers("/signin").permitAll()
-//                        .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
-//                        .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
-//                        .anyRequest().authenticated()
-                        .anyRequest().permitAll()
+                        .requestMatchers("/api/signin").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
+                        .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
+                        .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(unauthorizedHandler))
                 .httpBasic(withDefaults())

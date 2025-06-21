@@ -1,5 +1,5 @@
 import React, {useContext, useState} from "react";
-import { Link } from "react-router-dom"
+import {Link, useNavigate} from "react-router-dom"
 import Button from "@mui/material/Button";
 import { RxDashboard } from "react-icons/rx";
 import { FaRegImages } from "react-icons/fa6";
@@ -11,6 +11,7 @@ import { IoMdLogOut } from "react-icons/io";
 import { FaAngleDown } from "react-icons/fa6";
 import {Collapse} from 'react-collapse';
 import {MyContext} from "../../App.jsx";
+import api from "../../services/axiosClient.js";
 
 
 
@@ -24,7 +25,18 @@ const Sidebar = () => {
         }
     }
 
+    const navigate = useNavigate();
     const context = useContext(MyContext);
+
+    const handleLogout = async () => {
+        try {
+            await api.post("/logout", {}, { withCredentials: true }); // Gọi backend để xoá cookie
+            context.setIslogin(false); // Set lại trạng thái login
+            navigate("/login"); // Chuyển hướng về trang login
+        } catch (error) {
+            console.error("Logout error:", error);
+        }
+    };
 
     return (
         <>
@@ -169,11 +181,16 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                            <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
-                        </Button>
+                        <li>
+                            <Button
+                                onClick={handleLogout} // ⚠️ BẠT BUỘC phải thêm
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
+                            </Button>
+                        </li>
+
+
                     </li>
                 </ul>
 
