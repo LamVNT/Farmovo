@@ -1,12 +1,11 @@
 package com.farmovo.backend.services.impl;
 
-import com.farmovo.backend.dto.UserRequestDto;
+import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.services.UserService;
-import com.farmovo.backend.exceptions.InvalidStatusException;
 import com.farmovo.backend.utils.InputUserValidation;
 import com.farmovo.backend.repositories.StoreRepository;
 import org.apache.logging.log4j.LogManager;
@@ -46,18 +45,12 @@ public class UserServiceImpl implements UserService {
     public User saveUser(User user) {
         logger.info("Saving new user with account: {}", user.getUsername());
         try {
-            // Kiểm tra các trường bắt buộc
             inputUserValidation.validateUserFields(user.getFullName(), user.getUsername(), user.getPassword());
             if (user.getStatus() == null) {
-                user.setStatus(true); // Mặc định là active (true)
+                user.setStatus(true);
                 logger.info("Default status set to true for new user");
             }
-            // Kiểm tra và gán Store
-            if (user.getStore() == null && user.getStore() != null && user.getStore().getId() != null) {
-                Store store = storeRepository.findById(user.getStore().getId())
-                        .orElseThrow(() -> new UserManagementException("Store not found with id: " + user.getStore().getId()));
-                user.setStore(store);
-            } else if (user.getStore() == null) {
+            if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
             }
             return userRepository.save(user);
@@ -73,15 +66,7 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsById(id)) {
             try {
                 inputUserValidation.validateUserFields(user.getFullName(), user.getUsername(), user.getPassword());
-                if (user.getStatus() != null) {
-                    // Không cần validate status vì đã dùng converter
-                }
-                // Kiểm tra và gán Store
-                if (user.getStore() != null && user.getStore().getId() != null) {
-                    Store store = storeRepository.findById(user.getStore().getId())
-                            .orElseThrow(() -> new UserManagementException("Store not found with id: " + user.getStore().getId()));
-                    user.setStore(store);
-                } else if (user.getStore() == null) {
+                if (user.getStore() == null) {
                     throw new UserManagementException("Store is required");
                 }
                 user.setId(id);
@@ -110,22 +95,47 @@ public class UserServiceImpl implements UserService {
     @Override
     public Optional<User> updateUserStatus(Long id, Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
-        return userRepository.findById(id).map(user -> {
-            user.setStatus(status);
+
+        int updated = userRepository.updateStatusById(id, status);
+        if (updated > 0) {
             logger.info("Status updated to {} for user id: {}", status, id);
-            return userRepository.save(user);
-        });
+            return userRepository.findById(id); // chỉ lấy lại user để trả về
+        } else {
+            logger.warn("User not found with id: {}", id);
+            return Optional.empty();
+        }
     }
+
 
     @Override
     public Optional<User> toggleUserStatus(Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userRepository.findById(id).map(user -> {
             Boolean currentStatus = user.getStatus();
-            Boolean newStatus = (currentStatus == null) ? true : !currentStatus;
+            Boolean newStatus = currentStatus == null || !currentStatus;
             user.setStatus(newStatus);
             logger.info("Status toggled to {} for user id: {}", newStatus, id);
-            return userRepository.save(user);
+            return user;
         });
+    }
+
+    @Override
+    public User convertToEntity(UserRequestDto dto) {
+        logger.info("Converting UserRequestDto to User entity for username: {}", dto.getUsername());
+        User user = new User();
+        user.setFullName(dto.getFullName());
+        user.setUsername(dto.getUsername());
+        user.setPassword(dto.getPassword());
+        user.setStatus(dto.getStatus());
+        user.setCreateBy(dto.getCreateBy());
+        user.setDeleteBy(dto.getDeleteBy());
+        if (dto.getStoreId() != null) {
+            Store store = storeRepository.findById(dto.getStoreId())
+                    .orElseThrow(() -> new UserManagementException("Store not found with id: " + dto.getStoreId()));
+            user.setStore(store);
+        } else {
+            throw new UserManagementException("StoreId is required");
+        }
+        return user;
     }
 }

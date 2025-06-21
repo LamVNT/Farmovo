@@ -1,8 +1,8 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.jwt.JwtUtils;
-import com.farmovo.backend.dto.LoginRequest;
-import com.farmovo.backend.dto.LoginResponse;
+import com.farmovo.backend.dto.request.LoginRequest;
+import com.farmovo.backend.dto.response.LoginResponse;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;

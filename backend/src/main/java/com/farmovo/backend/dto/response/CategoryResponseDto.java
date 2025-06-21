@@ -1,4 +1,4 @@
-package com.farmovo.backend.dto;
+package com.farmovo.backend.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,12 +9,10 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductResponseDto {
+public class CategoryResponseDto {
     private Long id;
-    private String detail;
-    private Integer quantity;
-    private Long categoryId;
-    private Long storeId;
+    private String name;
+    private String description;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;

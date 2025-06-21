@@ -1,26 +1,20 @@
-package com.farmovo.backend.dto;
+package com.farmovo.backend.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DeptNoteResponseDto {
+public class ProductResponseDto {
     private Long id;
-    private Long customerId;
-    private BigDecimal amount;
-    private LocalDateTime deptDate;
+    private String detail;
+    private Integer quantity;
+    private Long categoryId;
     private Long storeId;
-    private String type;
-    private String description;
-    private String evidences;
-    private String fromSource;
-    private Long sourceId;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
