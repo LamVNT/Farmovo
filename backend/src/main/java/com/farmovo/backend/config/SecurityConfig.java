@@ -1,4 +1,4 @@
-package com.farmovo.backend.security;
+package com.farmovo.backend.config;
 
 import com.farmovo.backend.jwt.AuthEntryPointJwt;
 import com.farmovo.backend.jwt.AuthTokenFilter;
@@ -48,10 +48,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/signin").permitAll()
+                        .requestMatchers("/api/signin").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
                         .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
                         .anyRequest().authenticated()

@@ -3,6 +3,7 @@ package com.farmovo.backend.jwt;
 import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -42,10 +43,17 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
 
     private String extractJwtFromRequest(HttpServletRequest request) {
-        String jwt = jwtUtils.getJwtFromHeader(request);
-        if (jwt == null) {
-            authTokenlogger.debug("No JWT found in request header");
+        // Ưu tiên lấy JWT từ Cookie (vì bạn dùng HttpOnly Cookie)
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
         }
-        return jwt;
+
+        // Fallback: nếu không có cookie, có thể lấy từ header nếu bạn cho phép
+        return jwtUtils.getJwtFromHeader(request);
     }
+
 }
