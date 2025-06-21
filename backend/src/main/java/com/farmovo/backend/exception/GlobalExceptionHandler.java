@@ -1,6 +1,6 @@
 package com.farmovo.backend.exception;
 
-import com.farmovo.backend.dto.ErrorResponse;
+import com.farmovo.backend.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

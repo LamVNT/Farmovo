@@ -1,21 +1,33 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Button, TextField } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog.jsx";
 import CategoryTable from "../../components/category/CategoryTable.jsx";
-
-const initialCategories = [
-    { id: 1, name: "Laptop", description: "Portable computers" },
-    { id: 2, name: "Phone", description: "Smart mobile devices" },
-    { id: 3, name: "Accessories", description: "Mouse, keyboards, etc." },
-];
+import axios from "axios";
 
 const Category = () => {
-    const [categories, setCategories] = useState(initialCategories);
+    const [categories, setCategories] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({ id: null, name: "", description: "" });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch categories from API
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get("http://localhost:8080/api/categories");
+                setCategories(response.data);
+            } catch (err) {
+                setError("Failed to fetch categories");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     const filteredCategories = useMemo(() =>
         categories.filter(cat =>
@@ -34,24 +46,36 @@ const Category = () => {
         setOpenDialog(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this category?")) {
-            setCategories(prev => prev.filter(cat => cat.id !== id));
+            try {
+                await axios.delete(`http://localhost:8080/api/categories/${id}`);
+                setCategories(prev => prev.filter(cat => cat.id !== id));
+            } catch (err) {
+                setError("Failed to delete category");
+            }
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!form.name.trim()) return;
 
-        if (editMode) {
-            setCategories(prev => prev.map(cat => (cat.id === form.id ? form : cat)));
-        } else {
-            const newId = categories.length ? Math.max(...categories.map(c => c.id)) + 1 : 1;
-            setCategories(prev => [...prev, { ...form, id: newId }]);
+        try {
+            if (editMode) {
+                const response = await axios.put(`http://localhost:8080/api/categories/${form.id}`, form);
+                setCategories(prev => prev.map(cat => (cat.id === form.id ? response.data : cat)));
+            } else {
+                const response = await axios.post("http://localhost:8080/api/categories", form);
+                setCategories(prev => [...prev, response.data]);
+            }
+            setOpenDialog(false);
+        } catch (err) {
+            setError(`Failed to ${editMode ? "update" : "create"} category`);
         }
-
-        setOpenDialog(false);
     };
+
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div>{error}</div>;
 
     return (
         <div className="p-5 bg-white shadow-md rounded-md">

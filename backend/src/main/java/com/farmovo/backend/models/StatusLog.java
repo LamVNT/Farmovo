@@ -1,18 +1,21 @@
 package com.farmovo.backend.models;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "Status_Log")
+@Table(name = "status_logs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class StatusLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @Column(name = "model", length = 255)

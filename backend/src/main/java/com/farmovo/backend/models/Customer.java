@@ -1,22 +1,23 @@
 package com.farmovo.backend.models;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import lombok.AllArgsConstructor;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Table(name = "Customer")
+@Table(name = "customers")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @Column(name = "name", length = 255, nullable = false)
@@ -48,4 +49,13 @@ public class Customer {
 
     @Column(name = "delete_by")
     private Long deleteBy;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DeptNote> deptNotes;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private List<ImportTransaction> importTransactions;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private List<SaleTransaction> saleTransactions;
 }

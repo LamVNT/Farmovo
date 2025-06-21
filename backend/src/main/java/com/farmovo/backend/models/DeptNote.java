@@ -1,8 +1,7 @@
 package com.farmovo.backend.models;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import lombok.AllArgsConstructor;
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,17 +9,18 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Dept_Note")
+@Table(name = "dept_notes")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeptNote {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "customerID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     @Column(name = "amount")
@@ -29,8 +29,8 @@ public class DeptNote {
     @Column(name = "dept_date")
     private LocalDateTime deptDate;
 
-    @ManyToOne
-    @JoinColumn(name = "storeID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
     private Store store;
 
     @Column(name = "type", length = 50)
@@ -45,7 +45,7 @@ public class DeptNote {
     @Column(name = "from_source", length = 255)
     private String fromSource;
 
-    @Column(name = "sourceID")
+    @Column(name = "source_id")
     private Long sourceId;
 
     @Column(name = "create_by")
