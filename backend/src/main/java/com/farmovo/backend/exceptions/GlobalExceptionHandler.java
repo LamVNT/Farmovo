@@ -1,7 +1,10 @@
-package com.farmovo.backend.exception;
+package com.farmovo.backend.exceptions;
 
 import com.farmovo.backend.dto.ErrorResponse;
+import com.farmovo.backend.exceptions.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
@@ -12,6 +15,7 @@ import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger logger = LogManager.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthError(
@@ -32,6 +36,31 @@ public class GlobalExceptionHandler {
         ErrorResponse userNotFound = new ErrorResponse(LocalDateTime.now(),ex.getMessage(),"User not found"
                 ,request.getRequestURI());
         return new ResponseEntity<>(userNotFound,HttpStatus.NOT_FOUND);
+    }
+
+
+    @ExceptionHandler(UserManagementException.class)
+    public ResponseEntity<String> handleUserManagementException(UserManagementException ex) {
+        logger.error("User Management Error: {}", ex.getMessage());
+        return ResponseEntity.status(404).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<String> handleInvalidStatusException(InvalidStatusException ex) {
+        logger.error("Invalid Status Error: {}", ex.getMessage());
+        return ResponseEntity.status(400).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        logger.error("Validation Error: {}", ex.getMessage());
+        return ResponseEntity.status(400).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGenericException(Exception ex) {
+        logger.error("Unexpected Error: {}", ex.getMessage());
+        return ResponseEntity.status(500).body("An unexpected error occurred: " + ex.getMessage());
     }
 
 
