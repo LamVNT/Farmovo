@@ -1,75 +1,113 @@
-import axiosClient from './axiosClient';
+import axios from "axios";
 
-const userService = {
-    // Lấy danh sách tất cả người dùng
+const API_URL = `${import.meta.env.VITE_API_URL}/users`;
+
+export const userService = {
     getAllUsers: async () => {
         try {
-            const response = await axiosClient.get('/users/userList');
+            const response = await axios.get(`${API_URL}/admin/userList`, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể lấy danh sách người dùng');
         }
     },
 
-    // Lấy chi tiết người dùng theo ID
     getUserById: async (id) => {
         try {
-            const response = await axiosClient.get(`/users/${id}`);
+            const response = await axios.get(`${API_URL}/admin/${id}`, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng');
         }
     },
 
-    // Tạo người dùng mới
+    getCurrentUser: async () => {
+        try {
+            const response = await axios.get(`${API_URL}/staff/me`, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng hiện tại');
+        }
+    },
+
     createUser: async (userData) => {
         try {
-            const response = await axiosClient.post('/users/createUser', userData);
+            const response = await axios.post(`${API_URL}/admin/createUser`, userData, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể tạo người dùng');
         }
     },
 
-    // Cập nhật thông tin người dùng
     updateUser: async (id, userData) => {
         try {
-            const response = await axiosClient.put(`/users/${id}`, userData);
+            const response = await axios.put(`${API_URL}/admin/${id}`, userData, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể cập nhật người dùng');
         }
     },
 
-    // Xóa người dùng
+    updateCurrentUser: async (userData) => {
+        try {
+            const response = await axios.put(`${API_URL}/staff/me`, userData, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể cập nhật thông tin người dùng hiện tại');
+        }
+    },
+
     deleteUser: async (id) => {
         try {
-            await axiosClient.delete(`/users/${id}`);
+            await axios.delete(`${API_URL}/admin/${id}`, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return true;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể xóa người dùng');
         }
     },
 
-    // Chuyển đổi trạng thái người dùng
     toggleUserStatus: async (id) => {
         try {
-            const response = await axiosClient.patch(`/users/${id}/toggle-status`);
+            const response = await axios.patch(`${API_URL}/admin/${id}/toggle-status`, null, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể chuyển đổi trạng thái người dùng');
         }
     },
 
-    // Cập nhật trạng thái người dùng với giá trị cụ thể
     updateUserStatus: async (id, status) => {
         try {
-            const response = await axiosClient.patch(`/users/${id}/status`, status);
+            const response = await axios.patch(`${API_URL}/admin/${id}/status`, { status }, {
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể cập nhật trạng thái người dùng');
         }
     },
 };
-
-export default userService;

@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
                         .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
                         .anyRequest().authenticated()
-                                //.anyRequest().permitAll()
+//                                .anyRequest().permitAll()
                 )
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(unauthorizedHandler))
                 .httpBasic(withDefaults())

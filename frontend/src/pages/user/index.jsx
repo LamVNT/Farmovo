@@ -3,7 +3,7 @@ import { TextField, Button } from '@mui/material';
 import { FaPlus } from 'react-icons/fa6';
 import UserTable from '../../components/user/UserTable';
 import UserFormDialog from '../../components/user/UserFormDialog';
-import userService from '../../services/userService';
+import { userService } from '../../services/userService';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -21,6 +21,7 @@ const UserManagement = () => {
         createAt: '',
         updateAt: '',
         storeName: '',
+        roles: [], // Thêm trường roles
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -61,6 +62,7 @@ const UserManagement = () => {
             createAt: '',
             updateAt: '',
             storeName: '',
+            roles: [], // Reset roles khi tạo mới
         });
         setEditMode(false);
         setOpenDialog(true);
@@ -73,14 +75,24 @@ const UserManagement = () => {
             username: user.username,
             password: '',
             status: user.status,
-            storeId: 1,
-            createBy: 1,
+            storeId: user.storeId || 1, // Đảm bảo storeId từ dữ liệu
+            createBy: user.createBy || 1,
             createAt: user.createAt || '',
             updateAt: user.updateAt || '',
             storeName: user.storeName || '',
+            roles: user.roles || [], // Lấy roles từ dữ liệu
         });
         setEditMode(true);
         setOpenDialog(true);
+    };
+
+    const handleClose = () => {
+        setOpenDialog(false);
+        // Reset form nếu cần
+        setForm((prev) => ({
+            ...prev,
+            password: '', // Reset password sau khi đóng
+        }));
     };
 
     const handleDelete = async (id) => {
@@ -96,37 +108,29 @@ const UserManagement = () => {
     };
 
     const handleSubmit = async () => {
-        if (!form.fullName.trim() || !form.username.trim() || (!editMode && !form.password.trim())) {
-            setError('Vui lòng điền đầy đủ các trường bắt buộc');
-            return;
-        }
-
+        console.log('Sending userData:', form);
+        const userData = {
+            fullName: form.fullName || undefined,
+            username: form.username || undefined,
+            password: form.password || undefined, // Bắt buộc khi tạo mới
+            status: form.status,
+            storeId: form.storeId,
+            roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
+        };
         try {
             if (editMode) {
-                const updatedUser = await userService.updateUser(form.id, {
-                    fullName: form.fullName,
-                    username: form.username,
-                    password: form.password || undefined,
-                    status: form.status,
-                    storeId: form.storeId,
-                    createBy: form.createBy,
-                });
-                setUsers((prev) => prev.map((u) => (u.id === form.id ? updatedUser : u)));
+                await userService.updateUser(form.id, userData);
             } else {
-                const newUser = await userService.createUser({
-                    fullName: form.fullName,
-                    username: form.username,
-                    password: form.password,
-                    status: form.status,
-                    storeId: form.storeId,
-                    createBy: form.createBy,
-                });
-                setUsers((prev) => [...prev, newUser]);
+                await userService.createUser(userData);
             }
-            setOpenDialog(false);
+            handleClose(); // Đóng dialog sau khi submit thành công
+            // Làm mới danh sách người dùng
+            const data = await userService.getAllUsers();
+            setUsers(data);
             setError(null);
-        } catch (err) {
-            setError(err.message);
+        } catch (error) {
+            console.error('Lỗi:', error.message);
+            setError(error.message); // Hiển thị lỗi cho người dùng
         }
     };
 
@@ -182,7 +186,7 @@ const UserManagement = () => {
 
             <UserFormDialog
                 open={openDialog}
-                onClose={() => setOpenDialog(false)}
+                onClose={handleClose} // Sử dụng handleClose đã định nghĩa
                 onSubmit={handleSubmit}
                 form={form}
                 setForm={setForm}

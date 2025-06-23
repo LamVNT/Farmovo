@@ -11,7 +11,6 @@ public class StoreResponseDto {
     private String description;
     private String address;
     private String bankAccount;
-
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
