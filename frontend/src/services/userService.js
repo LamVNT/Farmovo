@@ -6,8 +6,7 @@ export const userService = {
     getAllUsers: async () => {
         try {
             const response = await axios.get(`${API_URL}/admin/userList`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -18,8 +17,7 @@ export const userService = {
     getUserById: async (id) => {
         try {
             const response = await axios.get(`${API_URL}/admin/${id}`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -30,8 +28,7 @@ export const userService = {
     getCurrentUser: async () => {
         try {
             const response = await axios.get(`${API_URL}/staff/me`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -42,8 +39,7 @@ export const userService = {
     createUser: async (userData) => {
         try {
             const response = await axios.post(`${API_URL}/admin/createUser`, userData, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -54,8 +50,7 @@ export const userService = {
     updateUser: async (id, userData) => {
         try {
             const response = await axios.put(`${API_URL}/admin/${id}`, userData, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -66,8 +61,7 @@ export const userService = {
     updateCurrentUser: async (userData) => {
         try {
             const response = await axios.put(`${API_URL}/staff/me`, userData, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -78,8 +72,7 @@ export const userService = {
     deleteUser: async (id) => {
         try {
             await axios.delete(`${API_URL}/admin/${id}`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return true;
         } catch (error) {
@@ -90,8 +83,7 @@ export const userService = {
     toggleUserStatus: async (id) => {
         try {
             const response = await axios.patch(`${API_URL}/admin/${id}/toggle-status`, null, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
@@ -102,8 +94,7 @@ export const userService = {
     updateUserStatus: async (id, status) => {
         try {
             const response = await axios.patch(`${API_URL}/admin/${id}/status`, { status }, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
         } catch (error) {
