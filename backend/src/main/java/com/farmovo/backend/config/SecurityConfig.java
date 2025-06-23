@@ -52,7 +52,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers("/api/signin").permitAll()
+                        .requestMatchers("/api/users/me", "/api/users").authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
                         .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
                         .anyRequest().authenticated()

@@ -86,6 +86,7 @@ public class UserController {
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
+    // ✅ GET CURRENT USER (FOR PROFILE)
     @GetMapping("/staff/me")
     public ResponseEntity<UserResponseDto> getCurrentUser(Principal principal) {
         logger.info("Fetching current user: {}", principal.getName());
@@ -94,6 +95,7 @@ public class UserController {
         return ResponseEntity.ok(convertToResponseDTO(user));
     }
 
+    // ✅ UPDATE CURRENT USER (FOR PROFILE)
     @PutMapping("/staff/me")
     public ResponseEntity<UserResponseDto> updateCurrentUser(Principal principal, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating current user: {}", principal.getName());
