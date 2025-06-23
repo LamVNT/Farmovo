@@ -1,6 +1,6 @@
 import { RouterProvider } from "react-router-dom";
 import router from "./routes";
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 import './app.css';
 
 const MyContext = createContext();
@@ -8,6 +8,11 @@ const MyContext = createContext();
 function App() {
     const [isSidebarOpen, setisSidebarOpen] = useState(true);
     const [isLogin, setIslogin] = useState(false);
+
+    useEffect(() => {
+        const user = localStorage.getItem("user");
+        if (user) setIslogin(true);
+    }, []);
 
     const values = {
         isSidebarOpen,

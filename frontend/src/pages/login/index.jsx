@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+// pages/login/index.jsx
+import React, { useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MyContext } from '../../App';
+import LoginForm from '../../components/login/LoginForm';
 import { Link, NavLink } from 'react-router-dom';
 import Button from "@mui/material/Button";
 import { CiLogin, CiUser } from "react-icons/ci";
 import SocialLoginButtons from '../../components/login/SocialLoginButtons';
-import LoginForm from '../../components/login/LoginForm';
 
 const Login = () => {
-    const [loadingGoogle, setLoadingGoogle] = useState(false);
-    const [loadingfb, setLoadingfb] = useState(false);
+    const { isLogin } = useContext(MyContext);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (isLogin) {
+            navigate("/");
+        }
+    }, [isLogin]);
 
     return (
         <section className='bg-white w-full'>
@@ -41,13 +50,7 @@ const Login = () => {
                     Sign in with your credentials.
                 </h1>
 
-                <SocialLoginButtons
-                    onGoogleClick={() => setLoadingGoogle(true)}
-                    onFacebookClick={() => setLoadingfb(true)}
-                    loadingGoogle={loadingGoogle}
-                    loadingFacebook={loadingfb}
-                />
-
+                <SocialLoginButtons />
                 <div className="w-full flex items-center justify-center gap-3 my-6">
                     <span className="flex items-center w-[100px] h-[1px] bg-[rgba(0,0,0,0.2)]"></span>
                     <span className="text-[15px] font-[500]">Or, Sign in with your email</span>

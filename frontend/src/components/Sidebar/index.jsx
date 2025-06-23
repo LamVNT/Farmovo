@@ -31,12 +31,14 @@ const Sidebar = () => {
     const handleLogout = async () => {
         try {
             await api.post("/logout", {}, { withCredentials: true }); // Gọi backend để xoá cookie
-            context.setIslogin(false); // Set lại trạng thái login
-            navigate("/login"); // Chuyển hướng về trang login
+            localStorage.removeItem("user"); // ✅ Gợi ý #4: Xoá user info
+            context.setIslogin(false); // Cập nhật lại state
+            navigate("/login"); // Chuyển hướng
         } catch (error) {
             console.error("Logout error:", error);
         }
     };
+
 
     return (
         <>
@@ -181,16 +183,12 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
-                        <li>
-                            <Button
+                        <Button
                                 onClick={handleLogout} // ⚠️ BẠT BUỘC phải thêm
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
-                            </Button>
-                        </li>
-
-
+                        </Button>
                     </li>
                 </ul>
 
