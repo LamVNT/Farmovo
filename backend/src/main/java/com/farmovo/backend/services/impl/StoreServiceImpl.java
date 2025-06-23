@@ -19,19 +19,16 @@ public class StoreServiceImpl implements StoreService {
 
     @Autowired
     private StoreRepository storeRepository;
-
     @Override
     public List<Store> getAllStores() {
         logger.info("Retrieving all stores");
         return storeRepository.findAll();
     }
-
     @Override
     public Optional<Store> getStoreById(Long id) {
         logger.info("Retrieving store with id: {}", id);
         return storeRepository.findById(id);
     }
-
     @Override
     public Store saveStore(Store store) {
         logger.info("Saving new store: {}", store.getName());
@@ -45,7 +42,6 @@ public class StoreServiceImpl implements StoreService {
             throw new UserManagementException(e.getMessage());
         }
     }
-
     @Override
     public Optional<Store> updateStore(Long id, Store store) {
         logger.info("Updating store with id: {}", id);
