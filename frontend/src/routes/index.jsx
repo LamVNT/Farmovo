@@ -5,10 +5,16 @@ import Signup from "../pages/signup";
 import Dashboard from "../pages/dashboard";
 import Category from "../pages/category";
 import UserManagement from "../pages/user";
+import Unauthorized from "../pages/unauthorized";
 
-import GuestRoute from "./GuestRoute";
 import ProtectedRoute from "./PriviateRoute.jsx";
-import Unauthorized from "../pages/unauthorized/index.jsx";
+import GuestRoute from "./GuestRoute.jsx";
+
+// Import pages
+import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
+import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
+import Security from "../pages/profile/Security";
+import Notification from "../pages/profile/Notification";
 
 const router = createBrowserRouter([
     {
@@ -57,10 +63,36 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+
+    {
+        path: "/profile",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <ProfileLayout />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <Profile />,
+            },
+            {
+                path: "security",
+                element: <Security />,
+            },
+            {
+                path: "notification",
+                element: <Notification />,
+            },
+        ],
+    },
+
     {
         path: "/unauthorized",
         element: <Unauthorized />,
-    }
+    },
 ]);
 
 export default router;

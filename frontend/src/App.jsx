@@ -2,6 +2,7 @@ import { RouterProvider } from "react-router-dom";
 import router from "./routes";
 import { createContext, useState, useEffect } from "react";
 import './app.css';
+import {Toaster} from "react-hot-toast";
 
 const MyContext = createContext();
 
@@ -24,6 +25,7 @@ function App() {
     return (
         <MyContext.Provider value={values}>
             <RouterProvider router={router} />
+            <Toaster position="top-right" reverseOrder={false} />
         </MyContext.Provider>
     );
 }
