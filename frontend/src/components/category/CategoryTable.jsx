@@ -31,10 +31,9 @@ const CategoryTable = ({ rows, onEdit, onDelete }) => {
             <DataGrid
                 rows={rows}
                 columns={columns}
-                pageSize={5}
-                rowsPerPageOptions={[5, 10]}
-                checkboxSelection
-                disableSelectionOnClick
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableRowSelectionOnClick
                 sx={{
                     borderRadius: 2,
                     '& .MuiDataGrid-columnHeaders': {

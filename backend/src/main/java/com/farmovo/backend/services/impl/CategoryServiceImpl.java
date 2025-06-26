@@ -7,6 +7,7 @@ import com.farmovo.backend.mapper.CategoryMapper;
 import com.farmovo.backend.models.Category;
 import com.farmovo.backend.repositories.CategoryRepository;
 import com.farmovo.backend.services.CategoryService;
+import com.farmovo.backend.validator.CategoryValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,9 @@ public class CategoryServiceImpl implements CategoryService {
     @Autowired
     private CategoryMapper categoryMapper;
 
+    @Autowired
+    private CategoryValidator categoryValidator;
+
     @Override
     public List<CategoryResponseDto> getAllActiveCategories() {
         return categoryRepository.findByDeleteAtIsNull()
@@ -32,6 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto createCategory(CategoryRequestDto request) {
+        categoryValidator.validate(request);
         Category category = categoryMapper.toEntity(request);
         category.setCreateAt(LocalDateTime.now());
         category.setCreateBy(1L); // Giả sử user ID là 1
@@ -40,6 +45,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto updateCategory(Long id, CategoryRequestDto request) {
+        categoryValidator.validate(request);
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
         category.setName(request.getName());
