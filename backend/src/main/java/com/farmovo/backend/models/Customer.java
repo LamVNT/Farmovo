@@ -20,19 +20,19 @@ public class Customer {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false)
+    @Column(name = "customer_name", length = 255, nullable = false)
     private String name;
 
-    @Column(name = "email", length = 255)
+    @Column(name = "customer_email", length = 255)
     private String email;
 
-    @Column(name = "phone", length = 50)
+    @Column(name = "customer_phone", length = 50)
     private String phone;
 
-    @Column(name = "role", length = 50)
+    @Column(name = "customer_role", length = 50)
     private String role;
 
-    @Column(name = "total_dept")
+    @Column(name = "total_dept_amount")
     private BigDecimal totalDept;
 
     @Column(name = "create_by")
@@ -44,11 +44,9 @@ public class Customer {
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
+    @Column(name = "update_By")
+    private LocalDateTime updateBy;
 
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DeptNote> deptNotes;

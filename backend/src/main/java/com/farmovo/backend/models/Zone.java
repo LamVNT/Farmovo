@@ -19,11 +19,12 @@ public class Zone {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "description", length = 1000)
-    private String description;
+    @Column(name = "zone_name", length = 100)
+    private String zoneName;
 
-    @Column(name = "create_by")
-    private Long createBy;
+
+    @Column(name = "zone_description", length = 1000)
+    private String zoneDescription;
 
     @Column(name = "create_at")
     private LocalDateTime createAt;
@@ -31,11 +32,6 @@ public class Zone {
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<ImportTransactionDetail> importTransactionDetails;

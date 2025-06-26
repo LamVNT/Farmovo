@@ -19,6 +19,24 @@ public class Stocktake {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "stocktake_date", nullable = false)
+    private LocalDate stocktakeDate;
+
+    @Column(name = "actual_quantity")
+    private Integer actualQuantity;
+
+    @Column(name = "recorded_quantity")
+    private Integer recordedQuantity;
+
+    @Column(name = "stockate_note", length = 1000)
+    private String stocktakeNote;
+
+    @Column(name = "create_by")
+    private Long createBy;
+
+    @Column(name = "update_at")
+    private LocalDateTime updateAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
@@ -30,34 +48,4 @@ public class Stocktake {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
-
-    @Column(name = "stocktake_date", nullable = false)
-    private LocalDate stocktakeDate;
-
-    @Column(name = "actual_quantity")
-    private Integer actualQuantity;
-
-    @Column(name = "recorded_quantity")
-    private Integer recordedQuantity;
-
-    @Column(name = "difference")
-    private Integer difference;
-
-    @Column(name = "note", length = 1000)
-    private String note;
-
-    @Column(name = "create_by")
-    private Long createBy;
-
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
-
-    @Column(name = "update_at")
-    private LocalDateTime updateAt;
-
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
 }

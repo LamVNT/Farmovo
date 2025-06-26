@@ -69,15 +69,11 @@ public class StoreController {
     private StoreResponseDto convertToResponseDTO(Store store) {
         StoreResponseDto dto = new StoreResponseDto();
         dto.setId(store.getId());
-        dto.setName(store.getName());
-        dto.setDescription(store.getDescription());
-        dto.setAddress(store.getAddress());
-        dto.setBankAccount(store.getBankAccount());
-        dto.setCreateBy(store.getCreateBy());
+        dto.setName(store.getStoreName());
+        dto.setDescription(store.getStoreDescription());
+        dto.setAddress(store.getStoreAddress());
         dto.setCreateAt(store.getCreateAt());
         dto.setUpdateAt(store.getUpdateAt());
-        dto.setDeleteAt(store.getDeleteAt());
-        dto.setDeleteBy(store.getDeleteBy());
         return dto;
     }
 

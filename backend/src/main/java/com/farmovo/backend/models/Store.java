@@ -19,32 +19,20 @@ public class Store {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
-    private String name;
+    @Column(name = "store_name", length = 255, nullable = false, unique = true)
+    private String storeName;
 
-    @Column(name = "description", length = 1000)
-    private String description;
+    @Column(name = "store_description", length = 1000)
+    private String storeDescription;
 
-    @Column(name = "address", length = 500)
-    private String address;
-
-    @Column(name = "bank_account", length = 50)
-    private String bankAccount;
-
-    @Column(name = "create_by")
-    private Long createBy;
+    @Column(name = "store_Address", length = 500)
+    private String storeAddress;
 
     @Column(name = "create_at")
     private LocalDateTime createAt;
 
     @Column(name = "update_at")
     private LocalDateTime updateAt;
-
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<Product> products;

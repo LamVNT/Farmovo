@@ -20,20 +20,11 @@ public class ImportTransaction {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", length = 255)
-    private String name;
+    @Column(name = "total_amount")
+    private BigDecimal totalAmount;
 
-    @Column(name = "total")
-    private BigDecimal total;
-
-    @Column(name = "paid")
-    private BigDecimal paid;
-
-    @Column(name = "detail", length = 1000)
-    private String detail;
-
-    @Column(name = "note", length = 1000)
-    private String note;
+    @Column(name = "paid_amount")
+    private BigDecimal paidAmount;
 
     @Column(name = "status", length = 50)
     private String status;
@@ -47,11 +38,9 @@ public class ImportTransaction {
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
+    @Column(name = "update_by")
+    private LocalDateTime updateBy;
 
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")

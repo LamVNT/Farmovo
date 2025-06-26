@@ -19,14 +19,11 @@ public class Category {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
-    private String name;
+    @Column(name = "category_name", length = 255, nullable = false, unique = true)
+    private String categoryName;
 
-    @Column(name = "description", length = 1000)
-    private String description;
-
-    @Column(name = "create_by")
-    private Long createBy;
+    @Column(name = "category_description", length = 1000)
+    private String categoryDescription;
 
     @Column(name = "create_at")
     private LocalDateTime createAt;
@@ -34,11 +31,6 @@ public class Category {
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Product> products;

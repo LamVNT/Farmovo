@@ -19,25 +19,17 @@ public class SaleTransaction {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
+    @Column(name = "total_amount")
+    private BigDecimal totalAmount;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
-    private Store store;
-
-    @Column(name = "total")
-    private BigDecimal total;
-
-    @Column(name = "paid")
-    private BigDecimal paid;
+    @Column(name = "paid_amount")
+    private BigDecimal paidAmount;
 
     @Column(name = "detail", length = 1000)
     private String detail;
 
-    @Column(name = "note", length = 1000)
-    private String note;
+    @Column(name = "sale_transaction_note", length = 1000)
+    private String saleTransactionNote;
 
     @Column(name = "status", length = 50)
     private String status;
@@ -45,15 +37,17 @@ public class SaleTransaction {
     @Column(name = "create_by")
     private Long createBy;
 
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
+    @Column(name = "sale_date")
+    private LocalDateTime saleDate;
 
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
 
-    @Column(name = "delete_by")
-    private Long deleteBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
 }

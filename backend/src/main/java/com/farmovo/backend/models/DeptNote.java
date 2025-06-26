@@ -19,28 +19,20 @@ public class DeptNote {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
-
-    @Column(name = "amount")
-    private BigDecimal amount;
+    @Column(name = "dept_amount")
+    private BigDecimal deptAmount;
 
     @Column(name = "dept_date")
     private LocalDateTime deptDate;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
-    private Store store;
+    @Column(name = "dept_type", length = 50)
+    private String deptType;
 
-    @Column(name = "type", length = 50)
-    private String type;
+    @Column(name = "dept_description", length = 1000)
+    private String deptDescription;
 
-    @Column(name = "description", length = 1000)
-    private String description;
-
-    @Column(name = "evidences", length = 1000)
-    private String evidences;
+    @Column(name = "dept_evidences", length = 1000)
+    private String deptEvidences;
 
     @Column(name = "from_source", length = 255)
     private String fromSource;
@@ -57,9 +49,15 @@ public class DeptNote {
     @Column(name = "update_at")
     private LocalDateTime updateAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
+    @Column(name = "update_by")
+    private LocalDateTime updateBy;
 
-    @Column(name = "delete_by")
-    private Long deleteBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
 }

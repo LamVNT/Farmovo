@@ -156,8 +156,6 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(dto.getPassword());
         user.setStatus(dto.getStatus());
-        user.setCreateBy(dto.getCreateBy());
-        user.setDeleteBy(dto.getDeleteBy());
         if (dto.getStoreId() != null) {
             Store store = storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> {

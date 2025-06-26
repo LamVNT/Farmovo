@@ -117,12 +117,9 @@ public class UserController {
                 .fullName(user.getFullName())
                 .username(user.getUsername())
                 .status(user.getStatus())
-                .createBy(user.getCreateBy())
                 .createAt(user.getCreateAt())
                 .updateAt(user.getUpdateAt())
-                .deleteAt(user.getDeleteAt())
-                .deleteBy(user.getDeleteBy())
-                .storeName(user.getStore() != null ? user.getStore().getName() : null)
+                .storeName(user.getStore() != null ? user.getStore().getStoreName() : null)
                 .roles(user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
                 .build();
     }
