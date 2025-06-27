@@ -52,7 +52,7 @@ public class LoginController {
 
         // ✅ Xử lý thời gian sống của cookie
         int expireTime = loginRequest.isRememberMe() ? 7 * 24 * 60 * 60 : -1; // 7 ngày hoặc session
-
+        // cho phuc
         // ✅ Tạo HttpOnly cookie
         ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
                 .httpOnly(true)

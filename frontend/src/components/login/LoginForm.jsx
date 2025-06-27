@@ -14,7 +14,7 @@ const LoginForm = () => {
     const [isPasswordShow, setIsPasswordShow] = useState(false);
     const { setIslogin } = useContext(MyContext);
     const navigate = useNavigate();
-    const remembered = localStorage.getItem("rememberedEmail");
+    // const remembered = localStorage.getItem("rememberedEmail");
     useEffect(() => {
         const remembered = localStorage.getItem("rememberedEmail");
         if (remembered) {
