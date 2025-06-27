@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,23 +21,21 @@ public class Zone {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "description", length = 1000)
-    private String description;
+    @Column(name = "zone_name", length = 100)
+    private String zoneName;
 
-    @Column(name = "create_by")
-    private Long createBy;
 
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
+    @Column(name = "zone_description", length = 1000)
+    private String zoneDescription;
 
-    @Column(name = "update_at")
-    private LocalDateTime updateAt;
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
-    @Column(name = "delete_by")
-    private Long deleteBy;
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<ImportTransactionDetail> importTransactionDetails;

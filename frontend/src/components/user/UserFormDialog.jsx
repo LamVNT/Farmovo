@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -8,9 +8,47 @@ import {
     Button,
     FormControlLabel,
     Checkbox,
+    Autocomplete,
 } from '@mui/material';
+import axios from 'axios';
+
+const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
 
 const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+    const [stores, setStores] = useState([]);
+    const [roles, setRoles] = useState([]);
+
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/admin/storeList`, {
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                });
+                setStores(response.data.map(store => ({ id: store.id, name: store.name })));
+            } catch (error) {
+                console.error('Không thể lấy danh sách cửa hàng:', error);
+            }
+        };
+
+        const fetchRoles = async () => {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/authorities/admin/roleList`, {
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                });
+                setRoles(response.data.map(role => role.role));
+            } catch (error) {
+                console.error('Không thể lấy danh sách role:', error);
+            }
+        };
+
+        if (open) {
+            fetchStores();
+            fetchRoles();
+        }
+    }, [open]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
@@ -18,6 +56,21 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
 
     const handleStatusChange = (e) => {
         setForm((prev) => ({ ...prev, status: e.target.checked }));
+    };
+
+    const handleStoreChange = (event, value) => {
+        setForm((prev) => ({
+            ...prev,
+            storeId: value ? value.id : null,
+            storeName: value ? value.name : '',
+        }));
+    };
+
+    const handleRolesChange = (event, value) => {
+        setForm((prev) => ({
+            ...prev,
+            roles: value || [],
+        }));
     };
 
     return (
@@ -39,7 +92,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     label="Họ tên"
                     name="fullName"
                     fullWidth
-                    value={form.fullName}
+                    value={form.fullName || ''}
                     onChange={handleChange}
                     required
                 />
@@ -48,7 +101,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     label="Tên đăng nhập"
                     name="username"
                     fullWidth
-                    value={form.username}
+                    value={form.username || ''}
                     onChange={handleChange}
                     required
                 />
@@ -58,29 +111,50 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     name="password"
                     type="password"
                     fullWidth
-                    value={form.password}
+                    value={form.password || ''}
                     onChange={handleChange}
                     required={!editMode}
                 />
                 <FormControlLabel
                     control={
                         <Checkbox
-                            checked={form.status}
+                            checked={form.status || false}
                             onChange={handleStatusChange}
                             name="status"
                         />
                     }
                     label="Hoạt động"
                 />
-                <TextField
-                    margin="dense"
-                    label="ID Cửa hàng"
-                    name="storeId"
-                    type="number"
-                    fullWidth
-                    value={form.storeId}
-                    onChange={handleChange}
-                    required
+                <Autocomplete
+                    options={stores}
+                    getOptionLabel={(option) => option.name || ''}
+                    value={stores.find((store) => store.id === form.storeId) || null}
+                    onChange={handleStoreChange}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            margin="dense"
+                            label="Cửa hàng *"
+                            fullWidth
+                            required
+                        />
+                    )}
+                />
+                <Autocomplete
+                    multiple
+                    options={roles}
+                    getOptionLabel={(option) => option}
+                    value={form.roles || []}
+                    onChange={handleRolesChange}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            margin="dense"
+                            label="Roles *"
+                            fullWidth
+                            required
+                        />
+                    )}
                 />
                 {editMode && (
                     <>

@@ -1,91 +1,96 @@
-import React, { useState, useContext, useEffect  } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from '@mui/material/FormControlLabel';
-import { FaRegEye, FaEyeSlash } from "react-icons/fa";
-import { MyContext } from '../../App';
-import api from "../../services/axiosClient.js";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { MyContext } from "../../App";
+import axios from "axios";
 
 const LoginForm = () => {
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [rememberMe, setRememberMe] = useState(false); // ✅ Thêm state này
-    const [isPasswordShow, setIsPasswordShow] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
     const { setIslogin } = useContext(MyContext);
     const navigate = useNavigate();
-    // const remembered = localStorage.getItem("rememberedEmail");
-    useEffect(() => {
-        const remembered = localStorage.getItem("rememberedEmail");
-        if (remembered) {
-            setEmail(remembered);
-            setRememberMe(true);
-        }
-    }, []);
 
-    const handleLogin = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
+        setLoading(true);
 
         try {
-            const response = await api.post("/signin", {
-                username: email,
-                password: password,
-                rememberMe: rememberMe
-            }, {
-                withCredentials: true
-            });
+            const res = await axios.post(
+                `${import.meta.env.VITE_API_URL}/signin`,
+                { username, password, rememberMe },
+                { withCredentials: true }
+            );
 
-            const token = response.data.jwtToken;
-            localStorage.setItem("token", token);
+            localStorage.setItem("user", JSON.stringify({
+                username: res.data.username,
+                roles: res.data.roles
+            }));
+
             setIslogin(true);
-
-            const roles = response.data.roles;
-            if (roles.includes("ROLE_ADMIN")) {
-                navigate("/users");
-            } else {
-                navigate("/");
-            }
-
+            navigate("/");
         } catch (err) {
-            alert("Đăng nhập thất bại! Vui lòng kiểm tra lại.");
-            console.error("❌ Lỗi:", err.response?.data || err.message);
+            console.error(err);
+            setError("Invalid username or password.");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <form className="w-full px-8 mt-3" onSubmit={handleLogin}>
-            <div className="form-group mb-4 w-full">
-                <h4 className="text-[14px] font-[500] mb-1">Email</h4>
-                <input type="text" value={email} onChange={(e) => setEmail(e.target.value)}
-                       className="w-full h-[50px] border-2 rounded-sm px-3" required />
-            </div>
-            <div className="form-group mb-4 w-full">
-                <h4 className="text-[14px] font-[500] mb-1">Password</h4>
-                <div className="relative w-full">
-                    <input type={isPasswordShow ? "text" : "password"} value={password}
-                           onChange={(e) => setPassword(e.target.value)}
-                           className="w-full h-[50px] border-2 rounded-sm px-3" required />
-                    <Button className="!absolute top-[5px] right-[10px] z-50 !rounded-full !w-[35px]"
-                            onClick={() => setIsPasswordShow(!isPasswordShow)} type="button">
-                        {isPasswordShow ? <FaEyeSlash /> : <FaRegEye />}
-                    </Button>
+        <form onSubmit={handleSubmit} className="px-10 mt-4 space-y-4">
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+                    {error}
                 </div>
-            </div>
+            )}
 
-            <div className="form-group mb-4 w-full flex items-center justify-between">
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)} // ✅ Cập nhật state
-                        />
-                    }
-                    label="Remember Me"
+            <div>
+                <label className="block text-sm font-medium mb-1">Username</label>
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Enter your username"
+                    required
                 />
-                <Link to="/forgot-password" className="text-primary text-[15px] hover:underline">Forgot Password?</Link>
             </div>
 
-            <Button type="submit" className="btn-blue btn-lg w-full">Sign In</Button>
+            <div>
+                <label className="block text-sm font-medium mb-1">Password</label>
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Enter your password"
+                    required
+                />
+            </div>
+
+            <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="accent-blue-500"
+                    />
+                    Remember Me
+                </label>
+                <a href="#" className="text-sm text-blue-500 hover:underline">Forgot password?</a>
+            </div>
+
+            <button
+                type="submit"
+                disabled={loading}
+                className={`w-full text-white py-2 rounded transition ${loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
+                {loading ? "Signing in..." : "Sign In"}
+            </button>
         </form>
     );
 };

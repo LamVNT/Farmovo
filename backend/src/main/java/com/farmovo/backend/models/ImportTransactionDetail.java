@@ -19,23 +19,11 @@ public class ImportTransactionDetail {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "import_transaction_id")
-    private ImportTransaction importTransaction;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "zone_id")
-    private Zone zone;
-
-    @Column(name = "quantity")
-    private Integer quantity;
+    @Column(name = "import_quantity")
+    private Integer importQuantity;
 
     @Column(name = "remain_quantity")
     private Integer remainQuantity;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private Product product;
 
     @Column(name = "expire_date")
     private LocalDateTime expireDate;
@@ -46,18 +34,16 @@ public class ImportTransactionDetail {
     @Column(name = "unit_sale_price")
     private BigDecimal unitSalePrice;
 
-    @Column(name = "create_by")
-    private Long createBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_transaction_id")
+    private ImportTransaction importTransaction;
 
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_id")
+    private Zone zone;
 
-    @Column(name = "update_at")
-    private LocalDateTime updateAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private Product product;
 
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
 }

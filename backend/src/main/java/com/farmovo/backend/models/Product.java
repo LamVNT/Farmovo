@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,11 +21,28 @@ public class Product {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "detail", length = 1000)
-    private String detail;
+    @Column(name = "product_name", length = 1000)
+    private String productName;
 
-    @Column(name = "quantity", nullable = false)
-    private Integer quantity;
+    @Column(name = "product_description", length = 1000)
+    private String productDescription;
+
+    @Column(name = "product_quantity", nullable = false)
+    private Integer productQuantity;
+
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    private List<ImportTransactionDetail> importTransactionDetails;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    private List<Stocktake> stocktakes;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
@@ -32,25 +51,4 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
-
-    @Column(name = "create_by")
-    private Long createBy;
-
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
-
-    @Column(name = "update_at")
-    private LocalDateTime updateAt;
-
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ImportTransactionDetail> importTransactionDetails;
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<Stocktake> stocktakes;
 }

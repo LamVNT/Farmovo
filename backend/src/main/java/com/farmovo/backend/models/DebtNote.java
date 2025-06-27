@@ -9,27 +9,38 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
-@Table(name = "import_transactions")
+@Table(name = "debt_notes")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImportTransaction {
+public class DebtNote {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "total_amount")
-    private BigDecimal totalAmount;
+    @Column(name = "debt_amount")
+    private BigDecimal debtAmount;
 
-    @Column(name = "paid_amount")
-    private BigDecimal paidAmount;
+    @Column(name = "debt_date")
+    private LocalDateTime debtDate;
 
-    @Column(name = "status", length = 50)
-    private String status;
+    @Column(name = "debt_type", length = 50)
+    private String debtType;
+
+    @Column(name = "debt_description", length = 1000)
+    private String debtDescription;
+
+    @Column(name = "debt_evidences", length = 1000)
+    private String debtEvidences;
+
+    @Column(name = "from_source", length = 255)
+    private String fromSource;
+
+    @Column(name = "source_id")
+    private Long sourceId;
 
     @Column(name = "created_by")
     private Long createdBy;
@@ -45,7 +56,6 @@ public class ImportTransaction {
     @Column(name = "updated_by")
     private Long updatedBy;
 
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
@@ -54,10 +64,4 @@ public class ImportTransaction {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "staff_id")
-    private User staff;
-
-    @OneToMany(mappedBy = "importTransaction", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ImportTransactionDetail> details;
 }

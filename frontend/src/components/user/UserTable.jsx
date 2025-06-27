@@ -7,7 +7,7 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 
-const UserTable = ({ users, onEdit, onDelete, onToggleStatus, onUpdateStatus }) => {
+const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
     const userColumns = [
         { field: 'id', headerName: 'ID', flex: 0.5 },
         { field: 'fullName', headerName: 'Họ tên', flex: 1.5 },
@@ -49,12 +49,12 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus, onUpdateStatus }) 
                     <IconButton onClick={() => onToggleStatus(params.id)}>
                         <SwapHorizIcon color="warning" />
                     </IconButton>
-                    <IconButton onClick={() => onUpdateStatus(params.id, true)}>
-                        <CheckCircleIcon color="success" />
-                    </IconButton>
-                    <IconButton onClick={() => onUpdateStatus(params.id, false)}>
-                        <CancelIcon color="disabled" />
-                    </IconButton>
+                    {/*<IconButton onClick={() => onUpdateStatus(params.id, true)}>*/}
+                    {/*    <CheckCircleIcon color="success" />*/}
+                    {/*</IconButton>*/}
+                    {/*<IconButton onClick={() => onUpdateStatus(params.id, false)}>*/}
+                    {/*    <CancelIcon color="disabled" />*/}
+                    {/*</IconButton>*/}
                 </>
             ),
         },
