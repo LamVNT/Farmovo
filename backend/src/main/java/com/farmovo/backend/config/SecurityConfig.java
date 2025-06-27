@@ -53,11 +53,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/signin").permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")  // Chỉ ADMIN vào được /admin/**
-                        .requestMatchers("/staff/**").hasRole("STAFF")  // Chỉ STAFF vào được /staff/**
+                        .requestMatchers("/api/logout").permitAll()
+                        .requestMatchers("/api/users/me", "/api/users").authenticated()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/staff/**").hasRole("STAFF")
                         .anyRequest().authenticated()
-//                                .anyRequest().permitAll()
                 )
+
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(unauthorizedHandler))
                 .httpBasic(withDefaults())
                 .headers(headers -> headers

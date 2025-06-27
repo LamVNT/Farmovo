@@ -1,7 +1,7 @@
 import React from "react";
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Button, Box, Typography, styled
+    TextField, Button, Box, Typography, styled, FormHelperText
 } from "@mui/material";
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -27,53 +27,76 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
     marginBottom: theme.spacing(2),
 }));
 
-const CategoryFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }) => (
-    <StyledDialog open={open} onClose={onClose}>
-        <DialogTitle>
-            <Typography variant="h6" fontWeight="bold" color="text.primary">
-                {editMode ? "Edit Category" : "Create Category"}
-            </Typography>
-        </DialogTitle>
-        <DialogContent>
-            <Box sx={{ padding: 2 }}>
-                <StyledTextField
-                    autoFocus
-                    margin="dense"
-                    label="Category Name"
-                    fullWidth
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    variant="outlined"
-                    required
-                    error={!form.name.trim()}
-                    helperText={!form.name.trim() ? "Name is required" : ""}
-                />
-                <StyledTextField
-                    margin="dense"
-                    label="Description"
-                    fullWidth
-                    multiline
-                    rows={3}
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    variant="outlined"
-                />
-            </Box>
-        </DialogContent>
-        <DialogActions sx={{ padding: 2 }}>
-            <Button onClick={onClose} variant="outlined" color="secondary">
-                Cancel
-            </Button>
-            <Button
-                onClick={onSubmit}
-                variant="contained"
-                color="primary"
-                disabled={!form.name.trim()}
-            >
-                {editMode ? "Update" : "Create"}
-            </Button>
-        </DialogActions>
-    </StyledDialog>
-);
+const CategoryFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }) => {
+    const validateName = () => {
+        if (!form.name.trim()) return "Name is required";
+        if (form.name.length > 255) return "Name must not exceed 255 characters";
+        return null;
+    };
+
+    const validateDescription = () => {
+        if (form.description && form.description.length > 1000) {
+            return "Description must not exceed 1000 characters";
+        }
+        return null;
+    };
+
+    const nameError = validateName();
+    const descriptionError = validateDescription();
+    const isFormValid = !nameError && !descriptionError;
+
+    return (
+        <StyledDialog open={open} onClose={onClose}>
+            <DialogTitle>
+                <Typography variant="h6" fontWeight="bold" color="text.primary">
+                    {editMode ? "Edit Category" : "Create Category"}
+                </Typography>
+            </DialogTitle>
+            <DialogContent>
+                <Box sx={{ padding: 2 }}>
+                    <StyledTextField
+                        autoFocus
+                        margin="dense"
+                        label="Category Name"
+                        fullWidth
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        variant="outlined"
+                        required
+                        error={!!nameError}
+                        helperText={nameError || ""}
+                        inputProps={{ maxLength: 255 }}
+                    />
+                    <StyledTextField
+                        margin="dense"
+                        label="Description"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={form.description || ""}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        variant="outlined"
+                        error={!!descriptionError}
+                        helperText={descriptionError || `${form.description?.length || 0}/1000`}
+                        inputProps={{ maxLength: 1000 }}
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions sx={{ padding: 2 }}>
+                <Button onClick={onClose} variant="outlined" color="secondary">
+                    Cancel
+                </Button>
+                <Button
+                    onClick={onSubmit}
+                    variant="contained"
+                    color="primary"
+                    disabled={!isFormValid}
+                >
+                    {editMode ? "Update" : "Create"}
+                </Button>
+            </DialogActions>
+        </StyledDialog>
+    );
+};
 
 export default CategoryFormDialog;

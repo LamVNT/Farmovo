@@ -137,40 +137,13 @@ const Sidebar = () => {
                         </Collapse>
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                        !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
-                            onClick={() => isOpenSubMenu(4)}
-                        >
-                            <TbCategory className="text-[20px]"/> <span>Category</span>
-                            <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
-            <FaAngleDown className={`transition-all ${submenuIndex === 4 ? 'rotate-180' : ''}`}/>
-        </span>
-                        </Button>
-                        <Collapse isOpened={submenuIndex === 4}>
-                            <ul className="w-full">
-                                <li className="w-full">
-                                <Link to="/category">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
-                 !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Category
-                                        List
-                                    </Button>
-                            </Link>
-                                </li>
-                                <li className="w-full">
-                                    <Link to="/category/add">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
-                 !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
-                                        Category
-                                    </Button>
-                                    </Link>
-                                </li>
-                            </ul>
-                        </Collapse>
+                        <Link to="/category">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <TbCategory className="text-[20px]" /> <span>Category</span>
+                            </Button>
+                        </Link>
                     </li>
 
                     <li>

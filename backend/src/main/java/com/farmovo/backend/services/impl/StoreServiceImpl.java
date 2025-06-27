@@ -19,24 +19,21 @@ public class StoreServiceImpl implements StoreService {
 
     @Autowired
     private StoreRepository storeRepository;
-
     @Override
     public List<Store> getAllStores() {
         logger.info("Retrieving all stores");
         return storeRepository.findAll();
     }
-
     @Override
     public Optional<Store> getStoreById(Long id) {
         logger.info("Retrieving store with id: {}", id);
         return storeRepository.findById(id);
     }
-
     @Override
     public Store saveStore(Store store) {
-        logger.info("Saving new store: {}", store.getName());
+        logger.info("Saving new store: {}", store.getStoreName());
         try {
-            if (store.getName() == null || store.getName().isBlank()) {
+            if (store.getStoreName() == null || store.getStoreName().isBlank()) {
                 throw new IllegalArgumentException("Store name is required");
             }
             return storeRepository.save(store);
@@ -45,13 +42,12 @@ public class StoreServiceImpl implements StoreService {
             throw new UserManagementException(e.getMessage());
         }
     }
-
     @Override
     public Optional<Store> updateStore(Long id, Store store) {
         logger.info("Updating store with id: {}", id);
         if (storeRepository.existsById(id)) {
             try {
-                if (store.getName() == null || store.getName().isBlank()) {
+                if (store.getStoreName() == null || store.getStoreName().isBlank()) {
                     throw new IllegalArgumentException("Store name is required");
                 }
                 store.setId(id);
@@ -81,12 +77,9 @@ public class StoreServiceImpl implements StoreService {
     public Store convertToEntity(StoreRequestDto dto) {
         logger.info("Converting StoreRequestDto to Store entity: {}", dto.getName());
         Store store = new Store();
-        store.setName(dto.getName());
-        store.setDescription(dto.getDescription());
-        store.setAddress(dto.getAddress());
-        store.setBankAccount(dto.getBankAccount());
-        store.setCreateBy(dto.getCreateBy());
-        store.setDeleteBy(dto.getDeleteBy());
+        store.setStoreName(dto.getName());
+        store.setStoreDescription(dto.getDescription());
+        store.setStoreAddress(dto.getAddress());
         return store;
     }
 }

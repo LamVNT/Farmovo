@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 public class CategoryUtils {
     public List<Category> filterActiveCategories(List<Category> categories) {
         return categories.stream()
-                .filter(category -> category.getDeleteAt() == null)
+                .filter(category -> category.getUpdatedAt() == null)
                 .collect(Collectors.toList());
     }
 }

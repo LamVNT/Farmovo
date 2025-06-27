@@ -63,7 +63,6 @@ public class LoginController {
                 .build();
 
         LoginResponse loginResponse = new LoginResponse(jwtToken, userDetails.getUsername(), roles);
-
         // ✅ Trả về cookie + body JSON
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
@@ -76,7 +75,7 @@ public class LoginController {
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
-                .maxAge(0) // Xóa ngay lập tức
+                .maxAge(0)
                 .sameSite("Lax")
                 .build();
 
@@ -84,7 +83,6 @@ public class LoginController {
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body("Logged out successfully");
     }
-
     @GetMapping("/admin/listuser")
     public List<User> getAllUsers() {
         return userRepository.findAll();

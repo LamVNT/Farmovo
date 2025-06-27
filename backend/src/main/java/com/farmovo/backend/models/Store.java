@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,32 +21,22 @@ public class Store {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", length = 255, nullable = false, unique = true)
-    private String name;
+    @Column(name = "store_name", length = 255, nullable = false, unique = true)
+    private String storeName;
 
-    @Column(name = "description", length = 1000)
-    private String description;
+    @Column(name = "store_description", length = 1000)
+    private String storeDescription;
 
-    @Column(name = "address", length = 500)
-    private String address;
+    @Column(name = "store_address", length = 500)
+    private String storeAddress;
 
-    @Column(name = "bank_account", length = 50)
-    private String bankAccount;
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @Column(name = "create_by")
-    private Long createBy;
-
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
-
-    @Column(name = "update_at")
-    private LocalDateTime updateAt;
-
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<Product> products;
@@ -59,7 +51,7 @@ public class Store {
     private List<Stocktake> stocktakes;
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
-    private List<DeptNote> deptNotes;
+    private List<DebtNote> debtNotes;
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<User> users;

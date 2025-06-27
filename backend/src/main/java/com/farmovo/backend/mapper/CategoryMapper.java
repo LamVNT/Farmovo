@@ -11,15 +11,14 @@ import org.mapstruct.factory.Mappers;
 public interface CategoryMapper {
     CategoryMapper INSTANCE = Mappers.getMapper(CategoryMapper.class);
 
-    @Mapping(target = "createAt", ignore = true)
-    @Mapping(target = "updateAt", ignore = true)
-    @Mapping(target = "deleteAt", ignore = true)
-    @Mapping(target = "deleteBy", ignore = true)
-    @Mapping(target = "createBy", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "products", ignore = true)
     Category toEntity(CategoryRequestDto requestDto);
 
-    @Mapping(target = "createAt", source = "createAt")
-    @Mapping(target = "updateAt", source = "updateAt")
+    @Mapping(target = "name", source = "categoryName")
+    @Mapping(target = "description", source = "categoryDescription")
+    @Mapping(target = "createAt", source = "createdAt")
+    @Mapping(target = "updateAt", source = "updatedAt")
     CategoryResponseDto toResponseDto(Category category);
 }

@@ -36,22 +36,13 @@ public class User implements UserDetails {
     @Column(name = "status", nullable = false)
     private Boolean status;
 
-    @Column(name = "create_by")
-    private Long createBy;
-
-    @Column(name = "create_at")
     @CreationTimestamp
-    private LocalDateTime createAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @Column(name = "update_at")
     @UpdateTimestamp
-    private LocalDateTime updateAt;
-
-    @Column(name = "delete_at")
-    private LocalDateTime deleteAt;
-
-    @Column(name = "delete_by")
-    private Long deleteBy;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
