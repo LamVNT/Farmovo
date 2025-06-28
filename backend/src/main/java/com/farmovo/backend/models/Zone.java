@@ -3,11 +3,9 @@ package com.farmovo.backend.models;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -15,7 +13,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Zone {
+@EqualsAndHashCode(callSuper = true)
+public class Zone extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -24,22 +23,12 @@ public class Zone {
     @Column(name = "zone_name", length = 100)
     private String zoneName;
 
-
     @Column(name = "zone_description", length = 1000)
     private String zoneDescription;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
+    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
+    private List<Stocktake> stocktakes;
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<ImportTransactionDetail> importTransactionDetails;
-
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
-    private List<Stocktake> stocktakes;
 }

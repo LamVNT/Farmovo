@@ -11,10 +11,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ZoneResponseDto {
     private Long id;
-    private String description;
+    private String zoneName;
+    private String zoneDescription;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
 }
+
