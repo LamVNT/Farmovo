@@ -3,12 +3,10 @@ package com.farmovo.backend.models;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -16,7 +14,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Customer {
+@EqualsAndHashCode(callSuper = true)
+public class Customer extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -31,31 +30,16 @@ public class Customer {
     @Column(name = "customer_phone", length = 50)
     private String phone;
 
-    @Column(name = "customer_role", length = 50)
-    private String role;
+    @Column(name = "is_supplier")
+    private Boolean isSupplier;
 
     @Column(name = "total_debt_amount")
     private BigDecimal totalDebt;
 
-    @Column(name = "created_by")
-    private Long createdBy;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "updated_by")
-    private Long updatedBy;
-
-
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DebtNote> debtNotes;
 
-    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL)
     private List<ImportTransaction> importTransactions;
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)

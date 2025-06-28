@@ -3,18 +3,16 @@ package com.farmovo.backend.models;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "status_logs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class StatusLog {
+@EqualsAndHashCode(callSuper = true)
+public class StatusLog extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -34,16 +32,4 @@ public class StatusLog {
 
     @Column(name = "description", length = 1000)
     private String description;
-
-    @Column(name = "created_by")
-    private Long createdBy;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
 }

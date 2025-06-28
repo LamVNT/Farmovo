@@ -1,5 +1,6 @@
 package com.farmovo.backend.dto.request;
 
+import com.farmovo.backend.models.StocktakeStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,6 @@ public class StocktakeRequestDto {
     private LocalDate stocktakeDate;
     private Integer actualQuantity;
     private Integer recordedQuantity;
-    private Integer difference;
     private String note;
+    private StocktakeStatus status;
 }
