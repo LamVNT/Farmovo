@@ -16,7 +16,7 @@ import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.springframework.security.core.GrantedAuthority; // Thêm import này
+import org.springframework.security.core.GrantedAuthority;
 
 @RestController
 @RequestMapping("/api/users")
@@ -44,10 +44,10 @@ public class UserController {
     }
 
     @PostMapping("/admin/createUser")
-    public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto) {
-        logger.info("Creating new user: {}", dto.getUsername());
+    public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto, Principal principal) {
+        logger.info("Creating new user: {} by user: {}", dto.getUsername(), principal.getName());
         User user = userService.convertToEntity(dto);
-        User savedUser = userService.saveUser(user);
+        User savedUser = userService.saveUser(user, principal);
         return convertToResponseDTO(savedUser);
     }
 
@@ -61,9 +61,9 @@ public class UserController {
     }
 
     @DeleteMapping("/admin/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        logger.info("Deleting user with id: {}", id);
-        if (userService.deleteUser(id)) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id, Principal principal) {
+        logger.info("Deleting user with id: {} by user: {}", id, principal.getName());
+        if (userService.deleteUser(id, principal)) {
             logger.info("User with id {} deleted successfully", id);
             return ResponseEntity.ok().build();
         }
@@ -86,7 +86,6 @@ public class UserController {
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
-    // ✅ GET CURRENT USER (FOR PROFILE)
     @GetMapping("/staff/me")
     public ResponseEntity<UserResponseDto> getCurrentUser(Principal principal) {
         logger.info("Fetching current user: {}", principal.getName());
@@ -95,7 +94,6 @@ public class UserController {
         return ResponseEntity.ok(convertToResponseDTO(user));
     }
 
-    // ✅ UPDATE CURRENT USER (FOR PROFILE)
     @PutMapping("/staff/me")
     public ResponseEntity<UserResponseDto> updateCurrentUser(Principal principal, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating current user: {}", principal.getName());
