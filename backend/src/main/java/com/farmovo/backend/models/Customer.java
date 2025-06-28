@@ -30,6 +30,9 @@ public class Customer extends Base {
     @Column(name = "customer_phone", length = 50)
     private String phone;
 
+    @Column(name = "customer_address", length = 255)
+    private String address;
+
     @Column(name = "is_supplier")
     private Boolean isSupplier;
 

@@ -36,6 +36,12 @@ public class ImportTransactionDetail extends Base {
     @Column(name = "unit_sale_price")
     private BigDecimal unitSalePrice;
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_id")
+    private Zone zone;
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "import_transaction_id")
     private ImportTransaction importTransaction;

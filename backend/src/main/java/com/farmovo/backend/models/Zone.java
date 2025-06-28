@@ -28,4 +28,7 @@ public class Zone extends Base {
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<Stocktake> stocktakes;
+
+    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
+    private List<ImportTransactionDetail> importTransactionDetails;
 }

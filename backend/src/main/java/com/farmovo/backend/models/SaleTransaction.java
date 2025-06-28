@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "sale_transactions")
@@ -36,8 +37,8 @@ public class SaleTransaction extends Base {
     @Column(name = "status", length = 50)
     private SaleTransactionStatus status;
 
-    @Column(name = "updated_by")
-    private Long updatedBy;
+    @Column(name = "sale_date", nullable = false)
+    private LocalDate saleDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")

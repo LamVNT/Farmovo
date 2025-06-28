@@ -42,9 +42,6 @@ public class DebtNote extends Base {
     @Column(name = "source_id")
     private Long sourceId;
 
-    @Column(name = "updated_by")
-    private Long updatedBy;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
