@@ -15,6 +15,7 @@ import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
 import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
+import DebtNote from "../pages/debt/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -59,6 +60,17 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <UserManagement />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+
+    {
+        path: "/debts",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <DebtNote />
                 </MainLayout>
             </ProtectedRoute>
         ),
