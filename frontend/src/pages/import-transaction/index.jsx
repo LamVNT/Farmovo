@@ -121,7 +121,11 @@ const ImportTransactionPage = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
-                    <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">Nhập hàng</Button>
+                    <Link to="/import/new">
+                        <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">
+                            Nhập hàng
+                        </Button>
+                    </Link>
                     <Button variant="outlined" startIcon={<FaFileExport />}>Xuất file</Button>
                 </div>
             </div>
