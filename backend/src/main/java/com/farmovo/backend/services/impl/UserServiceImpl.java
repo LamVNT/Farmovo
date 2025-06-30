@@ -17,6 +17,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,24 +41,24 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<User> getAllUsers() {
-        logger.info("Retrieving all users");
-        return userRepository.findAll();
+        logger.info("Retrieving all users (non-deleted)");
+        return userRepository.findAllByDeletedAtIsNull();
     }
 
     @Override
     public Optional<User> getUserById(Long id) {
         logger.info("Retrieving user with id: {}", id);
-        return userRepository.findById(id);
+        return userRepository.findByIdAndDeletedAtIsNull(id);
     }
 
     @Override
     public Optional<User> getUserByUsername(String username) {
         logger.info("Retrieving user with username: {}", username);
-        return userRepository.findByUsername(username);
+        return userRepository.findByUsernameAndDeletedAtIsNull(username);
     }
 
     @Override
-    public User saveUser(User user) {
+    public User saveUser(User user, Principal principal) {
         logger.info("Saving new user with account: {}", user.getUsername());
         try {
             inputUserValidation.validateUserFieldsForCreate(user.getFullName(), user.getUsername(), user.getPassword());
@@ -68,6 +70,9 @@ public class UserServiceImpl implements UserService {
             if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
             }
+            // Set createdBy using the authenticated user's ID
+            Long createdById = getCurrentUserId(principal);
+            user.setCreatedBy(createdById);
             // Xử lý authorities (roles) khi tạo mới
             if (user.getAuthorities() != null && !user.getAuthorities().isEmpty()) {
                 user.setAuthorities(user.getAuthorities().stream()
@@ -85,7 +90,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public Optional<User> updateUser(Long id, User user) {
         logger.info("Updating user with id: {}", id);
-        return userRepository.findById(id).map(existingUser -> {
+        return userRepository.findByIdAndDeletedAtIsNull(id).map(existingUser -> {
             try {
                 inputUserValidation.validateUserFieldsForUpdate(
                         user.getFullName(), user.getUsername(), user.getPassword()
@@ -113,33 +118,36 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean deleteUser(Long id) {
-        logger.info("Attempting to delete user with id: {}", id);
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
-            logger.info("User with id {} deleted successfully", id);
+    public boolean deleteUser(Long id, Principal principal) {
+        logger.info("Soft deleting user with id: {} by user: {}", id, principal.getName());
+        return userRepository.findByIdAndDeletedAtIsNull(id).map(user -> {
+            Long deletedById = getCurrentUserId(principal);
+            user.setDeletedAt(LocalDateTime.now());
+            user.setDeletedBy(deletedById);
+            user.setStatus(false);
+            userRepository.save(user);
+            logger.info("User with id {} soft deleted by user id {}", id, deletedById);
             return true;
-        }
-        logger.warn("User with id {} not found for deletion", id);
-        return false;
+        }).orElseGet(() -> {
+            logger.warn("User with id {} not found or already deleted", id);
+            return false;
+        });
     }
 
     @Override
     public Optional<User> updateUserStatus(Long id, Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
-        int updated = userRepository.updateStatusById(id, status);
-        if (updated > 0) {
+        return userRepository.findByIdAndDeletedAtIsNull(id).map(user -> {
+            user.setStatus(status);
             logger.info("Status updated to {} for user id: {}", status, id);
-            return userRepository.findById(id);
-        }
-        logger.warn("User not found with id: {}", id);
-        return Optional.empty();
+            return userRepository.save(user);
+        });
     }
 
     @Override
     public Optional<User> toggleUserStatus(Long id) {
         logger.info("Toggling status for user with id: {}", id);
-        return userRepository.findById(id).map(user -> {
+        return userRepository.findByIdAndDeletedAtIsNull(id).map(user -> {
             Boolean currentStatus = user.getStatus();
             Boolean newStatus = currentStatus == null ? true : !currentStatus;
             user.setStatus(newStatus);
@@ -166,7 +174,6 @@ public class UserServiceImpl implements UserService {
         } else {
             throw new UserManagementException("StoreId is required");
         }
-        // Xử lý roles khi tạo mới
         if (dto.getRoles() != null && !dto.getRoles().isEmpty()) {
             List<Authority> authorities = dto.getRoles().stream()
                     .map(role -> authorityRepository.findByRole(role)
@@ -195,7 +202,6 @@ public class UserServiceImpl implements UserService {
         } else {
             throw new UserManagementException("StoreId is required");
         }
-        // Xử lý roles khi cập nhật
         if (dto.getRoles() != null) {
             List<Authority> authorities = dto.getRoles().stream()
                     .map(role -> authorityRepository.findByRole(role)
@@ -204,5 +210,15 @@ public class UserServiceImpl implements UserService {
             user.setAuthorities(authorities);
         }
         return user;
+    }
+
+    private Long getCurrentUserId(Principal principal) {
+        String username = principal.getName();
+        return userRepository.findByUsernameAndDeletedAtIsNull(username)
+                .map(User::getId)
+                .orElseThrow(() -> {
+                    logger.error("Current user not found: {}", username);
+                    return new UserManagementException("Current user not found");
+                });
     }
 }
