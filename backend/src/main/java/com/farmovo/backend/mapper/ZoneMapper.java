@@ -14,7 +14,6 @@ public interface ZoneMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "stocktakes", ignore = true)
-    @Mapping(target = "importTransactionDetails", ignore = true)
     Zone toEntity(ZoneRequestDto requestDto);
 
     @Mapping(target = "zoneName", source = "zoneName")
