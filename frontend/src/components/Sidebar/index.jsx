@@ -101,6 +101,15 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
+                        <Link to="/debts">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FiUsers className="text-[20px]"/> <span>Debt Note</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
                         <Button
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
@@ -115,22 +124,22 @@ const Sidebar = () => {
                             <ul className="w-full">
                                 <li className="w-full">
                                     <Link to="/products">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                                             !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Products
-                                        List
-                                    </Button>
+                                            List
+                                        </Button>
                                     </Link>
                                 </li>
                                 <li className="w-full">
                                     <Link to="/product/add">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
                                          !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
                                             className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
-                                        Product
-                                    </Button>
+                                            Product
+                                        </Button>
                                     </Link>
                                 </li>
                             </ul>
@@ -141,26 +150,26 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <TbCategory className="text-[20px]" /> <span>Category</span>
+                                <TbCategory className="text-[20px]"/> <span>Category</span>
                             </Button>
                         </Link>
                     </li>
 
                     <li>
                         <Link to="/category/add">
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                              !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                            <IoBagCheckOutline className="text-[20px]"/> <span>Orders</span>
-                        </Button>
+                                <IoBagCheckOutline className="text-[20px]"/> <span>Orders</span>
+                            </Button>
                         </Link>
                     </li>
                     <li>
                         <Button
-                                onClick={handleLogout} // ⚠️ BẠT BUỘC phải thêm
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                            onClick={handleLogout} // ⚠️ BẠT BUỘC phải thêm
+                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
+                            <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
                         </Button>
                     </li>
                 </ul>
