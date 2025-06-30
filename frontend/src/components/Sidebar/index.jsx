@@ -5,6 +5,7 @@ import { RxDashboard } from "react-icons/rx";
 import { FiUsers } from "react-icons/fi";
 import { RiProductHuntLine } from "react-icons/ri";
 import { TbCategory } from "react-icons/tb";
+import { MdMap } from "react-icons/md"; // Material Icons
 import { IoBagCheckOutline } from "react-icons/io5";
 import { IoMdLogOut } from "react-icons/io";
 import { FaAngleDown } from "react-icons/fa6";
@@ -163,6 +164,15 @@ const Sidebar = () => {
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                              !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <IoBagCheckOutline className="text-[20px]"/> <span>Orders</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to="/zone">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <MdMap className="text-[20px]" /> <span>Zone</span>
                             </Button>
                         </Link>
                     </li>

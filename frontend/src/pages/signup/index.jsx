@@ -28,14 +28,22 @@ const Signup = () => {
                 <Link to="/"><img className="w-[200px]" src="https://ecme-react.themenate.net/img/logo/logo-light-full.png"/></Link>
 
                 <div className="flex items-center gap-0">
-                    <NavLink to="/login" exact={true} activeClassName="isActive">
+                    <NavLink
+                        to="/login"
+                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                    >
                         <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
                             <CiLogin className="text-[18px]"/>Login
                         </Button>
                     </NavLink>
-                    <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
-                        <CiUser className="text-[18px]"/>SignUp
-                    </Button>
+                    <NavLink
+                        to="/sign-up"
+                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                    >
+                        <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
+                            <CiUser className="text-[18px]"/>SignUp
+                        </Button>
+                    </NavLink>
                 </div>
             </header>
             <img src="/patern.webp" className="w-full fixed top-0 left-0 opacity-5"/>

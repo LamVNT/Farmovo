@@ -15,6 +15,7 @@ import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
 import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
+import Zone from "../pages/zone/index.jsx";
 import ImportTransactionPage from "../pages/import-transaction/index.jsx";
 import ImportPage from "../pages/import-transaction/ImportPage.jsx";
 
@@ -114,6 +115,16 @@ const router = createBrowserRouter([
     {
         path: "/unauthorized",
         element: <Unauthorized />,
+    },
+    {
+        path: "/zone",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <Zone />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
 ]);
 

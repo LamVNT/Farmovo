@@ -26,12 +26,18 @@ const Login = () => {
                 </Link>
 
                 <div className="flex items-center gap-0">
-                    <NavLink to="/login" exact activeClassName="isActive">
+                    <NavLink
+                        to="/login"
+                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                    >
                         <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
                             <CiLogin className="text-[18px]" />Login
                         </Button>
                     </NavLink>
-                    <NavLink to="/sign-up" exact activeClassName="isActive">
+                    <NavLink
+                        to="/sign-up"
+                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                    >
                         <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
                             <CiUser className="text-[18px]" />SignUp
                         </Button>
