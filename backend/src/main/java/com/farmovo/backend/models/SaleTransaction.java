@@ -14,7 +14,6 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class SaleTransaction extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
