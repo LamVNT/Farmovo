@@ -15,6 +15,13 @@ import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
 import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
+<<<<<<< HEAD
+import Zone from "../pages/zone/index.jsx";
+import ImportTransactionPage from "../pages/import-transaction/index.jsx";
+import ImportPage from "../pages/import-transaction/ImportPage.jsx";
+=======
+import DebtNote from "../pages/debt/index.jsx";
+>>>>>>> feature/debt-management-api
 
 const router = createBrowserRouter([
     {
@@ -65,6 +72,17 @@ const router = createBrowserRouter([
     },
 
     {
+        path: "/debts",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <DebtNote />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+
+    {
         path: "/profile",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
@@ -88,10 +106,40 @@ const router = createBrowserRouter([
             },
         ],
     },
+    {
+        path: "/import",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/import/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
 
     {
         path: "/unauthorized",
         element: <Unauthorized />,
+    },
+    {
+        path: "/zone",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <Zone />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
 ]);
 

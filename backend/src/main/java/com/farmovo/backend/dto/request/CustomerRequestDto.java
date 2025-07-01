@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomerRequestDto {
+    private Long id;
     private String name;
     private String email;
     private String phone;

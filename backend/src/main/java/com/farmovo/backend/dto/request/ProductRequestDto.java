@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductRequestDto {
+    private Long id;
     private String detail;
     private Integer quantity;
     private Long categoryId;
