@@ -1,5 +1,6 @@
 package com.farmovo.backend.dto.response;
 
+import com.farmovo.backend.models.SaleTransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,7 @@ public class SaleTransactionResponseDto {
     private BigDecimal paid;
     private String detail;
     private String note;
-    private String status;
+    private SaleTransactionStatus status;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;

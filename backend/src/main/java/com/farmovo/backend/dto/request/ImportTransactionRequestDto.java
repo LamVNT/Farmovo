@@ -1,25 +1,26 @@
 package com.farmovo.backend.dto.request;
 
+import com.farmovo.backend.models.ImportTransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImportTransactionRequestDto {
-    private BigDecimal totalAmount;
-    private BigDecimal paidAmount;
-    private String status;
-    private Long createdBy;
-    private Long updatedBy;
-
-    private Long customerId;
+    private String name;
+    private BigDecimal total;
+    private BigDecimal paid;
+    private String detail;
+    private String note;
+    private ImportTransactionStatus status;
+    private String importTransactionNote;
+    private LocalDate importDate;
+    private Long supplierId;
     private Long storeId;
     private Long staffId;
-
-    private List<ImportTransactionDetailRequest> details;
 }
