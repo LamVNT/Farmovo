@@ -13,6 +13,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 public class Store extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

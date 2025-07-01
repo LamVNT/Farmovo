@@ -14,6 +14,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 public class Customer extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

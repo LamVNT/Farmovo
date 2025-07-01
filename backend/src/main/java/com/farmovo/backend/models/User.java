@@ -16,6 +16,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 public class User extends Base implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
