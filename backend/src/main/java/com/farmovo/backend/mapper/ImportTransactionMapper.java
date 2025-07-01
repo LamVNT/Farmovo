@@ -11,7 +11,7 @@ import java.util.List;
 public interface ImportTransactionMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(source = "customerId", target = "customer.id")
+    @Mapping(source = "supplierId", target = "supplier.id")
     @Mapping(source = "storeId", target = "store.id")
     @Mapping(source = "staffId", target = "staff.id")
     @Mapping(target = "details", source = "details")
@@ -27,17 +27,20 @@ public interface ImportTransactionMapper {
 
     // Map từ Entity sang DTO
     @Mapping(source = "id", target = "id")
-    @Mapping(source = "customer.id", target = "customerId")
+    @Mapping(source = "supplier.id", target = "supplierId")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "staff.id", target = "staffId")
     @Mapping(source = "details", target = "details")
+    @Mapping(source = "importDate", target = "importDate")
     CreateImportTransactionRequestDto toDto(ImportTransaction entity);
 
 
     @Mapping(source = "id", target = "id")
-    @Mapping(source = "customer.id", target = "customerId")
+    @Mapping(source = "supplier.id", target = "supplierId")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "staff.id", target = "staffId")
+    @Mapping(source = "totalAmount", target = "totalAmount")
+    @Mapping(source = "paidAmount", target = "paidAmount")
     ImportTransactionResponseDto toResponseDto(ImportTransaction entity);
 
 

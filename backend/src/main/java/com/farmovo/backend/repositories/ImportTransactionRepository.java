@@ -11,10 +11,9 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
     @EntityGraph(attributePaths = {
             "details",          // chi tiết phiếu nhập
             "details.product",  // thông tin sản phẩm trong chi tiết
-            "customer",         // khách hàng
+            "supplier",         // khách hàng
             "store",            // kho nhập
             "staff"             // người tạo
     })
     Optional<ImportTransaction> findById(Long id);
-
 }

@@ -1,5 +1,6 @@
 package com.farmovo.backend.dto.request;
 
+import com.farmovo.backend.models.ImportTransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,13 +15,13 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateImportTransactionRequestDto {
     private Long id;
-    private Long customerId;
-    private String status;
+    private Long supplierId;
+    private ImportTransactionStatus status;
     private Long storeId;
     private Long staffId;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
-    private String importNote;
+    private String importTransactionNote;
     private LocalDateTime importDate;
     private List<DetailDto> details;
 

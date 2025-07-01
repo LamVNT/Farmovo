@@ -56,6 +56,7 @@ public class ImportTransationController {
 
     @GetMapping("/list-all")
     public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
+
         List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
         return ResponseEntity.ok(transactions);
     }
@@ -71,8 +72,4 @@ public class ImportTransationController {
         importTransactionService.createImportTransaction(dto);
         return ResponseEntity.ok("Tạo phiếu nhập thành công");
     }
-
-
-
-
 }

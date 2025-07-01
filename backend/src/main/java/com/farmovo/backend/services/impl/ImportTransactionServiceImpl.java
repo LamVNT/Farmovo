@@ -6,6 +6,7 @@ import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.mapper.ImportTransactionMapper;
 import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.ImportTransactionDetail;
+import com.farmovo.backend.models.ImportTransactionStatus;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.ImportTransactionService;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,12 +40,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         ImportTransaction transaction = new ImportTransaction();
 
         // Gắn thông tin cơ bản
-        transaction.setCustomer(customerRepository.findById(dto.getCustomerId()).orElseThrow());
+        transaction.setSupplier(customerRepository.findById(dto.getSupplierId()).orElseThrow());
         transaction.setStore(storeRepository.findById(dto.getStoreId()).orElseThrow());
         transaction.setStaff(userRepository.findById(dto.getStaffId()).orElseThrow());
-        transaction.setImportNote(dto.getImportNote());
+        transaction.setImportTransactionNote(dto.getImportTransactionNote());
         transaction.setImportDate(LocalDateTime.now());
-        transaction.setStatus("PENDING");
+        transaction.setStatus(ImportTransactionStatus.DRAFT);
 
         List<ImportTransactionDetail> detailList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
