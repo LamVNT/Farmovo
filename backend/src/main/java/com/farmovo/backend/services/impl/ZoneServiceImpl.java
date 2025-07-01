@@ -1,5 +1,6 @@
 package com.farmovo.backend.services.impl;
 
+import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.exceptions.ZoneNotFoundException;
@@ -16,11 +17,17 @@ import java.util.stream.Collectors;
 
 @Service
 public class ZoneServiceImpl implements ZoneService {
+
     @Autowired
     private ZoneRepository zoneRepository;
 
     @Autowired
     private ZoneMapper zoneMapper;
+
+    @Override
+    public List<ZoneDto> getAllZoneDtos() {
+        return zoneMapper.toDtoList(zoneRepository.findAll());
+    }
 
     @Override
     public List<ZoneResponseDto> getAllZones() {
@@ -45,12 +52,12 @@ public class ZoneServiceImpl implements ZoneService {
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
-    }
+        }
 
     @Override
     public void deleteZone(Long id) {
         Zone zone = zoneRepository.findById(id)
-                .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
+        .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
         zoneRepository.delete(zone);
     }
 }

@@ -11,12 +11,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImportTransactionDetailRequest {
-    private Long importTransactionId;
-    private Long zoneId;
-    private Integer quantity;
+    private Integer importQuantity;
     private Integer remainQuantity;
-    private Long productId;
     private LocalDateTime expireDate;
     private BigDecimal unitImportPrice;
     private BigDecimal unitSalePrice;
+    private Long zoneId;
+    private Long productId;
 }

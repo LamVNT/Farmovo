@@ -13,7 +13,6 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Stocktake extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

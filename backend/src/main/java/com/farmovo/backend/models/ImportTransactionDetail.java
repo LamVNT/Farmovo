@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class ImportTransactionDetail extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
