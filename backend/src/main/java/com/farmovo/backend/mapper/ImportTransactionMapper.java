@@ -1,0 +1,50 @@
+package com.farmovo.backend.mapper;
+
+import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
+import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
+import com.farmovo.backend.models.ImportTransaction;
+import com.farmovo.backend.models.ImportTransactionDetail;
+import org.mapstruct.*;
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface ImportTransactionMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(source = "customerId", target = "customer.id")
+    @Mapping(source = "storeId", target = "store.id")
+    @Mapping(source = "staffId", target = "staff.id")
+    @Mapping(target = "details", source = "details")
+    ImportTransaction toEntity(CreateImportTransactionRequestDto dto);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "importTransaction", ignore = true) // tránh vòng lặp
+    @Mapping(source = "productId", target = "product.id")
+    ImportTransactionDetail toDetailEntity(CreateImportTransactionRequestDto.DetailDto dto);
+
+    List<ImportTransactionDetail> toDetailEntityList(List<CreateImportTransactionRequestDto.DetailDto> details);
+
+
+    // Map từ Entity sang DTO
+    @Mapping(source = "id", target = "id")
+    @Mapping(source = "customer.id", target = "customerId")
+    @Mapping(source = "store.id", target = "storeId")
+    @Mapping(source = "staff.id", target = "staffId")
+    @Mapping(source = "details", target = "details")
+    CreateImportTransactionRequestDto toDto(ImportTransaction entity);
+
+
+    @Mapping(source = "id", target = "id")
+    @Mapping(source = "customer.id", target = "customerId")
+    @Mapping(source = "store.id", target = "storeId")
+    @Mapping(source = "staff.id", target = "staffId")
+    ImportTransactionResponseDto toResponseDto(ImportTransaction entity);
+
+
+    @Mapping(source = "product.productName", target = "productName")
+    @Mapping(source = "product.id", target = "productId")
+    CreateImportTransactionRequestDto.DetailDto toDetailDto(ImportTransactionDetail detail);
+
+    List<CreateImportTransactionRequestDto.DetailDto> toDetailDtoList(List<ImportTransactionDetail> details);
+}
+

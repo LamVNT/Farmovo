@@ -12,18 +12,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ImportTransactionResponseDto {
     private Long id;
-    private String name;
-    private BigDecimal total;
-    private BigDecimal paid;
-    private String detail;
-    private String note;
-    private String status;
     private Long customerId;
+    private String status;
     private Long storeId;
     private Long staffId;
-    private Long createBy;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
-    private LocalDateTime deleteAt;
-    private Long deleteBy;
+    private BigDecimal totalAmount;
+    private BigDecimal paidAmount;
+    private String importNote;
+    private LocalDateTime importDate;
 }

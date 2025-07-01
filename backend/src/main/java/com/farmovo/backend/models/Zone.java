@@ -36,10 +36,6 @@ public class Zone {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
-    private List<ImportTransactionDetail> importTransactionDetails;
-
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<Stocktake> stocktakes;
 }

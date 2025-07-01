@@ -31,6 +31,12 @@ public class ImportTransaction {
     @Column(name = "status", length = 50)
     private String status;
 
+    @Column(name = "import_date")
+    private LocalDateTime importDate;
+
+    @Column(name = "import_note", length = 1000)
+    private String importNote;
+
     @Column(name = "created_by")
     private Long createdBy;
 
@@ -44,7 +50,6 @@ public class ImportTransaction {
 
     @Column(name = "updated_by")
     private Long updatedBy;
-
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
