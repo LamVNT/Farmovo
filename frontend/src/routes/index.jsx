@@ -16,6 +16,8 @@ import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
 import Zone from "../pages/zone/index.jsx";
+import ImportTransactionPage from "../pages/import-transaction/index.jsx";
+import ImportPage from "../pages/import-transaction/ImportPage.jsx";
 
 const router = createBrowserRouter([
     {
@@ -88,6 +90,26 @@ const router = createBrowserRouter([
                 element: <Notification />,
             },
         ],
+    },
+    {
+        path: "/import",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/import/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
 
     {

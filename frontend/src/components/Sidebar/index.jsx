@@ -2,7 +2,6 @@ import React, {useContext, useState} from "react";
 import {Link, useNavigate} from "react-router-dom"
 import Button from "@mui/material/Button";
 import { RxDashboard } from "react-icons/rx";
-import { FaRegImages } from "react-icons/fa6";
 import { FiUsers } from "react-icons/fi";
 import { RiProductHuntLine } from "react-icons/ri";
 import { TbCategory } from "react-icons/tb";
@@ -10,6 +9,7 @@ import { MdMap } from "react-icons/md"; // Material Icons
 import { IoBagCheckOutline } from "react-icons/io5";
 import { IoMdLogOut } from "react-icons/io";
 import { FaAngleDown } from "react-icons/fa6";
+import { GrTransaction } from "react-icons/gr";
 import {Collapse} from 'react-collapse';
 import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
@@ -65,7 +65,7 @@ const Sidebar = () => {
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(1)}>
-                            <FaRegImages className="text-[20px]"/> <span>Home Slide</span>
+                            <GrTransaction className="text-[20px]"/> <span>Transaction</span>
                             <span className="ml-auto w-[30px] h-[30px] flex items-center justify-center">
                                 <FaAngleDown className={`transition-all ${submenuIndex === 1 ? 'rotate-180' : ''}`}/>
                             </span>
@@ -73,20 +73,22 @@ const Sidebar = () => {
                         <Collapse isOpened={submenuIndex === 1 ? true : false}>
                             <ul className="w-full">
                                 <li className="w-full">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
-                                     !w-full !text-[13px] !font-[600] !pl-9 flex gap-3"><
-                                        span
-                                        className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Home
-                                        Banners Slides List
-                                    </Button>
+                                    <Link to="/import">
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
+                                         !w-full !text-[13px] !font-[600] !pl-9 flex gap-3"><
+                                            span
+                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Import transaction
+                                        </Button>
+                                    </Link>
                                 </li>
                                 <li className="w-full">
-                                    <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
-                                     !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
-                                        Home Banner Slide
-                                    </Button>
+                                    <Link to="/sale">
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
+                                         !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <span
+                                                className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Sale transaction
+                                        </Button>
+                                    </Link>
                                 </li>
                             </ul>
                         </Collapse>
