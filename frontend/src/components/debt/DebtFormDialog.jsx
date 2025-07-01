@@ -7,17 +7,21 @@ import {
     TextField,
     Button,
     Autocomplete,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
-const CUSTOMER_API_URL = `${import.meta.env.VITE_API_URL}/customers`;
+const API_URL = `${import.meta.env.VITE_API_URL}`;
+const CUSTOMER_API_URL = `${import.meta.env.VITE_API_URL}/customer`;
 
 const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
     const [customers, setCustomers] = useState([]);
     const [stores, setStores] = useState([]);
-    const [debtTypes] = useState(['+', '-']);
-    const [sources] = useState(['CUSTOMER', 'SUPPLIER']);
+    const debtTypes = ['+', '-'];
+    const sources = ['CUSTOMER', 'SUPPLIER'];
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -26,7 +30,12 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                 });
-                setCustomers(response.data.map(customer => ({ id: customer.id, name: customer.fullName })));
+                setCustomers(response.data.map(customer => ({
+                    id: customer.id,
+                    name: customer.name,
+                    phone: customer.phone,
+                    address: customer.address,
+                })));
             } catch (error) {
                 console.error('Không thể lấy danh sách khách hàng:', error);
             }
@@ -60,6 +69,8 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
             ...prev,
             customerId: value ? value.id : null,
             customerName: value ? value.name : '',
+            phone: value ? value.phone : '',
+            address: value ? value.address : '',
         }));
     };
 
@@ -71,18 +82,38 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
         }));
     };
 
-    const handleDebtTypeChange = (event, value) => {
-        setForm((prev) => ({
-            ...prev,
-            debtType: value || '+',
-        }));
+    const handleDebtTypeChange = (e) => {
+        const value = e.target.value;
+        setForm((prev) => {
+            const newForm = { ...prev, debtType: value };
+            if (prev.fromSource === 'CUSTOMER' && value === '-') {
+                newForm.debtDescription = 'Trả lại tiền, còn nợ khách';
+            } else if (prev.fromSource === 'CUSTOMER' && value === '+') {
+                newForm.debtDescription = 'Khách mua thiếu, chưa trả';
+            } else if (prev.fromSource === 'SUPPLIER' && value === '-') {
+                newForm.debtDescription = 'Nhập hàng, chưa trả tiền';
+            } else if (prev.fromSource === 'SUPPLIER' && value === '+') {
+                newForm.debtDescription = 'Trả hàng lại, họ chưa hoàn tiền';
+            }
+            return newForm;
+        });
     };
 
-    const handleSourceChange = (event, value) => {
-        setForm((prev) => ({
-            ...prev,
-            fromSource: value || 'CUSTOMER',
-        }));
+    const handleSourceChange = (e) => {
+        const value = e.target.value;
+        setForm((prev) => {
+            const newForm = { ...prev, fromSource: value };
+            if (value === 'CUSTOMER' && prev.debtType === '+') {
+                newForm.debtDescription = 'Khách mua thiếu, chưa trả';
+            } else if (value === 'CUSTOMER' && prev.debtType === '-') {
+                newForm.debtDescription = 'Trả lại tiền, còn nợ khách';
+            } else if (value === 'SUPPLIER' && prev.debtType === '-') {
+                newForm.debtDescription = 'Nhập hàng, chưa trả tiền';
+            } else if (value === 'SUPPLIER' && prev.debtType === '+') {
+                newForm.debtDescription = 'Trả hàng lại, họ chưa hoàn tiền';
+            }
+            return newForm;
+        });
     };
 
     return (
@@ -101,7 +132,7 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                 <Autocomplete
                     options={customers}
                     getOptionLabel={(option) => option.name || ''}
-                    value={customers.find((customer) => customer.id === form.customerId) || null}
+                    value={customers.find((c) => c.id === form.customerId) || null}
                     onChange={handleCustomerChange}
                     renderInput={(params) => (
                         <TextField
@@ -112,6 +143,22 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             required
                         />
                     )}
+                />
+                <TextField
+                    margin="dense"
+                    label="SĐT"
+                    name="phone"
+                    fullWidth
+                    value={form.phone || ''}
+                    disabled
+                />
+                <TextField
+                    margin="dense"
+                    label="Địa chỉ"
+                    name="address"
+                    fullWidth
+                    value={form.address || ''}
+                    disabled
                 />
                 <Autocomplete
                     options={stores}
@@ -150,36 +197,30 @@ const DebtFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     required
                     InputLabelProps={{ shrink: true }}
                 />
-                <Autocomplete
-                    options={debtTypes}
-                    getOptionLabel={(option) => option}
-                    value={form.debtType || '+'}
-                    onChange={handleDebtTypeChange}
-                    renderInput={(params) => (
-                        <TextField
-                            {...params}
-                            margin="dense"
-                            label="Loại công nợ *"
-                            fullWidth
-                            required
-                        />
-                    )}
-                />
-                <Autocomplete
-                    options={sources}
-                    getOptionLabel={(option) => option}
-                    value={form.fromSource || 'CUSTOMER'}
-                    onChange={handleSourceChange}
-                    renderInput={(params) => (
-                        <TextField
-                            {...params}
-                            margin="dense"
-                            label="Nguồn *"
-                            fullWidth
-                            required
-                        />
-                    )}
-                />
+                <FormControl fullWidth margin="dense">
+                    <InputLabel>Kiểu công nợ *</InputLabel>
+                    <Select
+                        name="debtType"
+                        value={form.debtType || '+'}
+                        onChange={handleDebtTypeChange}
+                        required
+                    >
+                        <MenuItem value="+">+</MenuItem>
+                        <MenuItem value="-">-</MenuItem>
+                    </Select>
+                </FormControl>
+                <FormControl fullWidth margin="dense">
+                    <InputLabel>Nguồn *</InputLabel>
+                    <Select
+                        name="fromSource"
+                        value={form.fromSource || 'CUSTOMER'}
+                        onChange={handleSourceChange}
+                        required
+                    >
+                        <MenuItem value="CUSTOMER">Khách hàng</MenuItem>
+                        <MenuItem value="SUPPLIER">Nhà cung cấp</MenuItem>
+                    </Select>
+                </FormControl>
                 <TextField
                     margin="dense"
                     label="Mô tả"

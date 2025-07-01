@@ -1,11 +1,11 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/debts`;
+const API_URL = `${import.meta.env.VITE_API_URL}/debts`;
 
 export const debtService = {
     getAllDebtNotes: async () => {
         try {
-            const response = await axios.get(API_URL, {
+            const response = await axios.get(`\`${API_URL}/debt-list`, {
                 withCredentials: true,
             });
             return response.data;
@@ -22,6 +22,17 @@ export const debtService = {
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data || 'Không thể lấy thông tin công nợ');
+        }
+    },
+
+    getAllDebtors: async () => {
+        try {
+            const response = await axios.get(`${API_URL}/debtors`, {
+                withCredentials: true,
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy danh sách người nợ');
         }
     },
 

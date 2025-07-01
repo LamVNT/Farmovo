@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TextField, Button } from '@mui/material';
+import { TextField, Button, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { FaPlus } from 'react-icons/fa6';
 import DebtTable from '../../components/debt/DebtTable';
 import DebtFormDialog from '../../components/debt/DebtFormDialog';
@@ -7,13 +7,17 @@ import { debtService } from '../../services/debtService';
 
 const DebtNote = () => {
     const [debtNotes, setDebtNotes] = useState([]);
+    const [debtors, setDebtors] = useState([]);
     const [searchText, setSearchText] = useState('');
+    const [viewMode, setViewMode] = useState('debtors'); // 'debtors' or 'debtNotes'
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({
         id: null,
         customerId: null,
         customerName: '',
+        phone: '',
+        address: '',
         storeId: null,
         storeName: '',
         debtAmount: '',
@@ -31,11 +35,15 @@ const DebtNote = () => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const fetchDebtNotes = async () => {
+        const fetchData = async () => {
             setLoading(true);
             try {
-                const data = await debtService.getAllDebtNotes();
-                setDebtNotes(data);
+                const [notesData, debtorsData] = await Promise.all([
+                    debtService.getAllDebtNotes(),
+                    debtService.getAllDebtors(),
+                ]);
+                setDebtNotes(notesData);
+                setDebtors(debtorsData);
                 setError(null);
             } catch (err) {
                 setError(err.message);
@@ -43,22 +51,25 @@ const DebtNote = () => {
                 setLoading(false);
             }
         };
-        fetchDebtNotes();
+        fetchData();
     }, []);
 
-    const filteredDebtNotes = useMemo(() => {
-        return debtNotes.filter(
-            (debt) =>
-                debt.customerName.toLowerCase().includes(searchText.toLowerCase()) ||
-                debt.storeName.toLowerCase().includes(searchText.toLowerCase())
+    const filteredData = useMemo(() => {
+        const data = viewMode === 'debtors' ? debtors : debtNotes;
+        return data.filter(
+            (item) =>
+                item.customerName.toLowerCase().includes(searchText.toLowerCase()) ||
+                (item.phone && item.phone.toLowerCase().includes(searchText.toLowerCase()))
         );
-    }, [searchText, debtNotes]);
+    }, [searchText, viewMode, debtors, debtNotes]);
 
     const handleOpenCreate = () => {
         setForm({
             id: null,
             customerId: null,
             customerName: '',
+            phone: '',
+            address: '',
             storeId: null,
             storeName: '',
             debtAmount: '',
@@ -81,8 +92,10 @@ const DebtNote = () => {
             id: debt.id,
             customerId: debt.customerId,
             customerName: debt.customerName,
+            phone: debt.phone || '',
+            address: debt.address || '',
             storeId: debt.storeId,
-            storeName: debt.storeName,
+            storeName: debt.storeName || '',
             debtAmount: debt.debtAmount || '',
             debtDate: debt.debtDate || '',
             debtType: debt.debtType || '+',
@@ -128,13 +141,15 @@ const DebtNote = () => {
         };
         try {
             if (editMode) {
-                await debtService.updateDebtNote(form.id, debtData);
+                const updatedDebt = await debtService.updateDebtNote(form.id, debtData);
+                setDebtNotes((prev) =>
+                    prev.map((d) => (d.id === form.id ? updatedDebt : d))
+                );
             } else {
-                await debtService.createDebtNote(debtData);
+                const newDebt = await debtService.createDebtNote(debtData);
+                setDebtNotes((prev) => [...prev, newDebt]);
             }
             handleClose();
-            const data = await debtService.getAllDebtNotes();
-            setDebtNotes(data);
             setError(null);
         } catch (error) {
             setError(error.message);
@@ -152,6 +167,16 @@ const DebtNote = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
+                    <FormControl size="small" style={{ minWidth: 200 }}>
+                        <InputLabel>Chế độ xem</InputLabel>
+                        <Select
+                            value={viewMode}
+                            onChange={(e) => setViewMode(e.target.value)}
+                        >
+                            <MenuItem value="debtors">Danh sách người nợ</MenuItem>
+                            <MenuItem value="debtNotes">Danh sách công nợ</MenuItem>
+                        </Select>
+                    </FormControl>
                     <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
                         Thêm
                     </Button>
@@ -163,9 +188,10 @@ const DebtNote = () => {
                 <p>Đang tải...</p>
             ) : (
                 <DebtTable
-                    debtNotes={filteredDebtNotes}
+                    debtNotes={filteredData}
                     onEdit={handleOpenEdit}
                     onDelete={handleDelete}
+                    viewMode={viewMode}
                 />
             )}
 

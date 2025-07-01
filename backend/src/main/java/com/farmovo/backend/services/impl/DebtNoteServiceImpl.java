@@ -5,9 +5,12 @@ import com.farmovo.backend.dto.response.DebtNoteResponseDto;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.DebtNote;
 import com.farmovo.backend.models.Store;
-import com.farmovo.backend.repositories.*;
+import com.farmovo.backend.repositories.CustomerRepository;
+import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.DebtNoteService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 @Service
 public class DebtNoteServiceImpl implements DebtNoteService {
 
+    private static final Logger logger = LogManager.getLogger(DebtNoteServiceImpl.class);
     private static final List<String> VALID_DEBT_TYPES = Arrays.asList("+", "-");
     private static final List<String> VALID_SOURCE_TYPES = Arrays.asList("CUSTOMER", "SUPPLIER");
 
@@ -34,12 +38,22 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public DebtNoteResponseDto createDebtNote(DebtNoteRequestDto requestDto, Long createdBy) {
-        validateRequest(requestDto);
+        logger.info("Processing creation of debt note for customer ID: {}", requestDto.getCustomerId());
+        if (!isValidRequest(requestDto)) {
+            logger.warn("Invalid request for debt note creation: {}", requestDto);
+            return null; // Invalid request will be handled by controller/handler
+        }
 
-        Customer customer = customerRepository.findById(requestDto.getCustomerId())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + requestDto.getCustomerId()));
-        Store store = storeRepository.findById(requestDto.getStoreId())
-                .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + requestDto.getStoreId()));
+        Customer customer = customerRepository.findByIdAndActive(requestDto.getCustomerId());
+        if (customer == null) {
+            logger.warn("Customer not found with ID: {}", requestDto.getCustomerId());
+            return null;
+        }
+        Store store = storeRepository.findById(requestDto.getStoreId()).orElse(null);
+        if (store == null) {
+            logger.warn("Store not found with ID: {}", requestDto.getStoreId());
+            return null;
+        }
 
         DebtNote debtNote = new DebtNote();
         debtNote.setDebtAmount(requestDto.getDebtAmount());
@@ -59,22 +73,53 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public DebtNoteResponseDto getDebtNoteById(Long id) {
+        logger.info("Fetching debt note with ID: {}", id);
         DebtNote debtNote = debtNoteRepository.findByIdAndActive(id);
-        if (debtNote == null) {
-            throw new IllegalArgumentException("Debt note not found or has been deleted: " + id);
-        }
-        return mapToResponseDto(debtNote);
+        return debtNote != null ? mapToResponseDto(debtNote) : null;
     }
 
     @Override
     public List<DebtNoteResponseDto> getAllDebtNotes() {
+        logger.info("Fetching all active debt notes");
         return debtNoteRepository.findAllActive().stream()
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
     }
 
     @Override
+    public List<DebtNoteResponseDto> getAllDebtors() {
+        logger.info("Fetching all debtors");
+        return customerRepository.findAllActive().stream()
+                .map(customer -> {
+                    if (customer == null) {
+                        logger.warn("Null customer encountered while fetching debtors");
+                        return null;
+                    }
+                    DebtNoteResponseDto dto = new DebtNoteResponseDto();
+                    dto.setId(customer.getId());
+                    dto.setCustomerId(customer.getId());
+                    dto.setDebtAmount(customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO);
+                    dto.setDebtDate(customer.getCreatedAt()); // Use createdAt as initial debt date
+                    dto.setStoreId(null); // Can be enhanced to link to a default store if needed
+                    dto.setDebtType(customer.getIsSupplier() ? "+" : "-"); // Default based on role
+                    dto.setDebtDescription("Initial debtor record");
+                    dto.setDebtEvidences(null);
+                    dto.setFromSource(customer.getIsSupplier() ? "SUPPLIER" : "CUSTOMER");
+                    dto.setSourceId(null);
+                    dto.setCreatedAt(customer.getCreatedAt());
+                    dto.setCreatedBy(customer.getCreatedBy());
+                    dto.setUpdatedAt(customer.getUpdatedAt());
+                    dto.setDeletedAt(customer.getDeletedAt());
+                    dto.setDeletedBy(customer.getDeletedBy());
+                    return dto;
+                })
+                .filter(dto -> dto != null)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<DebtNoteResponseDto> getDebtNotesByCustomerId(Long customerId) {
+        logger.info("Fetching debt notes for customer ID: {}", customerId);
         return debtNoteRepository.findByCustomerIdAndActive(customerId).stream()
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
@@ -82,6 +127,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public List<DebtNoteResponseDto> getDebtNotesByStoreId(Long storeId) {
+        logger.info("Fetching debt notes for store ID: {}", storeId);
         return debtNoteRepository.findByStoreIdAndActive(storeId).stream()
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
@@ -89,17 +135,28 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public DebtNoteResponseDto updateDebtNote(Long id, DebtNoteRequestDto requestDto) {
+        logger.info("Processing update for debt note with ID: {}", id);
         DebtNote debtNote = debtNoteRepository.findByIdAndActive(id);
         if (debtNote == null) {
-            throw new IllegalArgumentException("Debt note not found or has been deleted: " + id);
+            logger.warn("Debt note not found or has been deleted: {}", id);
+            return null;
         }
 
-        validateRequest(requestDto);
+        if (!isValidRequest(requestDto)) {
+            logger.warn("Invalid request for debt note update: {}", requestDto);
+            return null;
+        }
 
-        Customer customer = customerRepository.findById(requestDto.getCustomerId())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + requestDto.getCustomerId()));
-        Store store = storeRepository.findById(requestDto.getStoreId())
-                .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + requestDto.getStoreId()));
+        Customer customer = customerRepository.findByIdAndActive(requestDto.getCustomerId());
+        if (customer == null) {
+            logger.warn("Customer not found with ID: {}", requestDto.getCustomerId());
+            return null;
+        }
+        Store store = storeRepository.findById(requestDto.getStoreId()).orElse(null);
+        if (store == null) {
+            logger.warn("Store not found with ID: {}", requestDto.getStoreId());
+            return null;
+        }
 
         debtNote.setDebtAmount(requestDto.getDebtAmount());
         debtNote.setDebtDate(requestDto.getDebtDate());
@@ -117,28 +174,51 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public void softDeleteDebtNote(Long id, Long deletedBy) {
+        logger.info("Processing soft delete for debt note with ID: {}", id);
         DebtNote debtNote = debtNoteRepository.findByIdAndActive(id);
         if (debtNote == null) {
-            throw new IllegalArgumentException("Debt note not found or has been deleted: " + id);
+            logger.warn("Debt note not found or has been deleted: {}", id);
+            return;
         }
         debtNote.setDeletedAt(LocalDateTime.now());
         debtNote.setDeletedBy(deletedBy);
         debtNoteRepository.save(debtNote);
     }
 
-    private void validateRequest(DebtNoteRequestDto requestDto) {
+    private boolean isValidRequest(DebtNoteRequestDto requestDto) {
+        boolean isValid = true;
+
         if (!VALID_DEBT_TYPES.contains(requestDto.getDebtType())) {
-            throw new IllegalArgumentException("Invalid debt type. Must be '+' or '-'");
+            logger.warn("Invalid debt type: {}", requestDto.getDebtType());
+            isValid = false;
         }
         if (!VALID_SOURCE_TYPES.contains(requestDto.getFromSource())) {
-            throw new IllegalArgumentException("Invalid source type. Must be 'CUSTOMER' or 'SUPPLIER'");
+            logger.warn("Invalid source type: {}", requestDto.getFromSource());
+            isValid = false;
         }
         if (requestDto.getDebtAmount() == null || requestDto.getDebtAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Debt amount must be greater than zero");
+            logger.warn("Invalid debt amount: {}", requestDto.getDebtAmount());
+            isValid = false;
         }
+
+        // Validate debt scenarios
+        if ("CUSTOMER".equals(requestDto.getFromSource())) {
+            if (!("+".equals(requestDto.getDebtType()) || "-".equals(requestDto.getDebtType()))) {
+                logger.warn("Invalid debt type for CUSTOMER: {}", requestDto.getDebtType());
+                isValid = false;
+            }
+        } else if ("SUPPLIER".equals(requestDto.getFromSource())) {
+            if (!("-".equals(requestDto.getDebtType()) || "+".equals(requestDto.getDebtType()))) {
+                logger.warn("Invalid debt type for SUPPLIER: {}", requestDto.getDebtType());
+                isValid = false;
+            }
+        }
+
+        return isValid;
     }
 
     private DebtNoteResponseDto mapToResponseDto(DebtNote debtNote) {
+        logger.debug("Mapping debt note to response DTO: {}", debtNote.getId());
         DebtNoteResponseDto responseDto = new DebtNoteResponseDto();
         responseDto.setId(debtNote.getId());
         responseDto.setCustomerId(debtNote.getCustomer().getId());

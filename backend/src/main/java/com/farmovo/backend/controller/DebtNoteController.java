@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/debts")
@@ -24,72 +25,67 @@ public class DebtNoteController {
     @PostMapping
     public ResponseEntity<DebtNoteResponseDto> createDebtNote(@RequestBody DebtNoteRequestDto requestDto,
                                                               @RequestParam Long createdBy) {
-        try {
-            logger.info("Creating debt note for customer ID: {}", requestDto.getCustomerId());
-            DebtNoteResponseDto responseDto = debtNoteService.createDebtNote(requestDto, createdBy);
-            return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            logger.error("Error creating debt note: {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-        }
+        logger.info("Creating debt note for customer ID: {}", requestDto.getCustomerId());
+        DebtNoteResponseDto responseDto = debtNoteService.createDebtNote(requestDto, createdBy);
+        return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<DebtNoteResponseDto> getDebtNoteById(@PathVariable Long id) {
-        try {
-            logger.info("Fetching debt note with ID: {}", id);
-            DebtNoteResponseDto responseDto = debtNoteService.getDebtNoteById(id);
-            return new ResponseEntity<>(responseDto, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            logger.error("Error fetching debt note: {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
-        }
+        logger.info("Fetching debt note with ID: {}", id);
+        DebtNoteResponseDto responseDto = debtNoteService.getDebtNoteById(id);
+        return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
-    @GetMapping
+    @GetMapping("/debt-list")
     public ResponseEntity<List<DebtNoteResponseDto>> getAllDebtNotes() {
-        logger.info("Fetching all debt notes");
-        List<DebtNoteResponseDto> responseDtos = debtNoteService.getAllDebtNotes();
-        return new ResponseEntity<>(responseDtos, HttpStatus.OK);
+        logger.info("Fetching all debt notes from table 'debt_notes'");
+        return new ResponseEntity<>(debtNoteService.getAllDebtNotes().stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList()), HttpStatus.OK);
+    }
+
+    @GetMapping("/debtors")
+    public ResponseEntity<List<DebtNoteResponseDto>> getAllDebtors() {
+        logger.info("Fetching all debtors from table 'debt_notes'");
+        return new ResponseEntity<>(debtNoteService.getAllDebtors().stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList()), HttpStatus.OK);
     }
 
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<DebtNoteResponseDto>> getDebtNotesByCustomerId(@PathVariable Long customerId) {
         logger.info("Fetching debt notes for customer ID: {}", customerId);
-        List<DebtNoteResponseDto> responseDtos = debtNoteService.getDebtNotesByCustomerId(customerId);
-        return new ResponseEntity<>(responseDtos, HttpStatus.OK);
+        return new ResponseEntity<>(debtNoteService.getDebtNotesByCustomerId(customerId).stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList()), HttpStatus.OK);
     }
 
     @GetMapping("/store/{storeId}")
     public ResponseEntity<List<DebtNoteResponseDto>> getDebtNotesByStoreId(@PathVariable Long storeId) {
         logger.info("Fetching debt notes for store ID: {}", storeId);
-        List<DebtNoteResponseDto> responseDtos = debtNoteService.getDebtNotesByStoreId(storeId);
-        return new ResponseEntity<>(responseDtos, HttpStatus.OK);
+        return new ResponseEntity<>(debtNoteService.getDebtNotesByStoreId(storeId).stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList()), HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<DebtNoteResponseDto> updateDebtNote(@PathVariable Long id,
                                                               @RequestBody DebtNoteRequestDto requestDto) {
-        try {
-            logger.info("Updating debt note with ID: {}", id);
-            DebtNoteResponseDto responseDto = debtNoteService.updateDebtNote(id, requestDto);
-            return new ResponseEntity<>(responseDto, HttpStatus.OK);
-        } catch (IllegalArgumentException e) {
-            logger.error("Error updating debt note: {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-        }
+        logger.info("Updating debt note with ID: {}", id);
+        DebtNoteResponseDto responseDto = debtNoteService.updateDebtNote(id, requestDto);
+        return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDeleteDebtNote(@PathVariable Long id,
                                                    @RequestParam Long deletedBy) {
-        try {
-            logger.info("Soft deleting debt note with ID: {}", id);
-            debtNoteService.softDeleteDebtNote(id, deletedBy);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (IllegalArgumentException e) {
-            logger.error("Error soft deleting debt note: {}", e.getMessage());
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        logger.info("Soft deleting debt note with ID: {}", id);
+        debtNoteService.softDeleteDebtNote(id, deletedBy);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    private DebtNoteResponseDto convertToResponseDTO(DebtNoteResponseDto dto) {
+        return dto; // Pass-through method; can be enhanced if additional mapping is needed
     }
 }

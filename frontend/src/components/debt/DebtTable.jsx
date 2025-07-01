@@ -4,11 +4,12 @@ import { IconButton } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-const DebtTable = ({ debtNotes, onEdit, onDelete }) => {
-    const debtColumns = [
+const DebtTable = ({ debtNotes, onEdit, onDelete, viewMode }) => {
+    const columns = [
         { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'customerName', headerName: 'Khách hàng', flex: 1.5 },
-        { field: 'storeName', headerName: 'Cửa hàng', flex: 1.5 },
+        { field: 'customerName', headerName: 'Tên', flex: 1.5 },
+        { field: 'phone', headerName: 'SĐT', flex: 1 },
+        { field: 'address', headerName: 'Địa chỉ', flex: 1.5 },
         {
             field: 'debtAmount',
             headerName: 'Số tiền',
@@ -17,28 +18,29 @@ const DebtTable = ({ debtNotes, onEdit, onDelete }) => {
         },
         {
             field: 'debtDate',
-            headerName: 'Ngày công nợ',
+            headerName: viewMode === 'debtors' ? 'Ngày tạo' : 'Ngày công nợ',
             flex: 1.5,
             renderCell: (params) =>
                 params.value ? new Date(params.value).toLocaleString('vi-VN') : 'N/A',
         },
-        { field: 'debtType', headerName: 'Loại', flex: 1 },
+        { field: 'debtType', headerName: 'Kiểu', flex: 1 },
         { field: 'fromSource', headerName: 'Nguồn', flex: 1 },
         {
             field: 'actions',
             headerName: 'Hành động',
             flex: 2,
             sortable: false,
-            renderCell: (params) => (
-                <>
-                    <IconButton onClick={() => onEdit(params.row)}>
-                        <EditIcon color="primary" />
-                    </IconButton>
-                    <IconButton onClick={() => onDelete(params.id)}>
-                        <DeleteIcon color="error" />
-                    </IconButton>
-                </>
-            ),
+            renderCell: (params) =>
+                viewMode !== 'debtors' && (
+                    <>
+                        <IconButton onClick={() => onEdit(params.row)}>
+                            <EditIcon color="primary" />
+                        </IconButton>
+                        <IconButton onClick={() => onDelete(params.id)}>
+                            <DeleteIcon color="error" />
+                        </IconButton>
+                    </>
+                ),
         },
     ];
 
@@ -46,7 +48,7 @@ const DebtTable = ({ debtNotes, onEdit, onDelete }) => {
         <div style={{ height: 400 }}>
             <DataGrid
                 rows={debtNotes}
-                columns={debtColumns}
+                columns={columns}
                 pageSize={5}
                 rowsPerPageOptions={[5, 10]}
                 checkboxSelection

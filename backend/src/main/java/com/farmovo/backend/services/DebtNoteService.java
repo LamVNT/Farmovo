@@ -13,6 +13,8 @@ public interface DebtNoteService {
 
     List<DebtNoteResponseDto> getAllDebtNotes();
 
+    List<DebtNoteResponseDto> getAllDebtors();
+
     List<DebtNoteResponseDto> getDebtNotesByCustomerId(Long customerId);
 
     List<DebtNoteResponseDto> getDebtNotesByStoreId(Long storeId);
