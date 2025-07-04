@@ -1,7 +1,9 @@
 package com.farmovo.backend.services.impl;
 
+import com.farmovo.backend.dto.request.CustomerDto;
 import com.farmovo.backend.dto.request.CustomerRequestDto;
 import com.farmovo.backend.dto.response.CustomerResponseDto;
+import com.farmovo.backend.mapper.CustomerMapper;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.services.CustomerService;
@@ -22,6 +24,16 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Autowired
     private CustomerRepository customerRepository;
+    @Autowired
+    private CustomerMapper customerMapper;
+
+    @Override
+    public List<CustomerDto> getAllCustomerDto() {
+        return customerRepository.findAll()
+                .stream()
+                .map(customerMapper::toDto)
+                .collect(Collectors.toList());
+    }
 
     @Override
     public CustomerResponseDto createCustomer(CustomerRequestDto requestDto, Long createdBy) {
