@@ -4,9 +4,13 @@ import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.DebtNote;
+import com.farmovo.backend.models.ImportTransaction;
+import com.farmovo.backend.models.SaleTransaction;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.repositories.DebtNoteRepository;
+import com.farmovo.backend.repositories.ImportTransactionRepository;
+//import com.farmovo.backend.repositories.SaleTransactionRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.DebtNoteService;
 import org.apache.logging.log4j.LogManager;
@@ -25,7 +29,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     private static final Logger logger = LogManager.getLogger(DebtNoteServiceImpl.class);
     private static final List<String> VALID_DEBT_TYPES = Arrays.asList("+", "-");
-    private static final List<String> VALID_SOURCE_TYPES = Arrays.asList("CUSTOMER", "SUPPLIER");
+    private static final List<String> VALID_SOURCE_TYPES = Arrays.asList("MANUAL", "SALE", "PURCHASE");
 
     @Autowired
     private DebtNoteRepository debtNoteRepository;
@@ -36,12 +40,18 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private ImportTransactionRepository importTransactionRepository;
+
+    @Autowired
+//    private SaleTransactionRepository saleTransactionRepository;
+
     @Override
     public DebtNoteResponseDto createDebtNote(DebtNoteRequestDto requestDto, Long createdBy) {
         logger.info("Processing creation of debt note for customer ID: {}", requestDto.getCustomerId());
         if (!isValidRequest(requestDto)) {
             logger.warn("Invalid request for debt note creation: {}", requestDto);
-            return null; // Invalid request will be handled by controller/handler
+            return null;
         }
 
         Customer customer = customerRepository.findByIdAndActive(requestDto.getCustomerId());
@@ -67,8 +77,73 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         debtNote.setStore(store);
         debtNote.setCreatedBy(createdBy);
 
+        // Update customer's totalDebt for MANUAL debts
+        if ("MANUAL".equals(requestDto.getFromSource()) && requestDto.getSourceId() == null) {
+            BigDecimal currentTotalDebt = customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO;
+            BigDecimal newTotalDebt = currentTotalDebt.add(requestDto.getDebtAmount());
+            customer.setTotalDebt(newTotalDebt);
+            customerRepository.save(customer);
+        }
+
         DebtNote savedDebtNote = debtNoteRepository.save(debtNote);
         return mapToResponseDto(savedDebtNote);
+    }
+
+    public DebtNoteResponseDto createDebtFromTransaction(Long transactionId, String transactionType, Long createdBy) {
+        logger.info("Automatically creating debt from {} transaction ID: {}", transactionType, transactionId);
+        if (!VALID_SOURCE_TYPES.contains(transactionType)) {
+            logger.warn("Invalid transaction type: {}", transactionType);
+            return null;
+        }
+
+        if ("SALE".equals(transactionType)) {
+            SaleTransaction sale = saleTransactionRepository.findById(transactionId).orElse(null);
+            if (sale == null || sale.getPaidAmount() >= sale.getTotal()) {
+                logger.warn("No debt required for sale transaction ID: {}", transactionId);
+                return null;
+            }
+            Customer customer = sale.getCustomer();
+            if (customer == null) {
+                logger.warn("No customer associated with sale transaction ID: {}", transactionId);
+                return null;
+            }
+            BigDecimal debtAmount = sale.getTotal().subtract(sale.getPaidAmount());
+            return createDebtNote(new DebtNoteRequestDto(
+                    customer.getId(),
+                    debtAmount,
+                    LocalDateTime.now(),
+                    sale.getStore().getId(),
+                    "+",
+                    "Phát sinh nợ khi bán hàng mà chưa trả đủ",
+                    null,
+                    "SALE",
+                    transactionId
+            ), createdBy);
+        } else if ("PURCHASE".equals(transactionType)) {
+            ImportTransaction purchase = importTransactionRepository.findById(transactionId).orElse(null);
+            if (purchase == null || purchase.getPaidAmount() >= purchase.getTotal()) {
+                logger.warn("No debt required for purchase transaction ID: {}", transactionId);
+                return null;
+            }
+            Customer supplier = purchase.getSupplier();
+            if (supplier == null) {
+                logger.warn("No supplier associated with purchase transaction ID: {}", transactionId);
+                return null;
+            }
+            BigDecimal debtAmount = purchase.getTotal().subtract(purchase.getPaidAmount());
+            return createDebtNote(new DebtNoteRequestDto(
+                    supplier.getId(),
+                    debtAmount,
+                    LocalDateTime.now(),
+                    purchase.getStore().getId(),
+                    "-",
+                    "Bạn nợ nhà cung cấp",
+                    null,
+                    "PURCHASE",
+                    transactionId
+            ), createdBy);
+        }
+        return null;
     }
 
     @Override
@@ -99,12 +174,12 @@ public class DebtNoteServiceImpl implements DebtNoteService {
                     dto.setId(customer.getId());
                     dto.setCustomerId(customer.getId());
                     dto.setDebtAmount(customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO);
-                    dto.setDebtDate(customer.getCreatedAt()); // Use createdAt as initial debt date
-                    dto.setStoreId(null); // Can be enhanced to link to a default store if needed
-                    dto.setDebtType(customer.getIsSupplier() ? "+" : "-"); // Default based on role
+                    dto.setDebtDate(customer.getCreatedAt());
+                    dto.setStoreId(null);
+                    dto.setDebtType(customer.getIsSupplier() ? "-" : "+");
                     dto.setDebtDescription("Initial debtor record");
                     dto.setDebtEvidences(null);
-                    dto.setFromSource(customer.getIsSupplier() ? "SUPPLIER" : "CUSTOMER");
+                    dto.setFromSource("MANUAL");
                     dto.setSourceId(null);
                     dto.setCreatedAt(customer.getCreatedAt());
                     dto.setCreatedBy(customer.getCreatedBy());
@@ -168,6 +243,14 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         debtNote.setCustomer(customer);
         debtNote.setStore(store);
 
+        // Update customer's totalDebt for MANUAL debt updates
+        if ("MANUAL".equals(requestDto.getFromSource()) && requestDto.getSourceId() == null) {
+            BigDecimal currentTotalDebt = customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO;
+            BigDecimal newTotalDebt = currentTotalDebt.add(requestDto.getDebtAmount());
+            customer.setTotalDebt(newTotalDebt);
+            customerRepository.save(customer);
+        }
+
         DebtNote updatedDebtNote = debtNoteRepository.save(debtNote);
         return mapToResponseDto(updatedDebtNote);
     }
@@ -192,24 +275,22 @@ public class DebtNoteServiceImpl implements DebtNoteService {
             logger.warn("Invalid debt type: {}", requestDto.getDebtType());
             isValid = false;
         }
-        if (!VALID_SOURCE_TYPES.contains(requestDto.getFromSource())) {
-            logger.warn("Invalid source type: {}", requestDto.getFromSource());
-            isValid = false;
-        }
         if (requestDto.getDebtAmount() == null || requestDto.getDebtAmount().compareTo(BigDecimal.ZERO) <= 0) {
             logger.warn("Invalid debt amount: {}", requestDto.getDebtAmount());
             isValid = false;
         }
 
-        // Validate debt scenarios
-        if ("CUSTOMER".equals(requestDto.getFromSource())) {
-            if (!("+".equals(requestDto.getDebtType()) || "-".equals(requestDto.getDebtType()))) {
-                logger.warn("Invalid debt type for CUSTOMER: {}", requestDto.getDebtType());
+        if (requestDto.getFromSource() != null) {
+            if (!VALID_SOURCE_TYPES.contains(requestDto.getFromSource())) {
+                logger.warn("Invalid fromSource: {}", requestDto.getFromSource());
                 isValid = false;
             }
-        } else if ("SUPPLIER".equals(requestDto.getFromSource())) {
-            if (!("-".equals(requestDto.getDebtType()) || "+".equals(requestDto.getDebtType()))) {
-                logger.warn("Invalid debt type for SUPPLIER: {}", requestDto.getDebtType());
+            if ("MANUAL".equals(requestDto.getFromSource()) && requestDto.getSourceId() != null) {
+                logger.warn("Manual debt should not have sourceId: {}", requestDto.getSourceId());
+                isValid = false;
+            }
+            if (("SALE".equals(requestDto.getFromSource()) || "PURCHASE".equals(requestDto.getFromSource())) && requestDto.getSourceId() == null) {
+                logger.warn("Transaction-based debt requires sourceId");
                 isValid = false;
             }
         }
@@ -219,12 +300,16 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     private DebtNoteResponseDto mapToResponseDto(DebtNote debtNote) {
         logger.debug("Mapping debt note to response DTO: {}", debtNote.getId());
+        if (debtNote == null) {
+            logger.warn("Attempted to map null debt note");
+            return null;
+        }
         DebtNoteResponseDto responseDto = new DebtNoteResponseDto();
         responseDto.setId(debtNote.getId());
-        responseDto.setCustomerId(debtNote.getCustomer().getId());
+        responseDto.setCustomerId(debtNote.getCustomer() != null ? debtNote.getCustomer().getId() : null);
         responseDto.setDebtAmount(debtNote.getDebtAmount());
         responseDto.setDebtDate(debtNote.getDebtDate());
-        responseDto.setStoreId(debtNote.getStore().getId());
+        responseDto.setStoreId(debtNote.getStore() != null ? debtNote.getStore().getId() : null);
         responseDto.setDebtType(debtNote.getDebtType());
         responseDto.setDebtDescription(debtNote.getDebtDescription());
         responseDto.setDebtEvidences(debtNote.getDebtEvidences());

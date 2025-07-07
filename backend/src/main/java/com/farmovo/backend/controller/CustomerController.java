@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/customer")
+@RequestMapping("/api/customers")
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
 public class CustomerController {
     private static final Logger logger = LogManager.getLogger(CustomerController.class);
@@ -37,7 +37,7 @@ public class CustomerController {
         return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
-    @GetMapping("/admin/customerList")
+    @GetMapping
     public ResponseEntity<List<CustomerResponseDto>> getAllCustomers() {
         logger.info("Fetching all customers from table 'customers'");
         return new ResponseEntity<>(customerService.getAllCustomers().stream()
@@ -51,6 +51,13 @@ public class CustomerController {
         return new ResponseEntity<>(customerService.searchCustomersByName(name).stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList()), HttpStatus.OK);
+    }
+
+    @GetMapping("/details/{customerId}")
+    public ResponseEntity<CustomerResponseDto> getCustomerDetailsById(@PathVariable Long customerId) {
+        logger.info("Fetching customer details with ID: {}", customerId);
+        CustomerResponseDto responseDto = customerService.getCustomerById(customerId);
+        return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
@@ -70,6 +77,6 @@ public class CustomerController {
     }
 
     private CustomerResponseDto convertToResponseDTO(CustomerResponseDto dto) {
-        return dto; // Pass-through method; can be enhanced if additional mapping is needed
+        return dto; // Pass-through method
     }
 }
