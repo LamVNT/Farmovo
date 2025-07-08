@@ -31,9 +31,6 @@ public class Product extends Base {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<ImportTransactionDetail> importTransactionDetails;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<Stocktake> stocktakes;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
