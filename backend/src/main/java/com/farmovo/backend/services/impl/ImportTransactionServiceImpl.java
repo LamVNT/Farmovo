@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,6 +60,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             detail.setExpireDate(d.getExpireDate());
             detail.setUnitImportPrice(d.getUnitImportPrice());
             detail.setUnitSalePrice(d.getUnitSalePrice());
+            detail.setZones_id(d.getZones_id());
 
             // Cộng dồn tổng tiền
             BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
@@ -98,5 +100,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("ImportTransaction not found with id: " + id));
         return importTransactionMapper.toDto(entity);
     }
+
+//    @Override
+//    public List<ImportTransactionResponseDto> filterImportTransactions(String search, String status, String startDate, String endDate) {
+//        return List.of();
+//    }
+
 
 }

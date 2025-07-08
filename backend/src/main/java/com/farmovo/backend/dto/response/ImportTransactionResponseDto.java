@@ -19,8 +19,9 @@ public class ImportTransactionResponseDto {
     private BigDecimal paidAmount;
     private String importTransactionNote;
     private ImportTransactionStatus status;
-    private LocalDate importDate;
+    private LocalDateTime importDate;
     private Long supplierId;
+    private String supplierName;
     private Long storeId;
     private Long staffId;
 }

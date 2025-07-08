@@ -20,6 +20,7 @@ public interface ImportTransactionMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "importTransaction", ignore = true) // tránh vòng lặp
     @Mapping(source = "productId", target = "product.id")
+    @Mapping(source = "zones_id", target = "zones_id")
     ImportTransactionDetail toDetailEntity(CreateImportTransactionRequestDto.DetailDto dto);
 
     List<ImportTransactionDetail> toDetailEntityList(List<CreateImportTransactionRequestDto.DetailDto> details);
@@ -37,10 +38,12 @@ public interface ImportTransactionMapper {
 
     @Mapping(source = "id", target = "id")
     @Mapping(source = "supplier.id", target = "supplierId")
+    @Mapping(source = "supplier.name", target = "supplierName")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "staff.id", target = "staffId")
     @Mapping(source = "totalAmount", target = "totalAmount")
     @Mapping(source = "paidAmount", target = "paidAmount")
+    @Mapping(source = "importDate", target = "importDate")
     ImportTransactionResponseDto toResponseDto(ImportTransaction entity);
 
 

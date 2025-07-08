@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     TextField,
     Button,
@@ -11,6 +11,8 @@ import {
     Tooltip,
     Menu,
     FormControlLabel as MuiFormControlLabel,
+    Alert,
+    CircularProgress,
 } from '@mui/material';
 import { FaLock, FaCheck, FaSearch, FaEye } from 'react-icons/fa';
 import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
@@ -18,6 +20,7 @@ import { FiPlus } from 'react-icons/fi';
 import { DataGrid } from '@mui/x-data-grid';
 import AddProductDialog from './AddProductDialog';
 import { FaRegTrashCan } from "react-icons/fa6";
+import importTransactionService from '../../services/importTransactionService';
 
 
 
@@ -47,7 +50,36 @@ const ImportPage = () => {
         'Thành tiền': true,
     });
 
+    // API data states
+    const [formData, setFormData] = useState({
+        customers: [],
+        products: [],
+        zones: []
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+
     const users = ['Vũ Lâm', 'Minh Tuấn', 'Hoàng Anh'];
+
+    // Load form data from API
+    useEffect(() => {
+        const loadFormData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const data = await importTransactionService.getCreateFormData();
+                setFormData(data);
+            } catch (err) {
+                console.error('Error loading form data:', err);
+                setError('Không thể tải dữ liệu form');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadFormData();
+    }, []);
 
     const formatCurrency = (value) => {
         const number = Number(value);
@@ -64,18 +96,18 @@ const ImportPage = () => {
         if (value.trim() === '') {
             setFilteredProducts([]);
         } else {
-            const results = sampleProducts.filter(
+            const results = formData.products.filter(
                 (p) =>
-                    p.name.toLowerCase().includes(value.toLowerCase()) ||
-                    p.code.toLowerCase().includes(value.toLowerCase())
+                    p.productName.toLowerCase().includes(value.toLowerCase()) ||
+                    p.productCode.toLowerCase().includes(value.toLowerCase())
             );
             setFilteredProducts(results);
         }
     };
 
     const handleSelectProduct = (product) => {
-        if (!selectedProducts.find((p) => p.code === product.code)) {
-            const price = Number(product.price) || 0;
+        if (!selectedProducts.find((p) => p.id === product.id)) {
+            const price = Number(product.unitPrice) || 0;
             const quantity = 1;
             const discount = 0;
             const total = price * quantity - discount;
@@ -83,11 +115,15 @@ const ImportPage = () => {
             setSelectedProducts((prev) => [
                 ...prev,
                 {
-                    ...product,
+                    id: product.id,
+                    code: product.productCode,
+                    name: product.productName,
+                    unit: product.unit,
                     price,
                     quantity,
                     discount,
                     total,
+                    productId: product.id,
                 },
             ]);
         }
@@ -111,6 +147,51 @@ const ImportPage = () => {
 
     const handleDeleteProduct = (id) => {
         setSelectedProducts((prev) => prev.filter((p) => p.id !== id));
+    };
+
+    const handleSaveDraft = async () => {
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const importData = {
+                name: importCode || `PN${Date.now()}`,
+                supplierId: 1, // TODO: Get from form
+                storeId: 1, // TODO: Get from form
+                staffId: 1, // TODO: Get from form
+                importTransactionNote: '', // TODO: Get from form
+                details: selectedProducts.map(product => ({
+                    productId: product.productId,
+                    importQuantity: product.quantity,
+                    remainQuantity: product.quantity,
+                    expireDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
+                    unitImportPrice: product.price,
+                    unitSalePrice: product.price * 1.2, // 20% markup
+                    zones_id: "A1" // TODO: Get from form
+                }))
+            };
+
+            await importTransactionService.create(importData);
+            setSuccess('Tạo phiếu nhập hàng thành công!');
+            setSelectedProducts([]);
+            setImportCode('');
+        } catch (err) {
+            console.error('Error creating import transaction:', err);
+            setError('Không thể tạo phiếu nhập hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleComplete = async () => {
+        // Similar to save draft but with different status
+        await handleSaveDraft();
     };
 
     const columns = [
@@ -210,8 +291,26 @@ const ImportPage = () => {
 
     const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0);
 
+    if (loading && formData.products.length === 0) {
+        return (
+            <div className="flex w-full h-screen bg-gray-100 items-center justify-center">
+                <CircularProgress />
+            </div>
+        );
+    }
+
     return (
         <div className="flex w-full h-screen bg-gray-100">
+            {error && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+                    {error}
+                </Alert>
+            )}
+            {success && (
+                <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+                    {success}
+                </Alert>
+            )}
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
                 <div className="flex justify-between items-center mb-2">
                     <div className="relative w-full max-w-2xl flex items-center gap-2">
@@ -250,9 +349,9 @@ const ImportPage = () => {
                                         onClick={() => handleSelectProduct(product)}
                                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                                     >
-                                        <div className="font-medium">{product.name}</div>
+                                        <div className="font-medium">{product.productName}</div>
                                         <div className="text-xs text-gray-500">
-                                            {product.code} - {product.unit}
+                                            {product.productCode} - {product.unit}
                                         </div>
                                     </div>
                                 ))}
@@ -363,10 +462,24 @@ const ImportPage = () => {
                 <TextField multiline rows={2} placeholder="Ghi chú" fullWidth variant="outlined" size="small" />
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={<FaLock />}>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        className="!bg-blue-600 hover:!bg-blue-700 text-white" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />}
+                        onClick={handleSaveDraft}
+                        disabled={loading}
+                    >
                         Lưu tạm
                     </Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={<FaCheck />}>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        className="!bg-green-600 hover:!bg-green-700 text-white" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />}
+                        onClick={handleComplete}
+                        disabled={loading}
+                    >
                         Hoàn thành
                     </Button>
                 </div>
