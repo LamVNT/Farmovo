@@ -33,6 +33,10 @@ public class ZoneServiceImpl implements ZoneService {
     @Override
     public ZoneResponseDto createZone(ZoneRequestDto request) {
         Zone zone = zoneMapper.toEntity(request);
+        String zoneName = zone.getZoneName();
+        if (zoneName != null && !zoneName.matches("Z_\\[\\d+;\\d+\\]")) {
+            throw new IllegalArgumentException("Zone name must follow pattern Z_[row;column] (e.g :Z_[1;2])");
+        }
         zone.setCreatedAt(LocalDateTime.now());
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
     }
@@ -41,6 +45,10 @@ public class ZoneServiceImpl implements ZoneService {
     public ZoneResponseDto updateZone(Long id, ZoneRequestDto request) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
+        String zoneName = request.getZoneName();
+        if (zoneName != null && !zoneName.matches("Z_\\[\\d+;\\d+\\]")) {
+            throw new IllegalArgumentException("Zone name must follow pattern Z_[row;column] (e.g : Z_[1;2])");
+        }
         zone.setZoneName(request.getZoneName());
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
