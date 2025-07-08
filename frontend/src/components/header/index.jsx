@@ -11,7 +11,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import { MyContext } from '../../App.jsx'
-import { Link } from "react-router-dom";
+
 
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
@@ -113,13 +113,9 @@ const Header = () => {
                                 </MenuItem>
                                 <Divider/>
 
-
-
-                                <MenuItem component={Link} to="/profile" className="flex items-center gap-3">
-                                    <FaRegUser className="text-[16px]" />
-                                    <span className="text-[14px]">Profile</span>
+                                <MenuItem onClick={handleCloseMyAcc} className="flex items-center gap-3">
+                                    <FaRegUser className="text-[16px]"/> <span className="text-[14px]">Profile</span>
                                 </MenuItem>
-
 
 
                                 <MenuItem onClick={handleCloseMyAcc} className="flex items-center gap-3">

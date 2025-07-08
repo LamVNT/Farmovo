@@ -3,11 +3,11 @@ package com.farmovo.backend.models;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,7 +15,9 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaleTransaction {
+@EqualsAndHashCode(callSuper = true)
+
+public class SaleTransaction extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -27,28 +29,18 @@ public class SaleTransaction {
     @Column(name = "paid_amount")
     private BigDecimal paidAmount;
 
-    @Column(name = "detail", length = 1000)
+    @Column(name = "detail", length = 10000)
     private String detail;
 
     @Column(name = "sale_transaction_note", length = 1000)
     private String saleTransactionNote;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 50)
-    private String status;
+    private SaleTransactionStatus status;
 
-    @Column(name = "created_by")
-    private Long createdBy;
-
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "updated_by")
-    private Long updatedBy;
+    @Column(name = "sale_date", nullable = false)
+    private LocalDateTime saleDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")

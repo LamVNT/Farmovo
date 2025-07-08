@@ -3,6 +3,7 @@ package com.farmovo.backend.models;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -13,7 +14,9 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImportTransactionDetail {
+@EqualsAndHashCode(callSuper = true)
+
+public class ImportTransactionDetail extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -34,16 +37,14 @@ public class ImportTransactionDetail {
     @Column(name = "unit_sale_price")
     private BigDecimal unitSalePrice;
 
+    @Column(name = "zones_id")
+    private String zones_id;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "import_transaction_id")
     private ImportTransaction importTransaction;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "zone_id")
-    private Zone zone;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
-
 }
