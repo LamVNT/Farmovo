@@ -16,4 +16,6 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
             "staff"             // người tạo
     })
     Optional<ImportTransaction> findById(Long id);
+
+    Optional<ImportTransaction> findTopByOrderByIdDesc();
 }
