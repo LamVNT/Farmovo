@@ -50,7 +50,5 @@ public class SaleTransactionController {
         List<SaleTransactionResponseDto> transactions = saleTransactionService.getAll();
         return ResponseEntity.ok(transactions);
     }
-
-
 }
 
