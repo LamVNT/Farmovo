@@ -24,6 +24,7 @@ public class ZoneController {
 
     @PostMapping
     public ResponseEntity<ZoneResponseDto> createZone(@Valid @RequestBody ZoneRequestDto request) {
+
         return ResponseEntity.ok(zoneService.createZone(request));
     }
 
