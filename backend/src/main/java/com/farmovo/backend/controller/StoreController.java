@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/stores")
+@RequestMapping("/api")
 public class StoreController {
     private static final Logger logger = LogManager.getLogger(StoreController.class);
 

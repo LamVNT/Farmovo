@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.GrantedAuthority;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
 public class UserController {
     private static final Logger logger = LogManager.getLogger(UserController.class);
