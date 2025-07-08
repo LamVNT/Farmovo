@@ -6,6 +6,7 @@ import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.Product;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
 import java.util.List;
 
 @Mapper(componentModel = "spring")

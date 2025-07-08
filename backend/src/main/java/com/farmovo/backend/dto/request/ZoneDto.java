@@ -7,10 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductRequestDto {
+public class ZoneDto {
     private Long id;
-    private String detail;
-    private Integer quantity;
-    private Long categoryId;
-    private Long storeId;
+    private String name;
 }
