@@ -126,7 +126,7 @@ const Sidebar = () => {
                         <Collapse isOpened={submenuIndex === 3}>
                             <ul className="w-full">
                                 <li className="w-full">
-                                    <Link to="/products">
+                                    <Link to="/product">
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                                             !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span

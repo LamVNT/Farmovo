@@ -15,13 +15,11 @@ import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
 import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
-<<<<<<< HEAD
 import Zone from "../pages/zone/index.jsx";
 import ImportTransactionPage from "../pages/import-transaction/index.jsx";
 import ImportPage from "../pages/import-transaction/ImportPage.jsx";
-=======
 import DebtNote from "../pages/debt/index.jsx";
->>>>>>> feature/debt-management-api
+import Product from "../pages/product/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -137,6 +135,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <Zone />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/product",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <Product />
                 </MainLayout>
             </ProtectedRoute>
         ),

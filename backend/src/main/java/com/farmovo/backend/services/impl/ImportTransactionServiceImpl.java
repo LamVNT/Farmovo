@@ -48,13 +48,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setImportDate(LocalDateTime.now());
         transaction.setStatus(ImportTransactionStatus.DRAFT);
 
-        // Sinh mã name tự động
-        Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
-                .map(ImportTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PN%06d", lastId + 1);
-        transaction.setName(newName);
-
         List<ImportTransactionDetail> detailList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -62,7 +55,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             ImportTransactionDetail detail = new ImportTransactionDetail();
             detail.setImportTransaction(transaction); // liên kết FK
             detail.setProduct(productRepository.findById(d.getProductId()).orElseThrow());
-            detail.setImportQuantity(d.getImportQuantity()  );
+            detail.setImportQuantity(d.getImportQuantity());
             detail.setRemainQuantity(d.getRemainQuantity());
             detail.setExpireDate(d.getExpireDate());
             detail.setUnitImportPrice(d.getUnitImportPrice());

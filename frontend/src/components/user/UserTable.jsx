@@ -48,12 +48,6 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
                     <IconButton onClick={() => onToggleStatus(params.id)}>
                         <SwapHorizIcon color="warning" />
                     </IconButton>
-                    {/*<IconButton onClick={() => onUpdateStatus(params.id, true)}>*/}
-                    {/*    <CheckCircleIcon color="success" />*/}
-                    {/*</IconButton>*/}
-                    {/*<IconButton onClick={() => onUpdateStatus(params.id, false)}>*/}
-                    {/*    <CancelIcon color="disabled" />*/}
-                    {/*</IconButton>*/}
                 </>
             ),
         },
