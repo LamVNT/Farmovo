@@ -44,7 +44,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private ImportTransactionRepository importTransactionRepository;
 
     @Autowired
-//    private SaleTransactionRepository saleTransactionRepository;
+    private SaleTransactionRepository saleTransactionRepository;
 
     @Override
     public DebtNoteResponseDto createDebtNote(DebtNoteRequestDto requestDto, Long createdBy) {
