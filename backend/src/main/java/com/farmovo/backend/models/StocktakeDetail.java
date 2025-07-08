@@ -9,8 +9,7 @@ import java.util.List;
 @Data
 public class StocktakeDetail {
     private Long productId;
-    @JsonProperty("zones_id")
-    private List<Long> zones_id;
+    private List<Long> zones_id; // snake_case
     private Integer remain;
     private Integer real;
     private Integer diff;

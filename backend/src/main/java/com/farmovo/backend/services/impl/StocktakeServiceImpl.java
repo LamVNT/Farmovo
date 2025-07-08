@@ -79,23 +79,23 @@ public class StocktakeServiceImpl implements StocktakeService {
                 StocktakeDetailDto ng = new StocktakeDetailDto();
                 ng.setProductId(k);
                 ng.setReal(0);
-                ng.setZonesId(new ArrayList<>());
+                ng.setZones_id(new ArrayList<>()); // snake_case
                 ng.setNote("");
                 ng.setRemain(d.getRemain());
                 ng.setDiff(0);
                 return ng;
             });
             g.setReal(g.getReal() + (d.getReal() != null ? d.getReal() : 0));
-            if (d.getZonesId() != null) g.getZonesId().addAll(d.getZonesId());
+            if (d.getZones_id() != null) g.getZones_id().addAll(d.getZones_id());
             g.setNote((g.getNote() == null ? "" : g.getNote()) + (d.getNote() != null ? d.getNote() + "; " : ""));
             g.setRemain(d.getRemain());
             g.setDiff(g.getReal() - g.getRemain());
         }
         // Loại bỏ trùng lặp zone
         for (StocktakeDetailDto g : grouped.values()) {
-            if (g.getZonesId() != null) {
-                Set<Long> set = new LinkedHashSet<>(g.getZonesId());
-                g.setZonesId(new ArrayList<>(set));
+            if (g.getZones_id() != null) {
+                Set<Long> set = new LinkedHashSet<>(g.getZones_id());
+                g.setZones_id(new ArrayList<>(set));
             }
         }
         return new ArrayList<>(grouped.values());

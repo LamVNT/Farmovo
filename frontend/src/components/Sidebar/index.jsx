@@ -10,6 +10,7 @@ import { IoBagCheckOutline } from "react-icons/io5";
 import { IoMdLogOut } from "react-icons/io";
 import { FaAngleDown } from "react-icons/fa6";
 import { GrTransaction } from "react-icons/gr";
+import { FaRegSquareCheck } from "react-icons/fa6";
 import {Collapse} from 'react-collapse';
 import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
@@ -168,6 +169,15 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
+                        <Link to="/stocktake">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FaRegSquareCheck className="text-[20px]"/> <span>StockTake</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
                         <Link to="/zone">
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
@@ -178,7 +188,7 @@ const Sidebar = () => {
                     </li>
                     <li>
                         <Button
-                            onClick={handleLogout} // ⚠️ BẠT BUỘC phải thêm
+                            onClick={handleLogout} 
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                             <IoMdLogOut className="text-[20px]"/> <span>Logout</span>

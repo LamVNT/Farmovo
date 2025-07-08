@@ -19,6 +19,8 @@ import Zone from "../pages/zone/index.jsx";
 import ImportTransactionPage from "../pages/import-transaction/index.jsx";
 import ImportPage from "../pages/import-transaction/ImportPage.jsx";
 import DebtNote from "../pages/debt/index.jsx";
+import StockTakePage from "../pages/stocktake/index.jsx";
+import StockTakeDetailPage from "../pages/stocktake/Detail.jsx";
 
 const router = createBrowserRouter([
     {
@@ -134,6 +136,26 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <Zone />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StockTakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StockTakeDetailPage />
                 </MainLayout>
             </ProtectedRoute>
         ),
