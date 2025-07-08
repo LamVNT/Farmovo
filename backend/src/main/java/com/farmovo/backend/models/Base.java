@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 @MappedSuperclass
 @Data
+@MappedSuperclass
 public abstract class Base {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

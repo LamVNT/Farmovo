@@ -1,5 +1,6 @@
-package com.farmovo.backend.dto.response;
+package com.farmovo.backend.dto.request;
 
+import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,15 +13,14 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaleTransactionResponseDto {
-    private Long id;
+public class CreateSaleTransactionRequestDto {
+    private Long customerId;
+    private Long storeId;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
+    private List<ProductResponseDto> detail; // <-- thay vì String
     private String saleTransactionNote;
     private SaleTransactionStatus status;
     private LocalDateTime saleDate;
-    private String customerName;
-    private String storeName;
-    private List<ProductResponseDto> detail; // ✅ chính là mục tiêu của bạn
 }
 
