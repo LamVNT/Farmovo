@@ -2,6 +2,7 @@ package com.farmovo.backend.mapper;
 
 import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
 import com.farmovo.backend.dto.response.ProductResponseDto;
+import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.models.SaleTransaction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,8 +22,8 @@ public interface SaleTransactionMapper {
     @Mapping(target = "detail", expression = "java(toJson(requestDto.getDetail(), objectMapper))")
     SaleTransaction toEntity(CreateSaleTransactionRequestDto requestDto, @Context ObjectMapper objectMapper);
 
-    // Hàm hỗ trợ để convert List<ProductResponseDto> thành JSON
-    default String toJson(List<ProductResponseDto> detailList, @Context ObjectMapper objectMapper) {
+    // Hàm hỗ trợ để convert List<ProductSaleResponseDto> thành JSON
+    default String toJson(List<ProductSaleResponseDto> detailList, @Context ObjectMapper objectMapper) {
         try {
             return objectMapper.writeValueAsString(detailList);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -40,10 +41,10 @@ public interface SaleTransactionMapper {
     // List version
     List<SaleTransactionResponseDto> toResponseDtoList(List<SaleTransaction> entities, @Context ObjectMapper objectMapper);
 
-    // Parse từ JSON sang List<ProductResponseDto>
-    default List<ProductResponseDto> fromJson(String json, @Context ObjectMapper objectMapper) {
+    // Parse từ JSON sang List<ProductSaleResponseDto>
+    default List<ProductSaleResponseDto> fromJson(String json, @Context ObjectMapper objectMapper) {
         try {
-            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<ProductResponseDto>>() {});
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<ProductSaleResponseDto>>() {});
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             return Collections.emptyList(); // hoặc throw nếu muốn bắt buộc phải đúng định dạng
         }

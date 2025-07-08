@@ -45,7 +45,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setStaff(userRepository.findById(dto.getStaffId()).orElseThrow());
         transaction.setImportTransactionNote(dto.getImportTransactionNote());
         transaction.setImportDate(LocalDateTime.now());
-        transaction.setStatus(ImportTransactionStatus.DRAFT);
+        transaction.setStatus(dto.getStatus());
 
         List<ImportTransactionDetail> detailList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
