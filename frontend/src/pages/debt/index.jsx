@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TextField, Button, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { FaPlus } from 'react-icons/fa6';
 import DebtTable from '../../components/debt/DebtTable';
 import DebtFormDialog from '../../components/debt/DebtFormDialog';
 import { debtService } from '../../services/debtService';
+import axios from 'axios';
 
 const DebtNote = () => {
     const [debtNotes, setDebtNotes] = useState([]);
     const [debtors, setDebtors] = useState([]);
+    const [customers, setCustomers] = useState({}); // Cache customer details by customerId
     const [searchText, setSearchText] = useState('');
     const [viewMode, setViewMode] = useState('debtors'); // 'debtors' or 'debtNotes'
     const [openDialog, setOpenDialog] = useState(false);
@@ -25,7 +27,7 @@ const DebtNote = () => {
         debtType: '+',
         debtDescription: '',
         debtEvidences: '',
-        fromSource: 'CUSTOMER',
+        fromSource: 'MANUAL',
         sourceId: '',
         createdAt: '',
         updatedAt: '',
@@ -34,34 +36,64 @@ const DebtNote = () => {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    const fetchCustomerDetails = useCallback(async (customerId) => {
+        if (!customers[customerId]) {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/customers/details/${customerId}`, {
+                    withCredentials: true,
+                });
+                setCustomers((prev) => ({
+                    ...prev,
+                    [customerId]: response.data,
+                }));
+            } catch (err) {
+                console.error('Failed to fetch customer details for ID:', customerId, err);
+            }
+        }
+    }, [customers]);
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [notesData, debtorsData] = await Promise.all([
+                const [notesResponse, debtorsResponse] = await Promise.all([
                     debtService.getAllDebtNotes(),
                     debtService.getAllDebtors(),
                 ]);
+                const notesData = Array.isArray(notesResponse) ? notesResponse : [];
+                const debtorsData = Array.isArray(debtorsResponse) ? debtorsResponse : [];
                 setDebtNotes(notesData);
                 setDebtors(debtorsData);
+
+                // Fetch customer details for all unique customerIds
+                const customerIds = [
+                    ...new Set([...notesData.map((d) => d.customerId), ...debtorsData.map((d) => d.customerId)]),
+                ].filter((id) => id !== undefined && id !== null);
+                await Promise.all(customerIds.map(fetchCustomerDetails));
                 setError(null);
             } catch (err) {
                 setError(err.message);
+                console.error('Error fetching debt data:', err);
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [fetchCustomerDetails]);
 
     const filteredData = useMemo(() => {
         const data = viewMode === 'debtors' ? debtors : debtNotes;
-        return data.filter(
-            (item) =>
-                item.customerName.toLowerCase().includes(searchText.toLowerCase()) ||
-                (item.phone && item.phone.toLowerCase().includes(searchText.toLowerCase()))
-        );
-    }, [searchText, viewMode, debtors, debtNotes]);
+        return data.filter((item) => {
+            if (!item || !item.customerId) return false; // Skip invalid items
+            const customer = customers[item.customerId] || {};
+            const customerName = customer.name || '';
+            const phone = customer.phone || '';
+            return (
+                customerName.toLowerCase().includes(searchText.toLowerCase()) ||
+                phone.toLowerCase().includes(searchText.toLowerCase())
+            );
+        });
+    }, [searchText, viewMode, debtors, debtNotes, customers]);
 
     const handleOpenCreate = () => {
         setForm({
@@ -77,7 +109,7 @@ const DebtNote = () => {
             debtType: '+',
             debtDescription: '',
             debtEvidences: '',
-            fromSource: 'CUSTOMER',
+            fromSource: 'MANUAL',
             sourceId: '',
             createdAt: '',
             updatedAt: '',
@@ -88,24 +120,27 @@ const DebtNote = () => {
     };
 
     const handleOpenEdit = (debt) => {
+        if (debt && debt.customerId) {
+            fetchCustomerDetails(debt.customerId);
+        }
         setForm({
-            id: debt.id,
-            customerId: debt.customerId,
-            customerName: debt.customerName,
-            phone: debt.phone || '',
-            address: debt.address || '',
-            storeId: debt.storeId,
-            storeName: debt.storeName || '',
-            debtAmount: debt.debtAmount || '',
-            debtDate: debt.debtDate || '',
-            debtType: debt.debtType || '+',
-            debtDescription: debt.debtDescription || '',
-            debtEvidences: debt.debtEvidences || '',
-            fromSource: debt.fromSource || 'CUSTOMER',
-            sourceId: debt.sourceId || '',
-            createdAt: debt.createdAt || '',
-            updatedAt: debt.updatedAt || '',
-            deletedAt: debt.deletedAt || '',
+            id: debt?.id || null,
+            customerId: debt?.customerId || null,
+            customerName: customers[debt?.customerId]?.name || '',
+            phone: customers[debt?.customerId]?.phone || '',
+            address: customers[debt?.customerId]?.address || '',
+            storeId: debt?.storeId || null,
+            storeName: debt?.storeName || '',
+            debtAmount: debt?.debtAmount || '',
+            debtDate: debt?.debtDate || '',
+            debtType: debt?.debtType || '+',
+            debtDescription: debt?.debtDescription || '',
+            debtEvidences: debt?.debtEvidences || '',
+            fromSource: debt?.fromSource || 'MANUAL',
+            sourceId: debt?.sourceId || '',
+            createdAt: debt?.createdAt || '',
+            updatedAt: debt?.updatedAt || '',
+            deletedAt: debt?.deletedAt || '',
         });
         setEditMode(true);
         setOpenDialog(true);

@@ -37,7 +37,7 @@ public class DebtNoteController {
         return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
-    @GetMapping("/debt-list")
+    @GetMapping("/all")
     public ResponseEntity<List<DebtNoteResponseDto>> getAllDebtNotes() {
         logger.info("Fetching all debt notes from table 'debt_notes'");
         return new ResponseEntity<>(debtNoteService.getAllDebtNotes().stream()
