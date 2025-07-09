@@ -1,245 +1,199 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { TextField, Button, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { FaPlus } from 'react-icons/fa6';
-import DebtTable from '../../components/debt/DebtTable';
-import DebtFormDialog from '../../components/debt/DebtFormDialog';
-import { debtService } from '../../services/debtService';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import {
+    Container,
+    Typography,
+    Button,
+    Box,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+} from "@mui/material";
+import DebtTable from "../../components/debt/DebtTable";
+import AddDebtDialog from "../../components/debt/AddDebtDialog";
+import EditDebtDialog from "../../components/debt/EditDebtDialog.jsx";
+import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
+import { getAllCustomers, getCustomerById } from "../../services/customerService";
 
-const DebtNote = () => {
+const DebtManagement = () => {
+    const [customers, setCustomers] = useState([]);
+    const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+    const [customer, setCustomer] = useState(null);
     const [debtNotes, setDebtNotes] = useState([]);
-    const [debtors, setDebtors] = useState([]);
-    const [customers, setCustomers] = useState({}); // Cache customer details by customerId
-    const [searchText, setSearchText] = useState('');
-    const [viewMode, setViewMode] = useState('debtors'); // 'debtors' or 'debtNotes'
-    const [openDialog, setOpenDialog] = useState(false);
-    const [editMode, setEditMode] = useState(false);
-    const [form, setForm] = useState({
-        id: null,
-        customerId: null,
-        customerName: '',
-        phone: '',
-        address: '',
-        storeId: null,
-        storeName: '',
-        debtAmount: '',
-        debtDate: '',
-        debtType: '+',
-        debtDescription: '',
-        debtEvidences: '',
-        fromSource: 'MANUAL',
-        sourceId: '',
-        createdAt: '',
-        updatedAt: '',
-        deletedAt: '',
-    });
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(false);
-
-    const fetchCustomerDetails = useCallback(async (customerId) => {
-        if (!customers[customerId]) {
-            try {
-                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/customers/details/${customerId}`, {
-                    withCredentials: true,
-                });
-                setCustomers((prev) => ({
-                    ...prev,
-                    [customerId]: response.data,
-                }));
-            } catch (err) {
-                console.error('Failed to fetch customer details for ID:', customerId, err);
-            }
-        }
-    }, [customers]);
+    const [totalDebt, setTotalDebt] = useState(null);
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [selectedDebtNote, setSelectedDebtNote] = useState(null);
+    const [error, setError] = useState("");
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
+        const fetchCustomers = async () => {
             try {
-                const [notesResponse, debtorsResponse] = await Promise.all([
-                    debtService.getAllDebtNotes(),
-                    debtService.getAllDebtors(),
-                ]);
-                const notesData = Array.isArray(notesResponse) ? notesResponse : [];
-                const debtorsData = Array.isArray(debtorsResponse) ? debtorsResponse : [];
-                setDebtNotes(notesData);
-                setDebtors(debtorsData);
-
-                // Fetch customer details for all unique customerIds
-                const customerIds = [
-                    ...new Set([...notesData.map((d) => d.customerId), ...debtorsData.map((d) => d.customerId)]),
-                ].filter((id) => id !== undefined && id !== null);
-                await Promise.all(customerIds.map(fetchCustomerDetails));
-                setError(null);
-            } catch (err) {
-                setError(err.message);
-                console.error('Error fetching debt data:', err);
-            } finally {
-                setLoading(false);
+                const customerData = await getAllCustomers();
+                setCustomers(customerData || []);
+            } catch (error) {
+                console.error("Failed to fetch customers:", error);
+                setError("Không thể tải danh sách khách hàng");
             }
         };
-        fetchData();
-    }, [fetchCustomerDetails]);
+        fetchCustomers();
+    }, []);
 
-    const filteredData = useMemo(() => {
-        const data = viewMode === 'debtors' ? debtors : debtNotes;
-        return data.filter((item) => {
-            if (!item || !item.customerId) return false; // Skip invalid items
-            const customer = customers[item.customerId] || {};
-            const customerName = customer.name || '';
-            const phone = customer.phone || '';
-            return (
-                customerName.toLowerCase().includes(searchText.toLowerCase()) ||
-                phone.toLowerCase().includes(searchText.toLowerCase())
+    useEffect(() => {
+        if (selectedCustomerId) {
+            const fetchCustomerData = async () => {
+                try {
+                    setError("");
+                    const customerData = await getCustomerById(selectedCustomerId);
+                    setCustomer(customerData);
+
+                    const debtNotesData = await getDebtNotesByCustomerId(selectedCustomerId);
+                    setDebtNotes(debtNotesData || []);
+
+                    try {
+                        const totalDebtData = await getTotalDebtByCustomerId(selectedCustomerId);
+                        setTotalDebt(totalDebtData || 0);
+                    } catch (error) {
+                        console.error("Failed to fetch total debt, continuing with other data:", error);
+                        setTotalDebt(0);
+                        setError("Không thể tải tổng nợ, nhưng dữ liệu khác vẫn được hiển thị");
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch customer data:", error);
+                    setError("Không thể tải dữ liệu khách hàng: " + (error.response?.data?.message || error.message));
+                }
+            };
+            fetchCustomerData();
+        }
+    }, [selectedCustomerId]);
+
+    const handleAddDebtNote = (newDebtNote) => {
+        if (newDebtNote) {
+            setDebtNotes([...debtNotes, newDebtNote]);
+            getTotalDebtByCustomerId(selectedCustomerId)
+                .then((data) => setTotalDebt(data || 0))
+                .catch((error) => {
+                    console.error("Failed to refresh total debt:", error);
+                    setError("Không thể làm mới tổng nợ");
+                });
+        }
+    };
+
+    const handleEditDebtNote = (debtNote) => {
+        if (debtNote) {
+            setSelectedDebtNote(debtNote);
+            setEditDialogOpen(true);
+        }
+    };
+
+    const handleUpdateDebtNote = (updatedDebtNote) => {
+        if (updatedDebtNote) {
+            setDebtNotes(
+                debtNotes.map((note) => (note.id === updatedDebtNote.id ? updatedDebtNote : note))
             );
-        });
-    }, [searchText, viewMode, debtors, debtNotes, customers]);
-
-    const handleOpenCreate = () => {
-        setForm({
-            id: null,
-            customerId: null,
-            customerName: '',
-            phone: '',
-            address: '',
-            storeId: null,
-            storeName: '',
-            debtAmount: '',
-            debtDate: '',
-            debtType: '+',
-            debtDescription: '',
-            debtEvidences: '',
-            fromSource: 'MANUAL',
-            sourceId: '',
-            createdAt: '',
-            updatedAt: '',
-            deletedAt: '',
-        });
-        setEditMode(false);
-        setOpenDialog(true);
-    };
-
-    const handleOpenEdit = (debt) => {
-        if (debt && debt.customerId) {
-            fetchCustomerDetails(debt.customerId);
-        }
-        setForm({
-            id: debt?.id || null,
-            customerId: debt?.customerId || null,
-            customerName: customers[debt?.customerId]?.name || '',
-            phone: customers[debt?.customerId]?.phone || '',
-            address: customers[debt?.customerId]?.address || '',
-            storeId: debt?.storeId || null,
-            storeName: debt?.storeName || '',
-            debtAmount: debt?.debtAmount || '',
-            debtDate: debt?.debtDate || '',
-            debtType: debt?.debtType || '+',
-            debtDescription: debt?.debtDescription || '',
-            debtEvidences: debt?.debtEvidences || '',
-            fromSource: debt?.fromSource || 'MANUAL',
-            sourceId: debt?.sourceId || '',
-            createdAt: debt?.createdAt || '',
-            updatedAt: debt?.updatedAt || '',
-            deletedAt: debt?.deletedAt || '',
-        });
-        setEditMode(true);
-        setOpenDialog(true);
-    };
-
-    const handleClose = () => {
-        setOpenDialog(false);
-    };
-
-    const handleDelete = async (id) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa công nợ này?')) {
-            try {
-                await debtService.softDeleteDebtNote(id);
-                setDebtNotes((prev) => prev.filter((d) => d.id !== id));
-                setError(null);
-            } catch (err) {
-                setError(err.message);
-            }
         }
     };
 
-    const handleSubmit = async () => {
-        const debtData = {
-            customerId: form.customerId,
-            debtAmount: form.debtAmount,
-            debtDate: form.debtDate,
-            storeId: form.storeId,
-            debtType: form.debtType,
-            debtDescription: form.debtDescription,
-            debtEvidences: form.debtEvidences,
-            fromSource: form.fromSource,
-            sourceId: form.sourceId,
-        };
-        try {
-            if (editMode) {
-                const updatedDebt = await debtService.updateDebtNote(form.id, debtData);
-                setDebtNotes((prev) =>
-                    prev.map((d) => (d.id === form.id ? updatedDebt : d))
-                );
-            } else {
-                const newDebt = await debtService.createDebtNote(debtData);
-                setDebtNotes((prev) => [...prev, newDebt]);
-            }
-            handleClose();
-            setError(null);
-        } catch (error) {
-            setError(error.message);
-        }
+    const formatTotalDebt = (totalDebt) => {
+        if (totalDebt == null || totalDebt === 0) return "0";
+        return totalDebt < 0
+            ? `Khách hàng nợ: ${Math.abs(totalDebt)}`
+            : `Cửa hàng nợ: ${totalDebt}`;
     };
 
     return (
-        <div className="p-5 bg-white shadow-md rounded-md">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Quản lý công nợ</h2>
-                <div className="flex gap-3">
-                    <TextField
-                        size="small"
-                        label="Tìm kiếm"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
-                    <FormControl size="small" style={{ minWidth: 200 }}>
-                        <InputLabel>Chế độ xem</InputLabel>
-                        <Select
-                            value={viewMode}
-                            onChange={(e) => setViewMode(e.target.value)}
-                        >
-                            <MenuItem value="debtors">Danh sách người nợ</MenuItem>
-                            <MenuItem value="debtNotes">Danh sách công nợ</MenuItem>
-                        </Select>
-                    </FormControl>
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
-                        Thêm
-                    </Button>
-                </div>
-            </div>
-
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {loading ? (
-                <p>Đang tải...</p>
-            ) : (
-                <DebtTable
-                    debtNotes={filteredData}
-                    onEdit={handleOpenEdit}
-                    onDelete={handleDelete}
-                    viewMode={viewMode}
-                />
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+            <Typography variant="h4" gutterBottom>
+                Quản lý nợ
+            </Typography>
+            {error && (
+                <Typography color="error" sx={{ mb: 2 }}>
+                    {error}
+                </Typography>
             )}
 
-            <DebtFormDialog
-                open={openDialog}
-                onClose={handleClose}
-                onSubmit={handleSubmit}
-                form={form}
-                setForm={setForm}
-                editMode={editMode}
-            />
-        </div>
+            {/* Bảng danh sách khách hàng */}
+            <Typography variant="h6" gutterBottom>
+                Danh sách khách hàng
+            </Typography>
+            <TableContainer component={Paper} sx={{ mb: 4 }}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Tên</TableCell>
+                            <TableCell>Số điện thoại</TableCell>
+                            <TableCell>Địa chỉ</TableCell>
+                            <TableCell>Tổng nợ</TableCell>
+                            <TableCell>Hành động</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {customers && customers.length > 0 ? (
+                            customers.map((cust) => (
+                                <TableRow key={cust.id || Math.random()}>
+                                    <TableCell>{cust.name || "N/A"}</TableCell>
+                                    <TableCell>{cust.phone || "N/A"}</TableCell>
+                                    <TableCell>{cust.address || "N/A"}</TableCell>
+                                    <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="outlined"
+                                            color="primary"
+                                            onClick={() => setSelectedCustomerId(cust.id)}
+                                            disabled={!cust.id}
+                                        >
+                                            Xem chi tiết
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5}>Không có khách hàng</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+            {/* Chi tiết khách hàng và giao dịch nợ */}
+            {customer && selectedCustomerId && (
+                <Box>
+                    <Typography variant="h6" gutterBottom>
+                        Khách hàng: {customer.name || "N/A"}
+                    </Typography>
+                    <Typography variant="body1" gutterBottom>
+                        Tổng nợ: {formatTotalDebt(totalDebt)}
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => setAddDialogOpen(true)}
+                        sx={{ mb: 2 }}
+                    >
+                        Thêm giao dịch nợ
+                    </Button>
+                    <DebtTable debtNotes={debtNotes} onEdit={handleEditDebtNote} />
+                    <AddDebtDialog
+                        open={addDialogOpen}
+                        onClose={() => setAddDialogOpen(false)}
+                        customerId={selectedCustomerId}
+                        onAdd={handleAddDebtNote}
+                    />
+                    <EditDebtDialog
+                        open={editDialogOpen}
+                        onClose={() => setEditDialogOpen(false)}
+                        debtNote={selectedDebtNote}
+                        customerId={selectedCustomerId}
+                        onUpdate={handleUpdateDebtNote}
+                    />
+                </Box>
+            )}
+        </Container>
     );
 };
 
-export default DebtNote;
+export default DebtManagement;

@@ -14,12 +14,13 @@ public class CustomerResponseDto {
     private Long id;
     private String name;
     private String email;
+    private String address;
     private String phone;
-    private String role;
-    private BigDecimal totalDept;
+    private BigDecimal totalDebt;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
+    private Boolean isSupplier;
 }

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,7 +38,7 @@ public class CustomerController {
         return new ResponseEntity<>(responseDto, HttpStatus.OK);
     }
 
-    @GetMapping
+    @GetMapping("/admin/customerList")
     public ResponseEntity<List<CustomerResponseDto>> getAllCustomers() {
         logger.info("Fetching all customers from table 'customers'");
         return new ResponseEntity<>(customerService.getAllCustomers().stream()
@@ -74,6 +75,21 @@ public class CustomerController {
         logger.info("Soft deleting customer with ID: {}", id);
         customerService.softDeleteCustomer(id, deletedBy);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/upload-evidence")
+    public ResponseEntity<String> uploadEvidence(@RequestParam("file") MultipartFile file) {
+        logger.debug("Received request to upload evidence file: {}", file.getOriginalFilename());
+        try {
+            // Giả định lưu file vào thư mục hoặc dịch vụ lưu trữ (e.g., AWS S3)
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            // TODO: Thêm logic lưu file (ví dụ: vào thư mục local hoặc cloud)
+            logger.info("Successfully uploaded evidence file: {}", fileName);
+            return ResponseEntity.ok(fileName);
+        } catch (Exception e) {
+            logger.error("Failed to upload evidence file. Error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload file: " + e.getMessage());
+        }
     }
 
     private CustomerResponseDto convertToResponseDTO(CustomerResponseDto dto) {

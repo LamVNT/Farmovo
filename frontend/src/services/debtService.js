@@ -1,159 +1,88 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/debts`;
+const API_URL = `${import.meta.env.VITE_API_URL}/debt`;
 
-export const debtService = {
-    getAllDebtNotes: async () => {
-        try {
-            const response = await axios.get(`${API_URL}/all`, {
-                withCredentials: true,
-            });
-            const data = response.data;
-            if (Array.isArray(data)) {
-                return data;
-            } else if (data && Array.isArray(data.data)) {
-                return data.data; // Handle case where data is wrapped in { data: [...] }
-            } else {
-                console.warn('Unexpected response format for getAllDebtNotes:', data);
-                return [];
-            }
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể lấy danh sách công nợ: ${error.message}`
-            );
-        }
-    },
+/**
+ * Lấy danh sách giao dịch nợ theo customerId
+ * @param {number} customerId - ID của khách hàng
+ * @returns {Promise<Array>} - Danh sách giao dịch nợ (DebtNoteResponseDto[])
+ */
+export const getDebtNotesByCustomerId = async (customerId) => {
+    console.log(`Fetching debt notes for customer ID: ${customerId}`);
+    try {
+        const response = await axios.get(`${API_URL}/customer/${customerId}/debt-notes`);
+        console.log(`Successfully fetched ${response.data.length} debt notes for customer ID: ${customerId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching debt notes for customer ID: ${customerId}`, {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    getDebtNoteById: async (id) => {
-        try {
-            const response = await axios.get(`${API_URL}/${id}`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể lấy thông tin công nợ với ID ${id}: ${error.message}`
-            );
-        }
-    },
+/**
+ * Thêm giao dịch nợ mới
+ * @param {Object} debtNoteData - Dữ liệu giao dịch nợ (DebtNoteRequestDto)
+ * @returns {Promise<Object>} - Giao dịch nợ đã tạo (DebtNoteResponseDto)
+ */
+export const addDebtNote = async (debtNoteData) => {
+    console.log("Adding new debt note:", debtNoteData);
+    try {
+        const response = await axios.post(`${API_URL}/debt-note`, debtNoteData);
+        console.log(`Successfully added debt note with ID: ${response.data.id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error adding debt note:", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    getAllDebtors: async () => {
-        try {
-            const response = await axios.get(`${API_URL}/debtors`, {
-                withCredentials: true,
-            });
-            const data = response.data;
-            if (Array.isArray(data)) {
-                return data;
-            } else if (data && Array.isArray(data.data)) {
-                return data.data;
-            } else {
-                console.warn('Unexpected response format for getAllDebtors:', data);
-                return [];
-            }
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể lấy danh sách người nợ: ${error.message}`
-            );
-        }
-    },
+/**
+ * Chỉnh sửa giao dịch nợ
+ * @param {number} debtId - ID của giao dịch nợ
+ * @param {Object} debtNoteData - Dữ liệu giao dịch nợ (DebtNoteRequestDto)
+ * @returns {Promise<Object>} - Giao dịch nợ đã cập nhật (DebtNoteResponseDto)
+ */
+export const updateDebtNote = async (debtId, debtNoteData) => {
+    console.log(`Updating debt note ID: ${debtId} with data:`, debtNoteData);
+    try {
+        const response = await axios.put(`${API_URL}/debt-note/${debtId}`, debtNoteData);
+        console.log(`Successfully updated debt note with ID: ${debtId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error updating debt note ID: ${debtId}", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    createDebtNote: async (debtData) => {
-        try {
-            const response = await axios.post(API_URL, debtData, {
-                withCredentials: true,
-                params: { createdBy: localStorage.getItem('userId') || 1 },
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể tạo công nợ: ${error.message}`
-            );
-        }
-    },
-
-    updateDebtNote: async (id, debtData) => {
-        try {
-            const response = await axios.put(`${API_URL}/${id}`, debtData, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể cập nhật công nợ với ID ${id}: ${error.message}`
-            );
-        }
-    },
-
-    softDeleteDebtNote: async (id) => {
-        try {
-            await axios.delete(`${API_URL}/${id}`, {
-                withCredentials: true,
-                params: { deletedBy: localStorage.getItem('userId') || 1 },
-            });
-            return true;
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể xóa công nợ với ID ${id}: ${error.message}`
-            );
-        }
-    },
-
-    getDebtNotesByCustomerId: async (customerId) => {
-        try {
-            const response = await axios.get(`${API_URL}/customer/${customerId}`, {
-                withCredentials: true,
-            });
-            const data = response.data;
-            if (Array.isArray(data)) {
-                return data;
-            } else if (data && Array.isArray(data.data)) {
-                return data.data;
-            } else {
-                console.warn('Unexpected response format for getDebtNotesByCustomerId:', data);
-                return [];
-            }
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể lấy danh sách công nợ theo khách hàng ID ${customerId}: ${error.message}`
-            );
-        }
-    },
-
-    getDebtNotesByStoreId: async (storeId) => {
-        try {
-            const response = await axios.get(`${API_URL}/store/${storeId}`, {
-                withCredentials: true,
-            });
-            const data = response.data;
-            if (Array.isArray(data)) {
-                return data;
-            } else if (data && Array.isArray(data.data)) {
-                return data.data;
-            } else {
-                console.warn('Unexpected response format for getDebtNotesByStoreId:', data);
-                return [];
-            }
-        } catch (error) {
-            throw new Error(
-                error.response?.data?.message ||
-                error.response?.data ||
-                `Không thể lấy danh sách công nợ theo cửa hàng ID ${storeId}: ${error.message}`
-            );
-        }
-    },
+/**
+ * Tính tổng nợ của khách hàng
+ * @param {number} customerId - ID của khách hàng
+ * @returns {Promise<number>} - Tổng nợ (BigDecimal)
+ */
+export const getTotalDebtByCustomerId = async (customerId) => {
+    console.log(`Fetching total debt for customer ID: ${customerId}`);
+    try {
+        const response = await axios.get(`${API_URL}/customer/${customerId}/total-debt`);
+        console.log(`Successfully fetched total debt: ${response.data} for customer ID: ${customerId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching total debt for customer ID: ${customerId}`, {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
 };
