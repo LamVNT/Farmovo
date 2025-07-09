@@ -32,7 +32,7 @@ public class CreateImportTransactionRequestDto {
         private Long productId;
         private String productName;
         private Integer importQuantity;
-        private Integer remainQuantity;// hai quantity này có cần thiết cần cả hai không???
+        private Integer remainQuantity;
         private LocalDateTime expireDate;
         private BigDecimal unitImportPrice;
         private BigDecimal unitSalePrice;

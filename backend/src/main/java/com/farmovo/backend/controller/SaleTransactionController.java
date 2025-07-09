@@ -1,9 +1,6 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
-import com.farmovo.backend.dto.request.CustomerDto;
-import com.farmovo.backend.dto.request.ProductDto;
-import com.farmovo.backend.dto.request.ZoneDto;
+import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
@@ -35,19 +32,17 @@ public class SaleTransactionController {
     private final CustomerService customerService;
     private final ProductService productService;
     private final ZoneService zoneService;
-    
 
-//    @GetMapping("/create-form-data")
-//    public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
-//        List<CustomerDto> customers = customerService.getAllCustomerDto();
-//
-//        ImportTransactionCreateFormDataDto formData = new ImportTransactionCreateFormDataDto();
-//        formData.setCustomers(customers);
-//        formData.setProducts(products);
-//        formData.setZones(zones);
-//
-//        return ResponseEntity.ok(formData);
-//    }
+
+    @GetMapping("/create-form-data")
+    public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
+        List<CustomerDto> customers = customerService.getAllCustomerDto();
+        List<ProductSaleResponseDto> products = productService.getAllProductSaleDto();
+        SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
+        formData.setCustomers(customers);
+        formData.setProducts(products);
+        return ResponseEntity.ok(formData);
+    }
 
     @GetMapping("/product-response/{productId}")
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(@PathVariable Long productId) {

@@ -11,12 +11,10 @@ import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.ImportTransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -41,9 +39,15 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         ImportTransaction transaction = new ImportTransaction();
 
         // Gắn thông tin cơ bản
-        transaction.setSupplier(customerRepository.findById(dto.getSupplierId()).orElseThrow());
-        transaction.setStore(storeRepository.findById(dto.getStoreId()).orElseThrow());
-        transaction.setStaff(userRepository.findById(dto.getStaffId()).orElseThrow());
+        transaction.setSupplier(
+                customerRepository.findById(dto.getSupplierId())
+                        .orElseThrow(() -> new RuntimeException("Supplier not found")));
+        transaction.setStore(
+                storeRepository.findById(dto.getStoreId())
+                        .orElseThrow(() -> new RuntimeException("Store not found")));
+        transaction.setStaff(
+                userRepository.findById(dto.getStaffId())
+                        .orElseThrow(() -> new RuntimeException("Staff not found")));
         transaction.setImportTransactionNote(dto.getImportTransactionNote());
         transaction.setImportDate(LocalDateTime.now());
         transaction.setStatus(dto.getStatus());
@@ -71,11 +75,69 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
         transaction.setDetails(detailList);
         transaction.setTotalAmount(totalAmount);
-        transaction.setPaidAmount(BigDecimal.ZERO); // default nếu chưa thanh toán
+        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
 
         // Lưu
         importTransactionRepository.save(transaction);
     }
+
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, CreateImportTransactionRequestDto dto) {
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Import transaction not found with ID: " + id));
+
+        if (transaction.getStatus() != ImportTransactionStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT transactions can be updated.");
+        }
+
+        // Cập nhật các trường chính
+        transaction.setSupplier(
+                customerRepository.findById(dto.getSupplierId())
+                        .orElseThrow(() -> new RuntimeException("Supplier not found")));
+        transaction.setStore(
+                storeRepository.findById(dto.getStoreId())
+                        .orElseThrow(() -> new RuntimeException("Store not found")));
+        transaction.setStaff(
+                userRepository.findById(dto.getStaffId())
+                        .orElseThrow(() -> new RuntimeException("Staff not found")));
+        transaction.setImportTransactionNote(dto.getImportTransactionNote());
+        transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
+        transaction.setStatus(dto.getStatus());
+
+        // Xóa toàn bộ detail cũ trước khi ghi đè
+        transaction.getDetails().clear();
+
+        List<ImportTransactionDetail> newDetails = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
+            ImportTransactionDetail detail = new ImportTransactionDetail();
+            detail.setImportTransaction(transaction);
+            detail.setProduct(productRepository.findById(d.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found with ID: " + d.getProductId())));
+            detail.setImportQuantity(d.getImportQuantity());
+            detail.setRemainQuantity(d.getRemainQuantity()); // vẫn cần giữ để theo dõi
+            detail.setExpireDate(d.getExpireDate());
+            detail.setUnitImportPrice(d.getUnitImportPrice());
+            detail.setUnitSalePrice(d.getUnitSalePrice());
+
+            // Cộng dồn tổng tiền nhập
+            BigDecimal lineTotal = d.getUnitImportPrice()
+                    .multiply(BigDecimal.valueOf(d.getImportQuantity()));
+            totalAmount = totalAmount.add(lineTotal);
+
+            newDetails.add(detail);
+        }
+
+        transaction.setDetails(newDetails);
+        transaction.setTotalAmount(totalAmount);
+        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
+
+        importTransactionRepository.save(transaction);
+    }
+
 
     @Override
     public List<CreateImportTransactionRequestDto> listAllImportTransaction1() {
