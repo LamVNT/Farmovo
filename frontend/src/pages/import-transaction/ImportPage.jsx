@@ -35,9 +35,7 @@ import { userService } from '../../services/userService';
 import { getCategories } from '../../services/categoryService';
 import { getZones } from '../../services/zoneService';
 const ImportPage = () => {
-    const [selectedUser, setSelectedUser] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
-    const [importCode, setImportCode] = useState('');
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +64,6 @@ const ImportPage = () => {
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [zones, setZones] = useState([]);
 
-    const [users, setUsers] = useState([]);
     const [nextImportCode, setNextImportCode] = useState('');
     const [note, setNote] = useState('');
 
@@ -151,17 +148,8 @@ const ImportPage = () => {
         );
     };
 
-    // Hàm xử lý chọn nhanh mốc hạn sử dụng
-    const handleQuickDuration = (id, days) => {
-        handleDurationChange(id, days);
-    };
 
     // Hàm format ngày dd/MM/yyyy
-    const formatDateDisplay = (dateStr) => {
-        if (!dateStr) return '';
-        const [year, month, day] = dateStr.split('-');
-        return `${day}/${month}/${year}`;
-    };
 
     const handleSelectProduct = (product) => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
@@ -245,18 +233,6 @@ const ImportPage = () => {
         );
     };
 
-    const calculateTotal = (price, quantity, discount, discountType) => {
-        const subtotal = price * quantity;
-        if (discountType === 'percent') {
-            return subtotal * (1 - discount / 100);
-        } else {
-            return subtotal - discount;
-        }
-    };
-
-    const calculateSubtotal = (price, quantity) => {
-        return price * quantity;
-    };
 
     const handleDeleteProduct = (id) => {
         setSelectedProducts((prev) => prev.filter((p) => p.id !== id));
