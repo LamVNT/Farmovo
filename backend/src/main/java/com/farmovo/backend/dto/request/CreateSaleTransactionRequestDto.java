@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateSaleTransactionRequestDto {
+    private Long id;
     private Long customerId;
     private Long storeId;
     private BigDecimal totalAmount;

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/importtransaction")
+@RequestMapping("/api/import-transaction")
 public class ImportTransationController {
 
     private static final Logger logger = LogManager.getLogger(ImportTransationController.class);
@@ -56,7 +56,6 @@ public class ImportTransationController {
 
     @GetMapping("/list-all")
     public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
-
         List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
         return ResponseEntity.ok(transactions);
     }
