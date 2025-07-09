@@ -17,6 +17,8 @@ public interface ProductMapper {
 
     List<ProductDto> toDtoList(List<Product> products);
 
+    List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
+
 
     @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "proId")

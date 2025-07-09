@@ -71,4 +71,13 @@ public class ImportTransationController {
         importTransactionService.createImportTransaction(dto);
         return ResponseEntity.ok("Tạo phiếu nhập thành công");
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateImportTransaction(
+            @PathVariable Long id,
+            @RequestBody CreateImportTransactionRequestDto dto) {
+        importTransactionService.update(id, dto);
+        return ResponseEntity.ok("Import transaction updated successfully.");
+    }
+
 }

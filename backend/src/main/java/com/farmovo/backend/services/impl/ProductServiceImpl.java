@@ -2,6 +2,7 @@ package com.farmovo.backend.services.impl;
 
 
 import com.farmovo.backend.dto.request.ProductDto;
+import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.Product;
 import com.farmovo.backend.repositories.ProductRepository;
@@ -34,6 +35,8 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toDto(product);
     }
 
-
-
+    @Override
+    public List<ProductSaleResponseDto> getAllProductSaleDto() {
+        return productMapper.toDtoProSaleList(productRepository.findAll());
+    }
 }
