@@ -20,6 +20,12 @@ import {
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
+import ReplyIcon from '@mui/icons-material/Reply';
+import SaveIcon from '@mui/icons-material/Save';
+import ReplyAllIcon from '@mui/icons-material/ReplyAll';
+import PrintIcon from '@mui/icons-material/Print';
+import CloseIcon from '@mui/icons-material/Close';
+import DialogActions from '@mui/material/DialogActions';
 
 const getRange = (key) => {
     const today = new Date();
@@ -67,9 +73,10 @@ const ImportTransactionPage = () => {
 
     const [filter, setFilter] = useState({
         status: {
-            temporary: true,
-            imported: true,
-            cancelled: false,
+            draft: false,
+            waiting: false,
+            complete: false,
+            cancel: false,
         },
         creator: '',
         importer: '',
@@ -83,6 +90,11 @@ const ImportTransactionPage = () => {
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [selectedDetails, setSelectedDetails] = useState([]);
+
+    // Thêm state cho thông báo lỗi khi huỷ
+    const [cancelError, setCancelError] = useState(null);
+    // Thêm state cho thông báo lỗi khi mở phiếu
+    const [openError, setOpenError] = useState(null);
 
     // Load transactions from API
     const loadTransactions = async () => {
@@ -103,11 +115,47 @@ const ImportTransactionPage = () => {
         loadTransactions();
     }, []);
 
-    // Filter transactions based on search
-    const filteredTransactions = transactions.filter(t =>
-        (t.name && t.name.toLowerCase().includes(filter.search.toLowerCase())) ||
-        (t.supplierName && t.supplierName.toLowerCase().includes(filter.search.toLowerCase()))
-    );
+    // Thay thế đoạn filter transactions:
+    const getStatusKeys = () => {
+        const keys = [];
+        if (filter.status.draft) keys.push('DRAFT');
+        if (filter.status.waiting) keys.push('WAITING_FOR_APPROVE');
+        if (filter.status.complete) keys.push('COMPLETE');
+        if (filter.status.cancel) keys.push('CANCEL');
+        return keys;
+    };
+
+    const filteredTransactions = transactions.filter(t => {
+        // Lọc theo trạng thái
+        const statusKeys = getStatusKeys();
+        // Nếu không chọn gì thì không lọc theo trạng thái
+        if (statusKeys.length > 0 && !statusKeys.includes(t.status)) return false;
+
+        // Lọc theo thời gian
+        if (customDate && customDate[0]) {
+            const start = customDate[0].startDate;
+            const end = customDate[0].endDate;
+            const importDate = t.importDate ? new Date(t.importDate) : null;
+            if (importDate) {
+                if (importDate < new Date(start.setHours(0,0,0,0)) || importDate > new Date(end.setHours(23,59,59,999))) {
+                    return false;
+                }
+            }
+        }
+
+        // Lọc theo search
+        if (
+            filter.search &&
+            !(
+                (t.name && t.name.toLowerCase().includes(filter.search.toLowerCase())) ||
+                (t.supplierName && t.supplierName.toLowerCase().includes(filter.search.toLowerCase()))
+            )
+        ) {
+            return false;
+        }
+
+        return true;
+    });
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -128,15 +176,37 @@ const ImportTransactionPage = () => {
     const handleViewDetail = async (row) => {
         try {
             const transaction = await importTransactionService.getWithDetails(row.id);
-            setSelectedTransaction({
-                id: transaction.id,
-                name: row.name, // giữ lại tên (nếu không có sẵn trong transaction)
-                importDate: transaction.importDate
-            });
+            setSelectedTransaction(transaction); // Lưu toàn bộ object, bao gồm status
             setSelectedDetails(transaction.details);
             setOpenDetailDialog(true);
         } catch (error) {
             console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
+        }
+    };
+
+    // Hàm xử lý huỷ phiếu
+    const handleCancelTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setCancelError(null);
+        try {
+            await importTransactionService.updateStatus(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+        } catch (err) {
+            setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
+        }
+    };
+
+    // Hàm xử lý mở phiếu
+    const handleOpenTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        try {
+            await importTransactionService.openTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+        } catch (err) {
+            setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
         }
     };
 
@@ -235,7 +305,31 @@ const ImportTransactionPage = () => {
                     <div className="bg-white p-4 rounded shadow mb-4">
                         <FormLabel className="mb-2 font-semibold">Lọc theo thời gian</FormLabel>
                         <div className="flex flex-col gap-2">
-                            <FormControlLabel control={<Checkbox checked={selectedMode === "preset"} onChange={() => { setSelectedMode("preset"); setShowDatePicker(false); }} />} label={<div className="flex items-center justify-between w-full"><span>{presetLabel}</span><Button size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>▼</Button></div>} />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={selectedMode === "preset"}
+                                        onChange={() => {
+                                            setSelectedMode("preset");
+                                            setShowDatePicker(false);
+                                            setAnchorEl(null);
+                                        }}
+                                    />
+                                }
+                                label={
+                                    <div
+                                        className="flex items-center justify-between w-full cursor-pointer"
+                                        onClick={(e) => {
+                                            setSelectedMode("preset");
+                                            setShowDatePicker(false);
+                                            setAnchorEl(e.currentTarget);
+                                        }}
+                                    >
+                                        <span>{presetLabel}</span>
+                                        <Button size="small">▼</Button>
+                                    </div>
+                                }
+                            />
                             <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(true); }} />} label={<div className="flex items-center justify-between w-full"><span>{customLabel}</span><Button size="small" onClick={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(!showDatePicker); }}>📅</Button></div>} />
                         </div>
                         <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
@@ -250,9 +344,70 @@ const ImportTransactionPage = () => {
                     <div className="bg-white p-4 rounded shadow mb-4">
                         <FormLabel className="font-semibold mb-2 block">Trạng thái</FormLabel>
                         <FormControl component="fieldset" className="flex flex-col gap-2">
-                            <FormControlLabel control={<Checkbox checked={filter.status.temporary} onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, temporary: !prev.status.temporary } }))} />} label="Phiếu tạm" />
-                            <FormControlLabel control={<Checkbox checked={filter.status.imported} onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, imported: !prev.status.imported } }))} />} label="Đã nhập hàng" />
-                            <FormControlLabel control={<Checkbox checked={filter.status.cancelled} onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancelled: !prev.status.cancelled } }))} />} label="Đã huỷ" />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={filter.status.draft}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
+                                    />
+                                }
+                                label={
+                                    <span
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        Nháp
+                                    </span>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={filter.status.waiting}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
+                                    />
+                                }
+                                label={
+                                    <span
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        Chờ xử lý
+                                    </span>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={filter.status.complete}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
+                                    />
+                                }
+                                label={
+                                    <span
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        Đã hoàn thành
+                                    </span>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={filter.status.cancel}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
+                                    />
+                                }
+                                label={
+                                    <span
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        Đã huỷ
+                                    </span>
+                                }
+                            />
                         </FormControl>
                     </div>
 
@@ -311,71 +466,96 @@ const ImportTransactionPage = () => {
                 <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
                 <DialogContent>
                     {selectedDetails.length > 0 ? (
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Sản phẩm</TableCell>
-                                    <TableCell>SL nhập</TableCell>
-                                    <TableCell>SL còn</TableCell>
-                                    <TableCell>Giá nhập</TableCell>
-                                    <TableCell>Giá bán</TableCell>
-                                    <TableCell>HSD</TableCell>
-                                    <TableCell>Khu vực</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {selectedDetails.map((detail) => (
-                                    <TableRow key={detail.id}>
-                                        <TableCell>{detail.productName}</TableCell>
-                                        <TableCell>{detail.importQuantity}</TableCell>
-                                        <TableCell>{detail.remainQuantity}</TableCell>
-                                        <TableCell>{detail.unitImportPrice.toLocaleString("vi-VN")}₫</TableCell>
-                                        <TableCell>{detail.unitSalePrice.toLocaleString("vi-VN")}₫</TableCell>
-                                        <TableCell>{new Date(detail.expireDate).toLocaleDateString()}</TableCell>
-                                        <TableCell>{detail.zones_id}</TableCell>
+                        <>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Sản phẩm</TableCell>
+                                        <TableCell>SL nhập</TableCell>
+                                        <TableCell>SL còn</TableCell>
+                                        <TableCell>Giá nhập</TableCell>
+                                        <TableCell>Giá bán</TableCell>
+                                        <TableCell>HSD</TableCell>
+                                        <TableCell>Khu vực</TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHead>
+                                <TableBody>
+                                    {selectedDetails.map((detail, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>{detail.productName}</TableCell>
+                                            <TableCell>{detail.importQuantity}</TableCell>
+                                            <TableCell>{detail.remainQuantity}</TableCell>
+                                            <TableCell>{detail.unitImportPrice?.toLocaleString("vi-VN")}₫</TableCell>
+                                            <TableCell>{detail.unitSalePrice?.toLocaleString("vi-VN")}₫</TableCell>
+                                            <TableCell>{new Date(detail.expireDate).toLocaleDateString("vi-VN")}</TableCell>
+                                            <TableCell>{detail.zones_id}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            {/* Tổng kết ngoài bảng */}
+                            <div style={{ width: '100%', marginTop: 16, maxWidth: 250, marginLeft: 'auto' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 700 }}>Tổng số lượng:</span>
+                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + (d.importQuantity || 0), 0)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 700 }}>Tổng số mặt hàng:</span>
+                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.length}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 700 }}>Tổng tiền hàng:</span>
+                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 700 }}>Tổng cộng:</span>
+                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontWeight: 700}}>Tiền đã trả NCC:</span>
+                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                </div>
+                            </div>
+                        </>
                     ) : (
                         <p>Không có dữ liệu chi tiết.</p>
                     )}
                 </DialogContent>
-            </Dialog><Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
-            <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
-            <DialogContent>
-                {selectedDetails.length > 0 ? (
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Sản phẩm</TableCell>
-                                <TableCell>SL nhập</TableCell>
-                                <TableCell>SL còn</TableCell>
-                                <TableCell>Giá nhập</TableCell>
-                                <TableCell>Giá bán</TableCell>
-                                <TableCell>HSD</TableCell>
-                                <TableCell>Khu vực</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {selectedDetails.map((detail, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{detail.productName}</TableCell>
-                                    <TableCell>{detail.importQuantity}</TableCell>
-                                    <TableCell>{detail.remainQuantity}</TableCell>
-                                    <TableCell>{detail.unitImportPrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                    <TableCell>{detail.unitSalePrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                    <TableCell>{new Date(detail.expireDate).toLocaleDateString("vi-VN")}</TableCell>
-                                    <TableCell>{detail.zones_id}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                ) : (
-                    <p>Không có dữ liệu chi tiết.</p>
+                <DialogActions>
+                  {selectedTransaction?.status === 'DRAFT' && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<ReplyIcon />}
+                      onClick={handleOpenTransaction}
+                    >
+                      Mở phiếu
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    style={{ background: '#6b7280', color: '#fff' }}
+                    startIcon={<PrintIcon />}
+                    onClick={() => alert('In tem mã')}
+                  >
+                    In tem mã
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<CloseIcon />}
+                    onClick={handleCancelTransaction}
+                  >
+                    Huỷ bỏ
+                  </Button>
+                </DialogActions>
+                {cancelError && (
+                  <Alert severity="error" className="mt-2">{cancelError}</Alert>
                 )}
-            </DialogContent>
-        </Dialog>
+                {openError && (
+                  <Alert severity="error" className="mt-2">{openError}</Alert>
+                )}
+            </Dialog>
 
         </div>
     );

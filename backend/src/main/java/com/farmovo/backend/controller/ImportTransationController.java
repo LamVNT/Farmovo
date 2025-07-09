@@ -47,12 +47,25 @@
 
             return ResponseEntity.ok(formData);
         }
+        @PutMapping("/{id}")
+        public ResponseEntity<String> updateImportTransaction(
+                @PathVariable Long id,
+                @RequestBody CreateImportTransactionRequestDto dto) {
+            importTransactionService.update(id, dto);
+            return ResponseEntity.ok("Import transaction updated successfully.");
+        }
 
-    //    @GetMapping("/listAll")
-    //    public ResponseEntity<List<CreateImportTransactionRequestDto>> listAllImportTransaction() {
-    //        List<CreateImportTransactionRequestDto> transactions = importTransactionService.listAllImportTransaction();
-    //        return ResponseEntity.ok(transactions);
-    //    }
+        @PutMapping("/{id}/cancel")
+        public ResponseEntity<?> cancelImportTransaction(@PathVariable Long id) {
+            importTransactionService.cancel(id);
+            return ResponseEntity.ok("Cancelled");
+        }
+
+        @PutMapping("/{id}/open")
+        public ResponseEntity<?> openImportTransaction(@PathVariable Long id) {
+            importTransactionService.open(id);
+            return ResponseEntity.ok("Opened");
+        }
 
         @GetMapping("/list-all")
         public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
@@ -73,13 +86,11 @@
             return ResponseEntity.ok("Tạo phiếu nhập thành công");
         }
 
-//        @GetMapping("/filter")
-//        public ResponseEntity<List<ImportTransactionResponseDto>> filterImportTransactions(
-//                @RequestParam(required = false) String search,
-//                @RequestParam(required = false) String status,
-//                @RequestParam(required = false) String startDate,
-//                @RequestParam(required = false) String endDate) {
-//            List<ImportTransactionResponseDto> transactions = importTransactionService.filterImportTransactions(search, status, startDate, endDate);
-//            return ResponseEntity.ok(transactions);
-//        }
+        @GetMapping("/next-code")
+        public ResponseEntity<String> getNextImportTransactionCode() {
+            // Lấy mã phiếu nhập tiếp theo từ service
+            String nextCode = importTransactionService.getNextImportTransactionCode();
+            return ResponseEntity.ok(nextCode);
+        }
+
     }

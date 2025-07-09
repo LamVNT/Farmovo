@@ -8,5 +8,6 @@ import java.util.List;
 public interface ProductService {
     List<ProductDto> getAllProductDto();
     ProductDto getProductNameById(Long id);
+
 }
 

@@ -126,13 +126,13 @@ public class CustomerServiceImpl implements CustomerService {
         responseDto.setName(customer.getName());
         responseDto.setEmail(customer.getEmail());
         responseDto.setPhone(customer.getPhone());
-        responseDto.setRole(customer.getIsSupplier() ? "SUPPLIER" : "CUSTOMER");
         responseDto.setTotalDept(customer.getTotalDebt());
         responseDto.setCreateBy(customer.getCreatedBy());
         responseDto.setCreateAt(customer.getCreatedAt());
         responseDto.setUpdateAt(customer.getUpdatedAt());
         responseDto.setDeleteAt(customer.getDeletedAt());
         responseDto.setDeleteBy(customer.getDeletedBy());
+        responseDto.setIsSupplier(customer.getIsSupplier());
         return responseDto;
     }
 }
