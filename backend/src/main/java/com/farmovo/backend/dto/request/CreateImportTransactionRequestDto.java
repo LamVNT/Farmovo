@@ -23,6 +23,7 @@ public class CreateImportTransactionRequestDto {
     private BigDecimal paidAmount;
     private String importTransactionNote;
     private LocalDateTime importDate;
+    private Long createdBy;
     private List<DetailDto> details;
 
     @Data

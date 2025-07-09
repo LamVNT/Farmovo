@@ -21,5 +21,11 @@ public interface ImportTransactionService {
 
     CreateImportTransactionRequestDto getImportTransactionById(Long id);
 
+    void cancel(Long id);
+
+    void open(Long id);
+
+    String getNextImportTransactionCode();
+
 //    List<ImportTransactionResponseDto> filterImportTransactions(String search, String status, String startDate, String endDate);
 }

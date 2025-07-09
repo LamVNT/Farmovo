@@ -15,11 +15,11 @@ public class CustomerResponseDto {
     private String name;
     private String email;
     private String phone;
-    private String role;
     private BigDecimal totalDept;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
+    private Boolean isSupplier;
 }
