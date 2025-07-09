@@ -23,6 +23,7 @@ public class CreateImportTransactionRequestDto {
     private BigDecimal paidAmount;
     private String importTransactionNote;
     private LocalDateTime importDate;
+    private Long createdBy;
     private List<DetailDto> details;
 
     @Data
@@ -32,7 +33,7 @@ public class CreateImportTransactionRequestDto {
         private Long productId;
         private String productName;
         private Integer importQuantity;
-        private Integer remainQuantity;// hai quantity này có cần thiết cần cả hai không???
+        private Integer remainQuantity;
         private LocalDateTime expireDate;
         private BigDecimal unitImportPrice;
         private BigDecimal unitSalePrice;

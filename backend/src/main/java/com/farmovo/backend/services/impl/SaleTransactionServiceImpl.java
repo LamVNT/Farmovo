@@ -1,21 +1,18 @@
 package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
+import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.SaleTransaction;
-import com.farmovo.backend.repositories.CustomerRepository;
-import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
-import com.farmovo.backend.repositories.SaleTransactionRepository;
-import com.farmovo.backend.repositories.StoreRepository;
+import com.farmovo.backend.models.SaleTransactionStatus;
+import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,18 +30,20 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final CustomerRepository customerRepository;
     private final StoreRepository storeRepository;
     private final SaleTransactionMapper saleTransactionMapper;
+    private final ImportTransactionDetailRepository importTransactionDetailRepository;
 
     @Override
-    public List<ProductResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
+    public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
         List<ImportTransactionDetail> details = detailRepository.findByProductId(productId);
         return details.stream()
-                .map(productMapper::toDto)
+                .map(productMapper::toDtoSale)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void save(CreateSaleTransactionRequestDto dto) {
+
         SaleTransaction transaction = new SaleTransaction();
         transaction.setTotalAmount(dto.getTotalAmount());
         transaction.setPaidAmount(dto.getPaidAmount());
@@ -67,8 +66,87 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                 storeRepository.findById(dto.getStoreId())
                         .orElseThrow(() -> new RuntimeException("Store not found"))
         );
+
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            for (ProductSaleResponseDto item : dto.getDetail()) {
+
+                ImportTransactionDetail batch = importTransactionDetailRepository
+                        .findById(item.getId())//get id importdetailID
+                        .orElseThrow(() -> new RuntimeException("Batch not found with ID: " + item.getId()));
+
+                if (!batch.getProduct().getId().equals(item.getProId())) {
+                    throw new RuntimeException("Batch does not belong to selected product");
+                }
+
+                if (batch.getRemainQuantity() < item.getQuantity()) { //so sánh hai cái quantity
+                    throw new RuntimeException("Not enough stock in batch ID: " + item.getQuantity());
+                }
+
+                batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
+                importTransactionDetailRepository.save(batch);
+            }
+        }
+
         saleTransactionRepository.save(transaction);
     }
+
+    @Override
+    @Transactional
+    public void updateSaleTransaction(Long id, CreateSaleTransactionRequestDto dto) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaction not found with ID: " + id));
+
+        if (transaction.getStatus() != SaleTransactionStatus.DRAFT) {
+            throw new RuntimeException("Only DRAFT transactions can be updated.");
+        }
+
+        transaction.setTotalAmount(dto.getTotalAmount());
+        transaction.setPaidAmount(dto.getPaidAmount());
+        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
+        transaction.setSaleDate(dto.getSaleDate());
+        transaction.setStatus(dto.getStatus());
+
+        transaction.setCustomer(
+                customerRepository.findById(dto.getCustomerId())
+                        .orElseThrow(() -> new RuntimeException("Customer not found"))
+        );
+
+        transaction.setStore(
+                storeRepository.findById(dto.getStoreId())
+                        .orElseThrow(() -> new RuntimeException("Store not found"))
+        );
+
+        try {
+            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
+            transaction.setDetail(jsonDetail); // Lưu lại danh sách detail mới
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to convert product list to JSON", e);
+        }
+
+        // Nếu người dùng cập nhật status thành COMPLETE → phải trừ kho
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            for (ProductSaleResponseDto item : dto.getDetail()) {
+
+                ImportTransactionDetail batch = importTransactionDetailRepository
+                        .findById(item.getId())
+                        .orElseThrow(() -> new RuntimeException("Batch not found with ID: " + item.getId()));
+
+                if (!batch.getProduct().getId().equals(item.getProId())) {
+                    throw new RuntimeException("Batch does not belong to selected product");
+                }
+
+                if (batch.getRemainQuantity() < item.getQuantity()) {
+                    throw new RuntimeException("Not enough stock in batch ID: " + item.getId());
+                }
+
+                batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
+                importTransactionDetailRepository.save(batch);
+            }
+        }
+
+        saleTransactionRepository.save(transaction);
+    }
+
 
     @Override
     public List<SaleTransactionResponseDto> getAll() {

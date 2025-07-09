@@ -72,4 +72,15 @@ public class CustomerController {
     private CustomerResponseDto convertToResponseDTO(CustomerResponseDto dto) {
         return dto; // Pass-through method; can be enhanced if additional mapping is needed
     }
+    @GetMapping("/suppliers")
+    public ResponseEntity<List<CustomerResponseDto>> getSuppliers() {
+        logger.info("Fetching all suppliers (isSupplier=true)");
+        return new ResponseEntity<>(
+                customerService.getAllCustomers().stream()
+                        .filter(CustomerResponseDto::getIsSupplier)
+                        .collect(Collectors.toList()),
+                HttpStatus.OK
+        );
+    }
+
 }
