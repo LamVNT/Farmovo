@@ -9,4 +9,6 @@ public interface StocktakeService {
     List<StocktakeResponseDto> getAllStocktakes();
     StocktakeResponseDto getStocktakeById(Long id);
     StocktakeResponseDto updateStocktakeStatus(Long id, String status);
+    void deleteStocktake(Long id);
+    StocktakeResponseDto updateStocktake(Long id, StocktakeRequestDto requestDto);
 } 

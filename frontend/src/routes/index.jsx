@@ -21,6 +21,12 @@ import ImportPage from "../pages/import-transaction/ImportPage.jsx";
 import DebtNote from "../pages/debt/index.jsx";
 import StockTakePage from "../pages/stocktake/index.jsx";
 import StockTakeDetailPage from "../pages/stocktake/Detail.jsx";
+import CreateStocktakePage from "../pages/stocktake/Create.jsx";
+import Product from "../pages/product/index.jsx";
+import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
+import RemainByProductReport from '../pages/reports/RemainByProduct';
+import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
+import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 
 const router = createBrowserRouter([
     {
@@ -141,11 +147,31 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/product",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <Product />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: "/stocktake",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <StockTakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/create",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <CreateStocktakePage />
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -159,6 +185,28 @@ const router = createBrowserRouter([
                 </MainLayout>
             </ProtectedRoute>
         ),
+    },
+    {
+        path: "/stocktake/edit/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <UpdateStocktakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/remain-by-product",
+        element: <RemainByProductReport />,
+    },
+    {
+        path: "/reports/stocktake-diff",
+        element: <StocktakeDiffReport />,
+    },
+    {
+        path: "/reports/expiring-lots",
+        element: <ExpiringLotsReport />,
     },
 ]);
 

@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.Instant;
 
 @Entity
 @Table(name = "stocktakes")
@@ -21,7 +21,7 @@ public class Stocktake extends Base {
     private Long id;
 
     @Column(name = "stocktake_date", nullable = false)
-    private LocalDate stocktakeDate;
+    private Instant stocktakeDate;
 
     @Lob //lưu JSON các dòng kiểm kê(lưu JSON dài)
     @Column(name = "detail", columnDefinition = "TEXT")

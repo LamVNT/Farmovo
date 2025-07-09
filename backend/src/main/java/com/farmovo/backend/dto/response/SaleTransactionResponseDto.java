@@ -7,22 +7,20 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SaleTransactionResponseDto {
     private Long id;
-    private Long customerId;
-    private Long storeId;
-    private BigDecimal total;
-    private BigDecimal paid;
-    private String detail;
-    private String note;
+    private BigDecimal totalAmount;
+    private BigDecimal paidAmount;
+    private String saleTransactionNote;
     private SaleTransactionStatus status;
-    private Long createBy;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
-    private LocalDateTime deleteAt;
-    private Long deleteBy;
+    private LocalDateTime saleDate;
+    private String customerName;
+    private String storeName;
+    private List<ProductResponseDto> detail; // ✅ chính là mục tiêu của bạn
 }
+

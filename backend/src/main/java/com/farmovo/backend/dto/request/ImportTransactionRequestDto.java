@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -19,7 +20,7 @@ public class ImportTransactionRequestDto {
     private String note;
     private ImportTransactionStatus status;
     private String importTransactionNote;
-    private LocalDate importDate;
+    private LocalDateTime importDate;
     private Long supplierId;
     private Long storeId;
     private Long staffId;

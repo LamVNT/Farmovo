@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ZoneRequestDto {
-    private String zoneName;          // KHÔNG ĐƯỢC THIẾU
+    private String zoneName;          //
     private String zoneDescription;   // Đúng tên trường trong entity
 }

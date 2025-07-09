@@ -3,7 +3,9 @@ import { DataGrid } from "@mui/x-data-grid";
 import {
     TextField, Button, Checkbox, FormControlLabel,
     FormControl, FormLabel, Accordion, AccordionSummary,
-    AccordionDetails, Popover
+    AccordionDetails, Popover, Dialog, DialogTitle, DialogContent,
+    Table, TableHead, TableRow, TableCell, TableBody,
+    Alert, CircularProgress
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FaPlus, FaFileExport } from "react-icons/fa";
@@ -17,6 +19,7 @@ import {
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
+import importTransactionService from "../../services/importTransactionService";
 
 const getRange = (key) => {
     const today = new Date();
@@ -53,7 +56,6 @@ const labelMap = {
     this_quarter: "Quý này",
     this_year: "Năm nay"
 };
-
 const ImportTransactionPage = () => {
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
@@ -75,31 +77,37 @@ const ImportTransactionPage = () => {
     });
 
     const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const [openDetailDialog, setOpenDetailDialog] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [selectedDetails, setSelectedDetails] = useState([]);
+
+    // Load transactions from API
+    const loadTransactions = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await importTransactionService.listAll();
+            setTransactions(data);
+        } catch (err) {
+            console.error('Error loading transactions:', err);
+            setError('Không thể tải danh sách phiếu nhập hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const allTransactions = [
-            { id: 1, code: "PN000049", time: "25/06/2025 23:14", supplier: "", amount: 2095886287, status: "Đã nhập hàng" },
-            { id: 2, code: "PN000046", time: "25/06/2025 23:06", supplier: "Công ty Hoàng Gia", amount: 23213, status: "Đã nhập hàng" },
-            { id: 3, code: "PN000048", time: "25/06/2025 22:47", supplier: "dasdsasdasdasdas", amount: 2093983016, status: "Đã nhập hàng" },
-            { id: 4, code: "PN000047", time: "25/06/2025 22:30", supplier: "", amount: 1878632, status: "Đã nhập hàng" },
-        ];
-        const filtered = allTransactions.filter(t =>
-            t.code.toLowerCase().includes(filter.search.toLowerCase()) ||
-            t.supplier.toLowerCase().includes(filter.search.toLowerCase())
-        );
-        setTransactions(filtered);
-    }, [filter]);
+        loadTransactions();
+    }, []);
 
-    const columns = [
-        { field: 'code', headerName: 'Mã nhập hàng', flex: 1 },
-        { field: 'time', headerName: 'Thời gian', flex: 1 },
-        { field: 'supplier', headerName: 'Nhà cung cấp', flex: 1 },
-        {
-            field: 'amount', headerName: 'Cần trả NCC', flex: 1,
-            renderCell: (params) => params.value.toLocaleString('vi-VN')
-        },
-        { field: 'status', headerName: 'Trạng thái', flex: 1 },
-    ];
+    // Filter transactions based on search
+    const filteredTransactions = transactions.filter(t =>
+        (t.name && t.name.toLowerCase().includes(filter.search.toLowerCase())) ||
+        (t.supplierName && t.supplierName.toLowerCase().includes(filter.search.toLowerCase()))
+    );
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -117,6 +125,97 @@ const ImportTransactionPage = () => {
         setSelectedMode("custom");
     };
 
+    const handleViewDetail = async (row) => {
+        try {
+            const transaction = await importTransactionService.getWithDetails(row.id);
+            setSelectedTransaction({
+                id: transaction.id,
+                name: row.name, // giữ lại tên (nếu không có sẵn trong transaction)
+                importDate: transaction.importDate
+            });
+            setSelectedDetails(transaction.details);
+            setOpenDetailDialog(true);
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
+        }
+    };
+
+
+    const columns = [
+        { field: 'id', headerName: 'ID', flex: 0.5 },
+        { field: 'name', headerName: 'Tên phiếu nhập', flex: 1 },
+        { 
+            field: 'importDate', 
+            headerName: 'Thời gian', 
+            flex: 1,
+            renderCell: (params) => {
+                if (params.value) {
+                    return new Date(params.value).toLocaleString('vi-VN');
+                }
+                return '';
+            }
+        },
+        { field: 'supplierName', headerName: 'Nhà cung cấp', flex: 1 },
+        {
+            field: 'totalAmount', 
+            headerName: 'Tổng tiền', 
+            flex: 1,
+            renderCell: (params) => {
+                if (params.value) {
+                    return params.value.toLocaleString('vi-VN') + ' VNĐ';
+                }
+                return '0 VNĐ';
+            }
+        },
+        {
+            field: 'status',
+            headerName: 'Trạng thái',
+            flex: 1,
+            renderCell: (params) => {
+                const statusMap = {
+                    'WAITING_FOR_APPROVE': { label: 'Chờ xử lý', color: '#f59e0b' },       // Vàng
+                    'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' }, // Xanh lá
+                    'CANCEL': { label: 'Đã hủy', color: '#ef4444' },   // Đỏ
+                    'DRAFT': { label: 'Nháp', color: '#6b7280' }   // Đỏ
+                };
+                const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
+
+                return (
+                    <span
+                        style={{
+                            backgroundColor: status.color,
+                            color: '#fff',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600
+                        }}
+                    >
+                {status.label}
+            </span>
+                );
+            }
+        },
+        {
+            field: 'actions',
+            headerName: 'Hành động',
+            width: 130,
+            renderCell: (params) => (
+                <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={(event) => {
+                        event.stopPropagation(); // ngăn click lan ra ngoài
+                        handleViewDetail(params.row);
+                    }}
+                >
+                    Chi tiết
+                </Button>
+
+            )
+        }
+    ];
+
     return (
         <div className="w-full relative">
             <div className="flex justify-between items-center mb-4">
@@ -132,7 +231,6 @@ const ImportTransactionPage = () => {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 mb-5">
-                {/* Sidebar Filter */}
                 <div className="w-full lg:w-1/5 relative">
                     <div className="bg-white p-4 rounded shadow mb-4">
                         <FormLabel className="mb-2 font-semibold">Lọc theo thời gian</FormLabel>
@@ -180,16 +278,107 @@ const ImportTransactionPage = () => {
 
                 <div className="w-full lg:w-4/5">
                     <div className="mb-4 w-1/2">
-                        <TextField label="Tìm kiếm mã phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
+                        <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
                     </div>
+                    
+                    {error && (
+                        <Alert severity="error" className="mb-4">
+                            {error}
+                        </Alert>
+                    )}
+                    
                     <div style={{ height: 500 }} className="bg-white rounded shadow">
-                        <DataGrid rows={transactions} columns={columns} pageSize={10} rowsPerPageOptions={[10]} checkboxSelection disableSelectionOnClick />
+                        {loading ? (
+                            <div className="flex justify-center items-center h-full">
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <DataGrid
+                                rows={filteredTransactions}
+                                columns={columns}
+                                pageSize={10}
+                                rowsPerPageOptions={[10]}
+                                checkboxSelection
+                                disableSelectionOnClick
+                            />
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Chi tiết phiếu nhập */}
+            <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
+                <DialogContent>
+                    {selectedDetails.length > 0 ? (
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Sản phẩm</TableCell>
+                                    <TableCell>SL nhập</TableCell>
+                                    <TableCell>SL còn</TableCell>
+                                    <TableCell>Giá nhập</TableCell>
+                                    <TableCell>Giá bán</TableCell>
+                                    <TableCell>HSD</TableCell>
+                                    <TableCell>Khu vực</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {selectedDetails.map((detail) => (
+                                    <TableRow key={detail.id}>
+                                        <TableCell>{detail.productName}</TableCell>
+                                        <TableCell>{detail.importQuantity}</TableCell>
+                                        <TableCell>{detail.remainQuantity}</TableCell>
+                                        <TableCell>{detail.unitImportPrice.toLocaleString("vi-VN")}₫</TableCell>
+                                        <TableCell>{detail.unitSalePrice.toLocaleString("vi-VN")}₫</TableCell>
+                                        <TableCell>{new Date(detail.expireDate).toLocaleDateString()}</TableCell>
+                                        <TableCell>{detail.zones_id}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <p>Không có dữ liệu chi tiết.</p>
+                    )}
+                </DialogContent>
+            </Dialog><Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
+            <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
+            <DialogContent>
+                {selectedDetails.length > 0 ? (
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Sản phẩm</TableCell>
+                                <TableCell>SL nhập</TableCell>
+                                <TableCell>SL còn</TableCell>
+                                <TableCell>Giá nhập</TableCell>
+                                <TableCell>Giá bán</TableCell>
+                                <TableCell>HSD</TableCell>
+                                <TableCell>Khu vực</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {selectedDetails.map((detail, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>{detail.productName}</TableCell>
+                                    <TableCell>{detail.importQuantity}</TableCell>
+                                    <TableCell>{detail.remainQuantity}</TableCell>
+                                    <TableCell>{detail.unitImportPrice?.toLocaleString("vi-VN")}₫</TableCell>
+                                    <TableCell>{detail.unitSalePrice?.toLocaleString("vi-VN")}₫</TableCell>
+                                    <TableCell>{new Date(detail.expireDate).toLocaleDateString("vi-VN")}</TableCell>
+                                    <TableCell>{detail.zones_id}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <p>Không có dữ liệu chi tiết.</p>
+                )}
+            </DialogContent>
+        </Dialog>
+
         </div>
     );
 };
 
 export default ImportTransactionPage;
-    

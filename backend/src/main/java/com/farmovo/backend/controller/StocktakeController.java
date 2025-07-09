@@ -36,4 +36,17 @@ public class StocktakeController {
     public ResponseEntity<StocktakeResponseDto> updateStocktakeStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(stocktakeService.updateStocktakeStatus(id, status));
     }
+
+    // Xóa phiếu kiểm kê
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStocktake(@PathVariable Long id) {
+        stocktakeService.deleteStocktake(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Cập nhật phiếu kiểm kê (toàn bộ)
+    @PutMapping("/{id}")
+    public ResponseEntity<StocktakeResponseDto> updateStocktake(@PathVariable Long id, @RequestBody StocktakeRequestDto requestDto) {
+        return ResponseEntity.ok(stocktakeService.updateStocktake(id, requestDto));
+    }
 } 

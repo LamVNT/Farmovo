@@ -20,6 +20,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Service
 public class StocktakeServiceImpl implements StocktakeService {
@@ -62,7 +65,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         }
         Stocktake stocktake = new Stocktake();
         // Luôn set stocktakeDate là ngày hiện tại
-        stocktake.setStocktakeDate(java.time.LocalDate.now());
+        stocktake.setStocktakeDate(Instant.now());
         stocktake.setDetail(updatedDetailJson);
         stocktake.setStocktakeNote(requestDto.getStocktakeNote());
         stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
@@ -115,9 +118,10 @@ public class StocktakeServiceImpl implements StocktakeService {
         }
         // Group lại detail trước khi trả về
         List<StocktakeDetailDto> grouped = groupDetailsByProduct(details);
-        // Serialize lại detail tổng hợp
+        // Serialize lại detail tổng hợp và rawDetail
         try {
-            dto.setDetail(mapper.writeValueAsString(grouped));
+            dto.setDetail(mapper.writeValueAsString(grouped)); // dữ liệu đã gộp
+            dto.setRawDetail(mapper.writeValueAsString(details)); // dữ liệu chi tiết gốc
         } catch (Exception e) {
             throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
         }
@@ -151,6 +155,47 @@ public class StocktakeServiceImpl implements StocktakeService {
     public StocktakeResponseDto updateStocktakeStatus(Long id, String status) {
         Stocktake stocktake = stocktakeRepository.findById(id).orElseThrow();
         stocktake.setStatus(StocktakeStatus.valueOf(status));
+        stocktake = stocktakeRepository.save(stocktake);
+        return stocktakeMapper.toResponseDto(stocktake);
+    }
+
+    @Override
+    public void deleteStocktake(Long id) {
+        stocktakeRepository.deleteById(id);
+    }
+
+    @Override
+    public StocktakeResponseDto updateStocktake(Long id, StocktakeRequestDto requestDto) {
+        Stocktake stocktake = stocktakeRepository.findById(id).orElseThrow();
+        ObjectMapper mapper = new ObjectMapper();
+        List<StocktakeDetail> details;
+        try {
+            details = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {});
+        } catch (Exception e) {
+            throw new ValidationException("detail is not valid JSON: " + e.getMessage());
+        }
+        StocktakeValidator.validateRequest(requestDto, details);
+        // Tính remain và diff lại
+        for (StocktakeDetail d : details) {
+            List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemain(d.getProductId());
+            int totalRemain = 0;
+            for (ImportTransactionDetail lot : lots) {
+                totalRemain += (lot.getRemainQuantity() != null ? lot.getRemainQuantity() : 0);
+            }
+            d.setRemain(totalRemain);
+            d.setDiff(d.getReal() != null ? d.getReal() - totalRemain : null);
+        }
+        String updatedDetailJson;
+        try {
+            updatedDetailJson = mapper.writeValueAsString(details);
+        } catch (Exception e) {
+            throw new ValidationException("Failed to serialize detail: " + e.getMessage());
+        }
+        stocktake.setDetail(updatedDetailJson);
+        stocktake.setStocktakeNote(requestDto.getStocktakeNote());
+        stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
+        Store store = storeRepository.findById(requestDto.getStoreId()).orElseThrow();
+        stocktake.setStore(store);
         stocktake = stocktakeRepository.save(stocktake);
         return stocktakeMapper.toResponseDto(stocktake);
     }

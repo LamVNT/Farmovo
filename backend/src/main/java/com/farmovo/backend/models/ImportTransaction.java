@@ -41,6 +41,9 @@ public class ImportTransaction extends Base {
     @Column(name = "import_date", nullable = false)
     private LocalDateTime importDate;
 
+    @Column(name = "name", unique = true, length = 20)
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Customer supplier;

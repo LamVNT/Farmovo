@@ -15,3 +15,11 @@ export const createStocktake = (data) => {
 export const updateStocktakeStatus = (id, status) => {
   return axios.put(`/stocktakes/${id}/status?status=${status}`);
 };
+
+export const updateStocktake = (id, data) => {
+  return axios.put(`/stocktakes/${id}`, data);
+};
+
+export const deleteStocktake = (id) => {
+  return axios.delete(`/stocktakes/${id}`);
+};

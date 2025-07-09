@@ -18,4 +18,5 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
 
     @Query("SELECT i FROM ImportTransactionDetail i WHERE i.expireDate BETWEEN :now AND :soon")
     List<ImportTransactionDetail> findExpiringLots(@Param("now") java.time.LocalDateTime now, @Param("soon") java.time.LocalDateTime soon);
+    List<ImportTransactionDetail> findByProductId(Long productId);
 }

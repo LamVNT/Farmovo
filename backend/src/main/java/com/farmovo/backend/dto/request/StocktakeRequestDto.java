@@ -1,11 +1,11 @@
 package com.farmovo.backend.dto.request;
 
 import lombok.Data;
-import java.time.LocalDate;
+import java.time.Instant;
 
 @Data
 public class StocktakeRequestDto {
-    private LocalDate stocktakeDate;
+    private Instant stocktakeDate;
     private String detail; // JSON string
     private String stocktakeNote;
     private Long storeId;

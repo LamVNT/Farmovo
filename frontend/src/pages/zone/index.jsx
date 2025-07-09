@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Button, TextField } from "@mui/material";
+import {Dialog,DialogTitle,DialogContent,DialogActions,Button, TextField } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
 import ZoneFormDialog from "../../components/zone/ZoneFormDialog";
 import ZoneTable from "../../components/zone/ZoneTable";
+import ZoneVisual from "../../components/zone/ZoneVisual";
 import { getZones, createZone, updateZone, deleteZone } from "../../services/zoneService";
 
 const Zone = () => {
@@ -13,13 +14,20 @@ const Zone = () => {
     const [form, setForm] = useState({ id: null, zoneName: "", zoneDescription: "" });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [hoveredZoneId, setHoveredZoneId] = useState(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [zoneToDelete, setZoneToDelete] = useState(null);
+    const [zoneNameError, setZoneNameError] = useState("");
+
+    // Frontend pagination
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(12);
 
     useEffect(() => {
         const fetch = async () => {
             try {
                 const data = await getZones();
                 setZones(data);
-                // eslint-disable-next-line no-unused-vars
             } catch (err) {
                 setError("Failed to fetch zones");
             } finally {
@@ -45,20 +53,79 @@ const Zone = () => {
         setEditMode(true);
         setOpenDialog(true);
     };
-
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this zone?")) {
-            try {
-                await deleteZone(id);
-                setZones(prev => prev.filter(z => z.id !== id));
-            } catch {
-                setError("Failed to delete zone");
-            }
+    const handleDelete = async () => {
+        if (!zoneToDelete) return;
+        try {
+            await deleteZone(zoneToDelete.id);
+            setZones(prev => prev.filter(z => z.id !== zoneToDelete.id));
+        } catch {
+            setError("Failed to delete zone");
+        } finally {
+            setConfirmOpen(false);
+            setZoneToDelete(null);
         }
     };
+    const handleDeleteRequest = (zone) => {
+        setZoneToDelete(zone);
+        setConfirmOpen(true);
+    };
+
+    // const handleDelete = async (id) => {
+    //     if (window.confirm("Are you sure you want to delete this zone?")) {
+    //         try {
+    //             await deleteZone(id);
+    //             setZones(prev => prev.filter(z => z.id !== id));
+    //         } catch {
+    //             setError("Failed to delete zone");
+    //         }
+    //     }
+    // };
+
+    // const handleSubmit = async () => {
+    //     if (!form.zoneName.trim()) return;
+    //
+    //     const pattern = /^Z_\[\d+;\d+\]$/;
+    //     if (!pattern.test(form.zoneName)) {
+    //         setError("Zone name must follow pattern Z_[row;column] (e.g: Z_[1;2])");
+    //         return;
+    //     }
+    //
+    //     try {
+    //         if (editMode) {
+    //             const updated = await updateZone(form.id, form);
+    //             setZones(prev => prev.map(z => (z.id === form.id ? updated : z)));
+    //         } else {
+    //             const created = await createZone(form);
+    //             setZones(prev => [...prev, created]);
+    //         }
+    //         setOpenDialog(false);
+    //         setError(null);
+    //     } catch {
+    //         setError(`Failed to ${editMode ? "update" : "create"} zone`);
+    //     }
+    // };
 
     const handleSubmit = async () => {
-        if (!form.zoneName.trim()) return;
+        setZoneNameError(""); // Reset lỗi
+
+        if (!form.zoneName.trim()) {
+            setZoneNameError("Zone name is required");
+            return;
+        }
+
+        const pattern = /^Z_\[\d+;\d+\]$/;
+        if (!pattern.test(form.zoneName)) {
+            setZoneNameError("Zone name must follow pattern Z_[row;column] (e.g: Z_[1;2])");
+            return;
+        }
+
+        const isDuplicate = zones.some(z =>
+            z.zoneName === form.zoneName && z.id !== form.id
+        );
+        if (isDuplicate) {
+            setZoneNameError("Zone name is existed");
+            return;
+        }
 
         try {
             if (editMode) {
@@ -69,6 +136,7 @@ const Zone = () => {
                 setZones(prev => [...prev, created]);
             }
             setOpenDialog(false);
+            setZoneNameError("");
         } catch {
             setError(`Failed to ${editMode ? "update" : "create"} zone`);
         }
@@ -94,11 +162,34 @@ const Zone = () => {
                 </div>
             </div>
 
-            <ZoneTable
-                rows={filteredZones}
-                onEdit={handleOpenEdit}
-                onDelete={handleDelete}
-            />
+            {/* Layout chia đôi */}
+            <div className="flex gap-6">
+                {/* Bảng Zone Table co giãn */}
+                <div className="flex-grow min-w-[300px] max-w-[600px]">
+                    <ZoneTable
+                        rows={filteredZones}
+                        onEdit={handleOpenEdit}
+                        onDelete={handleDeleteRequest}
+                        hoveredZoneId={hoveredZoneId}
+                        setHoveredZoneId={setHoveredZoneId}
+                        page={page}
+                        setPage={setPage}
+                        rowsPerPage={rowsPerPage}
+                        setRowsPerPage={setRowsPerPage}
+                    />
+                </div>
+
+                {/* Bảng Layout giữ nguyên kích thước, không bị bóp nhỏ */}
+                {/*<div className="flex-shrink-0" style={{ minWidth: "650px" }}>*/}
+                {/*    <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>*/}
+                {/*    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />*/}
+                {/*</div>*/}
+                <div className="flex-grow h-[500px]">
+                    <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>
+                    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />
+                </div>
+
+            </div>
 
             <ZoneFormDialog
                 open={openDialog}
@@ -107,7 +198,18 @@ const Zone = () => {
                 setForm={setForm}
                 onSubmit={handleSubmit}
                 editMode={editMode}
+                zoneNameError={zoneNameError}
             />
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogContent>
+                    Are you sure you want to delete this zone?
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Delete</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };
