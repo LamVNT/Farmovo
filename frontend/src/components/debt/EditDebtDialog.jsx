@@ -8,17 +8,18 @@ import {
     Button,
     Select,
     MenuItem,
-    InputLabel,
     FormControl,
+    InputLabel,
+    Typography,
 } from "@mui/material";
-import { addDebtNote } from "../../services/debtService";
+import { updateDebtNote } from "../../services/debtService";
 import { getAllStores, uploadEvidence } from "../../services/storeService";
 
-const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
+const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
     const [formData, setFormData] = useState({
         customerId,
         debtAmount: "",
-        debtDate: new Date().toISOString().slice(0, 16),
+        debtDate: "",
         debtType: "",
         debtDescription: "",
         debtEvidences: "",
@@ -28,6 +29,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     });
     const [stores, setStores] = useState([]);
     const [file, setFile] = useState(null);
+    const [error, setError] = useState("");
 
     useEffect(() => {
         const fetchStores = async () => {
@@ -36,46 +38,83 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                 setStores(storeData || []);
             } catch (error) {
                 console.error("Failed to fetch stores:", error);
-                alert("Không thể tải danh sách cửa hàng");
+                setError("Không thể tải danh sách cửa hàng");
             }
         };
         fetchStores();
-    }, []);
+
+        if (debtNote) {
+            setFormData({
+                customerId,
+                debtAmount: debtNote.debtAmount || "",
+                debtDate: debtNote.debtDate ? new Date(debtNote.debtDate).toISOString().slice(0, 16) : "",
+                debtType: debtNote.debtType || "",
+                debtDescription: debtNote.debtDescription || "",
+                debtEvidences: debtNote.debtEvidences || "",
+                fromSource: debtNote.fromSource || "",
+                sourceId: debtNote.sourceId || "",
+                storeId: debtNote.storeId || "",
+            });
+        }
+    }, [debtNote, customerId]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        setError("");
     };
 
     const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
+        const selectedFile = e.target.files[0];
+        if (selectedFile && !selectedFile.type.startsWith("image/")) {
+            setError("Vui lòng chọn file ảnh (jpg, png, v.v.)");
+            setFile(null);
+        } else {
+            setFile(selectedFile);
+            setError("");
+        }
     };
 
     const handleSubmit = async () => {
+        if (!formData.debtType) {
+            setError("Loại nợ là bắt buộc");
+            return;
+        }
         try {
             let debtEvidences = formData.debtEvidences;
             if (file) {
                 debtEvidences = await uploadEvidence(file);
             }
             const data = {
-                ...formData,
-                debtAmount: parseFloat(formData.debtAmount) || 0,
+                customerId: formData.customerId,
+                debtAmount: parseFloat(formData.debtAmount) || 0, // Không thay đổi vì bị vô hiệu hóa
+                debtDate: formData.debtDate,
+                debtType: formData.debtType,
+                debtDescription: formData.debtDescription || "",
+                debtEvidences: debtEvidences || "",
+                fromSource: formData.fromSource || null,
                 sourceId: formData.sourceId ? parseInt(formData.sourceId) : null,
                 storeId: formData.storeId ? parseInt(formData.storeId) : null,
-                debtEvidences,
             };
-            const newDebtNote = await addDebtNote(data);
-            onAdd(newDebtNote);
+            const updatedDebtNote = await updateDebtNote(debtNote.id, data);
+            onUpdate(updatedDebtNote);
+            setFile(null);
+            setError("");
             onClose();
         } catch (error) {
-            console.error("Failed to add debt note:", error);
-            alert("Không thể thêm giao dịch nợ: " + (error.response?.data?.message || error.message));
+            console.error("Failed to update debt note:", error);
+            setError("Không thể cập nhật giao dịch nợ: " + (error.response?.data?.message || error.message));
         }
     };
 
     return (
         <Dialog open={open} onClose={onClose}>
-            <DialogTitle>Thêm giao dịch nợ mới</DialogTitle>
+            <DialogTitle>Chỉnh sửa giao dịch nợ</DialogTitle>
             <DialogContent>
+                {error && (
+                    <Typography color="error" sx={{ mb: 2 }}>
+                        {error}
+                    </Typography>
+                )}
                 <TextField
                     margin="dense"
                     name="debtAmount"
@@ -83,8 +122,8 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                     type="number"
                     fullWidth
                     value={formData.debtAmount}
-                    onChange={handleChange}
-                    required
+                    disabled
+                    InputLabelProps={{ shrink: true }}
                 />
                 <TextField
                     margin="dense"
@@ -103,6 +142,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                         value={formData.debtType}
                         onChange={handleChange}
                         label="Loại nợ"
+                        required
                     >
                         <MenuItem value="+">Cửa hàng nợ</MenuItem>
                         <MenuItem value="-">Khách hàng nợ</MenuItem>
@@ -117,13 +157,18 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                     onChange={handleChange}
                 />
                 <FormControl fullWidth margin="dense">
-                    <InputLabel shrink>Bằng chứng</InputLabel>
+                    <InputLabel shrink>Bằng chứng (tùy chọn)</InputLabel>
                     <input
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
                         style={{ marginTop: "16px" }}
                     />
+                    {formData.debtEvidences && (
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                            File hiện tại: {formData.debtEvidences}
+                        </Typography>
+                    )}
                 </FormControl>
                 <TextField
                     margin="dense"
@@ -150,6 +195,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                         onChange={handleChange}
                         label="ID cửa hàng"
                     >
+                        <MenuItem value="">Chọn cửa hàng</MenuItem>
                         {stores.map((store) => (
                             <MenuItem key={store.id} value={store.id}>
                                 {store.name}
@@ -161,11 +207,11 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             <DialogActions>
                 <Button onClick={onClose}>Hủy</Button>
                 <Button onClick={handleSubmit} color="primary">
-                    Thêm
+                    Cập nhật
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
-export default AddDebtDialog;
+export default EditDebtDialog;

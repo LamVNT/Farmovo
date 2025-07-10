@@ -31,7 +31,7 @@ public class CustomerController {
         return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/admin/{id}")
     public ResponseEntity<CustomerResponseDto> getCustomerById(@PathVariable Long id) {
         logger.info("Fetching customer with ID: {}", id);
         CustomerResponseDto responseDto = customerService.getCustomerById(id);
@@ -77,13 +77,13 @@ public class CustomerController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @PostMapping("/upload-evidence")
+    @PostMapping("/admin/upload-evidence")
     public ResponseEntity<String> uploadEvidence(@RequestParam("file") MultipartFile file) {
         logger.debug("Received request to upload evidence file: {}", file.getOriginalFilename());
         try {
-            // Giả định lưu file vào thư mục hoặc dịch vụ lưu trữ (e.g., AWS S3)
+
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            // TODO: Thêm logic lưu file (ví dụ: vào thư mục local hoặc cloud)
+
             logger.info("Successfully uploaded evidence file: {}", fileName);
             return ResponseEntity.ok(fileName);
         } catch (Exception e) {

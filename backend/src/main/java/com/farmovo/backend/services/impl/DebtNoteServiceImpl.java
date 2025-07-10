@@ -61,7 +61,14 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
             DebtNote debtNote = new DebtNote();
             debtNote.setCustomer(customer);
-            debtNote.setDebtAmount(requestDto.getDebtAmount());
+            // Điều chỉnh debtAmount dựa trên debtType
+            BigDecimal debtAmount = requestDto.getDebtAmount();
+            if ("-".equals(requestDto.getDebtType())) {
+                debtAmount = debtAmount.abs().negate(); // Chuyển thành số âm nếu debtType là "-"
+            } else {
+                debtAmount = debtAmount.abs(); // Giữ số dương nếu debtType là "+"
+            }
+            debtNote.setDebtAmount(debtAmount);
             debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : LocalDateTime.now());
             debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : "");
             debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : "");
@@ -145,7 +152,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
             DebtNote debtNote = new DebtNote();
             debtNote.setCustomer(customer);
-            debtNote.setDebtAmount(debtAmount);
+            debtNote.setDebtAmount(debtAmount); // debtAmount đã được điều chỉnh ở tầng gọi (Import/SaleTransaction)
             debtNote.setDebtDate(LocalDateTime.now());
             debtNote.setDebtType("AUTO");
             debtNote.setDebtDescription("Tự động tạo từ " + fromSource + " ID: " + sourceId);
