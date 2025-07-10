@@ -126,7 +126,8 @@ public class CustomerServiceImpl implements CustomerService {
         responseDto.setName(customer.getName());
         responseDto.setEmail(customer.getEmail());
         responseDto.setPhone(customer.getPhone());
-        responseDto.setTotalDept(customer.getTotalDebt());
+        responseDto.setAddress(customer.getAddress());
+        responseDto.setTotalDebt(customer.getTotalDebt());
         responseDto.setCreateBy(customer.getCreatedBy());
         responseDto.setCreateAt(customer.getCreatedAt());
         responseDto.setUpdateAt(customer.getUpdatedAt());

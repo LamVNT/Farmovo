@@ -15,7 +15,8 @@ public class CustomerResponseDto {
     private String name;
     private String email;
     private String phone;
-    private BigDecimal totalDept;
+    private String address;
+    private BigDecimal totalDebt;
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
