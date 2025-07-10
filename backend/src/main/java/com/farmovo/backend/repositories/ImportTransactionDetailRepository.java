@@ -7,4 +7,10 @@ import java.util.List;
 
 public interface ImportTransactionDetailRepository extends JpaRepository<ImportTransactionDetail, Long> {
     List<ImportTransactionDetail> findByProductId(Long productId);
+    
+    // Lấy tất cả ImportTransactionDetail có remainQuantity > 0
+    List<ImportTransactionDetail> findByRemainQuantityGreaterThan(Integer remainQuantity);
+    
+    // Lấy ImportTransactionDetail theo productId và có remainQuantity > 0
+    List<ImportTransactionDetail> findByProductIdAndRemainQuantityGreaterThan(Long productId, Integer remainQuantity);
 }

@@ -20,6 +20,8 @@ import ImportTransactionPage from "../pages/import-transaction/index.jsx";
 import ImportPage from "../pages/import-transaction/ImportPage.jsx";
 import DebtNote from "../pages/debt/index.jsx";
 import Product from "../pages/product/index.jsx";
+import SaleTransactionPage from "../pages/sale-transaction/index.jsx";
+import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
 
 const router = createBrowserRouter([
     {
@@ -145,6 +147,26 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <Product />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <AddSalePage />
                 </MainLayout>
             </ProtectedRoute>
         ),
