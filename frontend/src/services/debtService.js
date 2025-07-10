@@ -1,95 +1,78 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/debts`;
+const API_URL = `${import.meta.env.VITE_API_URL}/debt/admin`;
 
-export const debtService = {
-    getAllDebtNotes: async () => {
-        try {
-            const response = await axios.get(`\`${API_URL}/debt-list`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể lấy danh sách công nợ');
-        }
-    },
+export const getDebtNotesByCustomerId = async (customerId) => {
+    console.log(`Fetching debt notes for customer ID: ${customerId}`);
+    try {
+        const response = await axios.get(`${API_URL}/customer/${customerId}/debt-notes`, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully fetched ${response.data.length} debt notes for customer ID: ${customerId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching debt notes for customer ID: ${customerId}`, {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    getDebtNoteById: async (id) => {
-        try {
-            const response = await axios.get(`${API_URL}/${id}`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể lấy thông tin công nợ');
-        }
-    },
 
-    getAllDebtors: async () => {
-        try {
-            const response = await axios.get(`${API_URL}/debtors`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể lấy danh sách người nợ');
-        }
-    },
+export const addDebtNote = async (debtNoteData) => {
+    console.log("Adding new debt note:", debtNoteData);
+    try {
+        const response = await axios.post(`${API_URL}/debt-note`, debtNoteData, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully added debt note with ID: ${response.data.id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error adding debt note:", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    createDebtNote: async (debtData) => {
-        try {
-            const response = await axios.post(API_URL, debtData, {
-                withCredentials: true,
-                params: { createdBy: localStorage.getItem('userId') || 1 },
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể tạo công nợ');
-        }
-    },
 
-    updateDebtNote: async (id, debtData) => {
-        try {
-            const response = await axios.put(`${API_URL}/${id}`, debtData, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể cập nhật công nợ');
-        }
-    },
+export const updateDebtNote = async (debtId, debtNoteData) => {
+    console.log(`Updating debt note ID: ${debtId} with data:`, debtNoteData);
+    try {
+        const response = await axios.put(`${API_URL}/debt-note/${debtId}`, debtNoteData, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully updated debt note with ID: ${debtId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error updating debt note ID: ${debtId}", {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
 
-    softDeleteDebtNote: async (id) => {
-        try {
-            await axios.delete(`${API_URL}/${id}`, {
-                withCredentials: true,
-                params: { deletedBy: localStorage.getItem('userId') || 1 },
-            });
-            return true;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể xóa công nợ');
-        }
-    },
 
-    getDebtNotesByCustomerId: async (customerId) => {
-        try {
-            const response = await axios.get(`${API_URL}/customer/${customerId}`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể lấy danh sách công nợ theo khách hàng');
-        }
-    },
-
-    getDebtNotesByStoreId: async (storeId) => {
-        try {
-            const response = await axios.get(`${API_URL}/store/${storeId}`, {
-                withCredentials: true,
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data || 'Không thể lấy danh sách công nợ theo cửa hàng');
-        }
-    },
+export const getTotalDebtByCustomerId = async (customerId) => {
+    console.log(`Fetching total debt for customer ID: ${customerId}`);
+    try {
+        const response = await axios.get(`${API_URL}/customer/${customerId}/total-debt`, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully fetched total debt: ${response.data} for customer ID: ${customerId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching total debt for customer ID: ${customerId}`, {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
 };

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,7 +31,7 @@ public class CustomerController {
         return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/admin/{id}")
     public ResponseEntity<CustomerResponseDto> getCustomerById(@PathVariable Long id) {
         logger.info("Fetching customer with ID: {}", id);
         CustomerResponseDto responseDto = customerService.getCustomerById(id);
@@ -53,6 +54,13 @@ public class CustomerController {
                 .collect(Collectors.toList()), HttpStatus.OK);
     }
 
+    @GetMapping("/details/{customerId}")
+    public ResponseEntity<CustomerResponseDto> getCustomerDetailsById(@PathVariable Long customerId) {
+        logger.info("Fetching customer details with ID: {}", customerId);
+        CustomerResponseDto responseDto = customerService.getCustomerById(customerId);
+        return new ResponseEntity<>(responseDto, HttpStatus.OK);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<CustomerResponseDto> updateCustomer(@PathVariable Long id,
                                                               @RequestBody CustomerRequestDto requestDto) {
@@ -69,8 +77,23 @@ public class CustomerController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @PostMapping("/admin/upload-evidence")
+    public ResponseEntity<String> uploadEvidence(@RequestParam("file") MultipartFile file) {
+        logger.debug("Received request to upload evidence file: {}", file.getOriginalFilename());
+        try {
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+
+            logger.info("Successfully uploaded evidence file: {}", fileName);
+            return ResponseEntity.ok(fileName);
+        } catch (Exception e) {
+            logger.error("Failed to upload evidence file. Error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload file: " + e.getMessage());
+        }
+    }
+
     private CustomerResponseDto convertToResponseDTO(CustomerResponseDto dto) {
-        return dto; // Pass-through method; can be enhanced if additional mapping is needed
+        return dto; // Pass-through method
     }
     @GetMapping("/suppliers")
     public ResponseEntity<List<CustomerResponseDto>> getSuppliers() {
