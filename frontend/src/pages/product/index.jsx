@@ -12,9 +12,9 @@ const Product = () => {
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({
         id: null,
-        name: '',
-        detail: '',
-        quantity: 0,
+        productName: '',
+        productDescription: '',
+        productQuantity: 0,
         categoryId: null,
         storeId: 1,
     });
@@ -39,7 +39,7 @@ const Product = () => {
     const filteredProducts = useMemo(() => {
         return Array.isArray(products)
             ? products.filter(p =>
-                (p.name || '').toLowerCase().includes(searchText.toLowerCase())
+                (p.productName || '').toLowerCase().includes(searchText.toLowerCase())
             )
             : [];
     }, [searchText, products]);
@@ -47,9 +47,9 @@ const Product = () => {
     const handleOpenCreate = () => {
         setForm({
             id: null,
-            name: '',
-            detail: '',
-            quantity: 0,
+            productName: '',
+            productDescription: '',
+            productQuantity: 0,
             categoryId: null,
             storeId: 1,
         });
@@ -60,9 +60,9 @@ const Product = () => {
     const handleOpenEdit = (product) => {
         setForm({
             id: product.id,
-            name: product.name || '',
-            detail: product.detail || '',
-            quantity: product.quantity || 0,
+            productName: product.productName || '',
+            productDescription: product.productDescription || '',
+            productQuantity: product.productQuantity || 0,
             categoryId: product.categoryId || null,
             storeId: product.storeId || 1,
         });

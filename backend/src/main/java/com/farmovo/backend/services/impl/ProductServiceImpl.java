@@ -39,23 +39,4 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductSaleResponseDto> getAllProductSaleDto() {
         return productMapper.toDtoProSaleList(productRepository.findAll());
     }
-    private ProductDto convertToDto(Product product) {
-        ProductDto dto = new ProductDto();
-        dto.setId(product.getId());
-        dto.setName(product.getProductName());
-        dto.setDetail(product.getProductDescription());
-        dto.setQuantity(product.getProductQuantity());
-
-        if (product.getCategory() != null) {
-            dto.setCategoryId(product.getCategory().getId());
-            dto.setCategoryName(product.getCategory().getCategoryName());
-        }
-
-        if (product.getStore() != null) {
-            dto.setStoreId(product.getStore().getId());
-            dto.setStoreName(product.getStore().getStoreName());
-        }
-
-        return dto;
-    }
 }

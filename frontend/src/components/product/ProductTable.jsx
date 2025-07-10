@@ -7,9 +7,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 const ProductTable = ({ products, onEdit, onDelete }) => {
     const columns = [
         { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'name', headerName: 'Tên sản phẩm', flex: 1.5 },
-        { field: 'detail', headerName: 'Mô tả', flex: 2 },
-        { field: 'quantity', headerName: 'Số lượng', flex: 1 },
+        { field: 'productName', headerName: 'Tên sản phẩm', flex: 1.5 },
+        { field: 'productDescription', headerName: 'Mô tả', flex: 2 },
+        { field: 'productQuantity', headerName: 'Số lượng', flex: 1 },
         {
             field: 'categoryName',
             headerName: 'Danh mục',

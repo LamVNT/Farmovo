@@ -24,7 +24,10 @@ const UpdateStocktakePage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    productService.getAllProducts().then(setProducts);
+    productService.getAllProducts().then(data => {
+      console.log("Products:", data);
+      setProducts(data);
+    });
     getZones().then(setZones);
     getStocktakeById(id).then(res => {
       // Ưu tiên dùng rawDetail nếu có
@@ -132,7 +135,7 @@ const UpdateStocktakePage = () => {
                       onChange={e => handleRowChange(idx, "productId", e.target.value)}
                     >
                       {products.map(p => (
-                        <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                        <MenuItem key={p.id} value={p.id}>{p.productName}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>

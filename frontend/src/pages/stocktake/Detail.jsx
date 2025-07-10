@@ -49,8 +49,8 @@ const StockTakeDetailPage = () => {
         <Typography>
           <b>Ghi chú:</b> {detail.stocktakeNote}
         </Typography>
-        <Typography>
-          <b>Trạng thái:</b> {" "}
+        <Typography component="span">
+          <b>Trạng thái:</b>{" "}
           <Chip
             label={detail.status}
             color={detail.status === "DRAFT" ? "warning" : "success"}
@@ -95,7 +95,7 @@ const StockTakeDetailPage = () => {
               details.map((d, idx) => (
                 <TableRow key={idx} hover>
                   <TableCell>
-                    {products.find(p => p.id === d.productId)?.name || d.productId}
+                    {products.find(p => p.id === d.productId)?.productName || d.productId}
                   </TableCell>
                   <TableCell>
                     {d.zones_id

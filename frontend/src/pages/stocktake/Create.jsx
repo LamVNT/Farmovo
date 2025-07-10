@@ -26,7 +26,10 @@ const CreateStocktakePage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    productService.getAllProducts().then(setProducts);
+    productService.getAllProducts().then(data => {
+      console.log("Products:", data);
+      setProducts(data);
+    });
     getZones().then(setZones);
   }, []);
 
@@ -119,7 +122,7 @@ const CreateStocktakePage = () => {
                       onChange={e => handleRowChange(idx, "productId", e.target.value)}
                     >
                       {products.map(p => (
-                        <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                        <MenuItem key={p.id} value={p.id}>{p.productName}</MenuItem>
                       ))}
                     </Select>
                   </FormControl>

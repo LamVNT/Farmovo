@@ -9,8 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ProductRequestDto {
     private Long id;
-    private String detail;
-    private Integer quantity;
+    private String productName;
+    private String productDescription;
+    private Integer productQuantity;
     private Long categoryId;
     private Long storeId;
 }

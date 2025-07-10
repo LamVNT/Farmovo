@@ -100,7 +100,7 @@ const StockTakePage = () => {
                         "Ngày kiểm kê": new Date(st.stocktakeDate).toLocaleString("vi-VN", { hour12: false }),
                         "Ghi chú phiếu": st.stocktakeNote,
                         "Trạng thái": st.status,
-                        "Sản phẩm": products.find(p => p.id === d.productId)?.name || d.productId,
+                        "Sản phẩm": products.find(p => p.id === d.productId)?.productName || d.productId,
                         "Khu vực đã kiểm": d.zones_id ? d.zones_id.map(zid => zones.find(z => z.id === zid)?.zoneName || zid).join(", ") : "",
                         "Thực tế": d.real,
                         "Tồn kho hệ thống": d.remain,

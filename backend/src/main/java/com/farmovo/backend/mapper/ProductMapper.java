@@ -13,8 +13,9 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
 
-    @Mapping(source = "productDescription", target = "detail")
-    @Mapping(source = "productQuantity", target = "quantity")
+    @Mapping(source = "productName", target = "productName")
+    @Mapping(source = "productDescription", target = "productDescription")
+    @Mapping(source = "productQuantity", target = "productQuantity")
     @Mapping(source = "category.id", target = "categoryId")
     @Mapping(source = "category.categoryName", target = "categoryName")
     @Mapping(source = "store.id", target = "storeId")
