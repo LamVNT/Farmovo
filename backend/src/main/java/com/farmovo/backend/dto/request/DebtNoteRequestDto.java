@@ -10,14 +10,14 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DeptNoteRequestDto {
+public class DebtNoteRequestDto {
     private Long customerId;
-    private BigDecimal amount;
-    private LocalDateTime deptDate;
+    private BigDecimal debtAmount;
+    private LocalDateTime debtDate;
     private Long storeId;
-    private String type;
-    private String description;
-    private String evidences;
+    private String debtType;
+    private String debtDescription;
+    private String debtEvidences;
     private String fromSource;
     private Long sourceId;
 }

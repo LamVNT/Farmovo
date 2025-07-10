@@ -6,8 +6,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Entity
 @Table(name = "zones")
 @Data
@@ -26,9 +24,4 @@ public class Zone extends Base {
     @Column(name = "zone_description", length = 1000)
     private String zoneDescription;
 
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
-    private List<Stocktake> stocktakes;
-
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
-    private List<ImportTransactionDetail> importTransactionDetails;
 }

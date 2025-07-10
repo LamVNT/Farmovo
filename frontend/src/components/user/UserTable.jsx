@@ -4,8 +4,7 @@ import { IconButton, Button } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+
 
 const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
     const userColumns = [
@@ -49,12 +48,6 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
                     <IconButton onClick={() => onToggleStatus(params.id)}>
                         <SwapHorizIcon color="warning" />
                     </IconButton>
-                    {/*<IconButton onClick={() => onUpdateStatus(params.id, true)}>*/}
-                    {/*    <CheckCircleIcon color="success" />*/}
-                    {/*</IconButton>*/}
-                    {/*<IconButton onClick={() => onUpdateStatus(params.id, false)}>*/}
-                    {/*    <CancelIcon color="disabled" />*/}
-                    {/*</IconButton>*/}
                 </>
             ),
         },

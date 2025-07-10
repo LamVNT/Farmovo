@@ -16,6 +16,19 @@ import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
 import Zone from "../pages/zone/index.jsx";
+import ImportTransactionPage from "../pages/import-transaction/index.jsx";
+import ImportPage from "../pages/import-transaction/ImportPage.jsx";
+import DebtNote from "../pages/debt/index.jsx";
+import StockTakePage from "../pages/stocktake/index.jsx";
+import StockTakeDetailPage from "../pages/stocktake/Detail.jsx";
+import CreateStocktakePage from "../pages/stocktake/Create.jsx";
+import Product from "../pages/product/index.jsx";
+import SaleTransactionPage from "../pages/sale-transaction/index.jsx";
+import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
+import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
+import RemainByProductReport from '../pages/reports/RemainByProduct';
+import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
+import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 
 const router = createBrowserRouter([
     {
@@ -66,6 +79,17 @@ const router = createBrowserRouter([
     },
 
     {
+        path: "/debts",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <DebtNote />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+
+    {
         path: "/profile",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
@@ -89,6 +113,26 @@ const router = createBrowserRouter([
             },
         ],
     },
+    {
+        path: "/import",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/import/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
 
     {
         path: "/unauthorized",
@@ -103,6 +147,88 @@ const router = createBrowserRouter([
                 </MainLayout>
             </ProtectedRoute>
         ),
+    },
+    {
+        path: "/product",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <Product />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <AddSalePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StockTakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/create",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <CreateStocktakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StockTakeDetailPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/edit/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <UpdateStocktakePage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/remain-by-product",
+        element: <RemainByProductReport />,
+    },
+    {
+        path: "/reports/stocktake-diff",
+        element: <StocktakeDiffReport />,
+    },
+    {
+        path: "/reports/expiring-lots",
+        element: <ExpiringLotsReport />,
     },
 ]);
 

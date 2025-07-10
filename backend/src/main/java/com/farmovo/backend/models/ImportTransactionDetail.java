@@ -36,11 +36,11 @@ public class ImportTransactionDetail extends Base {
     @Column(name = "unit_sale_price")
     private BigDecimal unitSalePrice;
 
+    @Column(name = "zones_id")
+    private String zones_id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "zone_id")
-    private Zone zone;
-
+    @Column(name = "is_check")
+    private Boolean isCheck;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "import_transaction_id")
