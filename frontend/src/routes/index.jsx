@@ -23,6 +23,8 @@ import StockTakePage from "../pages/stocktake/index.jsx";
 import StockTakeDetailPage from "../pages/stocktake/Detail.jsx";
 import CreateStocktakePage from "../pages/stocktake/Create.jsx";
 import Product from "../pages/product/index.jsx";
+import SaleTransactionPage from "../pages/sale-transaction/index.jsx";
+import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
 import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
@@ -152,6 +154,26 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <Product />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/new",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <AddSalePage />
                 </MainLayout>
             </ProtectedRoute>
         ),

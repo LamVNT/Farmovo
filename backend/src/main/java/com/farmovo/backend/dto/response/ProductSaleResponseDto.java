@@ -12,7 +12,11 @@ import java.math.BigDecimal;
 public class ProductSaleResponseDto {
     private Long id; // importtransactiondetailID
     private Long proId;
-    private String name; // tu bang Product
-    private Integer quantity;
+    private String productName; // tên sản phẩm
+    private String productCode; // mã sản phẩm
+    private Integer remainQuantity; // số lượng còn lại
+    private Integer quantity; // số lượng đã chọn (cho sale transaction)
     private BigDecimal unitSalePrice;
+    private String categoryName;
+    private String storeName;
 }
