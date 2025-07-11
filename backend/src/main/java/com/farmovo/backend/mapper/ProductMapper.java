@@ -48,6 +48,7 @@ public interface ProductMapper {
     @Mapping(source = "product.store.storeName", target = "storeName")
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
+    @Mapping(source = "createdAt", target = "createAt")
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
 }
 
