@@ -43,6 +43,8 @@ public interface ProductMapper {
     @Mapping(source = "product.store.storeName", target = "storeName")
     ProductResponseDto toDto(ImportTransactionDetail detail);
 
+
+    @Mapping(source = "id", target = "importId")
     @Mapping(source = "product.productName", target = "productName") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "productCode") // Sử dụng productId làm productCode
     @Mapping(source = "product.id", target = "proId")

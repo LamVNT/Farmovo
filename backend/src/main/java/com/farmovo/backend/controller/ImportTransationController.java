@@ -47,14 +47,6 @@ public class ImportTransationController {
         return ResponseEntity.ok(formData);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<String> updateImportTransaction(
-            @PathVariable Long id,
-            @RequestBody CreateImportTransactionRequestDto dto) {
-        importTransactionService.update(id, dto);
-        return ResponseEntity.ok("Import transaction updated successfully.");
-    }
-
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelImportTransaction(@PathVariable Long id) {
         importTransactionService.cancel(id);

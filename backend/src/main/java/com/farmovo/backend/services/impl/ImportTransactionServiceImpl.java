@@ -60,7 +60,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         String newName = String.format("PN%06d", lastId + 1);
         transaction.setName(newName);
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
         List<ImportTransactionDetail> detailList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
