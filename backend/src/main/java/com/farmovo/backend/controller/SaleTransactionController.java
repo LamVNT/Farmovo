@@ -67,7 +67,6 @@ public class SaleTransactionController {
 
     @PostMapping("/save")
     public ResponseEntity<String> save(@RequestBody CreateSaleTransactionRequestDto dto, HttpServletRequest request) {
-
         String token = jwtUtils.getJwtFromCookies(request);
         if (token != null && jwtUtils.validateJwtToken(token)) {
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
