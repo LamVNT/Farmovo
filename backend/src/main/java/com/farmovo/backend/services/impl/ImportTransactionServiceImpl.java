@@ -8,9 +8,12 @@ import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.ImportTransactionStatus;
 import com.farmovo.backend.repositories.*;
+import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.ImportTransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,12 +27,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ImportTransactionServiceImpl implements ImportTransactionService {
 
+
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final ImportTransactionRepository importTransactionRepository;
     private final ImportTransactionMapper importTransactionMapper;
+    private final DebtNoteService debtNoteService;
+    private static final Logger logger = LogManager.getLogger(ImportTransactionServiceImpl.class);
 
 
 
@@ -80,6 +86,26 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
         // Lưu
         importTransactionRepository.save(transaction);
+
+        // Tạo DebtNote nếu paidAmount < || > totalAmount
+        BigDecimal paidAmount = transaction.getPaidAmount();
+        BigDecimal debtAmount = paidAmount.subtract(totalAmount);
+
+        if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = debtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getSupplier().getId(),
+                    debtAmount, // Sẽ là âm nếu khách nợ, dương nếu khách trả dư
+                    "IMPORT",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+
+            logger.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
+        }
+
     }
 
     @Override

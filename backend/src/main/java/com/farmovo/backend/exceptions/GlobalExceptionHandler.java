@@ -19,24 +19,29 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthError(
             AuthenticationException ex,
-            HttpServletRequest request // 👈 PHẢI có dòng này!
+            HttpServletRequest request
     ) {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 "Tên đăng nhập hoặc mật khẩu không đúng!",
                 "Unauthorized",
-                request.getRequestURI() // 👈 lấy được path
+                request.getRequestURI()
         );
+        logger.error("Authentication error: {}", ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<?> handleUserNotFound(UserNotFoundException ex,HttpServletRequest request) {
-        ErrorResponse userNotFound = new ErrorResponse(LocalDateTime.now(),ex.getMessage(),"User not found"
-                ,request.getRequestURI());
-        return new ResponseEntity<>(userNotFound,HttpStatus.NOT_FOUND);
+    public ResponseEntity<?> handleUserNotFound(UserNotFoundException ex, HttpServletRequest request) {
+        ErrorResponse userNotFound = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                "User not found",
+                request.getRequestURI()
+        );
+        logger.error("User not found error: {}", ex.getMessage());
+        return new ResponseEntity<>(userNotFound, HttpStatus.NOT_FOUND);
     }
-
 
     @ExceptionHandler(UserManagementException.class)
     public ResponseEntity<String> handleUserManagementException(UserManagementException ex) {
@@ -51,16 +56,47 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
-        logger.error("Validation Error: {}", ex.getMessage());
-        return ResponseEntity.status(400).body(ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                "Bad Request",
+                request.getRequestURI()
+        );
+        logger.error("Illegal argument error: {} at {}", ex.getMessage(), request.getRequestURI());
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(
+            IllegalStateException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                "Bad Request",
+                request.getRequestURI()
+        );
+        logger.error("Illegal state error: {} at {}", ex.getMessage(), request.getRequestURI());
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleGenericException(Exception ex) {
-        logger.error("Unexpected Error: {}", ex.getMessage());
-        return ResponseEntity.status(500).body("An unexpected error occurred: " + ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleGenericException(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                "An unexpected error occurred: " + ex.getMessage(),
+                "Internal Server Error",
+                request.getRequestURI()
+        );
+        logger.error("Unexpected error: {} at {}", ex.getMessage(), request.getRequestURI(), ex);
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
-
 }

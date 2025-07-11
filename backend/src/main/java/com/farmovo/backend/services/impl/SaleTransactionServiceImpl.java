@@ -9,13 +9,17 @@ import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.SaleTransaction;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import com.farmovo.backend.repositories.*;
+import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final StoreRepository storeRepository;
     private final SaleTransactionMapper saleTransactionMapper;
     private final ImportTransactionDetailRepository importTransactionDetailRepository;
+    private final DebtNoteService debtNoteService;
+    private static final Logger logger = LogManager.getLogger(SaleTransactionServiceImpl.class);
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
@@ -88,6 +94,26 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         }
 
         saleTransactionRepository.save(transaction);
+
+        // Tạo DebtNote nếu paid < || > total
+        BigDecimal paidAmount = transaction.getPaidAmount();
+        BigDecimal totalAmount = transaction.getTotalAmount();
+        BigDecimal debtAmount = paidAmount.subtract(totalAmount);
+
+        if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = debtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getCustomer().getId(),
+                    debtAmount,
+                    "SALE",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            logger.info("Created debt note for sale transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
+        }
+
     }
 
     @Override

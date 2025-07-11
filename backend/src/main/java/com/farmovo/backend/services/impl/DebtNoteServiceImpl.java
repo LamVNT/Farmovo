@@ -6,6 +6,7 @@ import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.DebtNote;
 import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.repositories.DebtNoteRepository;
+import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
 import com.farmovo.backend.services.DebtNoteService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private static final Logger logger = LogManager.getLogger(DebtNoteServiceImpl.class);
     private final CustomerRepository customerRepository;
     private final DebtNoteRepository debtNoteRepository;
+    private final StoreRepository storeRepository;
     private final CustomerService customerService;
 
     @Override
@@ -144,27 +146,28 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     @Transactional
-    public void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, Long sourceId) {
-        logger.debug("Creating debt note from transaction for customer ID: {}, source: {}, sourceId: {}", customerId, fromSource, sourceId);
+    public void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId) {
+        logger.debug("Creating debt note from transaction for customer ID: {}, source: {}, debtType: {}, sourceId: {}, storeId: {}", customerId, fromSource, debtType, sourceId, storeId);
         try {
             Customer customer = customerRepository.findById(customerId)
                     .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customerId));
 
             DebtNote debtNote = new DebtNote();
             debtNote.setCustomer(customer);
-            debtNote.setDebtAmount(debtAmount); // debtAmount đã được điều chỉnh ở tầng gọi (Import/SaleTransaction)
+            debtNote.setDebtAmount(debtAmount); // debtAmount đã được điều chỉnh ở tầng gọi
             debtNote.setDebtDate(LocalDateTime.now());
-            debtNote.setDebtType("AUTO");
+            debtNote.setDebtType(debtType != null ? debtType : "AUTO");
             debtNote.setDebtDescription("Tự động tạo từ " + fromSource + " ID: " + sourceId);
             debtNote.setDebtEvidences("");
             debtNote.setFromSource(fromSource);
             debtNote.setSourceId(sourceId);
-            debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
+            debtNote.setStore(storeRepository.findById(storeId)
+                    .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + storeId)));
             debtNote.setCreatedAt(LocalDateTime.now());
             debtNote.setCreatedBy(1L);
 
             debtNote = debtNoteRepository.save(debtNote);
-            logger.info("Successfully created debt note with ID: {} from {} ID: {}", debtNote.getId(), fromSource, sourceId);
+            logger.info("Successfully created debt note with ID: {} from {} ID: {}, store ID: {}", debtNote.getId(), fromSource, sourceId, storeId);
 
             BigDecimal totalDebt = debtNoteRepository.calculateTotalDebtByCustomerId(customer.getId());
             customer.setTotalDebt(totalDebt != null ? totalDebt : BigDecimal.ZERO);

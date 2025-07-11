@@ -12,6 +12,6 @@ public interface DebtNoteService {
     DebtNoteResponseDto addDebtNote(DebtNoteRequestDto requestDto);
     DebtNoteResponseDto updateDebtNote(Long debtId, DebtNoteRequestDto requestDto);
     BigDecimal getTotalDebtByCustomerId(Long customerId);
-    void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, Long sourceId);
+    void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId);
 
 }
