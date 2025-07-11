@@ -36,6 +36,7 @@ public interface ProductMapper {
 
     List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
 
+
     @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "proId")
     @Mapping(source = "product.category.categoryName", target = "categoryName")
@@ -51,5 +52,7 @@ public interface ProductMapper {
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
     @Mapping(source = "createdAt", target = "createAt")
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
+
+
 }
 

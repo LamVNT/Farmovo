@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface ImportTransactionService {
 
-    void createImportTransaction(CreateImportTransactionRequestDto dto);
+    void createImportTransaction(CreateImportTransactionRequestDto dto, Long userId);
 
     @Transactional(rollbackFor = Exception.class)
     void update(Long id, CreateImportTransactionRequestDto dto);
@@ -17,7 +17,6 @@ public interface ImportTransactionService {
     List<CreateImportTransactionRequestDto> listAllImportTransaction1();
 
     List<ImportTransactionResponseDto> listAllImportTransaction();
-
 
     CreateImportTransactionRequestDto getImportTransactionById(Long id);
 
