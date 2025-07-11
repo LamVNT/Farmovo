@@ -1,36 +1,36 @@
 import React, {useState} from 'react'
 import {Link, NavLink} from 'react-router-dom'
 import Button from "@mui/material/Button";
-import { CiLogin } from "react-icons/ci";
-import { CiUser } from "react-icons/ci";
-import { FcGoogle } from "react-icons/fc";
-import { FaFacebook } from "react-icons/fa";
+import {CiLogin, CiUser} from "react-icons/ci";
+import {FcGoogle} from "react-icons/fc";
+import {FaEyeSlash, FaFacebook, FaRegEye} from "react-icons/fa";
 import Checkbox from "@mui/material/Checkbox"
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { FaRegEye } from "react-icons/fa";
-import { FaEyeSlash } from "react-icons/fa";
 
 
 const Signup = () => {
     const [loadingGoogle, setLoadingGoogle] = React.useState(false);
     const [loadingfb, setLoadingfb] = React.useState(false);
     const [isPasswordShow, setisPasswordShow] = useState(false);
+
     function handleClickGoogle() {
         setLoadingGoogle(true);
     }
+
     function handleClickfb() {
         setLoadingfb(true);
     }
 
-    return(
+    return (
         <section className='bg-white w-full'>
             <header className="w-full fixed top-0 left-0  px-4 py-3 flex items-center justify-between z-50">
-                <Link to="/"><img className="w-[200px]" src="https://ecme-react.themenate.net/img/logo/logo-light-full.png"/></Link>
+                <Link to="/"><img className="w-[200px]"
+                                  src="https://ecme-react.themenate.net/img/logo/logo-light-full.png"/></Link>
 
                 <div className="flex items-center gap-0">
                     <NavLink
                         to="/login"
-                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                        className={({isActive}) => (isActive ? "isActive" : "")}
                     >
                         <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
                             <CiLogin className="text-[18px]"/>Login
@@ -38,7 +38,7 @@ const Signup = () => {
                     </NavLink>
                     <NavLink
                         to="/sign-up"
-                        className={({ isActive }) => (isActive ? "isActive" : "")}
+                        className={({isActive}) => (isActive ? "isActive" : "")}
                     >
                         <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] !px-5 flex gap-1">
                             <CiUser className="text-[18px]"/>SignUp
@@ -59,7 +59,7 @@ const Signup = () => {
                 <div className="flex items-center justify-center w-full mt-5 gap-4">
                     <Button
                         onClick={handleClickGoogle}
-                        endIcon={<FcGoogle />}
+                        endIcon={<FcGoogle/>}
                         loading={loadingGoogle}
                         loadingPosition="end"
                         variant="outlined"
@@ -70,7 +70,7 @@ const Signup = () => {
 
                     <Button
                         onClick={handleClickfb}
-                        endIcon={<FaFacebook />}
+                        endIcon={<FaFacebook/>}
                         loading={loadingfb}
                         loadingPosition="end"
                         variant="outlined"
@@ -99,11 +99,14 @@ const Signup = () => {
                     <div className="form-group mb-4 w-full">
                         <h4 className="text-[14px] font-[500] mb-1">Password</h4>
                         <div className="relative w-full">
-                            <input type={isPasswordShow===false ? 'password' : "text"}
+                            <input type={isPasswordShow === false ? 'password' : "text"}
                                    className="w-full h-[50px] border-2 border-[rgba(0,0,0,0.1)] rounded-sm focus:border-[rgba(0,0,0,0.7)] focus:outline-none px-3"/>
-                            <Button className="!absolute top-[5px] right-[10px] z-50 !rounded-full !w-[35px] !h-[35px] !min-w-[35px] !text-[#000]" onClick={()=>setisPasswordShow(!isPasswordShow)}>
+                            <Button
+                                className="!absolute top-[5px] right-[10px] z-50 !rounded-full !w-[35px] !h-[35px] !min-w-[35px] !text-[#000]"
+                                onClick={() => setisPasswordShow(!isPasswordShow)}>
                                 {
-                                    isPasswordShow===false ? <FaRegEye className="text-[18px]"/> : <FaEyeSlash className="text-[18px]"/>
+                                    isPasswordShow === false ? <FaRegEye className="text-[18px]"/> :
+                                        <FaEyeSlash className="text-[18px]"/>
                                 }
 
                             </Button>
@@ -120,7 +123,6 @@ const Signup = () => {
                         <Link to="/forgot-password"
                               className="text-primary font-[700] text-[15px] hover:underline hover:text-gray-700">Forgot
                             Password?</Link>
-
 
 
                     </div>

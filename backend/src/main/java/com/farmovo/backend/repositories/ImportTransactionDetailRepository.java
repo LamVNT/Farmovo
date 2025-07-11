@@ -18,11 +18,15 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
 
     @Query("SELECT i FROM ImportTransactionDetail i WHERE i.expireDate BETWEEN :now AND :soon")
     List<ImportTransactionDetail> findExpiringLots(@Param("now") java.time.LocalDateTime now, @Param("soon") java.time.LocalDateTime soon);
+
     List<ImportTransactionDetail> findByProductId(Long productId);
-    
+
     // Lấy tất cả ImportTransactionDetail có remainQuantity > 0
     List<ImportTransactionDetail> findByRemainQuantityGreaterThan(Integer remainQuantity);
-    
+
     // Lấy ImportTransactionDetail theo productId và có remainQuantity > 0
     List<ImportTransactionDetail> findByProductIdAndRemainQuantityGreaterThan(Long productId, Integer remainQuantity);
+
+    @Query("SELECT i.id, i.product.productName, i.remainQuantity, i.zones_id, i.isCheck, i.expireDate FROM ImportTransactionDetail i WHERE DATE(i.importTransaction.importDate) <= :stocktakeDate")
+    List<Object[]> findAllForStocktakeDateRaw(@Param("stocktakeDate") java.time.LocalDate stocktakeDate);
 }

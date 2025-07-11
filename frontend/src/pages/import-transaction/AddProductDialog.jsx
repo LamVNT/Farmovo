@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    Tabs,
-    Tab,
-    TextField,
-    Select,
-    MenuItem,
     Button,
+    Dialog,
+    DialogContent,
+    DialogTitle,
     IconButton,
-    InputAdornment
+    InputAdornment,
+    MenuItem,
+    Select,
+    Tab,
+    Tabs,
+    TextField
 } from '@mui/material';
-import { AiOutlinePlus } from 'react-icons/ai';
-import { FiX } from 'react-icons/fi';
+import {AiOutlinePlus} from 'react-icons/ai';
+import {FiX} from 'react-icons/fi';
 
-const AddProductDialog = ({ open, onClose }) => {
+const AddProductDialog = ({open, onClose}) => {
     const [tab, setTab] = useState(0);
     const [product, setProduct] = useState({
         code: '',
@@ -29,7 +29,7 @@ const AddProductDialog = ({ open, onClose }) => {
 
     const handleChange = (field) => (e) => {
         const value = e.target.value;
-        setProduct({ ...product, [field]: value });
+        setProduct({...product, [field]: value});
     };
 
     const handleImageChange = (index, file) => {
@@ -54,14 +54,14 @@ const AddProductDialog = ({ open, onClose }) => {
             <DialogTitle className="flex justify-between items-center p-4 pb-0">
                 <span className="text-lg font-semibold">Thêm hàng hóa</span>
                 <IconButton onClick={onClose}>
-                    <FiX />
+                    <FiX/>
                 </IconButton>
             </DialogTitle>
 
             <DialogContent className="p-4 pt-2">
                 <Tabs value={tab} onChange={(e, newTab) => setTab(newTab)} indicatorColor="success">
-                    <Tab label="Thông tin" />
-                    <Tab label="Mô tả chi tiết" />
+                    <Tab label="Thông tin"/>
+                    <Tab label="Mô tả chi tiết"/>
                 </Tabs>
 
                 {tab === 0 && (
@@ -75,7 +75,7 @@ const AddProductDialog = ({ open, onClose }) => {
                                 value={product.code}
                                 onChange={handleChange('code')}
                                 fullWidth
-                                style={{ flex: 7 }}
+                                style={{flex: 7}}
                                 InputProps={{
                                     endAdornment: <InputAdornment position="end">ⓘ</InputAdornment>,
                                 }}
@@ -89,12 +89,12 @@ const AddProductDialog = ({ open, onClose }) => {
                                 InputProps={{
                                     endAdornment: <InputAdornment position="end">₫</InputAdornment>,
                                 }}
-                                style={{ flex: 3 }}
+                                style={{flex: 3}}
                             />
                         </div>
 
                         {/* Tên hàng (70%) */}
-                        <div style={{ width: '70%' }}>
+                        <div style={{width: '70%'}}>
                             <TextField
                                 label="Tên hàng"
                                 variant="standard"
@@ -119,7 +119,7 @@ const AddProductDialog = ({ open, onClose }) => {
                                     <MenuItem value="douong">Đồ uống</MenuItem>
                                 </Select>
                                 <IconButton size="small">
-                                    <AiOutlinePlus />
+                                    <AiOutlinePlus/>
                                 </IconButton>
                             </div>
 
@@ -132,7 +132,7 @@ const AddProductDialog = ({ open, onClose }) => {
                                     fullWidth
                                 />
                                 <IconButton size="small">
-                                    <AiOutlinePlus />
+                                    <AiOutlinePlus/>
                                 </IconButton>
                             </div>
                         </div>

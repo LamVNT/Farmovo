@@ -1,10 +1,7 @@
 import React from "react";
-import {
-    Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Button, Box, Typography, styled, FormHelperText
-} from "@mui/material";
+import {Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, styled, TextField} from "@mui/material";
 
-const StyledDialog = styled(Dialog)(({ theme }) => ({
+const StyledDialog = styled(Dialog)(({theme}) => ({
     '& .MuiDialog-paper': {
         borderRadius: 12,
         padding: theme.spacing(2),
@@ -12,7 +9,7 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-const StyledTextField = styled(TextField)(({ theme }) => ({
+const StyledTextField = styled(TextField)(({theme}) => ({
     '& .MuiOutlinedInput-root': {
         '& fieldset': {
             borderColor: theme.palette.grey[300],
@@ -27,7 +24,7 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
     marginBottom: theme.spacing(2),
 }));
 
-const CategoryFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }) => {
+const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) => {
     const validateName = () => {
         if (!form.name.trim()) return "Name is required";
         if (form.name.length > 255) return "Name must not exceed 255 characters";
@@ -48,24 +45,25 @@ const CategoryFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }
     return (
         <StyledDialog open={open} onClose={onClose}>
             <DialogTitle>
-                <Typography variant="h6" fontWeight="bold" color="text.primary">
+                {/* Sửa lỗi: Không lồng <h6> trong <h2> */}
+                <span style={{fontWeight: 'bold', color: 'inherit', fontSize: 20}}>
                     {editMode ? "Edit Category" : "Create Category"}
-                </Typography>
+                </span>
             </DialogTitle>
             <DialogContent>
-                <Box sx={{ padding: 2 }}>
+                <Box sx={{padding: 2}}>
                     <StyledTextField
                         autoFocus
                         margin="dense"
                         label="Category Name"
                         fullWidth
                         value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        onChange={(e) => setForm({...form, name: e.target.value})}
                         variant="outlined"
                         required
                         error={!!nameError}
                         helperText={nameError || ""}
-                        inputProps={{ maxLength: 255 }}
+                        inputProps={{maxLength: 255}}
                     />
                     <StyledTextField
                         margin="dense"
@@ -74,15 +72,15 @@ const CategoryFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }
                         multiline
                         rows={3}
                         value={form.description || ""}
-                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        onChange={(e) => setForm({...form, description: e.target.value})}
                         variant="outlined"
                         error={!!descriptionError}
                         helperText={descriptionError || `${form.description?.length || 0}/1000`}
-                        inputProps={{ maxLength: 1000 }}
+                        inputProps={{maxLength: 1000}}
                     />
                 </Box>
             </DialogContent>
-            <DialogActions sx={{ padding: 2 }}>
+            <DialogActions sx={{padding: 2}}>
                 <Button onClick={onClose} variant="outlined" color="secondary">
                     Cancel
                 </Button>

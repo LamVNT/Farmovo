@@ -1,39 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    TextField,
+    Alert,
     Button,
     Checkbox,
-    FormControlLabel,
-    MenuItem,
-    Select,
-    InputAdornment,
-    IconButton,
-    Tooltip,
-    Menu,
-    FormControlLabel as MuiFormControlLabel,
-    Alert,
     CircularProgress,
     Dialog,
-    DialogTitle,
-    DialogContent,
     DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControlLabel,
+    FormControlLabel as MuiFormControlLabel,
+    IconButton,
+    InputAdornment,
+    Menu,
+    MenuItem,
+    Select,
+    TextField,
+    Tooltip,
 } from '@mui/material';
-import { FaLock, FaCheck, FaSearch, FaEye } from 'react-icons/fa';
-import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
-import { FiPlus } from 'react-icons/fi';
-import { DataGrid } from '@mui/x-data-grid';
-import { FaRegTrashCan } from "react-icons/fa6";
+import {FaCheck, FaEye, FaLock, FaSearch} from 'react-icons/fa';
+import {MdCategory} from 'react-icons/md';
+import {FiPlus} from 'react-icons/fi';
+import {DataGrid} from '@mui/x-data-grid';
+import {FaRegTrashCan} from "react-icons/fa6";
 import AddProductDialog from './AddProductDialog';
-import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { vi } from 'date-fns/locale';
+import {DatePicker, LocalizationProvider} from '@mui/x-date-pickers';
+import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFns';
+import {vi} from 'date-fns/locale';
 
 import importTransactionService from '../../services/importTransactionService';
-import { productService } from '../../services/productService';
-import { customerService } from '../../services/customerService';
-import { userService } from '../../services/userService';
-import { getCategories } from '../../services/categoryService';
-import { getZones } from '../../services/zoneService';
+import {productService} from '../../services/productService';
+import {customerService} from '../../services/customerService';
+import {userService} from '../../services/userService';
+import {getCategories} from '../../services/categoryService';
+import {getZones} from '../../services/zoneService';
+
 const ImportPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
@@ -113,7 +114,7 @@ const ImportPage = () => {
     };
 
     const toggleColumn = (col) => {
-        setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
+        setColumnVisibility((prev) => ({...prev, [col]: !prev[col]}));
     };
 
     const handleSearchChange = (e) => {
@@ -142,7 +143,7 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) =>
                 p.id === id
-                    ? { ...p, expireDate: formatted }
+                    ? {...p, expireDate: formatted}
                     : p
             )
         );
@@ -253,7 +254,7 @@ const ImportPage = () => {
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
         // Lọc sản phẩm theo category
-        const filteredProducts = products.filter(product => 
+        const filteredProducts = products.filter(product =>
             product.categoryId === category.id || product.category?.id === category.id
         );
         setCategoryProducts(filteredProducts);
@@ -382,17 +383,17 @@ const ImportPage = () => {
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
     const columns = [
-        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
-        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
+        columnVisibility['STT'] && {field: 'id', headerName: 'STT', width: 80},
+        columnVisibility['Tên hàng'] && {field: 'name', headerName: 'Tên hàng', flex: 1},
+        columnVisibility['ĐVT'] && {field: 'unit', headerName: 'ĐVT', width: 80},
         columnVisibility['Số lượng'] && {
             field: 'quantity',
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full gap-1">
-                    <button 
-                        onClick={() => handleQuantityChange(params.row.id, -1)} 
+                    <button
+                        onClick={() => handleQuantityChange(params.row.id, -1)}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         –
@@ -422,8 +423,8 @@ const ImportPage = () => {
                             }
                         }}
                     />
-                    <button 
-                        onClick={() => handleQuantityChange(params.row.id, 1)} 
+                    <button
+                        onClick={() => handleQuantityChange(params.row.id, 1)}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         +
@@ -558,7 +559,7 @@ const ImportPage = () => {
             headerName: 'Ngày hết hạn',
             width: 170,
             renderCell: (params) => (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%'}}>
                     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
                         <DatePicker
                             format="dd/MM/yyyy"
@@ -585,7 +586,7 @@ const ImportPage = () => {
                                             borderBottomColor: 'transparent',
                                         },
                                     },
-                                    inputProps: { style: { textAlign: 'center' } },
+                                    inputProps: {style: {textAlign: 'center'}},
                                 }
                             }}
                         />
@@ -600,7 +601,7 @@ const ImportPage = () => {
             renderCell: (params) => (
                 <Tooltip title="Xóa">
                     <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
-                        <FaRegTrashCan />
+                        <FaRegTrashCan/>
                     </IconButton>
                 </Tooltip>
             ),
@@ -608,11 +609,13 @@ const ImportPage = () => {
     ].filter(Boolean);
 
     const totalAmount = selectedProducts.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0);
-    
+
     return (
         <div className="flex w-full h-screen bg-gray-100">
-            {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{error}</Alert>}
-            {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{success}</Alert>}
+            {error && <Alert severity="error"
+                             className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{error}</Alert>}
+            {success && <Alert severity="success"
+                               className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
                 <div className="flex justify-between items-center mb-2">
@@ -626,15 +629,17 @@ const ImportPage = () => {
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500" />
+                                        <FaSearch className="text-gray-500"/>
                                     </InputAdornment>
                                 ),
                             }}
                         />
-                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
-                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><FiPlus /></IconButton></Tooltip>
+                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory/></IconButton></Tooltip>
+                        <Tooltip title="Tạo mới hàng hóa"><IconButton
+                            onClick={() => setOpenDialog(true)}><FiPlus/></IconButton></Tooltip>
                         {searchTerm.trim() !== '' && filteredProducts.length > 0 && (
-                            <div className="absolute top-full mt-1 left-0 z-10 bg-white border shadow-md rounded w-full max-h-60 overflow-y-auto text-sm">
+                            <div
+                                className="absolute top-full mt-1 left-0 z-10 bg-white border shadow-md rounded w-full max-h-60 overflow-y-auto text-sm">
                                 {filteredProducts.map((product, index) => (
                                     <div
                                         key={index}
@@ -651,19 +656,21 @@ const ImportPage = () => {
 
                     <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
-                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><FaEye /></IconButton>
+                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><FaEye/></IconButton>
                         </Tooltip>
                         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                             {Object.entries(columnVisibility).map(([col, visible]) => (
                                 <MenuItem key={col} dense>
-                                    <MuiFormControlLabel control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} label={col} />
+                                    <MuiFormControlLabel
+                                        control={<Checkbox checked={visible} onChange={() => toggleColumn(col)}/>}
+                                        label={col}/>
                                 </MenuItem>
                             ))}
                         </Menu>
                     </div>
                 </div>
 
-                <div style={{ height: 400, width: '100%' }}>
+                <div style={{height: 400, width: '100%'}}>
                     <DataGrid
                         rows={selectedProducts}
                         columns={columns}
@@ -678,7 +685,8 @@ const ImportPage = () => {
             <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">👤 {currentUser?.name || currentUser?.username || 'Đang tải...'}</span>
+                        <span
+                            className="text-sm font-medium">👤 {currentUser?.name || currentUser?.username || 'Đang tải...'}</span>
                     </div>
                     <span className="text-xs text-gray-500">{new Date().toLocaleString('vi-VN')}</span>
                 </div>
@@ -710,7 +718,7 @@ const ImportPage = () => {
                         fullWidth
                         placeholder="Nhập mã phiếu"
                         value={nextImportCode}
-                        InputProps={{ readOnly: true }}
+                        InputProps={{readOnly: true}}
                         variant="standard"
                         sx={{
                             '& .MuiInput-underline:before': {
@@ -728,7 +736,7 @@ const ImportPage = () => {
                 </div>
 
                 <div className="font-semibold">Trạng thái</div>
-                <FormControlLabel control={<Checkbox checked />} label="Phiếu tạm" />
+                <FormControlLabel control={<Checkbox checked/>} label="Phiếu tạm"/>
 
                 <div className="flex justify-between items-center">
                     <div className="font-semibold">Tổng tiền hàng</div>
@@ -759,16 +767,20 @@ const ImportPage = () => {
 
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={handleSaveDraft} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={handleComplete} disabled={loading}>Hoàn thành</Button>
+                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit"/> : <FaLock/>}
+                            onClick={handleSaveDraft} disabled={loading}>Lưu tạm</Button>
+                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit"/> : <FaCheck/>}
+                            onClick={handleComplete} disabled={loading}>Hoàn thành</Button>
                 </div>
             </div>
 
-            <AddProductDialog open={openDialog} onClose={() => setOpenDialog(false)} />
+            <AddProductDialog open={openDialog} onClose={() => setOpenDialog(false)}/>
 
             {/* Category Dialog */}
-            <Dialog 
-                open={showCategoryDialog} 
+            <Dialog
+                open={showCategoryDialog}
                 onClose={handleCloseCategoryDialog}
                 maxWidth="md"
                 fullWidth
@@ -795,7 +807,8 @@ const ImportPage = () => {
                                     >
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-sm text-gray-500">
-                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản
+                                            phẩm
                                         </div>
                                     </div>
                                 ))}

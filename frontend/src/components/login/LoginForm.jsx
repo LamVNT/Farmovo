@@ -1,6 +1,6 @@
-import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { MyContext } from "../../App";
+import {useContext, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {MyContext} from "../../App";
 import axios from "axios";
 
 const LoginForm = () => {
@@ -9,7 +9,7 @@ const LoginForm = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const { setIslogin } = useContext(MyContext);
+    const {setIslogin} = useContext(MyContext);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -20,8 +20,8 @@ const LoginForm = () => {
         try {
             const res = await axios.post(
                 `${import.meta.env.VITE_API_URL}/signin`,
-                { username, password, rememberMe },
-                { withCredentials: true }
+                {username, password, rememberMe},
+                {withCredentials: true}
             );
 
             localStorage.setItem("user", JSON.stringify({

@@ -1,16 +1,7 @@
 import React from "react";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    Button,
-} from "@mui/material";
+import {Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,} from "@mui/material";
 
-const DebtTable = ({ debtNotes, onEdit }) => {
+const DebtTable = ({debtNotes, onEdit}) => {
     return (
         <TableContainer component={Paper}>
             <Table>

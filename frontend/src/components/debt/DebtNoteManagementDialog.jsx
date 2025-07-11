@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Button,
     Autocomplete,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Grid,
+    InputLabel,
+    MenuItem,
+    Select,
+    TextField,
 } from '@mui/material';
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
 const CUSTOMER_API_URL = `${import.meta.env.VITE_API_URL}/customers`;
 
-const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+const DebtNoteManagementDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
     const [customers, setCustomers] = useState([]);
     const [stores, setStores] = useState([]);
 
@@ -27,7 +27,7 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
             try {
                 const response = await axios.get(`${CUSTOMER_API_URL}/admin/customerList`, {
                     withCredentials: true,
-                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                 });
                 setCustomers(response.data.map((customer) => ({
                     id: customer.id,
@@ -44,9 +44,9 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
             try {
                 const response = await axios.get(`${API_URL}/admin/storeList`, {
                     withCredentials: true,
-                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                 });
-                setStores(response.data.map((store) => ({ id: store.id, name: store.name })));
+                setStores(response.data.map((store) => ({id: store.id, name: store.name})));
             } catch (error) {
                 console.error('Không thể lấy danh sách cửa hàng:', error);
             }
@@ -59,8 +59,8 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
     }, [open]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        const {name, value} = e.target;
+        setForm((prev) => ({...prev, [name]: value}));
     };
 
     const handleCustomerChange = (event, value) => {
@@ -84,7 +84,7 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
     const handleSourceChange = (e) => {
         const value = e.target.value;
         setForm((prev) => {
-            const newForm = { ...prev, fromSource: value, sourceId: value === 'MANUAL' ? null : prev.sourceId };
+            const newForm = {...prev, fromSource: value, sourceId: value === 'MANUAL' ? null : prev.sourceId};
             if (value === 'SALE') {
                 newForm.debtDescription = prev.debtAmount >= 0 ? 'Phát sinh nợ khi bán hàng mà chưa trả đủ' : 'Trả lại tiền, còn nợ khách';
             } else if (value === 'PURCHASE') {
@@ -98,11 +98,11 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+            <DialogTitle sx={{backgroundColor: '#f5f5f5', fontWeight: 'bold'}}>
                 {editMode ? 'Chỉnh sửa phiếu nợ' : 'Thêm phiếu nợ'}
             </DialogTitle>
             <DialogContent>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid container spacing={2} sx={{mt: 1}}>
                     {editMode && (
                         <Grid item xs={12}>
                             <TextField
@@ -198,7 +198,7 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
                             value={form.debtDate ? form.debtDate.slice(0, 16) : ''}
                             onChange={handleChange}
                             required
-                            InputLabelProps={{ shrink: true }}
+                            InputLabelProps={{shrink: true}}
                             variant="outlined"
                         />
                     </Grid>
@@ -289,7 +289,7 @@ const DebtNoteManagementDialog = ({ open, onClose, onSubmit, form, setForm, edit
                     )}
                 </Grid>
             </DialogContent>
-            <DialogActions sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
+            <DialogActions sx={{p: 2, backgroundColor: '#f5f5f5'}}>
                 <Button onClick={onClose} variant="outlined" color="secondary">
                     Hủy
                 </Button>

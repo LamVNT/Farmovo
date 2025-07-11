@@ -1,8 +1,8 @@
 package com.farmovo.backend.mapper;
 
+import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
-import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.models.Zone;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

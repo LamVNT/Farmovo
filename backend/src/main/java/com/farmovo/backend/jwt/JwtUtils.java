@@ -54,6 +54,36 @@ public class JwtUtils {
                 .getSubject();
     }
 
+    /**
+     * Lấy userId từ JWT claims (nếu có). Nếu không có, trả về null.
+     */
+    public Long getUserIdFromJwtToken(String token) {
+        Object userIdObj = Jwts.parser().verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("userId");
+        if (userIdObj != null) {
+            try {
+                return Long.valueOf(userIdObj.toString());
+            } catch (NumberFormatException e) {
+                logger.warn("userId in JWT is not a valid Long: {}", userIdObj);
+            }
+        }
+        return null;
+    }
+
+    public String generateTokenWithUserId(UserDetails userDetails, Long userId) {
+        String username = userDetails.getUsername();
+        return Jwts.builder()
+                .subject(username)
+                .claim("userId", userId)
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key())
+                .compact();
+    }
+
     private SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
@@ -72,5 +102,23 @@ public class JwtUtils {
             logger.error("Empty JWT claims string: {}", e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Lấy JWT từ header hoặc cookie (ưu tiên header, fallback cookie)
+     */
+    public String getJwtFromRequest(HttpServletRequest request) {
+        String token = getJwtFromHeader(request);
+        if (token == null) {
+            if (request.getCookies() != null) {
+                for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                    if ("jwt".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+        }
+        return token;
     }
 }

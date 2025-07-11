@@ -1,21 +1,16 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.dto.request.*;
-import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
+import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
+import com.farmovo.backend.dto.request.CustomerDto;
+import com.farmovo.backend.dto.request.SaleTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
-import com.farmovo.backend.repositories.SaleTransactionRepository;
-import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,15 +21,15 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/sale-transactions")
 @RequiredArgsConstructor
 public class SaleTransactionController {
-    
+
     private final ImportTransactionDetailRepository detailRepository;
     private final ProductMapper productMapper;
     private final SaleTransactionService saleTransactionService;
-    private final CustomerService customerService;                                                                      
+    private final CustomerService customerService;
     private final ProductService productService;
     private final ZoneService zoneService;
     private final StoreService storeService;
-    
+
 
     @GetMapping("/create-form-data")
     public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
@@ -49,11 +44,11 @@ public class SaleTransactionController {
                     return dto;
                 })
                 .collect(Collectors.toList());
-        
+
         // Lấy sản phẩm từ ImportTransactionDetail có remainQuantity > 0
         List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
         List<ProductSaleResponseDto> products;
-        
+
         if (!availableDetails.isEmpty()) {
             products = availableDetails.stream()
                     .map(productMapper::toDtoSale)
@@ -62,18 +57,18 @@ public class SaleTransactionController {
             // Fallback: lấy từ Product nếu không có ImportTransactionDetail
             products = productService.getAllProductSaleDto();
         }
-        
+
         // Debug logging
         System.out.println("=== DEBUG SALE TRANSACTION CREATE FORM DATA ===");
         System.out.println("Customers count: " + customers.size());
         System.out.println("Stores count: " + stores.size());
         System.out.println("Products count: " + products.size());
         System.out.println("Available details count: " + availableDetails.size());
-        
+
         if (!products.isEmpty()) {
             System.out.println("First product: " + products.get(0));
         }
-        
+
         SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
         formData.setCustomers(customers);
         formData.setStores(stores);
@@ -113,12 +108,12 @@ public class SaleTransactionController {
     public ResponseEntity<String> testData() {
         List<ImportTransactionDetail> allDetails = detailRepository.findAll();
         List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
-        
+
         StringBuilder result = new StringBuilder();
         result.append("=== TEST DATA ===\n");
         result.append("Total ImportTransactionDetail: ").append(allDetails.size()).append("\n");
         result.append("Available details (remainQuantity > 0): ").append(availableDetails.size()).append("\n");
-        
+
         if (!availableDetails.isEmpty()) {
             result.append("\nFirst available detail:\n");
             ImportTransactionDetail first = availableDetails.get(0);
@@ -128,7 +123,7 @@ public class SaleTransactionController {
             result.append("Remain Quantity: ").append(first.getRemainQuantity()).append("\n");
             result.append("Unit Sale Price: ").append(first.getUnitSalePrice()).append("\n");
         }
-        
+
         return ResponseEntity.ok(result.toString());
     }
 }

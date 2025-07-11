@@ -1,6 +1,6 @@
 .zone-visual {
     width: 100%;
-    height : 92%;
+    height: 92%;
 }
 
 .grid-container {
@@ -8,7 +8,7 @@
     flex-direction: column;
     gap: 2px;
     width: 100%;
-    height : 92%;
+    height: 92%;
 }
 
 .grid-row {
@@ -38,12 +38,6 @@
     background-color: #c7cacc;
     font-weight: bold;
 }
-
-
-
-
-
-
 
 
 /*.zone-visual {*/

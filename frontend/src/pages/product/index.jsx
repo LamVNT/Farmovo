@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { TextField, Button } from '@mui/material';
-import { FaPlus } from 'react-icons/fa6';
+import {useEffect, useMemo, useState} from 'react';
+import {Button, TextField} from '@mui/material';
+import {FaPlus} from 'react-icons/fa6';
 import ProductTable from '../../components/product/ProductTable';
 import ProductFormDialog from '../../components/product/ProductFormDialog';
-import { productService } from '../../services/productService';
+import {productService} from '../../services/productService';
 
 const Product = () => {
     const [products, setProducts] = useState([]);
@@ -72,7 +72,7 @@ const Product = () => {
 
     const handleClose = () => {
         setOpenDialog(false);
-        setForm((prev) => ({ ...prev }));
+        setForm((prev) => ({...prev}));
     };
 
     const handleDelete = async (id) => {
@@ -112,13 +112,13 @@ const Product = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Thêm
                     </Button>
                 </div>
             </div>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{color: 'red'}}>{error}</p>}
             {loading ? (
                 <p>Đang tải...</p>
             ) : (

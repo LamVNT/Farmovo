@@ -93,7 +93,7 @@ export const userService = {
 
     updateUserStatus: async (id, status) => {
         try {
-            const response = await axios.patch(`${API_URL}/admin/${id}/status`, { status }, {
+            const response = await axios.patch(`${API_URL}/admin/${id}/status`, {status}, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;

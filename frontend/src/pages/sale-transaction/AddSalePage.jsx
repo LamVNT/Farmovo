@@ -1,17 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, {useEffect, useState} from "react";
 import {
-    TextField, Button, FormControl, InputLabel, Select, MenuItem,
-    Dialog, DialogTitle, DialogContent, DialogActions, Table,
-    TableHead, TableRow, TableCell, TableBody, IconButton,
-    Alert, CircularProgress, Typography, Box, Grid, Card, CardContent,
-    Divider, Chip
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    CircularProgress,
+    FormControl,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Select,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    TextField,
+    Typography
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import { FaPlus, FaTrash, FaSearch } from "react-icons/fa";
+import {useNavigate} from "react-router-dom";
+import {FaPlus, FaTrash} from "react-icons/fa";
 import saleTransactionService from "../../services/saleTransactionService";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import {DateTimePicker} from "@mui/x-date-pickers/DateTimePicker";
+import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";
+import {AdapterDateFns} from "@mui/x-date-pickers/AdapterDateFns";
 
 const AddSalePage = () => {
     const navigate = useNavigate();
@@ -43,7 +58,7 @@ const AddSalePage = () => {
     // Lọc sản phẩm theo search và chỉ hiển thị những sản phẩm có remainQuantity > 0
     const filteredProducts = createFormData.products?.filter(product => {
         const matchesSearch = product.productName?.toLowerCase().includes(searchProduct.toLowerCase()) ||
-                             product.productCode?.toLowerCase().includes(searchProduct.toLowerCase());
+            product.productCode?.toLowerCase().includes(searchProduct.toLowerCase());
         const hasStock = product.remainQuantity > 0;
         return matchesSearch && hasStock;
     }) || [];
@@ -103,15 +118,15 @@ const AddSalePage = () => {
         if (existingIndex >= 0) {
             const updatedDetail = [...formData.detail];
             const newQuantity = updatedDetail[existingIndex].quantity + quantity;
-            
+
             // Kiểm tra tổng số lượng không vượt quá tồn kho
             if (newQuantity > selectedBatch.remainQuantity) {
                 setError(`Tổng số lượng vượt quá tồn kho. Còn lại: ${selectedBatch.remainQuantity}`);
                 return;
             }
-            
+
             updatedDetail[existingIndex].quantity = newQuantity;
-            setFormData({ ...formData, detail: updatedDetail });
+            setFormData({...formData, detail: updatedDetail});
         } else {
             const newItem = {
                 ...selectedBatch,
@@ -130,7 +145,7 @@ const AddSalePage = () => {
 
     const handleRemoveProduct = (index) => {
         const updatedDetail = formData.detail.filter((_, i) => i !== index);
-        setFormData({ ...formData, detail: updatedDetail });
+        setFormData({...formData, detail: updatedDetail});
     };
 
     const calculateTotal = () => {
@@ -187,18 +202,18 @@ const AddSalePage = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 mb-6">
-                    <Button 
-                        variant="outlined" 
+                    <Button
+                        variant="outlined"
                         onClick={loadCreateFormData}
                         disabled={loadingFormData}
-                        startIcon={loadingFormData ? <CircularProgress size={16} /> : null}
+                        startIcon={loadingFormData ? <CircularProgress size={16}/> : null}
                         className="border-blue-500 text-blue-600 hover:bg-blue-50"
                     >
                         {loadingFormData ? "Đang tải..." : "Tải lại dữ liệu"}
                     </Button>
 
-                    <Button 
-                        variant="outlined" 
+                    <Button
+                        variant="outlined"
                         onClick={async () => {
                             try {
                                 const response = await fetch(`${import.meta.env.VITE_API_URL}/sale-transactions/test-data`);
@@ -228,7 +243,9 @@ const AddSalePage = () => {
                 {!loadingFormData && !error && (
                     <Alert severity="success" className="mb-6 shadow-sm">
                         <Typography variant="body2" className="font-medium">
-                            ✅ Đã tải: {createFormData.customers?.length || 0} khách hàng, {createFormData.stores?.length || 0} cửa hàng, {createFormData.products?.length || 0} sản phẩm
+                            ✅ Đã tải: {createFormData.customers?.length || 0} khách
+                            hàng, {createFormData.stores?.length || 0} cửa
+                            hàng, {createFormData.products?.length || 0} sản phẩm
                         </Typography>
                     </Alert>
                 )}
@@ -240,7 +257,8 @@ const AddSalePage = () => {
                         <Card className="shadow-lg border-0 bg-white">
                             <CardContent className="p-4">
                                 <div className="flex items-center mb-4">
-                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                                    <div
+                                        className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
                                         <span className="text-blue-600 font-bold text-sm">ℹ️</span>
                                     </div>
                                     <Typography variant="h6" className="font-bold text-gray-800 text-sm">
@@ -248,11 +266,11 @@ const AddSalePage = () => {
                                     </Typography>
                                 </div>
                                 <div className="space-y-3 pl-2">
-                                    <FormControl variant="standard" size="small" style={{ width: '80%' }}>
+                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
                                         <InputLabel className="text-gray-600 text-sm">Khách hàng</InputLabel>
                                         <Select
                                             value={formData.customerId || ""}
-                                            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+                                            onChange={(e) => setFormData({...formData, customerId: e.target.value})}
                                             disabled={loadingFormData}
                                         >
                                             {loadingFormData ? (
@@ -269,11 +287,11 @@ const AddSalePage = () => {
                                         </Select>
                                     </FormControl>
 
-                                    <FormControl variant="standard" size="small" style={{ width: '80%' }}>
+                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
                                         <InputLabel className="text-gray-600 text-sm">Cửa hàng</InputLabel>
                                         <Select
                                             value={formData.storeId || ""}
-                                            onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+                                            onChange={(e) => setFormData({...formData, storeId: e.target.value})}
                                             disabled={loadingFormData}
                                         >
                                             {loadingFormData ? (
@@ -290,11 +308,11 @@ const AddSalePage = () => {
                                         </Select>
                                     </FormControl>
 
-                                    <FormControl variant="standard" size="small" style={{ width: '80%' }}>
+                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
                                         <InputLabel className="text-gray-600 text-sm">Trạng thái</InputLabel>
                                         <Select
                                             value={formData.status}
-                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            onChange={(e) => setFormData({...formData, status: e.target.value})}
                                         >
                                             <MenuItem value="DRAFT">📝 Nháp</MenuItem>
                                             <MenuItem value="COMPLETE">✅ Hoàn thành</MenuItem>
@@ -307,18 +325,22 @@ const AddSalePage = () => {
                                             multiline
                                             rows={2}
                                             value={formData.saleTransactionNote}
-                                            onChange={(e) => setFormData({ ...formData, saleTransactionNote: e.target.value })}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                saleTransactionNote: e.target.value
+                                            })}
                                             variant="standard"
                                             size="small"
-                                            style={{ width: '48%' }}
+                                            style={{width: '48%'}}
                                         />
                                         <LocalizationProvider dateAdapter={AdapterDateFns}>
                                             <DateTimePicker
                                                 label="Thời gian bán"
                                                 value={formData.saleDate}
-                                                onChange={(newValue) => setFormData({ ...formData, saleDate: newValue })}
+                                                onChange={(newValue) => setFormData({...formData, saleDate: newValue})}
                                                 renderInput={(params) => (
-                                                    <TextField {...params} variant="standard" size="small" style={{ width: '48%' }} />
+                                                    <TextField {...params} variant="standard" size="small"
+                                                               style={{width: '48%'}}/>
                                                 )}
                                             />
                                         </LocalizationProvider>
@@ -333,7 +355,8 @@ const AddSalePage = () => {
                         <Card className="shadow-lg border-0 bg-white">
                             <CardContent className="p-6">
                                 <div className="flex items-center mb-6">
-                                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                    <div
+                                        className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
                                         <span className="text-green-600 font-bold text-lg">🛍️</span>
                                     </div>
                                     <Typography variant="h6" className="font-bold text-gray-800">
@@ -343,7 +366,8 @@ const AddSalePage = () => {
                                 {/* Thêm sản phẩm - 2 hàng */}
                                 <Box>
                                     <Box display="flex" gap={2} alignItems="flex-end" mb={2}>
-                                        <FormControl variant="standard" size="small" style={{ minWidth: 120, flex: '1 1 140px' }}>
+                                        <FormControl variant="standard" size="small"
+                                                     style={{minWidth: 120, flex: '1 1 140px'}}>
                                             <InputLabel className="text-gray-600">Chọn sản phẩm</InputLabel>
                                             <Select
                                                 value={selectedProduct?.proId || ""}
@@ -366,7 +390,8 @@ const AddSalePage = () => {
                                                     uniqueProducts.map((product) => (
                                                         <MenuItem key={product.proId} value={product.proId}>
                                                             <div className="flex flex-col">
-                                                                <span className="font-medium text-gray-800">{product.productName || 'Không có tên'}</span>
+                                                                <span
+                                                                    className="font-medium text-gray-800">{product.productName || 'Không có tên'}</span>
                                                                 <span className="text-sm text-gray-500">
                                                                     Mã: {product.productCode || product.proId}
                                                                 </span>
@@ -381,7 +406,8 @@ const AddSalePage = () => {
                                             </Select>
                                         </FormControl>
 
-                                        <FormControl variant="standard" size="small" style={{ minWidth: 120, flex: '1 1 140px' }}>
+                                        <FormControl variant="standard" size="small"
+                                                     style={{minWidth: 120, flex: '1 1 140px'}}>
                                             <InputLabel className="text-gray-600">Chọn batch</InputLabel>
                                             <Select
                                                 value={selectedBatch?.id || ""}
@@ -397,7 +423,8 @@ const AddSalePage = () => {
                                                     availableBatches.map((batch) => (
                                                         <MenuItem key={batch.id} value={batch.id}>
                                                             <div className="flex flex-col">
-                                                                <span className="font-medium text-gray-800">Batch ID: {batch.id}</span>
+                                                                <span
+                                                                    className="font-medium text-gray-800">Batch ID: {batch.id}</span>
                                                                 <span className="text-sm text-gray-500">
                                                                     📦 Tồn: {batch.remainQuantity || 0} | 
                                                                     💰 Giá: {(batch.unitSalePrice || 0)?.toLocaleString('vi-VN')} VNĐ |
@@ -418,18 +445,18 @@ const AddSalePage = () => {
                                             label="Số lượng"
                                             value={quantity}
                                             onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                                            inputProps={{ min: 1 }}
+                                            inputProps={{min: 1}}
                                             variant="standard"
                                             size="small"
-                                            style={{ minWidth: 80, flex: '0 1 80px' }}
+                                            style={{minWidth: 80, flex: '0 1 80px'}}
                                         />
 
                                         <Button
                                             variant="contained"
-                                            startIcon={<FaPlus />}
+                                            startIcon={<FaPlus/>}
                                             onClick={handleAddProduct}
                                             disabled={!selectedBatch || quantity <= 0}
-                                            style={{ minWidth: 120, flex: '0 1 120px', height: 40 }}
+                                            style={{minWidth: 120, flex: '0 1 120px', height: 40}}
                                             className="bg-blue-600 hover:bg-blue-700 shadow-md"
                                         >
                                             Thêm
@@ -460,8 +487,10 @@ const AddSalePage = () => {
                                 </Typography>
                                 <div className="space-y-1 text-sm text-blue-700">
                                     <div>📦 Tồn kho: {selectedBatch.remainQuantity || 0}</div>
-                                    <div>💰 Giá bán: {(selectedBatch.unitSalePrice || 0)?.toLocaleString('vi-VN')} VNĐ</div>
-                                    <div>📅 Ngày nhập: {selectedBatch.createAt ? new Date(selectedBatch.createAt).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                                    <div>💰 Giá bán: {(selectedBatch.unitSalePrice || 0)?.toLocaleString('vi-VN')} VNĐ
+                                    </div>
+                                    <div>📅 Ngày
+                                        nhập: {selectedBatch.createAt ? new Date(selectedBatch.createAt).toLocaleDateString('vi-VN') : 'N/A'}</div>
                                     {selectedBatch.remainQuantity < quantity && (
                                         <div className="text-red-600 font-medium">
                                             ⚠️ Số lượng vượt quá tồn kho!
@@ -478,23 +507,28 @@ const AddSalePage = () => {
                     <Card className="shadow-lg border-0 bg-white mt-6">
                         <CardContent className="p-6">
                             <div className="flex items-center mb-6">
-                                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                                <div
+                                    className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
                                     <span className="text-purple-600 font-bold text-lg">📋</span>
                                 </div>
                                 <Typography variant="h6" className="font-bold text-gray-800">
                                     Sản phẩm đã chọn ({formData.detail.length})
                                 </Typography>
                             </div>
-                            
+
                             <div className="overflow-x-auto">
                                 <Table className="bg-gray-50 rounded-lg">
                                     <TableHead>
                                         <TableRow className="bg-gray-100">
                                             <TableCell className="font-bold text-gray-700">Sản phẩm</TableCell>
-                                            <TableCell align="center" className="font-bold text-gray-700">Số lượng</TableCell>
-                                            <TableCell align="right" className="font-bold text-gray-700">Đơn giá</TableCell>
-                                            <TableCell align="right" className="font-bold text-gray-700">Thành tiền</TableCell>
-                                            <TableCell align="center" className="font-bold text-gray-700">Hành động</TableCell>
+                                            <TableCell align="center" className="font-bold text-gray-700">Số
+                                                lượng</TableCell>
+                                            <TableCell align="right" className="font-bold text-gray-700">Đơn
+                                                giá</TableCell>
+                                            <TableCell align="right" className="font-bold text-gray-700">Thành
+                                                tiền</TableCell>
+                                            <TableCell align="center" className="font-bold text-gray-700">Hành
+                                                động</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -502,16 +536,17 @@ const AddSalePage = () => {
                                             <TableRow key={index} className="hover:bg-gray-100 transition-colors">
                                                 <TableCell>
                                                     <div>
-                                                        <div className="font-medium text-gray-800">{item.productName}</div>
+                                                        <div
+                                                            className="font-medium text-gray-800">{item.productName}</div>
                                                         <div className="text-sm text-gray-500">
                                                             Mã: {item.productCode} | Batch: {item.id}
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell align="center">
-                                                    <Chip 
-                                                        label={item.quantity} 
-                                                        color="primary" 
+                                                    <Chip
+                                                        label={item.quantity}
+                                                        color="primary"
                                                         size="small"
                                                         className="bg-blue-500"
                                                     />
@@ -531,7 +566,7 @@ const AddSalePage = () => {
                                                         size="small"
                                                         className="hover:bg-red-50"
                                                     >
-                                                        <FaTrash />
+                                                        <FaTrash/>
                                                     </IconButton>
                                                 </TableCell>
                                             </TableRow>
@@ -541,7 +576,8 @@ const AddSalePage = () => {
                             </div>
 
                             {/* Total Amount */}
-                            <Box className="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                            <Box
+                                className="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
                                 <div className="flex justify-between items-center">
                                     <Typography variant="h6" className="font-bold text-gray-700">
                                         Tổng tiền:
@@ -557,8 +593,8 @@ const AddSalePage = () => {
 
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-4 mt-8">
-                    <Button 
-                        variant="outlined" 
+                    <Button
+                        variant="outlined"
                         onClick={() => navigate("/sale")}
                         size="large"
                         className="border-gray-400 text-gray-600 hover:bg-gray-50 px-8"
@@ -569,10 +605,10 @@ const AddSalePage = () => {
                         variant="contained"
                         onClick={handleSubmit}
                         disabled={loading || formData.detail.length === 0 || !formData.customerId || !formData.storeId}
-                        startIcon={loading ? <CircularProgress size={20} /> : null}
+                        startIcon={loading ? <CircularProgress size={20}/> : null}
                         size="large"
                         className="bg-blue-600 hover:bg-blue-700 shadow-lg px-8"
-                        style={{ minWidth: 200 }}
+                        style={{minWidth: 200}}
                     >
                         {loading ? "Đang lưu..." : "Lưu phiếu bán hàng"}
                     </Button>

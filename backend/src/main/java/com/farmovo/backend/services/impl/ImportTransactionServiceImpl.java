@@ -32,7 +32,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     private final ImportTransactionMapper importTransactionMapper;
 
 
-
     @Transactional(rollbackFor = Exception.class)
     public void createImportTransaction(CreateImportTransactionRequestDto dto) {
         ImportTransaction transaction = new ImportTransaction();
@@ -60,7 +59,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             ImportTransactionDetail detail = new ImportTransactionDetail();
             detail.setImportTransaction(transaction); // liên kết FK
             detail.setProduct(productRepository.findById(d.getProductId()).orElseThrow());
-            detail.setImportQuantity(d.getImportQuantity()  );
+            detail.setImportQuantity(d.getImportQuantity());
             detail.setRemainQuantity(d.getRemainQuantity());
             detail.setExpireDate(d.getExpireDate());
             detail.setUnitImportPrice(d.getUnitImportPrice());

@@ -1,7 +1,7 @@
 package com.farmovo.backend.mapper;
 
-import com.farmovo.backend.models.Stocktake;
 import com.farmovo.backend.dto.response.StocktakeResponseDto;
+import com.farmovo.backend.models.Stocktake;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;

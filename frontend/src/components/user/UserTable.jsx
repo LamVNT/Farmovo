@@ -1,16 +1,16 @@
 import React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
-import { IconButton, Button } from '@mui/material';
+import {DataGrid} from '@mui/x-data-grid';
+import {IconButton} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
 
-const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
+const UserTable = ({users, onEdit, onDelete, onToggleStatus}) => {
     const userColumns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'fullName', headerName: 'Họ tên', flex: 1.5 },
-        { field: 'username', headerName: 'Tên đăng nhập', flex: 1.5 },
+        {field: 'id', headerName: 'ID', flex: 0.5},
+        {field: 'fullName', headerName: 'Họ tên', flex: 1.5},
+        {field: 'username', headerName: 'Tên đăng nhập', flex: 1.5},
         {
             field: 'status',
             headerName: 'Trạng thái',
@@ -31,7 +31,7 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
             renderCell: (params) =>
                 params.value ? new Date(params.value).toLocaleString('vi-VN') : 'N/A',
         },
-        { field: 'storeName', headerName: 'Cửa hàng', flex: 1, renderCell: (params) => params.value || 'N/A' },
+        {field: 'storeName', headerName: 'Cửa hàng', flex: 1, renderCell: (params) => params.value || 'N/A'},
         {
             field: 'actions',
             headerName: 'Hành động',
@@ -40,13 +40,13 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
             renderCell: (params) => (
                 <>
                     <IconButton onClick={() => onEdit(params.row)}>
-                        <EditIcon color="primary" />
+                        <EditIcon color="primary"/>
                     </IconButton>
                     <IconButton onClick={() => onDelete(params.id)}>
-                        <DeleteIcon color="error" />
+                        <DeleteIcon color="error"/>
                     </IconButton>
                     <IconButton onClick={() => onToggleStatus(params.id)}>
-                        <SwapHorizIcon color="warning" />
+                        <SwapHorizIcon color="warning"/>
                     </IconButton>
                 </>
             ),
@@ -54,7 +54,7 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
     ];
 
     return (
-        <div style={{ height: 400 }}>
+        <div style={{height: 400}}>
             <DataGrid
                 rows={users}
                 columns={userColumns}

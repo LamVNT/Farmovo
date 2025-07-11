@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Button,
-    FormControlLabel,
-    Checkbox,
     Autocomplete,
+    Button,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControlLabel,
+    TextField,
 } from '@mui/material';
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
 
-const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
     const [stores, setStores] = useState([]);
     const [roles, setRoles] = useState([]);
 
@@ -23,9 +23,9 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
             try {
                 const response = await axios.get(`${API_URL}/admin/storeList`, {
                     withCredentials: true,
-                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                 });
-                setStores(response.data.map(store => ({ id: store.id, name: store.name })));
+                setStores(response.data.map(store => ({id: store.id, name: store.name})));
             } catch (error) {
                 console.error('Không thể lấy danh sách cửa hàng:', error);
             }
@@ -35,7 +35,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
             try {
                 const response = await axios.get(`${import.meta.env.VITE_API_URL}/authorities/admin/roleList`, {
                     withCredentials: true,
-                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                 });
                 setRoles(response.data.map(role => role.role));
             } catch (error) {
@@ -50,12 +50,12 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     }, [open]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        const {name, value} = e.target;
+        setForm((prev) => ({...prev, [name]: value}));
     };
 
     const handleStatusChange = (e) => {
-        setForm((prev) => ({ ...prev, status: e.target.checked }));
+        setForm((prev) => ({...prev, status: e.target.checked}));
     };
 
     const handleStoreChange = (event, value) => {

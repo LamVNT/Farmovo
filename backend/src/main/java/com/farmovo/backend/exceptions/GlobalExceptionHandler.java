@@ -31,10 +31,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<?> handleUserNotFound(UserNotFoundException ex,HttpServletRequest request) {
-        ErrorResponse userNotFound = new ErrorResponse(LocalDateTime.now(),ex.getMessage(),"User not found"
-                ,request.getRequestURI());
-        return new ResponseEntity<>(userNotFound,HttpStatus.NOT_FOUND);
+    public ResponseEntity<?> handleUserNotFound(UserNotFoundException ex, HttpServletRequest request) {
+        ErrorResponse userNotFound = new ErrorResponse(LocalDateTime.now(), ex.getMessage(), "User not found"
+                , request.getRequestURI());
+        return new ResponseEntity<>(userNotFound, HttpStatus.NOT_FOUND);
     }
 
 

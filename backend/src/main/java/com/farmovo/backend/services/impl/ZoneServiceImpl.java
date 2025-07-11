@@ -60,12 +60,12 @@ public class ZoneServiceImpl implements ZoneService {
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
-        }
+    }
 
     @Override
     public void deleteZone(Long id) {
         Zone zone = zoneRepository.findById(id)
-        .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
+                .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
         zoneRepository.delete(zone);
     }
 }

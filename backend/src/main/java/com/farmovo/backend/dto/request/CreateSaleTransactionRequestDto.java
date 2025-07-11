@@ -1,6 +1,5 @@
 package com.farmovo.backend.dto.request;
 
-import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import lombok.AllArgsConstructor;

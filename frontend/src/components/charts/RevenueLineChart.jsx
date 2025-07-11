@@ -1,7 +1,7 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
+import {CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {FormControl, InputLabel, MenuItem, Select} from "@mui/material";
 
-const RevenueLineChart = ({ data, timeFilter, setTimeFilter }) => {
+const RevenueLineChart = ({data, timeFilter, setTimeFilter}) => {
     return (
         <div className="bg-white p-5 shadow-md rounded-lg">
             <div className="flex justify-between items-center mb-2">
@@ -13,7 +13,7 @@ const RevenueLineChart = ({ data, timeFilter, setTimeFilter }) => {
                         value={timeFilter}
                         onChange={(e) => setTimeFilter(e.target.value)}
                         label="Time"
-                        style={{ width: 120 }}
+                        style={{width: 120}}
                     >
                         <MenuItem value="weekly">Weekly</MenuItem>
                         <MenuItem value="monthly">Monthly</MenuItem>
@@ -23,12 +23,12 @@ const RevenueLineChart = ({ data, timeFilter, setTimeFilter }) => {
             </div>
             <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="revenue" stroke="#8884d8" />
+                    <CartesianGrid strokeDasharray="3 3"/>
+                    <XAxis dataKey="date"/>
+                    <YAxis/>
+                    <Tooltip/>
+                    <Legend/>
+                    <Line type="monotone" dataKey="revenue" stroke="#8884d8"/>
                 </LineChart>
             </ResponsiveContainer>
         </div>

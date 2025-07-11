@@ -1,15 +1,15 @@
 import React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
-import { IconButton } from '@mui/material';
+import {DataGrid} from '@mui/x-data-grid';
+import {IconButton} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-const ProductTable = ({ products, onEdit, onDelete }) => {
+const ProductTable = ({products, onEdit, onDelete}) => {
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'productName', headerName: 'Tên sản phẩm', flex: 1.5 },
-        { field: 'productDescription', headerName: 'Mô tả', flex: 2 },
-        { field: 'productQuantity', headerName: 'Số lượng', flex: 1 },
+        {field: 'id', headerName: 'ID', flex: 0.5},
+        {field: 'productName', headerName: 'Tên sản phẩm', flex: 1.5},
+        {field: 'productDescription', headerName: 'Mô tả', flex: 2},
+        {field: 'productQuantity', headerName: 'Số lượng', flex: 1},
         {
             field: 'categoryName',
             headerName: 'Danh mục',
@@ -30,10 +30,10 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
             renderCell: (params) => (
                 <>
                     <IconButton onClick={() => onEdit(params.row)}>
-                        <EditIcon color="primary" />
+                        <EditIcon color="primary"/>
                     </IconButton>
                     <IconButton onClick={() => onDelete(params.id)}>
-                        <DeleteIcon color="error" />
+                        <DeleteIcon color="error"/>
                     </IconButton>
                 </>
             ),
@@ -41,7 +41,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
     ];
 
     return (
-        <div style={{ height: 400 }}>
+        <div style={{height: 400}}>
             <DataGrid
                 rows={products}
                 columns={columns}

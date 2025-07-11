@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, {useEffect, useState} from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
     Button,
-    Select,
-    MenuItem,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     InputLabel,
+    MenuItem,
+    Select,
+    TextField,
     Typography,
 } from "@mui/material";
-import { addDebtNote } from "../../services/debtService";
-import { getAllStores, uploadEvidence } from "../../services/storeService";
+import {addDebtNote} from "../../services/debtService";
+import {getAllStores, uploadEvidence} from "../../services/storeService";
 
-const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
+const AddDebtDialog = ({open, onClose, customerId, onAdd}) => {
     const [formData, setFormData] = useState({
         customerId,
         debtAmount: "",
@@ -45,7 +45,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     }, []);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData({...formData, [e.target.name]: e.target.value});
         setError("");
     };
 
@@ -109,7 +109,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             <DialogTitle>Thêm giao dịch nợ mới</DialogTitle>
             <DialogContent>
                 {error && (
-                    <Typography color="error" sx={{ mb: 2 }}>
+                    <Typography color="error" sx={{mb: 2}}>
                         {error}
                     </Typography>
                 )}
@@ -122,7 +122,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                     value={formData.debtAmount}
                     onChange={handleChange}
                     required
-                    InputProps={{ inputProps: { min: 0 } }}
+                    InputProps={{inputProps: {min: 0}}}
                 />
                 <TextField
                     margin="dense"
@@ -132,7 +132,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                     fullWidth
                     value={formData.debtDate}
                     onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
+                    InputLabelProps={{shrink: true}}
                 />
                 <FormControl fullWidth margin="dense">
                     <InputLabel>Loại nợ</InputLabel>
@@ -161,7 +161,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
-                        style={{ marginTop: "16px" }}
+                        style={{marginTop: "16px"}}
                     />
                 </FormControl>
                 <FormControl fullWidth margin="dense">

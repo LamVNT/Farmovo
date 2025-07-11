@@ -1,12 +1,17 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.dto.request.*;
+import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
+import com.farmovo.backend.dto.request.CustomerDto;
+import com.farmovo.backend.dto.request.ProductDto;
+import com.farmovo.backend.dto.request.ZoneDto;
+import com.farmovo.backend.dto.response.ImportDetailStocktakeDto;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.services.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +34,9 @@ public class ImportTransationController {
 
     @Autowired
     private ImportTransactionService importTransactionService;
+
+    @Autowired
+    private ImportTransactionDetailService importTransactionDetailService;
 
     @GetMapping("/create-form-data")
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
@@ -88,6 +96,13 @@ public class ImportTransationController {
         // Lấy mã phiếu nhập tiếp theo từ service
         String nextCode = importTransactionService.getNextImportTransactionCode();
         return ResponseEntity.ok(nextCode);
+    }
+
+    @GetMapping("/import-details/stocktake")
+    public ResponseEntity<List<ImportDetailStocktakeDto>> getImportDetailsForStocktake(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate date) {
+        List<ImportDetailStocktakeDto> details = importTransactionDetailService.findAllForStocktakeDate(date);
+        return ResponseEntity.ok(details);
     }
 
 }

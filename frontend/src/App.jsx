@@ -1,6 +1,6 @@
-import { RouterProvider } from "react-router-dom";
+import {RouterProvider} from "react-router-dom";
 import router from "./routes";
-import { createContext, useState, useEffect } from "react";
+import {createContext, useEffect, useState} from "react";
 import './app.css';
 import {Toaster} from "react-hot-toast";
 
@@ -24,11 +24,11 @@ function App() {
 
     return (
         <MyContext.Provider value={values}>
-            <RouterProvider router={router} />
-            <Toaster position="top-right" reverseOrder={false} />
+            <RouterProvider router={router}/>
+            <Toaster position="top-right" reverseOrder={false}/>
         </MyContext.Provider>
     );
 }
 
 export default App;
-export { MyContext };
+export {MyContext};

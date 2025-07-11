@@ -1,49 +1,78 @@
-import React, { useState, useEffect } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import React, {useEffect, useState} from "react";
+import {DataGrid} from "@mui/x-data-grid";
 import {
-    TextField, Button, Checkbox, FormControlLabel,
-    FormControl, FormLabel, Accordion, AccordionSummary,
-    AccordionDetails, Popover, Dialog, DialogTitle, DialogContent,
-    Table, TableHead, TableRow, TableCell, TableBody,
-    Alert, CircularProgress, Chip
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Alert,
+    Button,
+    Checkbox,
+    Chip,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    FormControlLabel,
+    FormLabel,
+    Popover,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    TextField
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { FaPlus, FaFileExport } from "react-icons/fa";
-import { DateRange } from "react-date-range";
+import {FaFileExport, FaPlus} from "react-icons/fa";
+import {DateRange} from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import {
-    format, subDays, startOfWeek, endOfWeek,
-    startOfMonth, endOfMonth, startOfQuarter, endOfQuarter,
-    startOfYear, endOfYear
+    endOfMonth,
+    endOfQuarter,
+    endOfWeek,
+    endOfYear,
+    format,
+    startOfMonth,
+    startOfQuarter,
+    startOfWeek,
+    startOfYear,
+    subDays
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
 import DialogActions from '@mui/material/DialogActions';
 
 const getRange = (key) => {
     const today = new Date();
     switch (key) {
-        case "today": return [{ startDate: today, endDate: today, key: 'selection' }];
+        case "today":
+            return [{startDate: today, endDate: today, key: 'selection'}];
         case "yesterday": {
             const y = subDays(today, 1);
-            return [{ startDate: y, endDate: y, key: 'selection' }];
+            return [{startDate: y, endDate: y, key: 'selection'}];
         }
-        case "this_week": return [{ startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection' }];
+        case "this_week":
+            return [{startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection'}];
         case "last_week": {
             const lastWeekStart = startOfWeek(subDays(today, 7));
             const lastWeekEnd = endOfWeek(subDays(today, 7));
-            return [{ startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection' }];
+            return [{startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection'}];
         }
-        case "this_month": return [{ startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection' }];
+        case "this_month":
+            return [{startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection'}];
         case "last_month": {
             const lastMonth = subDays(startOfMonth(today), 1);
-            return [{ startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection' }];
+            return [{startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection'}];
         }
-        case "this_quarter": return [{ startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection' }];
-        case "this_year": return [{ startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection' }];
-        default: return [{ startDate: today, endDate: today, key: 'selection' }];
+        case "this_quarter":
+            return [{startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection'}];
+        case "this_year":
+            return [{startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection'}];
+        default:
+            return [{startDate: today, endDate: today, key: 'selection'}];
     }
 };
 
@@ -116,7 +145,7 @@ const SaleTransactionPage = () => {
             const end = customDate[0].endDate;
             const saleDate = t.saleDate ? new Date(t.saleDate) : null;
             if (saleDate) {
-                if (saleDate < new Date(start.setHours(0,0,0,0)) || saleDate > new Date(end.setHours(23,59,59,999))) {
+                if (saleDate < new Date(start.setHours(0, 0, 0, 0)) || saleDate > new Date(end.setHours(23, 59, 59, 999))) {
                     return false;
                 }
             }
@@ -157,9 +186,9 @@ const SaleTransactionPage = () => {
     };
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'customerName', headerName: 'Khách hàng', flex: 1 },
-        { field: 'storeName', headerName: 'Cửa hàng', flex: 1 },
+        {field: 'id', headerName: 'ID', flex: 0.5},
+        {field: 'customerName', headerName: 'Khách hàng', flex: 1},
+        {field: 'storeName', headerName: 'Cửa hàng', flex: 1},
         {
             field: 'saleDate',
             headerName: 'Thời gian',
@@ -199,10 +228,10 @@ const SaleTransactionPage = () => {
             flex: 1,
             renderCell: (params) => {
                 const statusMap = {
-                    'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' },
-                    'DRAFT': { label: 'Nháp', color: '#6b7280' }
+                    'COMPLETE': {label: 'Đã hoàn thành', color: '#10b981'},
+                    'DRAFT': {label: 'Nháp', color: '#6b7280'}
                 };
-                const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
+                const status = statusMap[params.value] || {label: params.value, color: '#6b7280'};
                 return (
                     <Chip
                         label={status.label}
@@ -241,11 +270,11 @@ const SaleTransactionPage = () => {
                 <h2 className="text-xl font-semibold">Phiếu bán hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/sale/new">
-                        <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">
+                        <Button variant="contained" startIcon={<FaPlus/>} className="!bg-green-600 hover:!bg-green-700">
                             Bán hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />}>Xuất file</Button>
+                    <Button variant="outlined" startIcon={<FaFileExport/>}>Xuất file</Button>
                 </div>
             </div>
 
@@ -279,44 +308,45 @@ const SaleTransactionPage = () => {
                                     </div>
                                 }
                             />
-                            <FormControlLabel 
+                            <FormControlLabel
                                 control={
-                                    <Checkbox 
-                                        checked={selectedMode === "custom"} 
-                                        onChange={() => { 
-                                            setSelectedMode("custom"); 
-                                            setAnchorEl(null); 
-                                            setShowDatePicker(true); 
-                                        }} 
+                                    <Checkbox
+                                        checked={selectedMode === "custom"}
+                                        onChange={() => {
+                                            setSelectedMode("custom");
+                                            setAnchorEl(null);
+                                            setShowDatePicker(true);
+                                        }}
                                     />
-                                } 
+                                }
                                 label={
                                     <div className="flex items-center justify-between w-full">
                                         <span>{customLabel}</span>
-                                        <Button 
-                                            size="small" 
-                                            onClick={() => { 
-                                                setSelectedMode("custom"); 
-                                                setAnchorEl(null); 
-                                                setShowDatePicker(!showDatePicker); 
+                                        <Button
+                                            size="small"
+                                            onClick={() => {
+                                                setSelectedMode("custom");
+                                                setAnchorEl(null);
+                                                setShowDatePicker(!showDatePicker);
                                             }}
                                         >
                                             📅
                                         </Button>
                                     </div>
-                                } 
+                                }
                             />
                         </div>
-                        <Popover 
-                            open={openPopover} 
-                            anchorEl={anchorEl} 
-                            onClose={() => setAnchorEl(null)} 
-                            anchorOrigin={{ vertical: "bottom", horizontal: "left" }} 
-                            transformOrigin={{ vertical: "top", horizontal: "left" }}
+                        <Popover
+                            open={openPopover}
+                            anchorEl={anchorEl}
+                            onClose={() => setAnchorEl(null)}
+                            anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                            transformOrigin={{vertical: "top", horizontal: "left"}}
                         >
                             <div className="p-4 grid grid-cols-2 gap-2">
                                 {Object.entries(labelMap).map(([key, label]) => (
-                                    <Button key={key} size="small" variant="outlined" onClick={() => handlePresetChange(key)}>
+                                    <Button key={key} size="small" variant="outlined"
+                                            onClick={() => handlePresetChange(key)}>
                                         {label}
                                     </Button>
                                 ))}
@@ -331,7 +361,10 @@ const SaleTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.draft}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, draft: !prev.status.draft}
+                                        }))}
                                     />
                                 }
                                 label="Nháp"
@@ -340,7 +373,10 @@ const SaleTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.complete}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, complete: !prev.status.complete}
+                                        }))}
                                     />
                                 }
                                 label="Đã hoàn thành"
@@ -349,44 +385,45 @@ const SaleTransactionPage = () => {
                     </div>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
                             <span className="font-semibold">Khách hàng</span>
                         </AccordionSummary>
                         <AccordionDetails>
-                            <TextField 
-                                fullWidth 
-                                size="small" 
-                                placeholder="Tìm khách hàng" 
-                                value={filter.customer} 
-                                onChange={(e) => setFilter({ ...filter, customer: e.target.value })} 
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Tìm khách hàng"
+                                value={filter.customer}
+                                onChange={(e) => setFilter({...filter, customer: e.target.value})}
                             />
                         </AccordionDetails>
                     </Accordion>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
                             <span className="font-semibold">Cửa hàng</span>
                         </AccordionSummary>
                         <AccordionDetails>
-                            <TextField 
-                                fullWidth 
-                                size="small" 
-                                placeholder="Tìm cửa hàng" 
-                                value={filter.store} 
-                                onChange={(e) => setFilter({ ...filter, store: e.target.value })} 
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Tìm cửa hàng"
+                                value={filter.store}
+                                onChange={(e) => setFilter({...filter, store: e.target.value})}
                             />
                         </AccordionDetails>
                     </Accordion>
 
                     {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
-                            <div className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
-                                <DateRange 
-                                    editableDateInputs={true} 
-                                    onChange={(item) => handleCustomChange(item.selection)} 
-                                    moveRangeOnFirstSelection={false} 
-                                    ranges={customDate} 
-                                    direction="horizontal" 
+                            <div
+                                className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
+                                <DateRange
+                                    editableDateInputs={true}
+                                    onChange={(item) => handleCustomChange(item.selection)}
+                                    moveRangeOnFirstSelection={false}
+                                    ranges={customDate}
+                                    direction="horizontal"
                                 />
                                 <div className="mt-2 text-right">
                                     <Button variant="contained" size="small" onClick={() => setShowDatePicker(false)}>
@@ -400,25 +437,25 @@ const SaleTransactionPage = () => {
 
                 <div className="w-full lg:w-4/5">
                     <div className="mb-4 w-1/2">
-                        <TextField 
-                            label="Tìm kiếm khách hàng, cửa hàng..." 
-                            size="small" 
-                            fullWidth 
-                            value={filter.search} 
-                            onChange={(e) => setFilter({ ...filter, search: e.target.value })} 
+                        <TextField
+                            label="Tìm kiếm khách hàng, cửa hàng..."
+                            size="small"
+                            fullWidth
+                            value={filter.search}
+                            onChange={(e) => setFilter({...filter, search: e.target.value})}
                         />
                     </div>
-                    
+
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
                         </Alert>
                     )}
-                    
-                    <div style={{ height: 500 }} className="bg-white rounded shadow">
+
+                    <div style={{height: 500}} className="bg-white rounded shadow">
                         {loading ? (
                             <div className="flex justify-center items-center h-full">
-                                <CircularProgress />
+                                <CircularProgress/>
                             </div>
                         ) : (
                             <DataGrid
@@ -448,10 +485,11 @@ const SaleTransactionPage = () => {
                                     <strong>Cửa hàng:</strong> {selectedTransaction.storeName}
                                 </div>
                                 <div>
-                                    <strong>Thời gian:</strong> {selectedTransaction.saleDate ? new Date(selectedTransaction.saleDate).toLocaleString('vi-VN') : ''}
+                                    <strong>Thời
+                                        gian:</strong> {selectedTransaction.saleDate ? new Date(selectedTransaction.saleDate).toLocaleString('vi-VN') : ''}
                                 </div>
                                 <div>
-                                    <strong>Trạng thái:</strong> 
+                                    <strong>Trạng thái:</strong>
                                     <Chip
                                         label={selectedTransaction.status === 'COMPLETE' ? 'Đã hoàn thành' : 'Nháp'}
                                         style={{
@@ -463,7 +501,7 @@ const SaleTransactionPage = () => {
                                     />
                                 </div>
                             </div>
-                            
+
                             {selectedTransaction.detail && selectedTransaction.detail.length > 0 ? (
                                 <Table size="small">
                                     <TableHead>
@@ -488,7 +526,7 @@ const SaleTransactionPage = () => {
                             ) : (
                                 <p>Không có dữ liệu chi tiết.</p>
                             )}
-                            
+
                             <div className="mt-4 text-right">
                                 <div className="text-lg font-semibold">
                                     Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ

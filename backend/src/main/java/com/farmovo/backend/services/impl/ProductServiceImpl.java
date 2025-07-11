@@ -7,7 +7,6 @@ import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.Product;
 import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.ProductService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

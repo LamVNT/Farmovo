@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, {useEffect, useState} from "react";
 import {
-    Container,
-    Typography,
-    Button,
     Box,
+    Button,
+    Container,
+    Paper,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Paper,
+    Typography,
 } from "@mui/material";
 import DebtTable from "../../components/debt/DebtTable";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
 import EditDebtDialog from "../../components/debt/EditDebtDialog.jsx";
-import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
-import { getAllCustomers, getCustomerById } from "../../services/customerService";
+import {getDebtNotesByCustomerId, getTotalDebtByCustomerId} from "../../services/debtService";
+import {getAllCustomers, getCustomerById} from "../../services/customerService";
 
 const DebtManagement = () => {
     const [customers, setCustomers] = useState([]);
@@ -105,12 +105,12 @@ const DebtManagement = () => {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Container maxWidth="lg" sx={{mt: 4}}>
             <Typography variant="h4" gutterBottom>
                 Quản lý nợ
             </Typography>
             {error && (
-                <Typography color="error" sx={{ mb: 2 }}>
+                <Typography color="error" sx={{mb: 2}}>
                     {error}
                 </Typography>
             )}
@@ -119,7 +119,7 @@ const DebtManagement = () => {
             <Typography variant="h6" gutterBottom>
                 Danh sách khách hàng
             </Typography>
-            <TableContainer component={Paper} sx={{ mb: 4 }}>
+            <TableContainer component={Paper} sx={{mb: 4}}>
                 <Table>
                     <TableHead>
                         <TableRow>
@@ -172,11 +172,11 @@ const DebtManagement = () => {
                         variant="contained"
                         color="primary"
                         onClick={() => setAddDialogOpen(true)}
-                        sx={{ mb: 2 }}
+                        sx={{mb: 2}}
                     >
                         Thêm giao dịch nợ
                     </Button>
-                    <DebtTable debtNotes={debtNotes} onEdit={handleEditDebtNote} />
+                    <DebtTable debtNotes={debtNotes} onEdit={handleEditDebtNote}/>
                     <AddDebtDialog
                         open={addDialogOpen}
                         onClose={() => setAddDialogOpen(false)}

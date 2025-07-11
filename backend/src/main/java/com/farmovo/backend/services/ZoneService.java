@@ -8,9 +8,13 @@ import java.util.List;
 
 public interface ZoneService {
     List<ZoneDto> getAllZoneDtos();
+
     List<ZoneResponseDto> getAllZones();
+
     ZoneResponseDto createZone(ZoneRequestDto request);
+
     ZoneResponseDto updateZone(Long id, ZoneRequestDto request);
+
     void deleteZone(Long id);
 }
 

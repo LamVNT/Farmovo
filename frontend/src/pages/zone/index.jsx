@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {Dialog,DialogTitle,DialogContent,DialogActions,Button, TextField } from "@mui/material";
-import { FaPlus } from "react-icons/fa6";
+import React, {useEffect, useMemo, useState} from "react";
+import {Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField} from "@mui/material";
+import {FaPlus} from "react-icons/fa6";
 import ZoneFormDialog from "../../components/zone/ZoneFormDialog";
 import ZoneTable from "../../components/zone/ZoneTable";
 import ZoneVisual from "../../components/zone/ZoneVisual";
-import { getZones, createZone, updateZone, deleteZone } from "../../services/zoneService";
+import {createZone, deleteZone, getZones, updateZone} from "../../services/zoneService";
 
 const Zone = () => {
     const [zones, setZones] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [form, setForm] = useState({ id: null, zoneName: "", zoneDescription: "" });
+    const [form, setForm] = useState({id: null, zoneName: "", zoneDescription: ""});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [hoveredZoneId, setHoveredZoneId] = useState(null);
@@ -43,7 +43,7 @@ const Zone = () => {
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
-        setForm({ id: null, zoneName: "", zoneDescription: "" });
+        setForm({id: null, zoneName: "", zoneDescription: ""});
         setEditMode(false);
         setOpenDialog(true);
     };
@@ -156,7 +156,7 @@ const Zone = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Add
                     </Button>
                 </div>
@@ -186,7 +186,7 @@ const Zone = () => {
                 {/*</div>*/}
                 <div className="flex-grow h-[500px]">
                     <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>
-                    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />
+                    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId}/>
                 </div>
 
             </div>

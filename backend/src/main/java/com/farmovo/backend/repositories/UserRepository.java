@@ -18,6 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     int updateStatusById(Long id, Boolean status);
 
     List<User> findAllByDeletedAtIsNull();
+
     Optional<User> findByIdAndDeletedAtIsNull(Long id);
+
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 }

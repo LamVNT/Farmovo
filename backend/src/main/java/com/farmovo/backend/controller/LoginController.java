@@ -1,8 +1,8 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.dto.request.LoginRequest;
 import com.farmovo.backend.dto.response.LoginResponse;
+import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,14 +25,11 @@ public class LoginController {
 
 
     @Autowired
-    private UserRepository userRepository;
-
-
-    @Autowired
     AuthenticationManager authenticationManager;
-
     @Autowired
     JwtUtils jwtUtils;
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticationUser(@RequestBody LoginRequest loginRequest) {
@@ -44,7 +41,8 @@ public class LoginController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
+        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        String jwtToken = jwtUtils.generateTokenWithUserId(userDetails, user.getId());
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
@@ -83,6 +81,7 @@ public class LoginController {
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body("Logged out successfully");
     }
+
     @GetMapping("/admin/listuser")
     public List<User> getAllUsers() {
         return userRepository.findAll();

@@ -22,7 +22,7 @@ export const uploadEvidence = async (file) => {
         const formData = new FormData();
         formData.append("file", file);
         const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/debt/admin/upload-evidence`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
+            headers: {"Content-Type": "multipart/form-data"},
             withCredentials: true,
         });
         console.log("Successfully uploaded evidence file:", response.data);

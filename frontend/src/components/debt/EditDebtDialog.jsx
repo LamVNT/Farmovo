@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, {useEffect, useState} from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
     Button,
-    Select,
-    MenuItem,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     InputLabel,
+    MenuItem,
+    Select,
+    TextField,
     Typography,
 } from "@mui/material";
-import { updateDebtNote } from "../../services/debtService";
-import { getAllStores, uploadEvidence } from "../../services/storeService";
+import {updateDebtNote} from "../../services/debtService";
+import {getAllStores, uploadEvidence} from "../../services/storeService";
 
-const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
+const EditDebtDialog = ({open, onClose, debtNote, customerId, onUpdate}) => {
     const [formData, setFormData] = useState({
         customerId,
         debtAmount: "",
@@ -59,7 +59,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
     }, [debtNote, customerId]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData({...formData, [e.target.name]: e.target.value});
         setError("");
     };
 
@@ -111,7 +111,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
             <DialogTitle>Chỉnh sửa giao dịch nợ</DialogTitle>
             <DialogContent>
                 {error && (
-                    <Typography color="error" sx={{ mb: 2 }}>
+                    <Typography color="error" sx={{mb: 2}}>
                         {error}
                     </Typography>
                 )}
@@ -123,7 +123,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
                     fullWidth
                     value={formData.debtAmount}
                     disabled
-                    InputLabelProps={{ shrink: true }}
+                    InputLabelProps={{shrink: true}}
                 />
                 <TextField
                     margin="dense"
@@ -133,7 +133,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
                     fullWidth
                     value={formData.debtDate}
                     onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
+                    InputLabelProps={{shrink: true}}
                 />
                 <FormControl fullWidth margin="dense">
                     <InputLabel>Loại nợ</InputLabel>
@@ -162,10 +162,10 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
-                        style={{ marginTop: "16px" }}
+                        style={{marginTop: "16px"}}
                     />
                     {formData.debtEvidences && (
-                        <Typography variant="body2" sx={{ mt: 1 }}>
+                        <Typography variant="body2" sx={{mt: 1}}>
                             File hiện tại: {formData.debtEvidences}
                         </Typography>
                     )}

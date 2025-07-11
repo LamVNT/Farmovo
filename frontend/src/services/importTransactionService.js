@@ -27,7 +27,7 @@ const importTransactionService = {
     },
 
     async filterByParams(params) {
-        const res = await api.get('/importtransaction/filter', { params });
+        const res = await api.get('/importtransaction/filter', {params});
         return res.data;
     },
 

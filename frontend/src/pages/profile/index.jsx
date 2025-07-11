@@ -1,14 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import {
-    TextField,
-    Button,
-    InputAdornment,
-    IconButton,
-    Autocomplete,
-    CircularProgress,
-} from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { userService } from '../../services/userService';
+import React, {useEffect, useState} from 'react';
+import {Autocomplete, Button, CircularProgress, IconButton, InputAdornment, TextField,} from '@mui/material';
+import {Visibility, VisibilityOff} from '@mui/icons-material';
+import {userService} from '../../services/userService';
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
@@ -28,14 +21,14 @@ const Profile = () => {
                 const [storeRes, roleRes] = await Promise.all([
                     axios.get(`${API_URL}/admin/storeList`, {
                         withCredentials: true,
-                        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                        headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                     }),
                     axios.get(`${import.meta.env.VITE_API_URL}/authorities/admin/roleList`, {
                         withCredentials: true,
-                        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                        headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
                     }),
                 ]);
-                setStores(storeRes.data.map(store => ({ id: store.id, name: store.name })));
+                setStores(storeRes.data.map(store => ({id: store.id, name: store.name})));
                 setRoles(roleRes.data.map(role => role.role));
             } catch (e) {
                 console.error('Lỗi khi lấy metadata:', e);
@@ -70,22 +63,22 @@ const Profile = () => {
     }, []);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        const {name, value} = e.target;
+        setForm((prev) => ({...prev, [name]: value}));
     };
 
     const handleTogglePassword = () => {
         setShowPassword((prev) => !prev);
     };
 
-    if (loading || !form) return <p><CircularProgress /></p>;
+    if (loading || !form) return <p><CircularProgress/></p>;
 
     return (
         <div className="p-6 bg-white rounded shadow-md w-full max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold mb-4">Hồ sơ cá nhân</h2>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {success && <p style={{ color: 'green' }}>Cập nhật thành công!</p>}
+            {error && <p style={{color: 'red'}}>{error}</p>}
+            {success && <p style={{color: 'green'}}>Cập nhật thành công!</p>}
 
             <TextField
                 fullWidth
@@ -116,7 +109,7 @@ const Profile = () => {
                     endAdornment: (
                         <InputAdornment position="end">
                             <IconButton onClick={handleTogglePassword} edge="end">
-                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                {showPassword ? <VisibilityOff/> : <Visibility/>}
                             </IconButton>
                         </InputAdornment>
                     ),

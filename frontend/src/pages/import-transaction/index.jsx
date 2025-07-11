@@ -1,28 +1,48 @@
-import React, { useState, useEffect } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import React, {useEffect, useState} from "react";
+import {DataGrid} from "@mui/x-data-grid";
 import {
-    TextField, Button, Checkbox, FormControlLabel,
-    FormControl, FormLabel, Accordion, AccordionSummary,
-    AccordionDetails, Popover, Dialog, DialogTitle, DialogContent,
-    Table, TableHead, TableRow, TableCell, TableBody,
-    Alert, CircularProgress
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Alert,
+    Button,
+    Checkbox,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    FormControlLabel,
+    FormLabel,
+    Popover,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    TextField
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { FaPlus, FaFileExport } from "react-icons/fa";
-import { DateRange } from "react-date-range";
+import {FaFileExport, FaPlus} from "react-icons/fa";
+import {DateRange} from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import {
-    format, subDays, startOfWeek, endOfWeek,
-    startOfMonth, endOfMonth, startOfQuarter, endOfQuarter,
-    startOfYear, endOfYear
+    endOfMonth,
+    endOfQuarter,
+    endOfWeek,
+    endOfYear,
+    format,
+    startOfMonth,
+    startOfQuarter,
+    startOfWeek,
+    startOfYear,
+    subDays
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import ReplyIcon from '@mui/icons-material/Reply';
-import SaveIcon from '@mui/icons-material/Save';
-import ReplyAllIcon from '@mui/icons-material/ReplyAll';
 import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
@@ -30,25 +50,31 @@ import DialogActions from '@mui/material/DialogActions';
 const getRange = (key) => {
     const today = new Date();
     switch (key) {
-        case "today": return [{ startDate: today, endDate: today, key: 'selection' }];
+        case "today":
+            return [{startDate: today, endDate: today, key: 'selection'}];
         case "yesterday": {
             const y = subDays(today, 1);
-            return [{ startDate: y, endDate: y, key: 'selection' }];
+            return [{startDate: y, endDate: y, key: 'selection'}];
         }
-        case "this_week": return [{ startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection' }];
+        case "this_week":
+            return [{startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection'}];
         case "last_week": {
             const lastWeekStart = startOfWeek(subDays(today, 7));
             const lastWeekEnd = endOfWeek(subDays(today, 7));
-            return [{ startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection' }];
+            return [{startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection'}];
         }
-        case "this_month": return [{ startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection' }];
+        case "this_month":
+            return [{startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection'}];
         case "last_month": {
             const lastMonth = subDays(startOfMonth(today), 1);
-            return [{ startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection' }];
+            return [{startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection'}];
         }
-        case "this_quarter": return [{ startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection' }];
-        case "this_year": return [{ startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection' }];
-        default: return [{ startDate: today, endDate: today, key: 'selection' }];
+        case "this_quarter":
+            return [{startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection'}];
+        case "this_year":
+            return [{startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection'}];
+        default:
+            return [{startDate: today, endDate: today, key: 'selection'}];
     }
 };
 
@@ -137,7 +163,7 @@ const ImportTransactionPage = () => {
             const end = customDate[0].endDate;
             const importDate = t.importDate ? new Date(t.importDate) : null;
             if (importDate) {
-                if (importDate < new Date(start.setHours(0,0,0,0)) || importDate > new Date(end.setHours(23,59,59,999))) {
+                if (importDate < new Date(start.setHours(0, 0, 0, 0)) || importDate > new Date(end.setHours(23, 59, 59, 999))) {
                     return false;
                 }
             }
@@ -212,11 +238,11 @@ const ImportTransactionPage = () => {
 
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'name', headerName: 'Tên phiếu nhập', flex: 1 },
-        { 
-            field: 'importDate', 
-            headerName: 'Thời gian', 
+        {field: 'id', headerName: 'ID', flex: 0.5},
+        {field: 'name', headerName: 'Tên phiếu nhập', flex: 1},
+        {
+            field: 'importDate',
+            headerName: 'Thời gian',
             flex: 1,
             renderCell: (params) => {
                 if (params.value) {
@@ -225,10 +251,10 @@ const ImportTransactionPage = () => {
                 return '';
             }
         },
-        { field: 'supplierName', headerName: 'Nhà cung cấp', flex: 1 },
+        {field: 'supplierName', headerName: 'Nhà cung cấp', flex: 1},
         {
-            field: 'totalAmount', 
-            headerName: 'Tổng tiền', 
+            field: 'totalAmount',
+            headerName: 'Tổng tiền',
             flex: 1,
             renderCell: (params) => {
                 if (params.value) {
@@ -243,12 +269,12 @@ const ImportTransactionPage = () => {
             flex: 1,
             renderCell: (params) => {
                 const statusMap = {
-                    'WAITING_FOR_APPROVE': { label: 'Chờ xử lý', color: '#f59e0b' },       // Vàng
-                    'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' }, // Xanh lá
-                    'CANCEL': { label: 'Đã hủy', color: '#ef4444' },   // Đỏ
-                    'DRAFT': { label: 'Nháp', color: '#6b7280' }   // Đỏ
+                    'WAITING_FOR_APPROVE': {label: 'Chờ xử lý', color: '#f59e0b'},       // Vàng
+                    'COMPLETE': {label: 'Đã hoàn thành', color: '#10b981'}, // Xanh lá
+                    'CANCEL': {label: 'Đã hủy', color: '#ef4444'},   // Đỏ
+                    'DRAFT': {label: 'Nháp', color: '#6b7280'}   // Đỏ
                 };
-                const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
+                const status = statusMap[params.value] || {label: params.value, color: '#6b7280'};
 
                 return (
                     <span
@@ -292,11 +318,11 @@ const ImportTransactionPage = () => {
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/import/new">
-                        <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">
+                        <Button variant="contained" startIcon={<FaPlus/>} className="!bg-green-600 hover:!bg-green-700">
                             Nhập hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />}>Xuất file</Button>
+                    <Button variant="outlined" startIcon={<FaFileExport/>}>Xuất file</Button>
                 </div>
             </div>
 
@@ -330,12 +356,24 @@ const ImportTransactionPage = () => {
                                     </div>
                                 }
                             />
-                            <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(true); }} />} label={<div className="flex items-center justify-between w-full"><span>{customLabel}</span><Button size="small" onClick={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(!showDatePicker); }}>📅</Button></div>} />
+                            <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => {
+                                setSelectedMode("custom");
+                                setAnchorEl(null);
+                                setShowDatePicker(true);
+                            }}/>} label={<div className="flex items-center justify-between w-full">
+                                <span>{customLabel}</span><Button size="small" onClick={() => {
+                                setSelectedMode("custom");
+                                setAnchorEl(null);
+                                setShowDatePicker(!showDatePicker);
+                            }}>📅</Button></div>}/>
                         </div>
-                        <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
+                        <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)}
+                                 anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                 transformOrigin={{vertical: "top", horizontal: "left"}}>
                             <div className="p-4 grid grid-cols-2 gap-2">
                                 {Object.entries(labelMap).map(([key, label]) => (
-                                    <Button key={key} size="small" variant="outlined" onClick={() => handlePresetChange(key)}>{label}</Button>
+                                    <Button key={key} size="small" variant="outlined"
+                                            onClick={() => handlePresetChange(key)}>{label}</Button>
                                 ))}
                             </div>
                         </Popover>
@@ -348,13 +386,19 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.draft}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, draft: !prev.status.draft}
+                                        }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
-                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, draft: !prev.status.draft}
+                                        }))}
+                                        style={{cursor: 'pointer'}}
                                     >
                                         Nháp
                                     </span>
@@ -364,13 +408,19 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.waiting}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, waiting: !prev.status.waiting}
+                                        }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
-                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, waiting: !prev.status.waiting}
+                                        }))}
+                                        style={{cursor: 'pointer'}}
                                     >
                                         Chờ xử lý
                                     </span>
@@ -380,13 +430,19 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.complete}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, complete: !prev.status.complete}
+                                        }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
-                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, complete: !prev.status.complete}
+                                        }))}
+                                        style={{cursor: 'pointer'}}
                                     >
                                         Đã hoàn thành
                                     </span>
@@ -396,13 +452,19 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.cancel}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
+                                        onChange={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, cancel: !prev.status.cancel}
+                                        }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
-                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => setFilter(prev => ({
+                                            ...prev,
+                                            status: {...prev.status, cancel: !prev.status.cancel}
+                                        }))}
+                                        style={{cursor: 'pointer'}}
                                     >
                                         Đã huỷ
                                     </span>
@@ -412,20 +474,34 @@ const ImportTransactionPage = () => {
                     </div>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người tạo</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo" value={filter.creator} onChange={(e) => setFilter({ ...filter, creator: e.target.value })} /></AccordionDetails>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}><span
+                            className="font-semibold">Người tạo</span></AccordionSummary>
+                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo"
+                                                     value={filter.creator}
+                                                     onChange={(e) => setFilter({...filter, creator: e.target.value})}/></AccordionDetails>
                     </Accordion>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người nhập</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập" value={filter.importer} onChange={(e) => setFilter({ ...filter, importer: e.target.value })} /></AccordionDetails>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}><span
+                            className="font-semibold">Người nhập</span></AccordionSummary>
+                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập"
+                                                     value={filter.importer} onChange={(e) => setFilter({
+                            ...filter,
+                            importer: e.target.value
+                        })}/></AccordionDetails>
                     </Accordion>
 
                     {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
-                            <div className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
-                                <DateRange editableDateInputs={true} onChange={(item) => handleCustomChange(item.selection)} moveRangeOnFirstSelection={false} ranges={customDate} direction="horizontal" />
-                                <div className="mt-2 text-right"><Button variant="contained" size="small" onClick={() => setShowDatePicker(false)}>Áp dụng</Button></div>
+                            <div
+                                className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
+                                <DateRange editableDateInputs={true}
+                                           onChange={(item) => handleCustomChange(item.selection)}
+                                           moveRangeOnFirstSelection={false} ranges={customDate}
+                                           direction="horizontal"/>
+                                <div className="mt-2 text-right"><Button variant="contained" size="small"
+                                                                         onClick={() => setShowDatePicker(false)}>Áp
+                                    dụng</Button></div>
                             </div>
                         </ClickAwayListener>
                     )}
@@ -433,19 +509,21 @@ const ImportTransactionPage = () => {
 
                 <div className="w-full lg:w-4/5">
                     <div className="mb-4 w-1/2">
-                        <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
+                        <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth
+                                   value={filter.search}
+                                   onChange={(e) => setFilter({...filter, search: e.target.value})}/>
                     </div>
-                    
+
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
                         </Alert>
                     )}
-                    
-                    <div style={{ height: 500 }} className="bg-white rounded shadow">
+
+                    <div style={{height: 500}} className="bg-white rounded shadow">
                         {loading ? (
                             <div className="flex justify-center items-center h-full">
-                                <CircularProgress />
+                                <CircularProgress/>
                             </div>
                         ) : (
                             <DataGrid
@@ -494,26 +572,38 @@ const ImportTransactionPage = () => {
                                 </TableBody>
                             </Table>
                             {/* Tổng kết ngoài bảng */}
-                            <div style={{ width: '100%', marginTop: 16, maxWidth: 250, marginLeft: 'auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng số lượng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + (d.importQuantity || 0), 0)}</span>
+                            <div style={{width: '100%', marginTop: 16, maxWidth: 250, marginLeft: 'auto'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
+                                    <span style={{fontWeight: 700}}>Tổng số lượng:</span>
+                                    <span style={{
+                                        fontWeight: 700,
+                                        color: '#1976d2'
+                                    }}>{selectedDetails.reduce((sum, d) => sum + (d.importQuantity || 0), 0)}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng số mặt hàng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.length}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
+                                    <span style={{fontWeight: 700}}>Tổng số mặt hàng:</span>
+                                    <span style={{fontWeight: 700, color: '#1976d2'}}>{selectedDetails.length}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng tiền hàng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
+                                    <span style={{fontWeight: 700}}>Tổng tiền hàng:</span>
+                                    <span style={{
+                                        fontWeight: 700,
+                                        color: '#1976d2'
+                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng cộng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
+                                    <span style={{fontWeight: 700}}>Tổng cộng:</span>
+                                    <span style={{
+                                        fontWeight: 700,
+                                        color: '#1976d2'
+                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ fontWeight: 700}}>Tiền đã trả NCC:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                    <span style={{fontWeight: 700}}>Tiền đã trả NCC:</span>
+                                    <span style={{
+                                        fontWeight: 700,
+                                        color: '#1976d2'
+                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
                                 </div>
                             </div>
                         </>
@@ -522,38 +612,38 @@ const ImportTransactionPage = () => {
                     )}
                 </DialogContent>
                 <DialogActions>
-                  {selectedTransaction?.status === 'DRAFT' && (
+                    {selectedTransaction?.status === 'DRAFT' && (
+                        <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<ReplyIcon/>}
+                            onClick={handleOpenTransaction}
+                        >
+                            Mở phiếu
+                        </Button>
+                    )}
                     <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<ReplyIcon />}
-                      onClick={handleOpenTransaction}
+                        variant="contained"
+                        style={{background: '#6b7280', color: '#fff'}}
+                        startIcon={<PrintIcon/>}
+                        onClick={() => alert('In tem mã')}
                     >
-                      Mở phiếu
+                        In tem mã
                     </Button>
-                  )}
-                  <Button
-                    variant="contained"
-                    style={{ background: '#6b7280', color: '#fff' }}
-                    startIcon={<PrintIcon />}
-                    onClick={() => alert('In tem mã')}
-                  >
-                    In tem mã
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<CloseIcon />}
-                    onClick={handleCancelTransaction}
-                  >
-                    Huỷ bỏ
-                  </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<CloseIcon/>}
+                        onClick={handleCancelTransaction}
+                    >
+                        Huỷ bỏ
+                    </Button>
                 </DialogActions>
                 {cancelError && (
-                  <Alert severity="error" className="mt-2">{cancelError}</Alert>
+                    <Alert severity="error" className="mt-2">{cancelError}</Alert>
                 )}
                 {openError && (
-                  <Alert severity="error" className="mt-2">{openError}</Alert>
+                    <Alert severity="error" className="mt-2">{openError}</Alert>
                 )}
             </Dialog>
 

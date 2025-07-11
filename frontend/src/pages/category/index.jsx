@@ -1,18 +1,17 @@
 // pages/Category/index.jsx
-import React, { useState, useEffect, useMemo } from "react";
-import { Button, TextField } from "@mui/material";
-import { FaPlus } from "react-icons/fa6";
+import React, {useEffect, useMemo, useState} from "react";
+import {Button, TextField} from "@mui/material";
+import {FaPlus} from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
-import { getCategories, createCategory, updateCategory, deleteCategory } from "../../services/categoryService";
-import TablePagination from '@mui/material/TablePagination';
+import {createCategory, deleteCategory, getCategories, updateCategory} from "../../services/categoryService";
 
 const Category = () => {
     const [categories, setCategories] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [form, setForm] = useState({ id: null, name: "", description: "" });
+    const [form, setForm] = useState({id: null, name: "", description: ""});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     // Xoá các state và logic phân trang ở ngoài
@@ -49,7 +48,7 @@ const Category = () => {
     // );
 
     const handleOpenCreate = () => {
-        setForm({ id: null, name: "", description: "" });
+        setForm({id: null, name: "", description: ""});
         setEditMode(false);
         setOpenDialog(true);
     };
@@ -102,7 +101,7 @@ const Category = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Add
                     </Button>
                 </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import "./ZoneVisual.css";
 
-const ZoneVisual = ({ zones, hoveredZoneId }) => {
+const ZoneVisual = ({zones, hoveredZoneId}) => {
     const parsedZones = zones.map(z => {
         const match = z.zoneName.match(/Z_\[(\d+);(\d+)\]/);
         if (!match) return null;

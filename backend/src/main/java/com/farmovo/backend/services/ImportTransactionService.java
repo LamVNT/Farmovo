@@ -2,7 +2,6 @@ package com.farmovo.backend.services;
 
 import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
-import com.farmovo.backend.models.ImportTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;

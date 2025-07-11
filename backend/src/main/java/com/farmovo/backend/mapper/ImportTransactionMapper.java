@@ -4,7 +4,9 @@ import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.ImportTransactionDetail;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
 import java.util.List;
 
 @Mapper(componentModel = "spring")

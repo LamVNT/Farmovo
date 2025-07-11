@@ -1,29 +1,28 @@
 import React, {useContext, useState} from "react";
 import {Link, useNavigate} from "react-router-dom"
 import Button from "@mui/material/Button";
-import { RxDashboard } from "react-icons/rx";
-import { FiUsers } from "react-icons/fi";
-import { RiProductHuntLine } from "react-icons/ri";
-import { TbCategory } from "react-icons/tb";
-import { MdMap } from "react-icons/md"; // Material Icons
-import { IoBagCheckOutline } from "react-icons/io5";
-import { IoMdLogOut } from "react-icons/io";
-import { FaAngleDown } from "react-icons/fa6";
-import { GrTransaction } from "react-icons/gr";
-import { FaRegSquareCheck } from "react-icons/fa6";
+import {RxDashboard} from "react-icons/rx";
+import {FiUsers} from "react-icons/fi";
+import {RiProductHuntLine} from "react-icons/ri";
+import {TbCategory} from "react-icons/tb";
+import {MdMap} from "react-icons/md"; // Material Icons
+import {IoBagCheckOutline} from "react-icons/io5";
+import {IoMdLogOut} from "react-icons/io";
+import {FaAngleDown, FaRegSquareCheck} from "react-icons/fa6";
+import {GrTransaction} from "react-icons/gr";
 import {Collapse} from 'react-collapse';
 import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
-import { HiOutlineDocumentReport } from "react-icons/hi";
-import { FaBoxOpen, FaExclamationTriangle, FaClock } from "react-icons/fa";
+import {HiOutlineDocumentReport} from "react-icons/hi";
+import {FaBoxOpen, FaClock, FaExclamationTriangle} from "react-icons/fa";
 
 
 const Sidebar = () => {
     const [submenuIndex, setSubmenuIndex] = useState(null)
-    const isOpenSubMenu=(index)=>{
-        if(submenuIndex === index){
+    const isOpenSubMenu = (index) => {
+        if (submenuIndex === index) {
             setSubmenuIndex(null);
-        }else {
+        } else {
             setSubmenuIndex(index);
         }
     }
@@ -33,7 +32,7 @@ const Sidebar = () => {
 
     const handleLogout = async () => {
         try {
-            await api.post("/logout", {}, { withCredentials: true }); // Gọi backend để xoá cookie
+            await api.post("/logout", {}, {withCredentials: true}); // Gọi backend để xoá cookie
             localStorage.removeItem("user"); // ✅ Gợi ý #4: Xoá user info
             context.setIslogin(false); // Cập nhật lại state
             navigate("/login"); // Chuyển hướng
@@ -45,7 +44,8 @@ const Sidebar = () => {
 
     return (
         <>
-            <div className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
+            <div
+                className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
                 <div className="py-2 w-full">
                     <Link to="/"><
                         img src="https://ecme-react.themenate.net/img/logo/logo-light-full.png" className="w-[120px]"/>
@@ -79,7 +79,8 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                                          !w-full !text-[13px] !font-[600] !pl-9 flex gap-3"><
                                             span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Import transaction
+                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Import
+                                            transaction
                                         </Button>
                                     </Link>
                                 </li>
@@ -88,7 +89,8 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
                                          !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                             <span
-                                                className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Sale transaction
+                                                className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Sale
+                                            transaction
                                         </Button>
                                     </Link>
                                 </li>
@@ -183,7 +185,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdMap className="text-[20px]" /> <span>Zone</span>
+                                <MdMap className="text-[20px]"/> <span>Zone</span>
                             </Button>
                         </Link>
                     </li>
@@ -193,7 +195,7 @@ const Sidebar = () => {
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(5)}
                         >
-                            <HiOutlineDocumentReport className="text-[20px]" /> <span>Reports</span>
+                            <HiOutlineDocumentReport className="text-[20px]"/> <span>Reports</span>
                             <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
                                 <FaAngleDown className={`transition-all ${submenuIndex === 5 ? 'rotate-180' : ''}`}/>
                             </span>
@@ -202,22 +204,25 @@ const Sidebar = () => {
                             <ul className="w-full">
                                 <li className="w-full">
                                     <Link to="/reports/remain-by-product">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaBoxOpen className="text-[16px]" /> Tồn kho theo sản phẩm
+                                        <Button
+                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <FaBoxOpen className="text-[16px]"/> Tồn kho theo sản phẩm
                                         </Button>
                                     </Link>
                                 </li>
                                 <li className="w-full">
                                     <Link to="/reports/stocktake-diff">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaExclamationTriangle className="text-[16px]" /> Sản phẩm sai lệch
+                                        <Button
+                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <FaExclamationTriangle className="text-[16px]"/> Sản phẩm sai lệch
                                         </Button>
                                     </Link>
                                 </li>
                                 <li className="w-full">
                                     <Link to="/reports/expiring-lots">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaClock className="text-[16px]" /> Lô sắp hết hạn
+                                        <Button
+                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <FaClock className="text-[16px]"/> Lô sắp hết hạn
                                         </Button>
                                     </Link>
                                 </li>
@@ -226,7 +231,7 @@ const Sidebar = () => {
                     </li>
                     <li>
                         <Button
-                            onClick={handleLogout} 
+                            onClick={handleLogout}
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                             <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
