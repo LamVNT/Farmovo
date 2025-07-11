@@ -96,13 +96,13 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         saleTransactionRepository.save(transaction);
 
         // Tạo DebtNote nếu paid < || > total
-        BigDecimal paidAmount = transaction.getPaidAmount();
-        BigDecimal totalAmount = transaction.getTotalAmount();
-        BigDecimal debtAmount = paidAmount.subtract(totalAmount);
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+
+        BigDecimal debtAmount = totalAmount.subtract(paidAmount);
 
         if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = debtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-
+            String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "-" : "+";
             debtNoteService.createDebtNoteFromTransaction(
                     transaction.getCustomer().getId(),
                     debtAmount,
@@ -111,9 +111,9 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                     transaction.getId(),
                     transaction.getStore().getId()
             );
+
             logger.info("Created debt note for sale transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
         }
-
     }
 
     @Override

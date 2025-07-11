@@ -89,14 +89,19 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
         // Tạo DebtNote nếu paidAmount < || > totalAmount
         BigDecimal paidAmount = transaction.getPaidAmount();
-        BigDecimal debtAmount = paidAmount.subtract(totalAmount);
+        totalAmount = transaction.getTotalAmount();
+
+// Sửa lại: nợ = totalAmount - paidAmount
+        BigDecimal debtAmount = totalAmount.subtract(paidAmount);
+// > 0: còn nợ supplier ⇒ supplier DƯƠNG
+// < 0: trả dư ⇒ supplier ÂM
 
         if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = debtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+            String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
 
             debtNoteService.createDebtNoteFromTransaction(
                     transaction.getSupplier().getId(),
-                    debtAmount, // Sẽ là âm nếu khách nợ, dương nếu khách trả dư
+                    debtAmount,
                     "IMPORT",
                     debtType,
                     transaction.getId(),
@@ -105,6 +110,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
             logger.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
         }
+
 
     }
 
