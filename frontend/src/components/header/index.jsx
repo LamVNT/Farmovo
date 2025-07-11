@@ -1,25 +1,26 @@
-import React, {useContext} from "react";
-import {RiMenu2Line} from "react-icons/ri"
+import React,{ useContext, useState} from "react";
+import { RiMenu2Line } from "react-icons/ri"
 import Badge from '@mui/material/Badge';
-import Button from '@mui/material/Button';
-import {styled} from '@mui/material/styles';
+import  Button from '@mui/material/Button';
+import { styled } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
-import {FaRegBell, FaRegUser} from "react-icons/fa6";
-import {FaSignOutAlt} from "react-icons/fa";
+import { FaRegBell } from "react-icons/fa6";
+import { FaRegUser } from "react-icons/fa6";
+import { FaSignOutAlt } from "react-icons/fa";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
-import {MyContext} from '../../App.jsx'
-import {Link} from "react-router-dom";
+import { MyContext } from '../../App.jsx'
+import { Link } from "react-router-dom";
 
 
-const StyledBadge = styled(Badge)(({theme}) => ({
-    '& .MuiBadge-badge': {
-        right: -3,
-        top: 13,
-        border: `2px solid ${(theme.vars ?? theme).palette.background.paper}`,
-        padding: '0 4px',
-    },
+const StyledBadge = styled(Badge)(({ theme }) => ({
+  '& .MuiBadge-badge': {
+    right: -3,
+    top: 13,
+    border: `2px solid ${(theme.vars ?? theme).palette.background.paper}`,
+    padding: '0 4px',
+  },
 }));
 const Header = () => {
     const [anchorMyAcc, setAnchorMyAcc] = React.useState(null);
@@ -34,19 +35,18 @@ const Header = () => {
     const context = useContext(MyContext);
 
     return (
-        <header
-            className={`w-full h-[auto] py-2 ${context.isSidebarOpen === true ? 'pl-64' : 'pl-5'} shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
+        <header className={`w-full h-[auto] py-2 ${context.isSidebarOpen===true ? 'pl-64' : 'pl-5'} shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
             <div className='part1'>
                 <Button className="!w-[40px] !h-[40px] !rounded-full !min-w-[40px] text-[22px] !text-[rgba(0,0,0,0.8)]"
-                        onClick={() => context.setisSidebarOpen(!context.isSidebarOpen)}>
+                onClick={()=>context.setisSidebarOpen(!context.isSidebarOpen)}>
                     <RiMenu2Line className="text-[22px] text-[rgba(0,0,0,0.8)]"/>
                 </Button>
             </div>
 
             <div className='part2 w-[40%] flex items-center justify-end gap-5'>
-                <IconButton aria-label="cart">
+                 <IconButton aria-label="cart">
                     <StyledBadge badgeContent={4} color="secondary">
-                        <FaRegBell/>
+                        <FaRegBell />
                     </StyledBadge>
                 </IconButton>
 
@@ -54,7 +54,7 @@ const Header = () => {
                 {
                     context.isLogin === true ?
 
-                        <div className="relative">
+                    <div className="relative">
                             <div className="rounded-full w-[30px] h-[30px] overflow-hidden cursor-pointer"
                                  onClick={handleClickMyAcc}>
                                 <img src="https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"
@@ -114,10 +114,12 @@ const Header = () => {
                                 <Divider/>
 
 
+
                                 <MenuItem component={Link} to="/profile" className="flex items-center gap-3">
-                                    <FaRegUser className="text-[16px]"/>
+                                    <FaRegUser className="text-[16px]" />
                                     <span className="text-[14px]">Profile</span>
                                 </MenuItem>
+
 
 
                                 <MenuItem onClick={handleCloseMyAcc} className="flex items-center gap-3">
@@ -127,9 +129,9 @@ const Header = () => {
                             </Menu>
                         </div>
 
-                        :
+                    :
 
-                        <Button className="btn-blue btn-sm !rounded-full">Sign In </Button>
+                    <Button className="btn-blue btn-sm !rounded-full">Sign In </Button>
                 }
 
 

@@ -1,4 +1,4 @@
-import {CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer} from 'recharts';
 import {FormControl, InputLabel, MenuItem, Select} from "@mui/material";
 
 const RevenueLineChart = ({data, timeFilter, setTimeFilter}) => {

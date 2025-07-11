@@ -1,15 +1,15 @@
-import React, {useEffect, useState} from "react";
+import React, {useState, useEffect} from "react";
 import {
-    Button,
     Dialog,
-    DialogActions,
-    DialogContent,
     DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Button,
+    Select,
+    MenuItem,
     FormControl,
     InputLabel,
-    MenuItem,
-    Select,
-    TextField,
     Typography,
 } from "@mui/material";
 import {updateDebtNote} from "../../services/debtService";

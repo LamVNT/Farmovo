@@ -1,16 +1,16 @@
 import React, {useEffect, useState} from "react";
 import {getRemainByProduct} from "../../services/reportService";
 import {
-    Box,
-    CircularProgress,
-    Paper,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Typography
+    Paper,
+    Typography,
+    Box,
+    CircularProgress
 } from "@mui/material";
 
 const RemainByProductReport = () => {

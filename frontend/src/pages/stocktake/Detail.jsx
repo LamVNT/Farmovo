@@ -1,20 +1,10 @@
 import React, {useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router-dom";
+import {useParams, useNavigate} from "react-router-dom";
 import axios from "../../services/axiosClient";
 import {productService} from "../../services/productService";
 import {getZones} from "../../services/zoneService";
 import {
-    Box,
-    Button,
-    Chip,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Typography
+    Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box
 } from "@mui/material";
 
 const StockTakeDetailPage = () => {

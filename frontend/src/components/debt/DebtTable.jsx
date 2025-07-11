@@ -1,5 +1,14 @@
 import React from "react";
-import {Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,} from "@mui/material";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Button,
+} from "@mui/material";
 
 const DebtTable = ({debtNotes, onEdit}) => {
     return (

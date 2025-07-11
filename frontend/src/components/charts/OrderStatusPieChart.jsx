@@ -1,4 +1,4 @@
-import {Cell, Pie, PieChart, ResponsiveContainer, Tooltip} from 'recharts';
+import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer} from 'recharts';
 import React from "react";
 
 const pieColors = ['#4CAF50', '#FFC107', '#F44336'];

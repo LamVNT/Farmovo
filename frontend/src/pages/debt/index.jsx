@@ -1,16 +1,16 @@
-import React, {useEffect, useState} from "react";
+import React, {useState, useEffect} from "react";
 import {
-    Box,
-    Button,
     Container,
-    Paper,
+    Typography,
+    Button,
+    Box,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Typography,
+    Paper,
 } from "@mui/material";
 import DebtTable from "../../components/debt/DebtTable";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";

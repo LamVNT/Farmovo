@@ -1,28 +1,13 @@
-import React, {useEffect, useState} from "react";
+import React, {useState, useEffect} from "react";
 import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    CircularProgress,
-    FormControl,
-    Grid,
-    IconButton,
-    InputLabel,
-    MenuItem,
-    Select,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography
+    TextField, Button, FormControl, InputLabel, Select, MenuItem,
+    Dialog, DialogTitle, DialogContent, DialogActions, Table,
+    TableHead, TableRow, TableCell, TableBody, IconButton,
+    Alert, CircularProgress, Typography, Box, Grid, Card, CardContent,
+    Divider, Chip
 } from "@mui/material";
 import {useNavigate} from "react-router-dom";
-import {FaPlus, FaTrash} from "react-icons/fa";
+import {FaPlus, FaTrash, FaSearch} from "react-icons/fa";
 import saleTransactionService from "../../services/saleTransactionService";
 import {DateTimePicker} from "@mui/x-date-pickers/DateTimePicker";
 import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";

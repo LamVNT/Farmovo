@@ -8,13 +8,14 @@ import {TbCategory} from "react-icons/tb";
 import {MdMap} from "react-icons/md"; // Material Icons
 import {IoBagCheckOutline} from "react-icons/io5";
 import {IoMdLogOut} from "react-icons/io";
-import {FaAngleDown, FaRegSquareCheck} from "react-icons/fa6";
+import {FaAngleDown} from "react-icons/fa6";
 import {GrTransaction} from "react-icons/gr";
+import {FaRegSquareCheck} from "react-icons/fa6";
 import {Collapse} from 'react-collapse';
 import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
 import {HiOutlineDocumentReport} from "react-icons/hi";
-import {FaBoxOpen, FaClock, FaExclamationTriangle} from "react-icons/fa";
+import {FaBoxOpen, FaExclamationTriangle, FaClock} from "react-icons/fa";
 
 
 const Sidebar = () => {

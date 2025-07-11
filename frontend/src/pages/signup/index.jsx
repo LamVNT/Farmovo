@@ -1,11 +1,14 @@
 import React, {useState} from 'react'
 import {Link, NavLink} from 'react-router-dom'
 import Button from "@mui/material/Button";
-import {CiLogin, CiUser} from "react-icons/ci";
+import {CiLogin} from "react-icons/ci";
+import {CiUser} from "react-icons/ci";
 import {FcGoogle} from "react-icons/fc";
-import {FaEyeSlash, FaFacebook, FaRegEye} from "react-icons/fa";
+import {FaFacebook} from "react-icons/fa";
 import Checkbox from "@mui/material/Checkbox"
 import FormControlLabel from '@mui/material/FormControlLabel';
+import {FaRegEye} from "react-icons/fa";
+import {FaEyeSlash} from "react-icons/fa";
 
 
 const Signup = () => {

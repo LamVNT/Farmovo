@@ -1,10 +1,11 @@
 // pages/Category/index.jsx
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useState, useEffect, useMemo} from "react";
 import {Button, TextField} from "@mui/material";
 import {FaPlus} from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
-import {createCategory, deleteCategory, getCategories, updateCategory} from "../../services/categoryService";
+import {getCategories, createCategory, updateCategory, deleteCategory} from "../../services/categoryService";
+import TablePagination from '@mui/material/TablePagination';
 
 const Category = () => {
     const [categories, setCategories] = useState([]);

@@ -1,5 +1,5 @@
 import {NavLink} from "react-router-dom";
-import {FaBell, FaLock, FaUser} from "react-icons/fa";
+import {FaUser, FaLock, FaBell} from "react-icons/fa";
 
 const ProfileSidebar = () => {
     const navItems = [
