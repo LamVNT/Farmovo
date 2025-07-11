@@ -3,11 +3,14 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
+import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.Product;
 import com.farmovo.backend.repositories.ImportTransactionRepository;
 import com.farmovo.backend.services.*;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,21 +21,18 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/import-transaction")
+@RequiredArgsConstructor
 public class ImportTransationController {
 
     private static final Logger logger = LogManager.getLogger(ImportTransationController.class);
 
-    @Autowired
-    private CustomerService customerService;
+    private final CustomerService customerService;
+    private final ProductService productService;
+    private final ZoneService zoneService;
+    private final ImportTransactionService importTransactionService;
+    private final JwtUtils jwtUtils;
 
-    @Autowired
-    private ProductService productService;
 
-    @Autowired
-    private ZoneService zoneService;
-
-    @Autowired
-    private ImportTransactionService importTransactionService;
 
     @GetMapping("/create-form-data")
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
@@ -48,12 +48,6 @@ public class ImportTransationController {
         return ResponseEntity.ok(formData);
     }
 
-//    @GetMapping("/listAll")
-//    public ResponseEntity<List<CreateImportTransactionRequestDto>> listAllImportTransaction() {
-//        List<CreateImportTransactionRequestDto> transactions = importTransactionService.listAllImportTransaction();
-//        return ResponseEntity.ok(transactions);
-//    }
-
     @GetMapping("/list-all")
     public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
         List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
@@ -66,9 +60,13 @@ public class ImportTransationController {
         return ResponseEntity.ok(dto);
     }
 
-    @PostMapping("")
-    public ResponseEntity<?> create(@RequestBody CreateImportTransactionRequestDto dto) {
-        importTransactionService.createImportTransaction(dto);
+    @PostMapping("/save")
+    public ResponseEntity<?> create(@RequestBody CreateImportTransactionRequestDto dto, HttpServletRequest request) {
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            importTransactionService.createImportTransaction(dto, userId);
+        }
         return ResponseEntity.ok("Tạo phiếu nhập thành công");
     }
 

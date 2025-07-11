@@ -14,11 +14,9 @@ import java.util.List;
 public interface ProductMapper {
 
     ProductDto toDto(Product product);
-
     List<ProductDto> toDtoList(List<Product> products);
 
     List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
-
 
     @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "proId")
@@ -27,10 +25,12 @@ public interface ProductMapper {
     ProductResponseDto toDto(ImportTransactionDetail detail);
 
 
-    @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
+    @Mapping(source = "id", target = "importId")
+    @Mapping(source = "product.productName", target = "name")
     @Mapping(source = "product.id", target = "proId")
+    @Mapping(source = "importTransaction.status", target = "status")
+    @Mapping(source = "importQuantity", target = "quantity")
+    @Mapping(source = "unitSalePrice", target = "unitSalePrice")
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
-
-
 }
 

@@ -2,8 +2,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL, // ✅ Đọc từ file .env
-    withCredentials: true                 // ✅ Nếu dùng JWT cookie từ backend
+    baseURL: import.meta.env.VITE_API_URL, // Đọc từ file .env
+    withCredentials: true                 // Nếu dùng JWT cookie từ backend
 });
 
 api.interceptors.request.use(config => {
