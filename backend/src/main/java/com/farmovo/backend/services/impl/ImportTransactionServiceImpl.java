@@ -172,6 +172,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         detail.setUnitSalePrice(dto.getUnitSalePrice());
         return detail;
     }
+
     @Transactional(rollbackFor = Exception.class)
     public void cancel(Long id) {
         ImportTransaction transaction = importTransactionRepository.findById(id)
