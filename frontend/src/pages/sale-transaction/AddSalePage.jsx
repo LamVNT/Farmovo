@@ -27,6 +27,7 @@ import { FaRegTrashCan } from "react-icons/fa6";
 // Components
 import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
 import SaleSidebar from '../../components/sale-transaction/SaleSidebar';
+import SaleSummaryDialog from '../../components/sale-transaction/SaleSummaryDialog';
 
 // Hooks
 import { useSaleTransaction } from '../../hooks/useSaleTransaction';
@@ -82,6 +83,11 @@ const AddSalePage = () => {
         selectedProduct,
         availableBatches,
         
+        // Summary dialog states
+        showSummaryDialog,
+        summaryData,
+        pendingAction,
+        
         // Setters
         setSelectedCustomer,
         setSelectedStore,
@@ -92,6 +98,9 @@ const AddSalePage = () => {
         setShowProductDialog,
         setError,
         setSuccess,
+        setShowSummaryDialog,
+        setSummaryData,
+        setPendingAction,
         
         // Handlers
         handleSelectProduct,
@@ -103,6 +112,8 @@ const AddSalePage = () => {
         handleSaveDraft,
         handleComplete,
         handleCancel,
+        handleConfirmSummary,
+        handleCloseSummary,
     } = useSaleTransaction();
 
     // Handle click outside search dropdown
@@ -337,7 +348,7 @@ const AddSalePage = () => {
                                         </div>
                                     </div>
                                 ))}
-                            </div>
+                                </div>
                         )}
                     </div>
 
@@ -354,7 +365,7 @@ const AddSalePage = () => {
                                         control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} 
                                         label={col} 
                                     />
-                                </MenuItem>
+                                                    </MenuItem>
                             ))}
                         </Menu>
                     </div>
@@ -391,8 +402,7 @@ const AddSalePage = () => {
                 onNoteChange={(e) => setNote(e.target.value)}
                 onPaidAmountChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    const maxAmount = totalAmount;
-                    setPaidAmount(Math.max(0, Math.min(value, maxAmount)));
+                    setPaidAmount(Math.max(0, value)); // chỉ giới hạn >= 0, không giới hạn max
                 }}
                 onSaveDraft={handleSaveDraft}
                 onComplete={handleComplete}
@@ -413,6 +423,16 @@ const AddSalePage = () => {
                 onSelectBatches={() => {}}
                 onAddProducts={handleAddProductsFromDialog}
                 formatCurrency={formatCurrency}
+            />
+
+            {/* Summary Dialog */}
+            <SaleSummaryDialog
+                open={showSummaryDialog}
+                onClose={handleCloseSummary}
+                onConfirm={handleConfirmSummary}
+                saleData={summaryData}
+                formatCurrency={formatCurrency}
+                loading={loading}
             />
 
             {/* Category Dialog */}
@@ -445,11 +465,11 @@ const AddSalePage = () => {
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-sm text-gray-500">
                                             {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
-                                        </div>
+                                </div>
                                     </div>
                                 ))}
-                            </div>
-                        </div>
+                                </div>
+                                                            </div>
                         
                         {/* Danh sách sản phẩm theo category */}
                         <div>
@@ -469,9 +489,9 @@ const AddSalePage = () => {
                                                 <div className="text-sm text-gray-500">
                                                     Mã: {product.productCode} | Tồn: {product.remainQuantity} | Giá: {formatCurrency(product.unitSalePrice)}
                                                 </div>
-                                            </div>
-                                        ))
-                                    ) : (
+                                                            </div>
+                                                    ))
+                                                ) : (
                                         <div className="p-4 text-center text-gray-500">
                                             Không có sản phẩm nào trong danh mục này
                                         </div>
@@ -479,11 +499,11 @@ const AddSalePage = () => {
                                 ) : (
                                     <div className="p-4 text-center text-gray-500">
                                         Vui lòng chọn một danh mục
-                                    </div>
+                                </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
+                                                        </div>
+                                                    </div>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseCategoryDialog} color="primary">

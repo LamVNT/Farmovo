@@ -21,6 +21,14 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
 import DialogActions from '@mui/material/DialogActions';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const getRange = (key) => {
     const today = new Date();
@@ -82,6 +90,29 @@ const SaleTransactionPage = () => {
     const [error, setError] = useState(null);
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [actionAnchorEl, setActionAnchorEl] = useState(null);
+    const [actionRow, setActionRow] = useState(null);
+
+    const handleActionClick = (event, row) => {
+        setActionAnchorEl(event.currentTarget);
+        setActionRow(row);
+    };
+    const handleActionClose = () => {
+        setActionAnchorEl(null);
+        setActionRow(null);
+    };
+    const handleViewDetailMenu = () => {
+        handleViewDetail(actionRow);
+        handleActionClose();
+    };
+    const handleEdit = () => {
+        // TODO: Thêm logic sửa
+        handleActionClose();
+    };
+    const handleDelete = () => {
+        // TODO: Thêm logic xóa
+        handleActionClose();
+    };
 
     const loadTransactions = async () => {
         setLoading(true);
@@ -187,10 +218,20 @@ const SaleTransactionPage = () => {
             headerName: 'Đã thanh toán',
             flex: 1,
             renderCell: (params) => {
-                if (params.value) {
-                    return params.value.toLocaleString('vi-VN') + ' VNĐ';
+                const paid = params.value || 0;
+                const total = params.row.totalAmount || 0;
+                let color = '#6b7280'; // default gray
+                let label = paid.toLocaleString('vi-VN') + ' VNĐ';
+                if (paid < total) {
+                    color = '#ef4444'; // đỏ nếu trả thiếu hoặc chưa trả
+                } else if (paid === total) {
+                    color = '#10b981'; // xanh nếu trả đủ
+                } else if (paid > total) {
+                    color = '#f59e42'; // cam nếu trả dư
                 }
-                return '0 VNĐ';
+                return (
+                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                );
             }
         },
         {
@@ -219,18 +260,20 @@ const SaleTransactionPage = () => {
         {
             field: 'actions',
             headerName: 'Hành động',
-            width: 130,
+            width: 80,
             renderCell: (params) => (
-                <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        handleViewDetail(params.row);
-                    }}
-                >
-                    Chi tiết
-                </Button>
+                <>
+                    <Button
+                        size="small"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleActionClick(event, params.row);
+                        }}
+                        sx={{ minWidth: 0, p: 1 }}
+                    >
+                        <MoreHorizIcon />
+                    </Button>
+                </>
             )
         }
     ];
@@ -506,6 +549,39 @@ const SaleTransactionPage = () => {
                     <Button onClick={() => setOpenDetailDialog(false)} color="primary">Đóng</Button>
                 </DialogActions>
             </Dialog>
+
+            <Menu
+                anchorEl={actionAnchorEl}
+                open={Boolean(actionAnchorEl)}
+                onClose={handleActionClose}
+                PaperProps={{
+                    elevation: 4,
+                    sx: {
+                        borderRadius: 2,
+                        minWidth: 160,
+                        p: 0.5,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    },
+                }}
+                MenuListProps={{
+                    sx: {
+                        p: 0,
+                    },
+                }}
+            >
+                <MenuItem onClick={handleViewDetailMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Xem chi tiết" />
+                </MenuItem>
+                <MenuItem onClick={handleEdit} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Sửa" />
+                </MenuItem>
+                <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
+                    <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemText primary="Xóa" />
+                </MenuItem>
+            </Menu>
         </div>
     );
 };

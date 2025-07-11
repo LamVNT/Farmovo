@@ -5,6 +5,14 @@ import { userService } from '../services/userService';
 import { getCategories } from '../services/categoryService';
 import { getZones } from '../services/zoneService';
 
+function getVNISOString() {
+  const now = new Date();
+  const tzOffset = 7 * 60 * 60 * 1000; // 7 hours in ms
+  const local = new Date(now.getTime() + tzOffset);
+  // Return ISO string without milliseconds and Z
+  return local.toISOString().slice(0, 19);
+}
+
 export const useSaleTransaction = () => {
     const navigate = useNavigate();
     
@@ -32,6 +40,11 @@ export const useSaleTransaction = () => {
     const [showProductDialog, setShowProductDialog] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [availableBatches, setAvailableBatches] = useState([]);
+    
+    // Summary dialog states
+    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+    const [summaryData, setSummaryData] = useState(null);
+    const [pendingAction, setPendingAction] = useState(null); // 'DRAFT' or 'COMPLETE'
 
     // Load initial data
     useEffect(() => {
@@ -284,56 +297,27 @@ export const useSaleTransaction = () => {
             return;
         }
 
-        if (paidAmount > totalAmount) {
-            setError('Số tiền đã trả không được vượt quá tổng tiền hàng');
-            return;
-        }
+        // Tìm thông tin khách hàng và cửa hàng
+        const customerInfo = customers.find(c => c.id === selectedCustomer);
+        const storeInfo = stores.find(s => s.id === selectedStore);
 
-        // Đảm bảo status là DRAFT khi lưu tạm
-        setStatus('DRAFT');
+        // Chuẩn bị dữ liệu cho dialog tổng kết
+        const summaryData = {
+            customer: customerInfo,
+            store: storeInfo,
+            products: selectedProducts,
+            totalAmount,
+            paidAmount,
+            note,
+            saleDate,
+            status: 'DRAFT'
+        };
 
-        setLoading(true);
+        setSummaryData(summaryData);
+        setPendingAction('DRAFT');
+        setShowSummaryDialog(true);
         setError(null);
-        setSuccess(null);
-
-        try {
-            const saleData = {
-                customerId: selectedCustomer,
-                storeId: selectedStore,
-                totalAmount,
-                paidAmount,
-                saleTransactionNote: note,
-                status: 'DRAFT',
-                saleDate,
-                detail: selectedProducts.map(product => ({
-                    id: product.batchId || product.id, // importtransactiondetailID
-                    proId: product.productId || product.id, // product ID
-                    productName: product.name,
-                    productCode: product.productCode || product.code || '',
-                    remainQuantity: product.remainQuantity || 0,
-                    quantity: product.quantity,
-                    unitSalePrice: product.price || product.unitSalePrice,
-                    categoryName: product.categoryName || '',
-                    storeName: product.storeName || '',
-                    createAt: product.createAt || new Date().toISOString()
-                }))
-            };
-
-            await saleTransactionService.create(saleData);
-            setSuccess('Đã lưu phiếu bán hàng tạm thời!');
-            setSelectedProducts([]);
-            // Reset form sau khi lưu tạm
-            setSelectedCustomer('');
-            setSelectedStore('');
-            setPaidAmount(0);
-            setNote('');
-        } catch (err) {
-            console.error('Error creating sale transaction:', err);
-            setError('Không thể lưu phiếu bán hàng tạm thời');
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, saleDate]);
+    }, [selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, saleDate, customers, stores]);
 
     // Handle complete
     const handleComplete = useCallback(async () => {
@@ -352,27 +336,51 @@ export const useSaleTransaction = () => {
             return;
         }
 
-        if (paidAmount > totalAmount) {
-            setError('Số tiền đã trả không được vượt quá tổng tiền hàng');
-            return;
-        }
+        // Tìm thông tin khách hàng và cửa hàng
+        const customerInfo = customers.find(c => c.id === selectedCustomer);
+        const storeInfo = stores.find(s => s.id === selectedStore);
 
-        // Đảm bảo status là COMPLETE khi hoàn thành
-        setStatus('COMPLETE');
+        // Chuẩn bị dữ liệu cho dialog tổng kết
+        const summaryData = {
+            customer: customerInfo,
+            store: storeInfo,
+            products: selectedProducts,
+            totalAmount,
+            paidAmount,
+            note,
+            saleDate,
+            status: 'COMPLETE'
+        };
+
+        setSummaryData(summaryData);
+        setPendingAction('COMPLETE');
+        setShowSummaryDialog(true);
+        setError(null);
+    }, [selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, saleDate, customers, stores]);
+
+    // Handle cancel
+    const handleCancel = useCallback(() => {
+        navigate("/sale");
+    }, [navigate]);
+
+    // Handle confirm from summary dialog
+    const handleConfirmSummary = useCallback(async () => {
+        if (!pendingAction || !summaryData) return;
 
         setLoading(true);
         setError(null);
         setSuccess(null);
 
         try {
+            const now = getVNISOString();
             const saleData = {
                 customerId: selectedCustomer,
                 storeId: selectedStore,
                 totalAmount,
                 paidAmount,
                 saleTransactionNote: note,
-                status: 'COMPLETE',
-                saleDate,
+                status: pendingAction,
+                saleDate: now, // always use Vietnam time
                 detail: selectedProducts.map(product => ({
                     id: product.batchId || product.id, // importtransactiondetailID
                     proId: product.productId || product.id, // product ID
@@ -383,30 +391,42 @@ export const useSaleTransaction = () => {
                     unitSalePrice: product.price || product.unitSalePrice,
                     categoryName: product.categoryName || '',
                     storeName: product.storeName || '',
-                    createAt: product.createAt || new Date().toISOString()
+                    createAt: now // always use Vietnam time
                 }))
             };
 
             await saleTransactionService.create(saleData);
-            setSuccess('Đã hoàn thành phiếu bán hàng!');
+            
+            const successMessage = pendingAction === 'DRAFT' 
+                ? 'Đã lưu phiếu bán hàng tạm thời!' 
+                : 'Đã hoàn thành phiếu bán hàng!';
+            
+            setSuccess(successMessage);
             setSelectedProducts([]);
-            // Reset form sau khi hoàn thành
+            // Reset form sau khi lưu
             setSelectedCustomer('');
             setSelectedStore('');
             setPaidAmount(0);
             setNote('');
+            
+            // Đóng dialog tổng kết
+            setShowSummaryDialog(false);
+            setSummaryData(null);
+            setPendingAction(null);
         } catch (err) {
             console.error('Error creating sale transaction:', err);
-            setError('Không thể hoàn thành phiếu bán hàng');
+            setError('Không thể lưu phiếu bán hàng');
         } finally {
             setLoading(false);
         }
-    }, [selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, saleDate]);
+    }, [pendingAction, summaryData, selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, saleDate]);
 
-    // Handle cancel
-    const handleCancel = useCallback(() => {
-        navigate("/sale");
-    }, [navigate]);
+    // Handle close summary dialog
+    const handleCloseSummary = useCallback(() => {
+        setShowSummaryDialog(false);
+        setSummaryData(null);
+        setPendingAction(null);
+    }, []);
 
     return {
         // States
@@ -435,6 +455,11 @@ export const useSaleTransaction = () => {
         selectedProduct,
         availableBatches,
         
+        // Summary dialog states
+        showSummaryDialog,
+        summaryData,
+        pendingAction,
+        
         // Setters
         setSelectedCustomer,
         setSelectedStore,
@@ -445,6 +470,9 @@ export const useSaleTransaction = () => {
         setShowProductDialog,
         setError,
         setSuccess,
+        setShowSummaryDialog,
+        setSummaryData,
+        setPendingAction,
         
         // Handlers
         handleSelectProduct,
@@ -456,5 +484,7 @@ export const useSaleTransaction = () => {
         handleSaveDraft,
         handleComplete,
         handleCancel,
+        handleConfirmSummary,
+        handleCloseSummary,
     };
 }; 
