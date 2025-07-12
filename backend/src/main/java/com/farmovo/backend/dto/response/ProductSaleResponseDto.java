@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductSaleResponseDto {
-    private Long importId; // importtransactiondetailID
+    private Long id; // importtransactiondetailID
     private Long proId;
     private String productName; // tên sản phẩm
     private String productCode; // mã sản phẩm

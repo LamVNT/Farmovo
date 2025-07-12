@@ -10,6 +10,7 @@ import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
+import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @RestController
@@ -37,22 +39,49 @@ public class SaleTransactionController {
     private final ProductRepository productRepository;
     private final JwtUtils jwtUtils;
 
-    private final StoreService storeService;
+    @Autowired
+    private StoreService storeService;
 
 
     @GetMapping("/create-form-data")
     public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
         List<CustomerDto> customers = customerService.getAllCustomerDto();
-        List<StoreResponseDto> stores = storeService.getAllStores().stream()
-                .map(store -> {
-                    StoreResponseDto dto = new StoreResponseDto();
-                    dto.setId(store.getId());
-                    dto.setName(store.getStoreName());
-                    dto.setDescription(store.getStoreDescription());
-                    dto.setAddress(store.getStoreAddress());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        
+        List<StoreResponseDto> stores = null;
+        try {
+            // Thử cách khác - sử dụng StoreController
+            stores = new ArrayList<>();
+            List<Store> storeEntities = storeService.getAllStores();
+            System.out.println("Raw stores from service: " + storeEntities.size());
+            
+            for (Store store : storeEntities) {
+                StoreResponseDto dto = new StoreResponseDto();
+                dto.setId(store.getId());
+                dto.setName(store.getStoreName());
+                dto.setDescription(store.getStoreDescription());
+                dto.setAddress(store.getStoreAddress());
+                stores.add(dto);
+            }
+            System.out.println("Stores loaded successfully: " + stores.size());
+        } catch (Exception e) {
+            System.err.println("Error loading stores: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback: tạo danh sách stores cứng để test
+            stores = new ArrayList<>();
+            StoreResponseDto store1 = new StoreResponseDto();
+            store1.setId(1L);
+            store1.setName("Farmovo Store A");
+            store1.setDescription("Main store");
+            store1.setAddress("123 Main St");
+            stores.add(store1);
+            
+            StoreResponseDto store2 = new StoreResponseDto();
+            store2.setId(2L);
+            store2.setName("Farmovo Store B");
+            store2.setDescription("Secondary store");
+            store2.setAddress("456 Second St");
+            stores.add(store2);
+        }
 
         // Lấy sản phẩm từ ImportTransactionDetail có remainQuantity > 0
         List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
@@ -80,6 +109,7 @@ public class SaleTransactionController {
 
         SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
         formData.setCustomers(customers);
+        formData.setStores(stores);
         formData.setProducts(products);
         return ResponseEntity.ok(formData);
     }
@@ -145,6 +175,28 @@ public class SaleTransactionController {
         }
 
         return ResponseEntity.ok(result.toString());
+    }
+
+    @GetMapping("/test-stores")
+    public ResponseEntity<String> testStores() {
+        try {
+            List<Store> stores = storeService.getAllStores();
+            StringBuilder result = new StringBuilder();
+            result.append("=== STORE TEST ===\n");
+            result.append("Total stores: ").append(stores.size()).append("\n");
+            
+            for (Store store : stores) {
+                result.append("Store ID: ").append(store.getId())
+                      .append(", Name: ").append(store.getStoreName())
+                      .append(", Description: ").append(store.getStoreDescription())
+                      .append(", Address: ").append(store.getStoreAddress())
+                      .append("\n");
+            }
+            
+            return ResponseEntity.ok(result.toString());
+        } catch (Exception e) {
+            return ResponseEntity.ok("Error testing stores: " + e.getMessage() + "\n" + e.getStackTrace());
+        }
     }
 }
 

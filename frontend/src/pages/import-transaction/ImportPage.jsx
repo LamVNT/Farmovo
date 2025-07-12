@@ -66,6 +66,7 @@ const ImportPage = () => {
 
     const [nextImportCode, setNextImportCode] = useState('');
     const [note, setNote] = useState('');
+    const [paidAmount, setPaidAmount] = useState(0);
 
     useEffect(() => {
         const loadData = async () => {
@@ -106,6 +107,65 @@ const ImportPage = () => {
 
         loadData();
     }, []);
+
+    // Function để refresh products sau khi tạo mới
+    const refreshProducts = async () => {
+        try {
+            const productsData = await productService.getAllProducts();
+            setProducts(productsData);
+        } catch (error) {
+            console.error('Failed to refresh products:', error);
+        }
+    };
+
+    // Function để thêm product mới vào bảng
+    const handleAddNewProduct = (newProduct) => {
+        // Kiểm tra xem product đã có trong bảng chưa
+        if (!selectedProducts.find((p) => p.id === newProduct.id)) {
+            const price = 0; // Để user nhập vào
+            const quantity = 1;
+            const total = price * quantity;
+            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
+
+            setSelectedProducts((prev) => [
+                ...prev,
+                {
+                    id: newProduct.id,
+                    name: newProduct.name || newProduct.productName,
+                    unit: 'quả',
+                    price,
+                    quantity,
+                    total,
+                    productId: newProduct.id,
+                    salePrice: 0,
+                    zoneId: '',
+                    expireDate: defaultExpireDate,
+                },
+            ]);
+        }
+    };
+
+    // Cập nhật category products khi products thay đổi
+    useEffect(() => {
+        if (selectedCategory) {
+            const filteredProducts = products.filter(product => 
+                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
+            );
+            setCategoryProducts(filteredProducts);
+        }
+    }, [products, selectedCategory]);
+
+    // Cập nhật search results khi products thay đổi
+    useEffect(() => {
+        if (searchTerm.trim() !== '') {
+            const results = products.filter(
+                (p) =>
+                    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    p.code?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredProducts(results);
+        }
+    }, [products, searchTerm]);
 
     const formatCurrency = (value) => {
         const number = Number(value);
@@ -155,8 +215,7 @@ const ImportPage = () => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
             const price = 0; // Để user nhập vào
             const quantity = 1;
-            const discount = 0;
-            const total = price * quantity - discount;
+            const total = price * quantity;
             const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
 
             setSelectedProducts((prev) => [
@@ -167,8 +226,6 @@ const ImportPage = () => {
                     unit: 'quả',
                     price,
                     quantity,
-                    discount: 0,
-                    discountType: 'amount',
                     total,
                     productId: product.id,
                     salePrice: 0,
@@ -188,6 +245,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, p.quantity + delta),
+                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
                     }
                     : p
             )
@@ -201,6 +259,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, newQuantity),
+                        total: (p.price || 0) * Math.max(1, newQuantity),
                     }
                     : p
             )
@@ -214,6 +273,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         price: newPrice,
+                        total: newPrice * (p.quantity || 0),
                     }
                     : p
             )
@@ -305,8 +365,8 @@ const ImportPage = () => {
                 supplierId: selectedSupplier,
                 storeId: 1,
                 staffId: currentUser?.id || 1,
-                createdBy: currentUser?.id || 1,
                 importTransactionNote: note,
+                paidAmount: paidAmount,
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -322,6 +382,8 @@ const ImportPage = () => {
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
             // setImportCode('');
         } catch (err) {
             console.error('Error creating import transaction:', err);
@@ -352,8 +414,8 @@ const ImportPage = () => {
                 supplierId: selectedSupplier,
                 storeId: 1,
                 staffId: currentUser?.id || 1,
-                createdBy: currentUser?.id || 1,
                 importTransactionNote: note,
+                paidAmount: paidAmount,
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -369,6 +431,8 @@ const ImportPage = () => {
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
             // setImportCode('');
         } catch (err) {
             console.error('Error creating import transaction:', err);
@@ -509,11 +573,15 @@ const ImportPage = () => {
             field: 'total',
             headerName: 'Thành tiền',
             width: 150,
-            valueGetter: (params) => {
-                const row = params?.row ?? {};
-                return (row.price || 0) * (row.quantity || 0);
+            valueFormatter: (params) => formatCurrency(params.value || 0),
+            renderCell: (params) => {
+                const total = params.value || 0;
+                return (
+                    <div className="text-right w-full">
+                        {formatCurrency(total)}
+                    </div>
+                );
             },
-            valueFormatter: (params) => formatCurrency(params.value),
         },
         columnVisibility['Zone'] && {
             field: 'zoneId',
@@ -607,7 +675,7 @@ const ImportPage = () => {
         },
     ].filter(Boolean);
 
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -724,39 +792,95 @@ const ImportPage = () => {
                             }
                         }}
                     />
-
                 </div>
 
-                <div className="font-semibold">Trạng thái</div>
-                <FormControlLabel control={<Checkbox checked />} label="Phiếu tạm" />
+                <div>
+                    <div className="font-semibold mb-1">Ghi chú</div>
+                    <TextField
+                        multiline
+                        rows={2}
+                        placeholder="Ghi chú"
+                        fullWidth
+                        variant="standard"
+                        size="small"
+                        value={note}
+                        onChange={e => setNote(e.target.value)}
+                        sx={{
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            }
+                        }}
+                    />
+                </div>
 
                 <div className="flex justify-between items-center">
                     <div className="font-semibold">Tổng tiền hàng</div>
                     <div className="text-right w-32">{formatCurrency(totalAmount)}</div>
                 </div>
 
-                <TextField
-                    multiline
-                    rows={2}
-                    placeholder="Ghi chú"
-                    fullWidth
-                    variant="standard"
-                    size="small"
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    sx={{
-                        '& .MuiInput-underline:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                        '& .MuiInput-underline:after': {
-                            borderBottomColor: '#1976d2',
-                        },
-                        '& .MuiInput-underline:hover:before': {
-                            borderBottomColor: 'transparent',
-                        }
-                    }}
-                />
+                <div>
+                    <div className="font-semibold mb-1">Số tiền đã trả</div>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        type="number"
+                        placeholder="0"
+                        value={paidAmount}
+                        onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            setPaidAmount(Math.max(0, value));
+                        }}
+                        InputProps={{
+                            endAdornment: <span className="text-gray-500">VND</span>,
+                        }}
+                        variant="standard"
+                        sx={{
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            }
+                        }}
+                    />
+                </div>
 
+                {paidAmount > 0 && (
+                    <div className="flex justify-between items-center">
+                        <div className="font-semibold">Còn lại</div>
+                        <div className={`text-right w-32 ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatCurrency(totalAmount - paidAmount)}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-2">
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => setPaidAmount(0)}
+                        disabled={paidAmount === 0}
+                    >
+                        Chưa trả
+                    </Button>
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => setPaidAmount(totalAmount)}
+                        disabled={paidAmount === totalAmount}
+                    >
+                        Trả đủ
+                    </Button>
+                </div>
 
                 <div className="flex gap-2 pt-2">
                     <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={handleSaveDraft} disabled={loading}>Lưu tạm</Button>
@@ -764,7 +888,12 @@ const ImportPage = () => {
                 </div>
             </div>
 
-            <AddProductDialog open={openDialog} onClose={() => setOpenDialog(false)} />
+            <AddProductDialog 
+                open={openDialog} 
+                onClose={() => setOpenDialog(false)} 
+                onProductCreated={refreshProducts}
+                onProductAdded={handleAddNewProduct}
+            />
 
             {/* Category Dialog */}
             <Dialog 

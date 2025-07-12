@@ -5,9 +5,13 @@ import {
     FormControl, FormLabel, Accordion, AccordionSummary,
     AccordionDetails, Popover, Dialog, DialogTitle, DialogContent,
     Table, TableHead, TableRow, TableCell, TableBody,
-    Alert, CircularProgress
+    Alert, CircularProgress, Menu, MenuItem, ListItemIcon, ListItemText, Chip
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { FaPlus, FaFileExport } from "react-icons/fa";
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
@@ -20,12 +24,15 @@ import {
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
+import { getCustomerById } from "../../services/customerService";
+import { userService } from "../../services/userService";
 import ReplyIcon from '@mui/icons-material/Reply';
 import SaveIcon from '@mui/icons-material/Save';
 import ReplyAllIcon from '@mui/icons-material/ReplyAll';
 import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
+import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
 
 const getRange = (key) => {
     const today = new Date();
@@ -90,6 +97,10 @@ const ImportTransactionPage = () => {
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [selectedDetails, setSelectedDetails] = useState([]);
+    const [actionAnchorEl, setActionAnchorEl] = useState(null);
+    const [actionRow, setActionRow] = useState(null);
+    const [supplierDetails, setSupplierDetails] = useState(null);
+    const [userDetails, setUserDetails] = useState(null);
 
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
@@ -176,8 +187,31 @@ const ImportTransactionPage = () => {
     const handleViewDetail = async (row) => {
         try {
             const transaction = await importTransactionService.getWithDetails(row.id);
-            setSelectedTransaction(transaction); // Lưu toàn bộ object, bao gồm status
+            setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
+            
+            // Fetch thông tin supplier
+            if (transaction.supplierId) {
+                try {
+                    const supplier = await getCustomerById(transaction.supplierId);
+                    setSupplierDetails(supplier);
+                } catch (error) {
+                    console.error("Lỗi khi tải thông tin supplier:", error);
+                    setSupplierDetails(null);
+                }
+            }
+            
+            // Fetch thông tin user (người tạo)
+            if (transaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(transaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    console.error("Lỗi khi tải thông tin user:", error);
+                    setUserDetails(null);
+                }
+            }
+            
             setOpenDetailDialog(true);
         } catch (error) {
             console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
@@ -210,6 +244,74 @@ const ImportTransactionPage = () => {
         }
     };
 
+    // Hàm xử lý action menu
+    const handleActionClick = (event, row) => {
+        setActionAnchorEl(event.currentTarget);
+        setActionRow(row);
+    };
+
+    const handleActionClose = () => {
+        setActionAnchorEl(null);
+        setActionRow(null);
+    };
+
+    const handleViewDetailMenu = () => {
+        handleViewDetail(actionRow);
+        handleActionClose();
+    };
+
+    const handleEdit = () => {
+        // TODO: Thêm logic sửa
+        handleActionClose();
+    };
+
+    const handleDelete = () => {
+        // TODO: Thêm logic xóa
+        handleActionClose();
+    };
+
+    // Hàm xuất file tổng
+    const handleExportAll = () => {
+        try {
+            exportImportTransactions(filteredTransactions);
+        } catch (error) {
+            console.error('Lỗi khi xuất file:', error);
+            alert('Không thể xuất file. Vui lòng thử lại!');
+        }
+    };
+
+    // Hàm xuất file chi tiết
+    const handleExportDetail = () => {
+        try {
+            if (selectedTransaction && selectedDetails) {
+                exportImportTransactionDetail(selectedTransaction, selectedDetails, supplierDetails, userDetails);
+            }
+        } catch (error) {
+            console.error('Lỗi khi xuất file chi tiết:', error);
+            alert('Không thể xuất file chi tiết. Vui lòng thử lại!');
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'WAITING_FOR_APPROVE': return '#f59e0b'; // Vàng
+            case 'COMPLETE': return '#10b981'; // Xanh lá
+            case 'CANCEL': return '#ef4444'; // Đỏ
+            case 'DRAFT': return '#6b7280'; // Đỏ
+            default: return '#6b7280'; // Mặc định
+        }
+    };
+
+    const getStatusLabel = (status) => {
+        switch (status) {
+            case 'WAITING_FOR_APPROVE': return 'Chờ xử lý';
+            case 'COMPLETE': return 'Đã hoàn thành';
+            case 'CANCEL': return 'Đã hủy';
+            case 'DRAFT': return 'Nháp';
+            default: return status;
+        }
+    };
+
 
     const columns = [
         { field: 'id', headerName: 'ID', flex: 0.5 },
@@ -235,6 +337,29 @@ const ImportTransactionPage = () => {
                     return params.value.toLocaleString('vi-VN') + ' VNĐ';
                 }
                 return '0 VNĐ';
+            }
+        },
+        {
+            field: 'paidAmount',
+            headerName: 'Đã thanh toán',
+            flex: 1,
+            renderCell: (params) => {
+                const paid = params.value || 0;
+                const total = params.row.totalAmount || 0;
+                let color = '#6b7280'; // default gray
+                let label = paid.toLocaleString('vi-VN') + ' VNĐ';
+                
+                if (paid < total) {
+                    color = '#ef4444'; // đỏ nếu trả thiếu hoặc chưa trả
+                } else if (paid === total) {
+                    color = '#10b981'; // xanh nếu trả đủ
+                } else if (paid > total) {
+                    color = '#f59e42'; // cam nếu trả dư
+                }
+                
+                return (
+                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                );
             }
         },
         {
@@ -269,19 +394,20 @@ const ImportTransactionPage = () => {
         {
             field: 'actions',
             headerName: 'Hành động',
-            width: 130,
+            width: 80,
             renderCell: (params) => (
-                <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={(event) => {
-                        event.stopPropagation(); // ngăn click lan ra ngoài
-                        handleViewDetail(params.row);
-                    }}
-                >
-                    Chi tiết
-                </Button>
-
+                <>
+                    <Button
+                        size="small"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleActionClick(event, params.row);
+                        }}
+                        sx={{ minWidth: 0, p: 1 }}
+                    >
+                        <MoreHorizIcon />
+                    </Button>
+                </>
             )
         }
     ];
@@ -296,7 +422,9 @@ const ImportTransactionPage = () => {
                             Nhập hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />}>Xuất file</Button>
+                    <Button variant="outlined" startIcon={<FaFileExport />} onClick={handleExportAll}>
+                        Xuất file
+                    </Button>
                 </div>
             </div>
 
@@ -462,61 +590,84 @@ const ImportTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu nhập */}
-            <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
+            <Dialog open={openDetailDialog} onClose={() => {
+                setOpenDetailDialog(false);
+                setSupplierDetails(null);
+                setUserDetails(null);
+            }} maxWidth="md" fullWidth>
                 <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
                 <DialogContent>
-                    {selectedDetails.length > 0 ? (
-                        <>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Sản phẩm</TableCell>
-                                        <TableCell>SL nhập</TableCell>
-                                        <TableCell>SL còn</TableCell>
-                                        <TableCell>Giá nhập</TableCell>
-                                        <TableCell>Giá bán</TableCell>
-                                        <TableCell>HSD</TableCell>
-                                        <TableCell>Khu vực</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {selectedDetails.map((detail, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{detail.productName}</TableCell>
-                                            <TableCell>{detail.importQuantity}</TableCell>
-                                            <TableCell>{detail.remainQuantity}</TableCell>
-                                            <TableCell>{detail.unitImportPrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                            <TableCell>{detail.unitSalePrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                            <TableCell>{new Date(detail.expireDate).toLocaleDateString("vi-VN")}</TableCell>
-                                            <TableCell>{detail.zones_id}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            {/* Tổng kết ngoài bảng */}
-                            <div style={{ width: '100%', marginTop: 16, maxWidth: 250, marginLeft: 'auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng số lượng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + (d.importQuantity || 0), 0)}</span>
+                    {selectedTransaction ? (
+                        <div>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <strong>Nhà cung cấp:</strong> {supplierDetails ? supplierDetails.name : (selectedTransaction.supplierName || 'N/A')}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng số mặt hàng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.length}</span>
+                                <div>
+                                    <strong>Người tạo:</strong> {userDetails ? userDetails.username : (selectedTransaction.createdBy || 'N/A')}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng tiền hàng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                <div>
+                                    <strong>Thời gian:</strong> {selectedTransaction.importDate ? new Date(selectedTransaction.importDate).toLocaleString('vi-VN') : ''}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 700 }}>Tổng cộng:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ fontWeight: 700}}>Tiền đã trả NCC:</span>
-                                    <span style={{ fontWeight: 700, color: '#1976d2' }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
+                                <div>
+                                    <strong>Trạng thái:</strong> 
+                                    <Chip
+                                        label={getStatusLabel(selectedTransaction.status)}
+                                        style={{
+                                            backgroundColor: getStatusColor(selectedTransaction.status),
+                                            color: '#fff',
+                                            marginLeft: 8
+                                        }}
+                                        size="small"
+                                    />
                                 </div>
                             </div>
-                        </>
+                            
+                            {selectedDetails && selectedDetails.length > 0 ? (
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Sản phẩm</TableCell>
+                                            <TableCell>SL nhập</TableCell>
+                                            <TableCell>SL còn</TableCell>
+                                            <TableCell>Giá nhập</TableCell>
+                                            <TableCell>Giá bán</TableCell>
+                                            <TableCell>Thành tiền</TableCell>
+                                            <TableCell>HSD</TableCell>
+                                            <TableCell>Khu vực</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {selectedDetails.map((detail, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{detail.productName}</TableCell>
+                                                <TableCell>{detail.importQuantity}</TableCell>
+                                                <TableCell>{detail.remainQuantity}</TableCell>
+                                                <TableCell>{detail.unitImportPrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
+                                                <TableCell>{detail.unitSalePrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
+                                                <TableCell>{((detail.unitImportPrice || 0) * (detail.importQuantity || 0)).toLocaleString('vi-VN')} VNĐ</TableCell>
+                                                <TableCell>{detail.expireDate ? new Date(detail.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>
+                                                <TableCell>{detail.zones_id}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <p>Không có dữ liệu chi tiết.</p>
+                            )}
+                            
+                            <div className="mt-4 text-right">
+                                <div className="text-lg font-semibold">
+                                    Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ
+                                </div>
+                                <div className="text-md">
+                                    Đã thanh toán: {selectedTransaction.paidAmount?.toLocaleString('vi-VN')} VNĐ
+                                </div>
+                                <div className="text-md">
+                                    Còn lại: {(selectedTransaction.totalAmount - (selectedTransaction.paidAmount || 0)).toLocaleString('vi-VN')} VNĐ
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <p>Không có dữ liệu chi tiết.</p>
                     )}
@@ -535,10 +686,10 @@ const ImportTransactionPage = () => {
                   <Button
                     variant="contained"
                     style={{ background: '#6b7280', color: '#fff' }}
-                    startIcon={<PrintIcon />}
-                    onClick={() => alert('In tem mã')}
+                    startIcon={<FaFileExport />}
+                    onClick={handleExportDetail}
                   >
-                    In tem mã
+                    Xuất file
                   </Button>
                   <Button
                     variant="contained"
@@ -556,6 +707,40 @@ const ImportTransactionPage = () => {
                   <Alert severity="error" className="mt-2">{openError}</Alert>
                 )}
             </Dialog>
+
+            {/* Action Menu */}
+            <Menu
+                anchorEl={actionAnchorEl}
+                open={Boolean(actionAnchorEl)}
+                onClose={handleActionClose}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <MenuItem onClick={handleViewDetailMenu}>
+                    <ListItemIcon>
+                        <VisibilityIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Xem chi tiết</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleEdit}>
+                    <ListItemIcon>
+                        <EditIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Sửa</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleDelete}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Xóa</ListItemText>
+                </MenuItem>
+            </Menu>
 
         </div>
     );

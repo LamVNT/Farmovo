@@ -124,15 +124,15 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
     private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
         for (ProductSaleResponseDto item : items) {
-            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getImportId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + item.getImportId()));
+            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + item.getId()));
 
             if (!batch.getProduct().getId().equals(item.getProId())) {
                 throw new BadRequestException("Batch does not belong to selected product (productId=" + item.getProId() + ")");
             }
 
             if (batch.getRemainQuantity() < item.getQuantity()) {
-                throw new BadRequestException("Not enough stock in batch ID: " + item.getImportId() +
+                throw new BadRequestException("Not enough stock in batch ID: " + item.getId() +
                         " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
             }
 
@@ -140,7 +140,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             importTransactionDetailRepository.save(batch);
 
             log.debug("Deducted {} units from batch ID: {}, remaining: {}",
-                    item.getQuantity(), item.getImportId(), batch.getRemainQuantity());
+                    item.getQuantity(), item.getId(), batch.getRemainQuantity());
         }
     }
 

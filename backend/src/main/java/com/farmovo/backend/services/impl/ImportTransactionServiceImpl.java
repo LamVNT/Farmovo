@@ -51,7 +51,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setImportTransactionNote(dto.getImportTransactionNote());
         transaction.setImportDate(LocalDateTime.now());
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
-        transaction.setCreatedBy(dto.getCreatedBy());
 
         // Sinh mã name tự động
         Long lastId = importTransactionRepository.findTopByOrderByIdDesc()

@@ -74,12 +74,28 @@ public class ImportTransationController {
 
     @PostMapping("/save")
     public ResponseEntity<?> create(@RequestBody CreateImportTransactionRequestDto dto, HttpServletRequest request) {
+        try {
+            System.out.println("=== DEBUG IMPORT TRANSACTION CREATE ===");
+            System.out.println("DTO: " + dto);
+            System.out.println("Supplier ID: " + dto.getSupplierId());
+            System.out.println("Store ID: " + dto.getStoreId());
+            System.out.println("Staff ID: " + dto.getStaffId());
+            System.out.println("Details count: " + (dto.getDetails() != null ? dto.getDetails().size() : 0));
+            
         String token = jwtUtils.getJwtFromCookies(request);
         if (token != null && jwtUtils.validateJwtToken(token)) {
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
+                System.out.println("User ID: " + userId);
             importTransactionService.createImportTransaction(dto, userId);
-        }
         return ResponseEntity.ok("Tạo phiếu nhập thành công");
+            } else {
+                return ResponseEntity.badRequest().body("Token không hợp lệ");
+            }
+        } catch (Exception e) {
+            System.err.println("Error creating import transaction: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        }
     }
 
     @GetMapping("/next-code")

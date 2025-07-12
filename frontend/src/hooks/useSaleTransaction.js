@@ -114,7 +114,7 @@ export const useSaleTransaction = () => {
                 const price = batch.unitSalePrice || 0;
                 const total = price * 1;
                 
-                const existingIndex = selectedProducts.findIndex(item => item.id === batch.id);
+                const existingIndex = selectedProducts.findIndex(item => item.batchId === batch.id);
                 if (existingIndex >= 0) {
                     const updatedDetail = [...selectedProducts];
                     const newQuantity = updatedDetail[existingIndex].quantity + 1;
@@ -165,7 +165,7 @@ export const useSaleTransaction = () => {
         const newProducts = [];
         
         for (const selectedBatchData of selectedBatches) {
-            const { batch, quantity } = selectedBatchData;
+            const { batch, quantity, batchId } = selectedBatchData;
             
             if (quantity > batch.remainQuantity) {
                 setError(`Số lượng vượt quá tồn kho cho batch ${batch.id}. Còn lại: ${batch.remainQuantity}`);
@@ -173,7 +173,7 @@ export const useSaleTransaction = () => {
                 break;
             }
             
-            const existingIndex = selectedProducts.findIndex(item => item.id === batch.id);
+            const existingIndex = selectedProducts.findIndex(item => item.batchId === batchId);
             if (existingIndex >= 0) {
                 const updatedDetail = [...selectedProducts];
                 const newQuantity = updatedDetail[existingIndex].quantity + quantity;
