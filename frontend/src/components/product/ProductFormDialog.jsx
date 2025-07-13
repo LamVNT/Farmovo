@@ -41,12 +41,12 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                 {editMode && (
                     <TextField label="ID" fullWidth disabled margin="dense" value={form.id || 'N/A'} />
                 )}
-                <TextField label="Tên sản phẩm" name="name" fullWidth margin="dense"
-                           value={form.name || ''} onChange={handleChange} required />
-                <TextField label="Mô tả" name="detail" fullWidth margin="dense"
-                           value={form.detail || ''} onChange={handleChange} multiline />
-                <TextField label="Số lượng" name="quantity" type="number" fullWidth margin="dense"
-                           value={form.quantity || 0} onChange={handleChange} />
+                <TextField label="Tên sản phẩm" name="productName" fullWidth margin="dense"
+                           value={form.productName || ''} onChange={handleChange} required />
+                <TextField label="Mô tả" name="productDescription" fullWidth margin="dense"
+                           value={form.productDescription || ''} onChange={handleChange} multiline />
+                <TextField label="Số lượng" name="productQuantity" type="number" fullWidth margin="dense"
+                           value={form.productQuantity || 0} onChange={handleChange} />
                 <Autocomplete
                     options={categories}
                     getOptionLabel={(opt) => opt.name}

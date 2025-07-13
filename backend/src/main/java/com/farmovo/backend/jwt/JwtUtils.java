@@ -1,11 +1,9 @@
 package com.farmovo.backend.jwt;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +33,46 @@ public class JwtUtils {
         return null;
     }
 
-    public String generateTokenFromUsername(UserDetails userDetails) {
-        String username = userDetails.getUsername();
+    public String getJwtFromCookies(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+//    public String generateTokenFromUsername(UserDetails userDetails) {
+//        String username = userDetails.getUsername();
+//        return Jwts.builder()
+//                .subject(username)
+//                .issuedAt(new Date())
+//                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+//                .signWith(key())
+//                .compact();
+//
+//    }
+
+    public Long getUserIdFromJwtToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.get("userId", Long.class); // hoặc Integer.class tùy kiểu dữ liệu
+    }
+
+
+    public String generateTokenWithUserId(UserDetails userDetails, Long userId) {
         return Jwts.builder()
-                .subject(username)
+                .subject(userDetails.getUsername())
+                .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key())
                 .compact();
-
     }
 
     public String getUsernameFromJwtToken(String token) {

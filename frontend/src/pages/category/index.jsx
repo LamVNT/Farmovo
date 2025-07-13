@@ -5,6 +5,7 @@ import { FaPlus } from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
 import { getCategories, createCategory, updateCategory, deleteCategory } from "../../services/categoryService";
+import TablePagination from '@mui/material/TablePagination';
 
 const Category = () => {
     const [categories, setCategories] = useState([]);
@@ -14,6 +15,13 @@ const Category = () => {
     const [form, setForm] = useState({ id: null, name: "", description: "" });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // Xoá các state và logic phân trang ở ngoài
+    // const [page, setPage] = useState(0);
+    // const [rowsPerPage, setRowsPerPage] = useState(5);
+    // const paginatedCategories = useMemo(() =>
+    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    //     [filteredCategories, page, rowsPerPage]
+    // );
 
     useEffect(() => {
         const fetch = async () => {
@@ -33,6 +41,12 @@ const Category = () => {
         categories.filter(cat =>
             cat.name.toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, categories]);
+
+    // Xoá các state và logic phân trang ở ngoài
+    // const paginatedCategories = useMemo(() =>
+    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    //     [filteredCategories, page, rowsPerPage]
+    // );
 
     const handleOpenCreate = () => {
         setForm({ id: null, name: "", description: "" });
@@ -99,6 +113,8 @@ const Category = () => {
                 onEdit={handleOpenEdit}
                 onDelete={handleDelete}
             />
+
+            {/* Xoá TablePagination ở ngoài */}
 
             <CategoryFormDialog
                 open={openDialog}

@@ -2,8 +2,11 @@ package com.farmovo.backend.exceptions;
 
 import com.farmovo.backend.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
@@ -15,6 +18,9 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger logger = LogManager.getLogger(GlobalExceptionHandler.class);
+
+    @Autowired
+    private HttpServletRequest request;
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthError(
@@ -42,6 +48,7 @@ public class GlobalExceptionHandler {
         logger.error("User not found error: {}", ex.getMessage());
         return new ResponseEntity<>(userNotFound, HttpStatus.NOT_FOUND);
     }
+
 
     @ExceptionHandler(UserManagementException.class)
     public ResponseEntity<String> handleUserManagementException(UserManagementException ex) {
@@ -99,4 +106,28 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error: {} at {}", ex.getMessage(), request.getRequestURI(), ex);
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                "Resource not found",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                "Invalid request",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+
 }
