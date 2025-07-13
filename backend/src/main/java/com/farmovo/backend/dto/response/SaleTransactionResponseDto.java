@@ -21,6 +21,7 @@ public class SaleTransactionResponseDto {
     private LocalDateTime saleDate;
     private String customerName;
     private String storeName;
+    private Long createdBy;
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
 }
 

@@ -32,6 +32,7 @@ public interface ProductMapper {
     @Mapping(source = "productQuantity", target = "remainQuantity")
     @Mapping(target = "unitSalePrice", constant = "0")
     @Mapping(target = "quantity", constant = "0")
+    @Mapping(target = "id", constant = "0L")
     ProductSaleResponseDto toDtoProSale(Product product);
 
     List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
@@ -44,7 +45,7 @@ public interface ProductMapper {
     ProductResponseDto toDto(ImportTransactionDetail detail);
 
 
-    @Mapping(source = "id", target = "importId")
+    @Mapping(source = "id", target = "id")
     @Mapping(source = "product.productName", target = "productName") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "productCode") // Sử dụng productId làm productCode
     @Mapping(source = "product.id", target = "proId")

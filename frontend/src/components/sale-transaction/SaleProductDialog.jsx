@@ -24,17 +24,17 @@ const SaleProductDialog = ({
     const [selectedBatches, setSelectedBatches] = useState(selectedBatchesForDialog);
 
     const handleBatchSelection = (batch) => {
-        const isSelected = selectedBatches.some(b => b.id === batch.id);
+        const isSelected = selectedBatches.some(b => b.batchId === batch.id);
         if (isSelected) {
-            setSelectedBatches(prev => prev.filter(b => b.id !== batch.id));
+            setSelectedBatches(prev => prev.filter(b => b.batchId !== batch.id));
         } else {
-            setSelectedBatches(prev => [...prev, { id: batch.id, batch, quantity: 1 }]);
+            setSelectedBatches(prev => [...prev, { id: `${batch.id}-${prev.length}`, batchId: batch.id, batch, quantity: 1 }]);
         }
     };
 
     const handleQuantityChange = (batchId, quantity) => {
         setSelectedBatches(prev => 
-            prev.map(b => b.id === batchId ? { ...b, quantity } : b)
+            prev.map(b => b.batchId === batchId ? { ...b, quantity } : b)
         );
     };
 
@@ -79,8 +79,8 @@ const SaleProductDialog = ({
                             availableBatches.length > 0 ? (
                                 <>
                                     {availableBatches.map(batch => {
-                                        const isSelected = selectedBatches.some(b => b.id === batch.id);
-                                        const selectedBatchData = selectedBatches.find(b => b.id === batch.id);
+                                        const isSelected = selectedBatches.some(b => b.batchId === batch.id);
+                                        const selectedBatchData = selectedBatches.find(b => b.batchId === batch.id);
                                         const quantity = selectedBatchData ? selectedBatchData.quantity : 1;
                                         
                                         return (

@@ -1,21 +1,24 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.*;
-import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
-import com.farmovo.backend.exceptions.ResourceNotFoundException;
-import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.dto.response.StoreResponseDto;
+import com.farmovo.backend.exceptions.ResourceNotFoundException;
+import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
+import com.farmovo.backend.exceptions.InsufficientStockException;
+import com.farmovo.backend.exceptions.BadRequestException;
+import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.repositories.*;
+import com.farmovo.backend.models.Store;
+import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
+import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,23 +30,25 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SaleTransactionController {
 
+    private static final Logger log = LogManager.getLogger(SaleTransactionController.class);
+
     private final ImportTransactionDetailRepository detailRepository;
     private final ProductMapper productMapper;
     private final SaleTransactionService saleTransactionService;
     private final CustomerService customerService;
     private final ProductService productService;
-    private final ZoneService zoneService;
-    private final ImportTransactionDetailService importTransactionDetailService;
+    private final StoreService storeService;
     private final ProductRepository productRepository;
     private final JwtUtils jwtUtils;
 
-    private final StoreService storeService;
-
-
     @GetMapping("/create-form-data")
     public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
+        log.info("Getting create form data for sale transaction");
+        
         List<CustomerDto> customers = customerService.getAllCustomerDto();
-        List<StoreResponseDto> stores = storeService.getAllStores().stream()
+        List<Store> storeEntities = storeService.getAllStores();
+        
+        List<StoreResponseDto> stores = storeEntities.stream()
                 .map(store -> {
                     StoreResponseDto dto = new StoreResponseDto();
                     dto.setId(store.getId());
@@ -54,7 +59,6 @@ public class SaleTransactionController {
                 })
                 .collect(Collectors.toList());
 
-        // Lấy sản phẩm từ ImportTransactionDetail có remainQuantity > 0
         List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
         List<ProductSaleResponseDto> products;
 
@@ -63,88 +67,98 @@ public class SaleTransactionController {
                     .map(productMapper::toDtoSale)
                     .collect(Collectors.toList());
         } else {
-            // Fallback: lấy từ Product nếu không có ImportTransactionDetail
             products = productService.getAllProductSaleDto();
-        }
-
-        // Debug logging
-        System.out.println("=== DEBUG SALE TRANSACTION CREATE FORM DATA ===");
-        System.out.println("Customers count: " + customers.size());
-        System.out.println("Stores count: " + stores.size());
-        System.out.println("Products count: " + products.size());
-        System.out.println("Available details count: " + availableDetails.size());
-
-        if (!products.isEmpty()) {
-            System.out.println("First product: " + products.get(0));
         }
 
         SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
         formData.setCustomers(customers);
+        formData.setStores(stores);
         formData.setProducts(products);
+        
+        log.debug("Form data prepared: {} customers, {} stores, {} products, {} available details", 
+                customers.size(), stores.size(), products.size(), availableDetails.size());
+        
         return ResponseEntity.ok(formData);
     }
 
     @GetMapping("/product-response/{productId}")
     public ResponseEntity<List<ProductSaleResponseDto>> listAllProductResponseDtoByIdPro(@PathVariable Long productId) {
-        // Kiểm tra sản phẩm có tồn tại không
+        log.info("Getting product response details for product ID: {}", productId);
+        
         productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product không tồn tại với ID: " + productId));
 
         List<ImportTransactionDetail> details = detailRepository.findCompletedDetailsWithQuantityByProductId(productId);
         if (details.isEmpty()) {
-            throw new ResourceNotFoundException("Không tìm thấy lô hàng còn tồn cho sản phẩm ID: " + productId);
+            log.warn("No available stock found for product ID: {}", productId);
+            throw new InsufficientStockException("Không tìm thấy lô hàng còn tồn cho sản phẩm ID: " + productId);
         }
+        
         List<ProductSaleResponseDto> result = details.stream()
                 .map(productMapper::toDtoSale)
                 .collect(Collectors.toList());
+        
+        log.debug("Found {} available details for product ID: {}", result.size(), productId);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/save")
     public ResponseEntity<String> save(@RequestBody CreateSaleTransactionRequestDto dto, HttpServletRequest request) {
+        log.info("Creating new sale transaction for customerId={}, storeId={}, totalAmount={}", 
+                dto.getCustomerId(), dto.getStoreId(), dto.getTotalAmount());
+        
         String token = jwtUtils.getJwtFromCookies(request);
         if (token != null && jwtUtils.validateJwtToken(token)) {
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            saleTransactionService.save(dto,userId);
+            log.debug("User ID from token: {}", userId);
+            
+            saleTransactionService.save(dto, userId);
+            
+            log.info("Sale transaction created successfully by user: {}", userId);
+            return ResponseEntity.ok("Sale transaction saved successfully.");
+        } else {
+            log.warn("Invalid or missing JWT token in request");
+            throw new BadRequestException("Token không hợp lệ hoặc đã hết hạn");
         }
-        return ResponseEntity.ok("Sale transaction saved successfully.");
     }
 
     @GetMapping("/list-all")
     public ResponseEntity<List<SaleTransactionResponseDto>> listAllSaleTransactions() {
+        log.info("Getting all sale transactions");
+        
         List<SaleTransactionResponseDto> transactions = saleTransactionService.getAll();
+        
+        log.debug("Retrieved {} sale transactions", transactions.size());
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<SaleTransactionResponseDto> getSaleTransactionById(@PathVariable Long id) {
+        log.info("Getting sale transaction by ID: {}", id);
+        
+        try {
+            SaleTransactionResponseDto transaction = saleTransactionService.getById(id);
+            log.debug("Retrieved sale transaction with ID: {}", id);
+            return ResponseEntity.ok(transaction);
+        } catch (SaleTransactionNotFoundException e) {
+            log.error("Sale transaction not found: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error retrieving sale transaction: {}", id, e);
+            throw new BadRequestException("Không thể lấy thông tin phiếu bán hàng: " + e.getMessage());
+        }
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<String> updateSaleTransaction(
             @PathVariable Long id,
             @RequestBody CreateSaleTransactionRequestDto dto) {
+        log.info("Updating sale transaction with ID: {}", id);
+        
         saleTransactionService.updateSaleTransaction(id, dto);
+        
+        log.info("Sale transaction with ID: {} updated successfully", id);
         return ResponseEntity.ok("Sale transaction updated successfully");
-    }
-
-    @GetMapping("/test-data")
-    public ResponseEntity<String> testData() {
-        List<ImportTransactionDetail> allDetails = detailRepository.findAll();
-        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
-
-        StringBuilder result = new StringBuilder();
-        result.append("=== TEST DATA ===\n");
-        result.append("Total ImportTransactionDetail: ").append(allDetails.size()).append("\n");
-        result.append("Available details (remainQuantity > 0): ").append(availableDetails.size()).append("\n");
-
-        if (!availableDetails.isEmpty()) {
-            result.append("\nFirst available detail:\n");
-            ImportTransactionDetail first = availableDetails.get(0);
-            result.append("ID: ").append(first.getId()).append("\n");
-            result.append("Product ID: ").append(first.getProduct().getId()).append("\n");
-            result.append("Product Name: ").append(first.getProduct().getProductName()).append("\n");
-            result.append("Remain Quantity: ").append(first.getRemainQuantity()).append("\n");
-            result.append("Unit Sale Price: ").append(first.getUnitSalePrice()).append("\n");
-        }
-
-        return ResponseEntity.ok(result.toString());
     }
 }
 

@@ -19,4 +19,6 @@ public interface SaleTransactionService {
 
     List<SaleTransactionResponseDto> getAll();
 
+    SaleTransactionResponseDto getById(Long id);
+
 }

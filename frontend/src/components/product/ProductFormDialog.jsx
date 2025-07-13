@@ -43,7 +43,7 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                 )}
                 <TextField label="Tên sản phẩm" name="productName" fullWidth margin="dense"
                            value={form.productName || ''} onChange={handleChange} required />
-                <TextField label="Mô tả" name="productDescription" fullWidth margin="dense"
+                <TextField label="Mô tả sản phẩm" name="productDescription" fullWidth margin="dense"
                            value={form.productDescription || ''} onChange={handleChange} multiline />
                 <TextField label="Số lượng" name="productQuantity" type="number" fullWidth margin="dense"
                            value={form.productQuantity || 0} onChange={handleChange} />

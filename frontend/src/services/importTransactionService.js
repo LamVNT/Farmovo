@@ -17,7 +17,7 @@ const importTransactionService = {
     },
 
     async create(dto) {
-        const res = await api.post('/import-transaction', dto);
+        const res = await api.post('/import-transaction/save', dto);
         return res.data;
     },
 
