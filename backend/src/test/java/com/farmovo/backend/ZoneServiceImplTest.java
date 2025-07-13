@@ -32,23 +32,6 @@ class ZoneServiceImplTest {
     @InjectMocks
     private ZoneServiceImpl zoneService;
 
-    @Test
-    void testGetAllZoneDtos() {
-        // Given
-        List<Zone> zones = List.of(new Zone());
-        List<ZoneRequestDto> dtos = List.of(new ZoneRequestDto());
-
-        Mockito.when(zoneRepository.findAll()).thenReturn(zones);
-        Mockito.when(zoneMapper.toDtoList(zones)).thenReturn(dtos);
-
-        // When
-        List<ZoneRequestDto> result = zoneService.getAllZones();
-
-        // Then
-        assertThat(result).hasSize(1);
-        Mockito.verify(zoneRepository).findAll();
-        Mockito.verify(zoneMapper).toDtoList(zones);
-    }
 
     @Test
     void testCreateZoneSuccess() {

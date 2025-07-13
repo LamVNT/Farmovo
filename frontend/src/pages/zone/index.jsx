@@ -70,40 +70,7 @@ const Zone = () => {
         setConfirmOpen(true);
     };
 
-    // const handleDelete = async (id) => {
-    //     if (window.confirm("Are you sure you want to delete this zone?")) {
-    //         try {
-    //             await deleteZone(id);
-    //             setZones(prev => prev.filter(z => z.id !== id));
-    //         } catch {
-    //             setError("Failed to delete zone");
-    //         }
-    //     }
-    // };
 
-    // const handleSubmit = async () => {
-    //     if (!form.zoneName.trim()) return;
-    //
-    //     const pattern = /^Z_\[\d+;\d+\]$/;
-    //     if (!pattern.test(form.zoneName)) {
-    //         setError("Zone name must follow pattern Z_[row;column] (e.g: Z_[1;2])");
-    //         return;
-    //     }
-    //
-    //     try {
-    //         if (editMode) {
-    //             const updated = await updateZone(form.id, form);
-    //             setZones(prev => prev.map(z => (z.id === form.id ? updated : z)));
-    //         } else {
-    //             const created = await createZone(form);
-    //             setZones(prev => [...prev, created]);
-    //         }
-    //         setOpenDialog(false);
-    //         setError(null);
-    //     } catch {
-    //         setError(`Failed to ${editMode ? "update" : "create"} zone`);
-    //     }
-    // };
 
     const handleSubmit = async () => {
         setZoneNameError(""); // Reset lỗi
@@ -179,11 +146,7 @@ const Zone = () => {
                     />
                 </div>
 
-                {/* Bảng Layout giữ nguyên kích thước, không bị bóp nhỏ */}
-                {/*<div className="flex-shrink-0" style={{ minWidth: "650px" }}>*/}
-                {/*    <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>*/}
-                {/*    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />*/}
-                {/*</div>*/}
+
                 <div className="flex-grow h-[500px]">
                     <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>
                     <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />

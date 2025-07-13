@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthError(
             AuthenticationException ex,
-            HttpServletRequest request // 👈 PHẢI có dòng này!
+            HttpServletRequest request // PHẢI có dòng này!
     ) {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
@@ -61,6 +61,9 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected Error: {}", ex.getMessage());
         return ResponseEntity.status(500).body("An unexpected error occurred: " + ex.getMessage());
     }
-
+//    @ExceptionHandler(ValidationException.class)
+//    public ResponseEntity<Object> handleValidationException(ValidationException ex) {
+//        return ResponseEntity.badRequest().body(new ErrorResponse("VALIDATION_ERROR", ex.getMessage()));
+//    }
 
 }
