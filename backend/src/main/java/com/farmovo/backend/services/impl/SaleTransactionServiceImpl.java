@@ -110,10 +110,13 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
 
-        BigDecimal debtAmount = totalAmount.subtract(paidAmount);
+// ✅ đúng hướng tính công nợ tích lũy: khách nợ → âm
+        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount); // Âm: khách nợ | Dương: cửa hàng nợ khách
 
-        if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "-" : "+";
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+            BigDecimal debtAmount = rawDebtAmount.abs(); // luôn DƯƠNG khi ghi xuống bảng phiếu nợ
+
             debtNoteService.createDebtNoteFromTransaction(
                     transaction.getCustomer().getId(),
                     debtAmount,
@@ -123,8 +126,10 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                     transaction.getStore().getId()
             );
 
-            log.info("Created debt note for sale transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
+            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
         }
+
+
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
     }

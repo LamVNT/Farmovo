@@ -124,7 +124,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             );
 
             log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
-        }
+    }
 
 
     }
