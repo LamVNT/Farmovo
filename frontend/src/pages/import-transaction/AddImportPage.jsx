@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import {
     TextField,
     Button,
@@ -12,56 +12,40 @@ import {
     Menu,
     FormControlLabel as MuiFormControlLabel,
     Alert,
-    CircularProgress,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
 } from '@mui/material';
-import { FaLock, FaCheck, FaSearch, FaEye } from 'react-icons/fa';
-import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
+import { FaSearch, FaEye } from 'react-icons/fa';
+import { MdCategory } from 'react-icons/md';
 import { FiPlus } from 'react-icons/fi';
 import { DataGrid } from '@mui/x-data-grid';
 import { FaRegTrashCan } from "react-icons/fa6";
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { vi } from 'date-fns/locale';
 
 // Components
-import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
-import SaleSidebar from '../../components/sale-transaction/SaleSidebar';
-import SaleSummaryDialog from '../../components/sale-transaction/SaleSummaryDialog';
+import ImportProductDialog from '../../components/import-transaction/ImportProductDialog';
+import ImportSidebar from '../../components/import-transaction/ImportSidebar';
+import AddProductDialog from './AddProductDialog';
 
 // Hooks
-import { useSaleTransaction } from '../../hooks/useSaleTransaction';
+import { useImportTransaction } from '../../hooks/useImportTransaction';
 
 // Utils
 import { formatCurrency, isValidValue } from '../../utils/formatters';
 
-const AddSalePage = () => {
+const AddImportPage = () => {
     const searchRef = useRef(null);
-    const [anchorEl, setAnchorEl] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [categoryProducts, setCategoryProducts] = useState([]);
-    const [dataGridKey, setDataGridKey] = useState(0);
-    
-    // Column visibility state - moved up before useMemo
-    const [columnVisibility, setColumnVisibility] = useState({
-        STT: true,
-        'Tên hàng': true,
-        'ĐVT': true,
-        'Số lượng': true,
-        'Đơn giá': true,
-        'Thành tiền': true,
-    });
 
-    // Custom hook for sale transaction logic
+    // Custom hook for import transaction logic
     const {
         // States
         currentUser,
         products,
-        customers,
-        stores,
+        suppliers,
         categories,
         zones,
         selectedProducts,
@@ -70,113 +54,60 @@ const AddSalePage = () => {
         success,
         
         // Form states
-        selectedCustomer,
-        selectedStore,
-        saleDate,
+        selectedSupplier,
+        nextImportCode,
         note,
-        status,
         paidAmount,
-        totalAmount,
         
         // Dialog states
         showProductDialog,
-        selectedProduct,
-        availableBatches,
+        showCategoryDialog,
+        selectedCategory,
+        categoryProducts,
         
-        // Summary dialog states
-        showSummaryDialog,
-        summaryData,
-        pendingAction,
+        // Search states
+        searchTerm,
+        filteredProducts,
+        
+        // Column visibility
+        columnVisibility,
         
         // Setters
-        setSelectedCustomer,
-        setSelectedStore,
-        setSaleDate,
+        setSelectedSupplier,
         setNote,
-        setStatus,
         setPaidAmount,
         setShowProductDialog,
         setError,
         setSuccess,
-        setShowSummaryDialog,
-        setSummaryData,
-        setPendingAction,
         
         // Handlers
+        refreshProducts,
+        handleAddNewProduct,
         handleSelectProduct,
-        handleAddProductsFromDialog,
         handleQuantityChange,
         handleQuantityInputChange,
         handlePriceChange,
+        handleSalePriceChange,
         handleDeleteProduct,
+        handleZoneChange,
+        handleExpireDateChange,
+        handleOpenCategoryDialog,
+        handleCloseCategoryDialog,
+        handleSelectCategory,
+        handleSelectCategoryProduct,
+        handleSearchChange,
+        toggleColumn,
         handleSaveDraft,
         handleComplete,
-        handleCancel,
-        handleConfirmSummary,
-        handleCloseSummary,
-    } = useSaleTransaction();
+        
+        // Utility functions
+        formatCurrency: formatCurrencyHook,
+        formatExpireDateForBackend,
+        isValidValue: isValidValueHook,
+    } = useImportTransaction();
 
-    // Handle click outside search dropdown
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (searchRef.current && !searchRef.current.contains(event.target)) {
-                setFilteredProducts([]);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Force re-render DataGrid when selectedProducts changes
-    useEffect(() => {
-        setDataGridKey(prev => prev + 1);
-    }, [selectedProducts]);
-
-    const toggleColumn = (col) => {
-        setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
-    };
-
-    const handleSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (value.trim() === '') {
-            setFilteredProducts([]);
-        } else {
-            const results = products.filter(
-                (p) =>
-                    p.productName?.toLowerCase().includes(value.toLowerCase()) ||
-                    p.productCode?.toLowerCase().includes(value.toLowerCase())
-            );
-            setFilteredProducts(results);
-        }
-    };
-
-    const handleOpenCategoryDialog = () => {
-        setShowCategoryDialog(true);
-        setSelectedCategory(null);
-        setCategoryProducts([]);
-    };
-
-    const handleCloseCategoryDialog = () => {
-        setShowCategoryDialog(false);
-        setSelectedCategory(null);
-        setCategoryProducts([]);
-    };
-
-    const handleSelectCategory = (category) => {
-        setSelectedCategory(category);
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
-        setCategoryProducts(filteredProducts);
-    };
-
-    const handleSelectCategoryProduct = (product) => {
-        handleSelectProduct(product);
-    };
+    // Calculate total amount
+    const totalAmount = selectedProducts.reduce((sum, product) => sum + (product.total || 0), 0);
 
     // Memoized columns for DataGrid
     const columns = useMemo(() => [
@@ -266,6 +197,66 @@ const AddSalePage = () => {
                 </div>
             ),
         },
+        columnVisibility['Giá bán'] && {
+            field: 'salePrice',
+            headerName: 'Giá bán',
+            width: 150,
+            renderCell: (params) => (
+                <div className="flex items-center justify-center h-full">
+                    <TextField
+                        size="small"
+                        type="number"
+                        variant="standard"
+                        value={params.row.salePrice || 0}
+                        onChange={(e) => handleSalePriceChange(params.row.id, Number(e.target.value) || 0)}
+                        InputProps={{
+                            endAdornment: <span className="text-gray-500">VND</span>,
+                        }}
+                        sx={{
+                            width: '100px',
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                display: 'none',
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
+                            }
+                        }}
+                    />
+                </div>
+            ),
+        },
+        columnVisibility['Zone'] && {
+            field: 'zoneId',
+            headerName: 'Zone',
+            width: 150,
+            renderCell: (params) => (
+                <Select
+                    size="small"
+                    value={params.row.zoneId || ''}
+                    onChange={(e) => handleZoneChange(params.row.id, e.target.value)}
+                    displayEmpty
+                    sx={{ minWidth: 120 }}
+                >
+                    <MenuItem value="">
+                        <em>Chọn zone</em>
+                    </MenuItem>
+                    {zones.map((zone) => (
+                        <MenuItem key={zone.id} value={zone.id}>
+                            {zone.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+            ),
+        },
         columnVisibility['Thành tiền'] && {
             field: 'total',
             headerName: 'Thành tiền',
@@ -300,7 +291,7 @@ const AddSalePage = () => {
                 </Tooltip>
             ),
         },
-    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct]);
+    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleSalePriceChange, handleZoneChange, handleDeleteProduct, zones]);
 
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -342,13 +333,13 @@ const AddSalePage = () => {
                                         onClick={() => handleSelectProduct(product)}
                                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                                     >
-                                        <div className="font-medium">{product.productName}</div>
+                                        <div className="font-medium">{product.name}</div>
                                         <div className="text-xs text-gray-500">
-                                            Mã: {product.productCode} | Tồn: {product.remainQuantity} | Giá: {formatCurrency(product.unitSalePrice)}
+                                            Mã: {product.code} | Giá: {formatCurrency(product.unitSalePrice || 0)}
                                         </div>
                                     </div>
                                 ))}
-                                </div>
+                            </div>
                         )}
                     </div>
 
@@ -365,7 +356,7 @@ const AddSalePage = () => {
                                         control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} 
                                         label={col} 
                                     />
-                                                    </MenuItem>
+                                </MenuItem>
                             ))}
                         </Menu>
                     </div>
@@ -373,7 +364,6 @@ const AddSalePage = () => {
 
                 <div style={{ height: 400, width: '100%' }}>
                     <DataGrid
-                        key={dataGridKey}
                         rows={selectedProducts}
                         columns={columns}
                         pageSize={5}
@@ -385,54 +375,34 @@ const AddSalePage = () => {
             </div>
 
             {/* Sidebar */}
-            <SaleSidebar
+            <ImportSidebar
                 currentUser={currentUser}
-                customers={customers}
-                stores={stores}
-                selectedCustomer={selectedCustomer}
-                selectedStore={selectedStore}
-                saleDate={saleDate}
+                suppliers={suppliers}
+                selectedSupplier={selectedSupplier}
+                nextImportCode={nextImportCode}
                 note={note}
                 paidAmount={paidAmount}
                 totalAmount={totalAmount}
                 loading={loading}
-                onCustomerChange={(e) => setSelectedCustomer(e.target.value)}
-                onStoreChange={(e) => setSelectedStore(e.target.value)}
-                onDateChange={(newValue) => setSaleDate(newValue)}
+                onSupplierChange={(e) => setSelectedSupplier(e.target.value)}
                 onNoteChange={(e) => setNote(e.target.value)}
                 onPaidAmountChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    setPaidAmount(Math.max(0, value)); // chỉ giới hạn >= 0, không giới hạn max
+                    setPaidAmount(Math.max(0, value));
                 }}
                 onSaveDraft={handleSaveDraft}
                 onComplete={handleComplete}
-                onCancel={handleCancel}
                 formatCurrency={formatCurrency}
-                isValidValue={isValidValue}
+                isValidValue={isValidValueHook}
             />
 
             {/* Product Selection Dialog */}
-            <SaleProductDialog
+            <ImportProductDialog
                 open={showProductDialog}
                 onClose={() => setShowProductDialog(false)}
                 products={products}
-                selectedProduct={selectedProduct}
-                availableBatches={availableBatches}
-                selectedBatchesForDialog={[]}
                 onSelectProduct={handleSelectProduct}
-                onSelectBatches={() => {}}
-                onAddProducts={handleAddProductsFromDialog}
                 formatCurrency={formatCurrency}
-            />
-
-            {/* Summary Dialog */}
-            <SaleSummaryDialog
-                open={showSummaryDialog}
-                onClose={handleCloseSummary}
-                onConfirm={handleConfirmSummary}
-                saleData={summaryData}
-                formatCurrency={formatCurrency}
-                loading={loading}
             />
 
             {/* Category Dialog */}
@@ -465,11 +435,11 @@ const AddSalePage = () => {
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-sm text-gray-500">
                                             {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
-                                </div>
+                                        </div>
                                     </div>
                                 ))}
-                                </div>
-                                                            </div>
+                            </div>
+                        </div>
                         
                         {/* Danh sách sản phẩm theo category */}
                         <div>
@@ -485,13 +455,13 @@ const AddSalePage = () => {
                                                 onClick={() => handleSelectCategoryProduct(product)}
                                                 className="p-3 cursor-pointer border-b hover:bg-gray-50"
                                             >
-                                                <div className="font-medium">{product.productName}</div>
+                                                <div className="font-medium">{product.name}</div>
                                                 <div className="text-sm text-gray-500">
-                                                    Mã: {product.productCode} | Tồn: {product.remainQuantity} | Giá: {formatCurrency(product.unitSalePrice)}
+                                                    Mã: {product.code} | Giá: {formatCurrency(product.unitSalePrice || 0)}
                                                 </div>
-                                                            </div>
-                                                    ))
-                                                ) : (
+                                            </div>
+                                        ))
+                                    ) : (
                                         <div className="p-4 text-center text-gray-500">
                                             Không có sản phẩm nào trong danh mục này
                                         </div>
@@ -499,11 +469,11 @@ const AddSalePage = () => {
                                 ) : (
                                     <div className="p-4 text-center text-gray-500">
                                         Vui lòng chọn một danh mục
-                                </div>
+                                    </div>
                                 )}
                             </div>
-                                                        </div>
-                                                    </div>
+                        </div>
+                    </div>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseCategoryDialog} color="primary">
@@ -511,8 +481,16 @@ const AddSalePage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Add Product Dialog */}
+            <AddProductDialog
+                open={false}
+                onClose={() => {}}
+                onAddProduct={handleAddNewProduct}
+                refreshProducts={refreshProducts}
+            />
         </div>
     );
 };
 
-export default AddSalePage; 
+export default AddImportPage; 

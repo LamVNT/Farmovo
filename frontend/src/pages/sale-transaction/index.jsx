@@ -8,7 +8,7 @@ import {
     Alert, CircularProgress, Chip
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { FaPlus, FaFileExport } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaDownload } from "react-icons/fa";
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -20,7 +20,16 @@ import {
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
+import { exportSaleTransactions, exportSaleTransactionDetail } from '../../utils/excelExport';
 import DialogActions from '@mui/material/DialogActions';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const getRange = (key) => {
     const today = new Date();
@@ -82,6 +91,59 @@ const SaleTransactionPage = () => {
     const [error, setError] = useState(null);
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [actionAnchorEl, setActionAnchorEl] = useState(null);
+    const [actionRow, setActionRow] = useState(null);
+
+    const handleActionClick = (event, row) => {
+        setActionAnchorEl(event.currentTarget);
+        setActionRow(row);
+    };
+    const handleActionClose = () => {
+        setActionAnchorEl(null);
+        setActionRow(null);
+    };
+    const handleViewDetailMenu = () => {
+        handleViewDetail(actionRow);
+        handleActionClose();
+    };
+    const handleEdit = () => {
+        // TODO: Thêm logic sửa
+        handleActionClose();
+    };
+    const handleDelete = () => {
+        // TODO: Thêm logic xóa
+        handleActionClose();
+    };
+
+    // Hàm xuất file tổng
+    const handleExportAll = () => {
+        try {
+            exportSaleTransactions(filteredTransactions);
+        } catch (error) {
+            console.error('Lỗi khi xuất file:', error);
+            alert('Không thể xuất file. Vui lòng thử lại!');
+        }
+    };
+
+    // Hàm xuất file chi tiết
+    const handleExportDetail = (transaction = null) => {
+        try {
+            const targetTransaction = transaction || selectedTransaction;
+            if (targetTransaction) {
+                let details = [];
+                if (targetTransaction.detail) {
+                    // Parse detail từ JSON string nếu cần
+                    details = typeof targetTransaction.detail === 'string' 
+                        ? JSON.parse(targetTransaction.detail) 
+                        : targetTransaction.detail;
+                }
+                exportSaleTransactionDetail(targetTransaction, details);
+            }
+        } catch (error) {
+            console.error('Lỗi khi xuất file chi tiết:', error);
+            alert('Không thể xuất file chi tiết. Vui lòng thử lại!');
+        }
+    };
 
     const loadTransactions = async () => {
         setLoading(true);
@@ -152,8 +214,17 @@ const SaleTransactionPage = () => {
     };
 
     const handleViewDetail = async (row) => {
-        setSelectedTransaction(row);
-        setOpenDetailDialog(true);
+        try {
+            // Lấy chi tiết đầy đủ từ API
+            const detailedTransaction = await saleTransactionService.getById(row.id);
+            setSelectedTransaction(detailedTransaction);
+            setOpenDetailDialog(true);
+        } catch (error) {
+            console.error('Error loading transaction details:', error);
+            // Fallback to row data if API fails
+            setSelectedTransaction(row);
+            setOpenDetailDialog(true);
+        }
     };
 
     const columns = [
@@ -187,10 +258,20 @@ const SaleTransactionPage = () => {
             headerName: 'Đã thanh toán',
             flex: 1,
             renderCell: (params) => {
-                if (params.value) {
-                    return params.value.toLocaleString('vi-VN') + ' VNĐ';
+                const paid = params.value || 0;
+                const total = params.row.totalAmount || 0;
+                let color = '#6b7280'; // default gray
+                let label = paid.toLocaleString('vi-VN') + ' VNĐ';
+                if (paid < total) {
+                    color = '#ef4444'; // đỏ nếu trả thiếu hoặc chưa trả
+                } else if (paid === total) {
+                    color = '#10b981'; // xanh nếu trả đủ
+                } else if (paid > total) {
+                    color = '#f59e42'; // cam nếu trả dư
                 }
-                return '0 VNĐ';
+                return (
+                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                );
             }
         },
         {
@@ -219,18 +300,20 @@ const SaleTransactionPage = () => {
         {
             field: 'actions',
             headerName: 'Hành động',
-            width: 130,
+            width: 80,
             renderCell: (params) => (
-                <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        handleViewDetail(params.row);
-                    }}
-                >
-                    Chi tiết
-                </Button>
+                <>
+                    <Button
+                        size="small"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleActionClick(event, params.row);
+                        }}
+                        sx={{ minWidth: 0, p: 1 }}
+                    >
+                        <MoreHorizIcon />
+                    </Button>
+                </>
             )
         }
     ];
@@ -245,7 +328,7 @@ const SaleTransactionPage = () => {
                             Bán hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />}>Xuất file</Button>
+                    <Button variant="outlined" startIcon={<FaFileExport />} onClick={handleExportAll}>Xuất file</Button>
                 </div>
             </div>
 
@@ -503,9 +586,52 @@ const SaleTransactionPage = () => {
                     )}
                 </DialogContent>
                 <DialogActions>
+                    <Button onClick={handleExportDetail} color="secondary" startIcon={<FaFileExport />}>
+                        Xuất chi tiết
+                    </Button>
                     <Button onClick={() => setOpenDetailDialog(false)} color="primary">Đóng</Button>
                 </DialogActions>
             </Dialog>
+
+            <Menu
+                anchorEl={actionAnchorEl}
+                open={Boolean(actionAnchorEl)}
+                onClose={handleActionClose}
+                PaperProps={{
+                    elevation: 4,
+                    sx: {
+                        borderRadius: 2,
+                        minWidth: 160,
+                        p: 0.5,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    },
+                }}
+                MenuListProps={{
+                    sx: {
+                        p: 0,
+                    },
+                }}
+            >
+                <MenuItem onClick={handleViewDetailMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Xem chi tiết" />
+                </MenuItem>
+                <MenuItem onClick={() => {
+                    handleExportDetail(actionRow);
+                    handleActionClose();
+                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><FaDownload fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Xuất chi tiết" />
+                </MenuItem>
+                <MenuItem onClick={handleEdit} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Sửa" />
+                </MenuItem>
+                <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
+                    <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemText primary="Xóa" />
+                </MenuItem>
+            </Menu>
         </div>
     );
 };

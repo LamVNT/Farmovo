@@ -12,11 +12,13 @@ public interface SaleTransactionService {
 
     List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long id);
 
-    void save(CreateSaleTransactionRequestDto dto);
+    void save(CreateSaleTransactionRequestDto dto, Long userId);
 
     @Transactional
     void updateSaleTransaction(Long id, CreateSaleTransactionRequestDto dto);
 
     List<SaleTransactionResponseDto> getAll();
+
+    SaleTransactionResponseDto getById(Long id);
 
 }
