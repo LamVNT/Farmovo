@@ -5,13 +5,17 @@ import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.InvalidStatusException;
+import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
+import com.farmovo.backend.exceptions.InsufficientStockException;
+import com.farmovo.backend.exceptions.TransactionStatusException;
+import com.farmovo.backend.exceptions.CustomerNotFoundException;
+import com.farmovo.backend.exceptions.StoreNotFoundException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.SaleTransaction;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import com.farmovo.backend.repositories.*;
-import com.farmovo.backend.services.ImportTransactionService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.farmovo.backend.validator.SaleTransactionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,29 +34,38 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SaleTransactionServiceImpl implements SaleTransactionService {
 
+    private static final Logger log = LogManager.getLogger(SaleTransactionServiceImpl.class);
+
     private final ImportTransactionDetailRepository detailRepository;
     private final SaleTransactionRepository saleTransactionRepository;
     private final ProductMapper productMapper;
-    private final ObjectMapper objectMapper; // từ Jackson
+    private final ObjectMapper objectMapper;
     private final CustomerRepository customerRepository;
     private final StoreRepository storeRepository;
     private final SaleTransactionMapper saleTransactionMapper;
     private final ImportTransactionDetailRepository importTransactionDetailRepository;
-    private static final Logger log = LogManager.getLogger(ImportTransactionService.class);
     private final SaleTransactionValidator saleTransactionValidator;
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
+        log.debug("Getting product response details for product ID: {}", productId);
+        
         List<ImportTransactionDetail> details = detailRepository.findByProductId(productId);
-        return details.stream()
+        List<ProductSaleResponseDto> result = details.stream()
                 .map(productMapper::toDtoSale)
                 .collect(Collectors.toList());
+        
+        log.debug("Found {} details for product ID: {}", result.size(), productId);
+        return result;
     }
 
     @Override
     @Transactional
     public void save(CreateSaleTransactionRequestDto dto, Long userId) {
-        saleTransactionValidator.validate(dto); // validate đầu vào
+        log.info("Saving sale transaction for user: {}, customer: {}, store: {}, totalAmount: {}", 
+                userId, dto.getCustomerId(), dto.getStoreId(), dto.getTotalAmount());
+        
+        saleTransactionValidator.validate(dto);
 
         SaleTransaction transaction = new SaleTransaction();
         transaction.setTotalAmount(dto.getTotalAmount());
@@ -62,38 +75,52 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(dto.getStatus());
         transaction.setCreatedBy(userId);
 
-        // Lưu chi tiết dưới dạng JSON string
         try {
             String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
             transaction.setDetail(jsonDetail);
+            log.debug("Transaction details serialized to JSON successfully");
         } catch (JsonProcessingException e) {
+            log.error("Failed to serialize transaction details to JSON", e);
             throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
         }
 
         transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + dto.getCustomerId())));
+                .orElseThrow(() -> {
+                    log.error("Customer not found with ID: {}", dto.getCustomerId());
+                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
+                }));
         transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + dto.getStoreId())));
+                .orElseThrow(() -> {
+                    log.error("Store not found with ID: {}", dto.getStoreId());
+                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
+                }));
 
-        // Nếu là COMPLETE → trừ kho
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
         }
 
-        saleTransactionRepository.save(transaction);
+        SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
+        log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
     }
-
 
     @Override
     @Transactional
     public void updateSaleTransaction(Long id, CreateSaleTransactionRequestDto dto) {
-        saleTransactionValidator.validate(dto); //validate đầu vào
+        log.info("Updating sale transaction with ID: {}, status: {}", id, dto.getStatus());
+        
+        saleTransactionValidator.validate(dto);
 
         SaleTransaction transaction = saleTransactionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with ID: " + id));
+                .orElseThrow(() -> {
+                    log.error("Sale transaction not found with ID: {}", id);
+                    return new SaleTransactionNotFoundException("Transaction not found with ID: " + id);
+                });
 
         if (transaction.getStatus() != SaleTransactionStatus.DRAFT) {
-            throw new InvalidStatusException("Chỉ được cập nhật giao dịch ở trạng thái DRAFT.");
+            log.warn("Attempted to update non-DRAFT transaction with ID: {}, current status: {}", 
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "cập nhật");
         }
 
         transaction.setTotalAmount(dto.getTotalAmount());
@@ -103,52 +130,93 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(dto.getStatus());
 
         transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + dto.getCustomerId())));
+                .orElseThrow(() -> {
+                    log.error("Customer not found with ID: {}", dto.getCustomerId());
+                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
+                }));
         transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> new ResourceNotFoundException("Store not found with ID: " + dto.getStoreId())));
+                .orElseThrow(() -> {
+                    log.error("Store not found with ID: {}", dto.getStoreId());
+                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
+                }));
 
         try {
             String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
             transaction.setDetail(jsonDetail);
+            log.debug("Updated transaction details serialized to JSON successfully");
         } catch (JsonProcessingException e) {
+            log.error("Failed to serialize updated transaction details to JSON", e);
             throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
         }
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Updated transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
         }
 
         saleTransactionRepository.save(transaction);
+        log.info("Sale transaction with ID: {} updated successfully", id);
     }
 
-
     private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
+        log.info("Deducting stock from {} batches", items.size());
+        
         for (ProductSaleResponseDto item : items) {
+            log.debug("Processing batch ID: {}, product ID: {}, quantity: {}", 
+                    item.getId(), item.getProId(), item.getQuantity());
+            
             ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + item.getId()));
+                    .orElseThrow(() -> {
+                        log.error("Batch not found with ID: {}", item.getId());
+                        return new ResourceNotFoundException("Batch not found with ID: " + item.getId());
+                    });
 
             if (!batch.getProduct().getId().equals(item.getProId())) {
+                log.error("Batch ID: {} does not belong to product ID: {}", item.getId(), item.getProId());
                 throw new BadRequestException("Batch does not belong to selected product (productId=" + item.getProId() + ")");
             }
 
             if (batch.getRemainQuantity() < item.getQuantity()) {
+                log.error("Insufficient stock in batch ID: {}, available: {}, required: {}", 
+                        item.getId(), batch.getRemainQuantity(), item.getQuantity());
                 throw new BadRequestException("Not enough stock in batch ID: " + item.getId() +
                         " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
             }
 
+            int oldQuantity = batch.getRemainQuantity();
             batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
             importTransactionDetailRepository.save(batch);
 
-            log.debug("Deducted {} units from batch ID: {}, remaining: {}",
-                    item.getQuantity(), item.getId(), batch.getRemainQuantity());
+            log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
+                    item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
         }
+        
+        log.info("Stock deduction completed successfully");
     }
-
 
     @Override
     public List<SaleTransactionResponseDto> getAll() {
+        log.debug("Getting all sale transactions");
+        
         List<SaleTransaction> entities = saleTransactionRepository.findAll();
-        return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+        List<SaleTransactionResponseDto> result = saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+        
+        log.debug("Retrieved {} sale transactions", result.size());
+        return result;
     }
 
+    @Override
+    public SaleTransactionResponseDto getById(Long id) {
+        log.debug("Getting sale transaction by ID: {}", id);
+        
+        SaleTransaction entity = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Sale transaction not found with ID: {}", id);
+                    return new SaleTransactionNotFoundException("Sale transaction not found with ID: " + id);
+                });
+        
+        SaleTransactionResponseDto result = saleTransactionMapper.toResponseDto(entity, objectMapper);
+        log.debug("Retrieved sale transaction with ID: {}", id);
+        return result;
+    }
 }

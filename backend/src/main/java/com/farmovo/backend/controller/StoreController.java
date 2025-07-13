@@ -30,8 +30,8 @@ public class StoreController {
             List<Store> stores = storeService.getAllStores();
             logger.info("Found {} stores", stores.size());
             return stores.stream()
-                    .map(this::convertToResponseDTO)
-                    .collect(Collectors.toList());
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
         } catch (Exception e) {
             logger.error("Error fetching stores: {}", e.getMessage(), e);
             throw e;
@@ -75,14 +75,14 @@ public class StoreController {
 
     private StoreResponseDto convertToResponseDTO(Store store) {
         try {
-            StoreResponseDto dto = new StoreResponseDto();
-            dto.setId(store.getId());
+        StoreResponseDto dto = new StoreResponseDto();
+        dto.setId(store.getId());
             dto.setName(store.getStoreName() != null ? store.getStoreName() : "");
             dto.setDescription(store.getStoreDescription() != null ? store.getStoreDescription() : "");
             dto.setAddress(store.getStoreAddress() != null ? store.getStoreAddress() : "");
-            dto.setCreateAt(store.getCreatedAt());
-            dto.setUpdateAt(store.getUpdatedAt());
-            return dto;
+        dto.setCreateAt(store.getCreatedAt());
+        dto.setUpdateAt(store.getUpdatedAt());
+        return dto;
         } catch (Exception e) {
             logger.error("Error converting store to DTO: {}", e.getMessage(), e);
             throw e;

@@ -11,16 +11,9 @@ import java.util.List;
 public interface ImportTransactionMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(source = "name", target = "name")
     @Mapping(source = "supplierId", target = "supplier.id")
     @Mapping(source = "storeId", target = "store.id")
     @Mapping(source = "staffId", target = "staff.id")
-    @Mapping(source = "totalAmount", target = "totalAmount")
-    @Mapping(source = "paidAmount", target = "paidAmount")
-    @Mapping(source = "importTransactionNote", target = "importTransactionNote")
-    @Mapping(source = "status", target = "status")
-    @Mapping(source = "importDate", target = "importDate")
-    @Mapping(source = "createdBy", target = "createdBy")
     @Mapping(target = "details", source = "details")
     ImportTransaction toEntity(CreateImportTransactionRequestDto dto);
 
@@ -35,17 +28,11 @@ public interface ImportTransactionMapper {
 
     // Map từ Entity sang DTO
     @Mapping(source = "id", target = "id")
-    @Mapping(source = "name", target = "name")
     @Mapping(source = "supplier.id", target = "supplierId")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "staff.id", target = "staffId")
     @Mapping(source = "details", target = "details")
     @Mapping(source = "importDate", target = "importDate")
-    @Mapping(source = "totalAmount", target = "totalAmount")
-    @Mapping(source = "paidAmount", target = "paidAmount")
-    @Mapping(source = "importTransactionNote", target = "importTransactionNote")
-    @Mapping(source = "status", target = "status")
-    @Mapping(source = "createdBy", target = "createdBy")
     CreateImportTransactionRequestDto toDto(ImportTransaction entity);
 
 
