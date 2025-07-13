@@ -18,10 +18,6 @@ public class SaleTransactionValidator {
             throw new BadRequestException("Số tiền thanh toán không hợp lệ.");
         }
 
-        if (dto.getPaidAmount().compareTo(dto.getTotalAmount()) > 0) {
-            throw new BadRequestException("Số tiền thanh toán không được lớn hơn tổng tiền.");
-        }
-
         if (dto.getStatus() == null) {
             throw new BadRequestException("Trạng thái không được để trống.");
         }
