@@ -34,6 +34,7 @@ import { customerService } from '../../services/customerService';
 import { userService } from '../../services/userService';
 import { getCategories } from '../../services/categoryService';
 import { getZones } from '../../services/zoneService';
+import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
 const ImportPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
@@ -67,6 +68,11 @@ const ImportPage = () => {
     const [nextImportCode, setNextImportCode] = useState('');
     const [note, setNote] = useState('');
     const [paidAmount, setPaidAmount] = useState(0);
+
+    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+    const [summaryData, setSummaryData] = useState(null);
+    const [supplierDetails, setSupplierDetails] = useState(null);
+    const [storeDetails, setStoreDetails] = useState(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -434,6 +440,62 @@ const ImportPage = () => {
             setPaidAmount(0);
             setNote('');
             // setImportCode('');
+        } catch (err) {
+            console.error('Error creating import transaction:', err);
+            setError('Không thể tạo phiếu nhập hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOpenSummaryDialog = async (status) => {
+        const supplier = suppliers.find(s => s.id === selectedSupplier) || {};
+        // Nếu có storeId, lấy thêm chi tiết store nếu có danh sách stores
+        // const store = stores.find(s => s.id === selectedStore) || {};
+        setSummaryData({
+            store: {}, // Nếu có store chi tiết thì truyền vào đây
+            supplier,
+            products: selectedProducts,
+            totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+            paidAmount,
+            note,
+            importDate: new Date(),
+            status,
+        });
+        setSupplierDetails(supplier);
+        // setStoreDetails(store);
+        setShowSummaryDialog(true);
+    };
+
+    const handleConfirmImport = async () => {
+        setShowSummaryDialog(false);
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const importData = {
+                name: nextImportCode,
+                supplierId: selectedSupplier,
+                storeId: 1,
+                staffId: currentUser?.id || 1,
+                importTransactionNote: note,
+                paidAmount: paidAmount,
+                details: selectedProducts.map(product => ({
+                    productId: product.productId,
+                    importQuantity: product.quantity,
+                    remainQuantity: product.quantity,
+                    expireDate: formatExpireDateForBackend(product.expireDate),
+                    unitImportPrice: product.price,
+                    unitSalePrice: product.salePrice,
+                    zones_id: product.zoneId || '',
+                })),
+                status: summaryData?.status || 'DRAFT',
+            };
+            await importTransactionService.create(importData);
+            setSuccess('Tạo phiếu nhập hàng thành công!');
+            setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
         } catch (err) {
             console.error('Error creating import transaction:', err);
             setError('Không thể tạo phiếu nhập hàng');
@@ -883,8 +945,8 @@ const ImportPage = () => {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={handleSaveDraft} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={handleComplete} disabled={loading}>Hoàn thành</Button>
+                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={() => handleOpenSummaryDialog('DRAFT')} disabled={loading}>Lưu tạm</Button>
+                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={() => handleOpenSummaryDialog('COMPLETE')} disabled={loading}>Hoàn thành</Button>
                 </div>
             </div>
 
@@ -969,6 +1031,18 @@ const ImportPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <ImportSummaryDialog
+                open={showSummaryDialog}
+                onClose={() => setShowSummaryDialog(false)}
+                onConfirm={handleConfirmImport}
+                importData={summaryData}
+                formatCurrency={formatCurrency}
+                loading={loading}
+                currentUser={currentUser}
+                supplierDetails={supplierDetails}
+                storeDetails={storeDetails}
+            />
         </div>
     );
 };

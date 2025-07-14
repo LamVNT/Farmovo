@@ -20,6 +20,8 @@ import {
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
+import { userService } from "../../services/userService";
+import { getCustomerById } from "../../services/customerService";
 import { exportSaleTransactions, exportSaleTransactionDetail } from '../../utils/excelExport';
 import DialogActions from '@mui/material/DialogActions';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -30,6 +32,8 @@ import ListItemText from '@mui/material/ListItemText';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SaleDetailDialog from "../../components/sale-transaction/SaleDetailDialog";
+import { formatCurrency } from "../../utils/formatters";
 
 const getRange = (key) => {
     const today = new Date();
@@ -91,6 +95,8 @@ const SaleTransactionPage = () => {
     const [error, setError] = useState(null);
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [userDetails, setUserDetails] = useState(null);
+    const [customerDetails, setCustomerDetails] = useState(null);
     const [actionAnchorEl, setActionAnchorEl] = useState(null);
     const [actionRow, setActionRow] = useState(null);
 
@@ -218,11 +224,40 @@ const SaleTransactionPage = () => {
             // Lấy chi tiết đầy đủ từ API
             const detailedTransaction = await saleTransactionService.getById(row.id);
             setSelectedTransaction(detailedTransaction);
+            
+            // Lấy thông tin người tạo nếu có createdBy
+            if (detailedTransaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(detailedTransaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    console.error('Error loading user details:', error);
+                    setUserDetails(null);
+                }
+            } else {
+                setUserDetails(null);
+            }
+            
+            // Lấy thông tin chi tiết khách hàng nếu có customerId
+            if (detailedTransaction.customerId) {
+                try {
+                    const customer = await getCustomerById(detailedTransaction.customerId);
+                    setCustomerDetails(customer);
+                } catch (error) {
+                    console.error('Error loading customer details:', error);
+                    setCustomerDetails(null);
+                }
+            } else {
+                setCustomerDetails(null);
+            }
+            
             setOpenDetailDialog(true);
         } catch (error) {
             console.error('Error loading transaction details:', error);
             // Fallback to row data if API fails
             setSelectedTransaction(row);
+            setUserDetails(null);
+            setCustomerDetails(null);
             setOpenDetailDialog(true);
         }
     };
@@ -518,80 +553,20 @@ const SaleTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu bán hàng */}
-            <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Chi tiết phiếu bán hàng: {selectedTransaction?.id}</DialogTitle>
-                <DialogContent>
-                    {selectedTransaction ? (
-                        <div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <strong>Khách hàng:</strong> {selectedTransaction.customerName}
-                                </div>
-                                <div>
-                                    <strong>Cửa hàng:</strong> {selectedTransaction.storeName}
-                                </div>
-                                <div>
-                                    <strong>Thời gian:</strong> {selectedTransaction.saleDate ? new Date(selectedTransaction.saleDate).toLocaleString('vi-VN') : ''}
-                                </div>
-                                <div>
-                                    <strong>Trạng thái:</strong> 
-                                    <Chip
-                                        label={selectedTransaction.status === 'COMPLETE' ? 'Đã hoàn thành' : 'Nháp'}
-                                        style={{
-                                            backgroundColor: selectedTransaction.status === 'COMPLETE' ? '#10b981' : '#6b7280',
-                                            color: '#fff',
-                                            marginLeft: 8
-                                        }}
-                                        size="small"
-                                    />
-                                </div>
-                            </div>
-                            
-                            {selectedTransaction.detail && selectedTransaction.detail.length > 0 ? (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Sản phẩm</TableCell>
-                                            <TableCell>Số lượng</TableCell>
-                                            <TableCell>Đơn giá</TableCell>
-                                            <TableCell>Thành tiền</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {selectedTransaction.detail.map((item, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{item.productName}</TableCell>
-                                                <TableCell>{item.quantity}</TableCell>
-                                                <TableCell>{item.unitSalePrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{(item.unitSalePrice * item.quantity)?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p>Không có dữ liệu chi tiết.</p>
-                            )}
-                            
-                            <div className="mt-4 text-right">
-                                <div className="text-lg font-semibold">
-                                    Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Đã thanh toán: {selectedTransaction.paidAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p>Không có dữ liệu chi tiết.</p>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleExportDetail} color="secondary" startIcon={<FaFileExport />}>
-                        Xuất chi tiết
-                    </Button>
-                    <Button onClick={() => setOpenDetailDialog(false)} color="primary">Đóng</Button>
-                </DialogActions>
-            </Dialog>
+            <SaleDetailDialog
+                open={openDetailDialog}
+                onClose={() => {
+                    setOpenDetailDialog(false);
+                    setSelectedTransaction(null);
+                    setUserDetails(null);
+                    setCustomerDetails(null);
+                }}
+                transaction={selectedTransaction}
+                formatCurrency={formatCurrency}
+                onExport={() => handleExportDetail(selectedTransaction)}
+                userDetails={userDetails}
+                customerDetails={customerDetails}
+            />
 
             <Menu
                 anchorEl={actionAnchorEl}

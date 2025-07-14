@@ -433,6 +433,7 @@ const AddSalePage = () => {
                 saleData={summaryData}
                 formatCurrency={formatCurrency}
                 loading={loading}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}

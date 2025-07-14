@@ -94,7 +94,7 @@ public class ImportTransationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CreateImportTransactionRequestDto> getImportTransactionById(@PathVariable Long id) {
-        log.info("Getting import transaction by ID: {}", id);
+            log.info("Getting import transaction by ID: {}", id);
         
         try {
             CreateImportTransactionRequestDto dto = importTransactionService.getImportTransactionById(id);

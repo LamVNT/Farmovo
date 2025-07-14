@@ -14,22 +14,34 @@ import {
     TableRow,
     Paper,
     Divider,
-    Box,
 } from '@mui/material';
 import { FaPrint, FaCheck, FaTimes } from 'react-icons/fa';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import PersonIcon from '@mui/icons-material/Person';
 
-const SaleSummaryDialog = ({
+const ImportSummaryDialog = ({
     open,
     onClose,
     onConfirm,
-    saleData,
+    importData,
     formatCurrency,
     loading,
-    currentUser
+    currentUser,
+    supplierDetails,
+    storeDetails
 }) => {
-    if (!saleData) return null;
+    if (!importData) return null;
 
-    const { customer, store, products, totalAmount, paidAmount, note, saleDate, status } = saleData;
+    const {
+        store,
+        supplier,
+        products,
+        totalAmount,
+        paidAmount,
+        note,
+        importDate,
+        status
+    } = importData;
 
     return (
         <Dialog 
@@ -41,15 +53,15 @@ const SaleSummaryDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        PHIẾU BÁN HÀNG
+                        PHIẾU NHẬP HÀNG
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
+                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : status === 'COMPLETE' ? '✅ Phiếu hoàn thành' : '⏳ Chờ duyệt'}
                     </Typography>
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
+                        Ngày: {importDate ? new Date(importDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         Giờ: {new Date().toLocaleTimeString('vi-VN')}
@@ -58,45 +70,37 @@ const SaleSummaryDialog = ({
             </DialogTitle>
 
             <DialogContent className="p-6">
-                {/* Thông tin khách hàng và cửa hàng */}
+                {/* Thông tin cửa hàng và nhà cung cấp */}
                 <div className="grid grid-cols-2 gap-6 mb-6">
                     <div>
-                        <Typography variant="subtitle1" className="font-semibold mb-2 text-blue-600">
-                            🏪 THÔNG TIN CỬA HÀNG
+                        <Typography variant="subtitle1" className="font-semibold mb-2 text-blue-600 flex items-center">
+                            <StorefrontIcon fontSize="small" className="mr-1" />
+                            THÔNG TIN CỬA HÀNG
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Tên cửa hàng:</strong> {store?.storeName || store?.name || 'Chưa chọn'}
+                            <strong>Tên cửa hàng:</strong> {store?.storeName || store?.name || storeDetails?.storeName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> {store?.storeAddress || store?.address || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {store?.storeAddress || store?.address || storeDetails?.storeAddress || storeDetails?.address || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
                             <strong>Người tạo:</strong> {currentUser?.fullName || currentUser?.name || 'Chưa có'}
                         </Typography>
-                        {store?.storeDescription && (
-                            <Typography variant="body2" className="mb-1">
-                                <strong>Mô tả:</strong> {store.storeDescription}
-                            </Typography>
-                        )}
                     </div>
                     <div>
-                        <Typography variant="subtitle1" className="font-semibold mb-2 text-green-600">
-                            👤 THÔNG TIN KHÁCH HÀNG
+                        <Typography variant="subtitle1" className="font-semibold mb-2 text-green-600 flex items-center">
+                            <PersonIcon fontSize="small" className="mr-1" />
+                            THÔNG TIN NHÀ CUNG CẤP
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Tên khách hàng:</strong> {customer?.customerName || customer?.name || 'Chưa chọn'}
+                            <strong>Tên nhà cung cấp:</strong> {supplier?.name || supplierDetails?.name || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Số điện thoại:</strong> {customer?.customerPhone || customer?.phone || 'Chưa có'}
+                            <strong>Số điện thoại:</strong> {supplier?.phone || supplierDetails?.phone || supplier?.customerPhone || supplierDetails?.customerPhone || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> {customer?.customerAddress || customer?.address || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {supplier?.address || supplierDetails?.address || supplier?.customerAddress || supplierDetails?.customerAddress || 'Chưa có'}
                         </Typography>
-                        {customer?.customerEmail && (
-                            <Typography variant="body2" className="mb-1">
-                                <strong>Email:</strong> {customer.customerEmail}
-                            </Typography>
-                        )}
                     </div>
                 </div>
 
@@ -106,7 +110,6 @@ const SaleSummaryDialog = ({
                 <Typography variant="subtitle1" className="font-semibold mb-3 text-gray-800">
                     📦 DANH SÁCH SẢN PHẨM
                 </Typography>
-                
                 <TableContainer component={Paper} className="mb-4">
                     <Table size="small">
                         <TableHead>
@@ -120,25 +123,29 @@ const SaleSummaryDialog = ({
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {products.map((product, index) => (
-                                <TableRow key={product.id} className="hover:bg-gray-50">
+                            {products && products.length > 0 ? products.map((product, index) => (
+                                <TableRow key={product.id || index} className="hover:bg-gray-50">
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <div>
-                                            <div className="font-medium">{product.name}</div>
+                                            <div className="font-medium">{product.name || product.productName || 'Chưa có'}</div>
                                             <div className="text-xs text-gray-500">
                                                 Mã: {product.productCode || product.code || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">{product.unit || 'quả'}</TableCell>
-                                    <TableCell className="text-center">{product.quantity}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
+                                    <TableCell className="text-center">{product.quantity || 0}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(product.price || product.unitImportPrice || 0)}</TableCell>
                                     <TableCell className="text-right font-semibold">
-                                        {formatCurrency(product.price * product.quantity)}
+                                        {formatCurrency((product.price || product.unitImportPrice || 0) * (product.quantity || 0))}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} align="center">Không có sản phẩm</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -153,7 +160,6 @@ const SaleSummaryDialog = ({
                             {formatCurrency(totalAmount)}
                         </Typography>
                     </div>
-                    
                     <div className="flex justify-between items-center mb-2">
                         <Typography variant="body1" className="font-semibold">
                             Số tiền đã trả:
@@ -162,9 +168,7 @@ const SaleSummaryDialog = ({
                             {formatCurrency(paidAmount)}
                         </Typography>
                     </div>
-                    
                     <Divider className="my-2" />
-                    
                     <div className="flex justify-between items-center">
                         <Typography variant="body1" className="font-semibold">
                             Còn lại:
@@ -205,7 +209,7 @@ const SaleSummaryDialog = ({
                 <Button 
                     onClick={onConfirm} 
                     variant="contained" 
-                    className={`${
+                    className={`$${
                         status === 'DRAFT' 
                             ? '!bg-blue-600 hover:!bg-blue-700' 
                             : '!bg-green-600 hover:!bg-green-700'
@@ -213,11 +217,11 @@ const SaleSummaryDialog = ({
                     startIcon={loading ? null : (status === 'DRAFT' ? <FaPrint /> : <FaCheck />)}
                     disabled={loading}
                 >
-                    {loading ? 'Đang xử lý...' : (status === 'DRAFT' ? 'Lưu tạm' : 'Hoàn thành')}
+                    {loading ? 'Đang xử lý...' : (status === 'DRAFT' ? 'Lưu tạm' : status === 'COMPLETE' ? 'Hoàn thành' : 'Xác nhận')}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
-export default SaleSummaryDialog; 
+export default ImportSummaryDialog; 
