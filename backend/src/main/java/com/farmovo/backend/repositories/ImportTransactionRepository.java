@@ -4,7 +4,9 @@ package com.farmovo.backend.repositories;
 import com.farmovo.backend.models.ImportTransaction;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ImportTransactionRepository extends JpaRepository<ImportTransaction, Long> {
@@ -18,4 +20,8 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
     Optional<ImportTransaction> findById(Long id);
 
     Optional<ImportTransaction> findTopByOrderByIdDesc();
+
+    @Query("SELECT i FROM ImportTransaction i WHERE i.deletedAt IS NULL AND i.deletedBy IS NULL")
+    List<ImportTransaction> findAllImportActive();
+
 }

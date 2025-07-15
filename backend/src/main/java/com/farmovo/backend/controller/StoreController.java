@@ -48,7 +48,7 @@ public class StoreController {
 
     @PostMapping("/store")
     public StoreResponseDto createStore(@Valid @RequestBody StoreRequestDto dto) {
-        logger.info("Creating new store: {}", dto.getName());
+        logger.info("Creating new store: {}", dto.getStoreName());
         Store store = storeService.convertToEntity(dto);
         Store savedStore = storeService.saveStore(store);
         return convertToResponseDTO(savedStore);

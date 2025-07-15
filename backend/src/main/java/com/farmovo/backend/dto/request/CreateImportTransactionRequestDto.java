@@ -38,7 +38,7 @@ public class CreateImportTransactionRequestDto {
         private LocalDateTime expireDate;
         private BigDecimal unitImportPrice;
         private BigDecimal unitSalePrice;
-        private String zones_id;
+        private List<String> zones_id;
     }
 }
 

@@ -20,4 +20,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllByDeletedAtIsNull();
     Optional<User> findByIdAndDeletedAtIsNull(Long id);
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
+    Optional<User> findByEmail(String email);
+
+    @Transactional
+    @Modifying
+    @Query("update User u set u.password = ?2 where u.email = ?1")
+    void updatePassword(String email, String password);
+
 }

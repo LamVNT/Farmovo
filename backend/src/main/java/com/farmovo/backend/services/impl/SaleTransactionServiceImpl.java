@@ -12,9 +12,7 @@ import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
-import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.models.SaleTransaction;
-import com.farmovo.backend.models.SaleTransactionStatus;
+import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.ImportTransactionService;
@@ -30,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -79,6 +78,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(dto.getStatus());
         transaction.setCreatedBy(userId);
 
+        // Lưu chi tiết dưới dạng JSON string
         try {
             String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
             transaction.setDetail(jsonDetail);
@@ -160,6 +160,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setSaleDate(dto.getSaleDate());
         transaction.setStatus(dto.getStatus());
 
+
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        String newName = String.format("PB%06d", lastId + 1);
+        transaction.setName(newName);
+
+
         transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> {
                     log.error("Customer not found with ID: {}", dto.getCustomerId());
@@ -221,19 +229,42 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
                     item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
         }
-
-        log.info("Stock deduction completed successfully");
     }
+
 
     @Override
     public List<SaleTransactionResponseDto> getAll() {
-        log.debug("Getting all sale transactions");
+        List<SaleTransaction> entities = saleTransactionRepository.findAllSaleActive();
+        return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    }
 
-        List<SaleTransaction> entities = saleTransactionRepository.findAll();
-        List<SaleTransactionResponseDto> result = saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void cancel(Long id) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("ImportTransaction not found with id: " + id));
+        transaction.setStatus(SaleTransactionStatus.CANCEL);
+        // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
+        saleTransactionRepository.save(transaction);
+    }
 
-        log.debug("Retrieved {} sale transactions", result.size());
-        return result;
+    @Override
+    public String getNextSaleTransactionCode() {
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        return String.format("PB%06d", lastId + 1);
+    }
+
+    @Override
+    public void softDeleteSaleTransaction(Long id, Long userId) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu bán với ID: " + id));
+
+        transaction.setDeletedAt(LocalDateTime.now());
+        transaction.setDeletedBy(userId);
+
+        saleTransactionRepository.save(transaction);
     }
 
     @Override

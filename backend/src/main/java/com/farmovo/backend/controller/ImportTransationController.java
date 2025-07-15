@@ -5,12 +5,15 @@ import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.ImportTransactionNotFoundException;
+import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,32 +29,34 @@ public class ImportTransationController {
     private final CustomerService customerService;
     private final ProductService productService;
     private final ZoneService zoneService;
+    private final StoreService storeService;
     private final ImportTransactionService importTransactionService;
     private final JwtUtils jwtUtils;
+
 
     @GetMapping("/create-form-data")
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
         log.info("Getting create form data for import transaction");
-        
+
         List<CustomerDto> customers = customerService.getAllCustomerDto();
         List<ProductDto> products = productService.getAllProductDto();
         List<ZoneDto> zones = zoneService.getAllZoneDtos();
+        List<StoreRequestDto> stores = storeService.getAllStoreDto();
 
         ImportTransactionCreateFormDataDto formData = new ImportTransactionCreateFormDataDto();
         formData.setCustomers(customers);
         formData.setProducts(products);
         formData.setZones(zones);
-
-        log.debug("Form data prepared: {} customers, {} products, {} zones", 
+        formData.setStores(stores);
+        log.debug("Form data prepared: {} customers, {} products, {} zones",
                 customers.size(), products.size(), zones.size());
-        
         return ResponseEntity.ok(formData);
     }
 
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelImportTransaction(@PathVariable Long id) {
         log.info("Cancelling import transaction with ID: {}", id);
-        
+
         try {
             importTransactionService.cancel(id);
             log.info("Import transaction with ID: {} cancelled successfully", id);
@@ -68,7 +73,7 @@ public class ImportTransationController {
     @PutMapping("/{id}/open")
     public ResponseEntity<?> openImportTransaction(@PathVariable Long id) {
         log.info("Opening import transaction with ID: {}", id);
-        
+
         try {
             importTransactionService.open(id);
             log.info("Import transaction with ID: {} opened successfully", id);
@@ -85,9 +90,9 @@ public class ImportTransationController {
     @GetMapping("/list-all")
     public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
         log.info("Getting all import transactions");
-        
+
         List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
-        
+
         log.debug("Retrieved {} import transactions", transactions.size());
         return ResponseEntity.ok(transactions);
     }
@@ -95,7 +100,7 @@ public class ImportTransationController {
     @GetMapping("/{id}")
     public ResponseEntity<CreateImportTransactionRequestDto> getImportTransactionById(@PathVariable Long id) {
             log.info("Getting import transaction by ID: {}", id);
-        
+
         try {
             CreateImportTransactionRequestDto dto = importTransactionService.getImportTransactionById(id);
             log.debug("Retrieved import transaction with ID: {}", id);
@@ -111,14 +116,14 @@ public class ImportTransationController {
 
     @PostMapping("/save")
     public ResponseEntity<?> create(@RequestBody CreateImportTransactionRequestDto dto, HttpServletRequest request) {
-        log.info("Creating new import transaction for supplierId={}, storeId={}, staffId={}", 
+        log.info("Creating new import transaction for supplierId={}, storeId={}, staffId={}",
                 dto.getSupplierId(), dto.getStoreId(), dto.getStaffId());
-        
+
         String token = jwtUtils.getJwtFromCookies(request);
         if (token != null && jwtUtils.validateJwtToken(token)) {
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
             log.debug("User ID from token: {}", userId);
-            
+
             try {
                 importTransactionService.createImportTransaction(dto, userId);
                 log.info("Import transaction created successfully by user: {}", userId);
@@ -136,9 +141,9 @@ public class ImportTransationController {
     @GetMapping("/next-code")
     public ResponseEntity<String> getNextImportTransactionCode() {
         log.debug("Getting next import transaction code");
-        
+
         String nextCode = importTransactionService.getNextImportTransactionCode();
-        
+
         log.debug("Next import transaction code: {}", nextCode);
         return ResponseEntity.ok(nextCode);
     }
@@ -148,7 +153,7 @@ public class ImportTransationController {
             @PathVariable Long id,
             @RequestBody CreateImportTransactionRequestDto dto) {
         log.info("Updating import transaction with ID: {}", id);
-        
+
         try {
             importTransactionService.update(id, dto);
             log.info("Import transaction with ID: {} updated successfully", id);
@@ -161,4 +166,16 @@ public class ImportTransationController {
             throw new BadRequestException("Không thể cập nhật phiếu nhập hàng: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/sort-delete/{id}")
+    public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            importTransactionService.softDeleteImportTransaction(id, userId);
+            return ResponseEntity.ok("Xóa mềm thành công");
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
+    }
+
 }

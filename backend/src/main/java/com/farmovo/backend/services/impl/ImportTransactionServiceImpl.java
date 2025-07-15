@@ -62,7 +62,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
         transaction.setCreatedBy(dto.getCreatedBy());
 
-        // Generate transaction code
+        // Sinh mã name tự động
         Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
                 .map(ImportTransaction::getId)
                 .orElse(0L);
@@ -83,7 +83,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
             BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
             totalAmount = totalAmount.add(lineTotal);
-
             detailList.add(detail);
             log.debug("Added detail: productId={}, quantity={}, lineTotal={}",
                     d.getProductId(), d.getImportQuantity(), lineTotal);
@@ -181,8 +180,63 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
 
         importTransactionRepository.save(transaction);
-        log.info("Import transaction updated successfully. ID: {}, New details: {}, Total: {}",
-                id, newDetails.size(), totalAmount);
+        log.info("Import transaction updated successfully with ID: {}", id);
+    }
+
+    // --- Helper methods ---
+
+    private Customer getSupplier(Long id) {
+        return customerRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Supplier not found with ID: {}", id);
+                    return new ResourceNotFoundException("Supplier not found with ID: " + id);
+                });
+    }
+
+    private Store getStore(Long id) {
+        return storeRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Store not found with ID: {}", id);
+                    return new ResourceNotFoundException("Store not found with ID: " + id);
+                });
+    }
+
+    private User getStaff(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Staff not found with ID: {}", id);
+                    return new ResourceNotFoundException("Staff not found with ID: " + id);
+                });
+    }
+
+    private Product getProduct(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Product not found with ID: {}", id);
+                    return new ResourceNotFoundException("Product not found with ID: " + id);
+                });
+    }
+
+    private ImportTransactionDetail buildDetail(ImportTransaction transaction, Product product,
+                                                CreateImportTransactionRequestDto.DetailDto dto) {
+        ImportTransactionDetail detail = new ImportTransactionDetail();
+        detail.setImportTransaction(transaction);
+        detail.setProduct(product);
+        detail.setImportQuantity(dto.getImportQuantity());
+        detail.setRemainQuantity(dto.getRemainQuantity());
+        detail.setExpireDate(dto.getExpireDate());
+        detail.setUnitImportPrice(dto.getUnitImportPrice());
+        detail.setUnitSalePrice(dto.getUnitSalePrice());
+
+        // Convert List<String> zones_id → String và set vào entity
+        String zonesIdStr = dto.getZones_id() == null ? null : String.join(",", dto.getZones_id());
+        detail.setZones_id(zonesIdStr);
+        log.debug("Đã set zones_id vào entity: {}", zonesIdStr);
+
+
+        // false là cần kiểm hàng
+        detail.setIsCheck(true);
+        return detail;
     }
 
     @Override
@@ -191,13 +245,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Cancelling import transaction with ID: {}", id);
 
         ImportTransaction transaction = importTransactionRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("ImportTransaction not found with ID: {}", id);
-                    return new ImportTransactionNotFoundException("ImportTransaction not found with id: " + id);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));;
 
         ImportTransactionStatus oldStatus = transaction.getStatus();
         transaction.setStatus(ImportTransactionStatus.CANCEL);
+        // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
         importTransactionRepository.save(transaction);
 
         log.info("Import transaction cancelled successfully. ID: {}, Old status: {}, New status: {}",
@@ -210,10 +262,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Opening import transaction with ID: {}", id);
 
         ImportTransaction transaction = importTransactionRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("ImportTransaction not found with ID: {}", id);
-                    return new ImportTransactionNotFoundException("ImportTransaction not found with id: " + id);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
 
         if (transaction.getStatus() != ImportTransactionStatus.DRAFT) {
             log.warn("Attempted to open non-DRAFT transaction with ID: {}, current status: {}",
@@ -242,17 +291,14 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return result;
     }
 
+
+    ///////////////
     @Override
     public List<ImportTransactionResponseDto> listAllImportTransaction() {
-        log.debug("Getting all import transactions (response DTOs)");
-
-        List<ImportTransaction> entities = importTransactionRepository.findAll();
-        List<ImportTransactionResponseDto> result = entities.stream()
+        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
+        return entities.stream()
                 .map(importTransactionMapper::toResponseDto)
                 .collect(Collectors.toList());
-
-        log.debug("Retrieved {} import transactions", result.size());
-        return result;
     }
 
     @Override
@@ -260,14 +306,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.debug("Getting import transaction by ID: {}", id);
 
         ImportTransaction entity = importTransactionRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("ImportTransaction not found with ID: {}", id);
-                    return new ImportTransactionNotFoundException("ImportTransaction not found with id: " + id);
-                });
-
-        CreateImportTransactionRequestDto result = importTransactionMapper.toDto(entity);
-        log.debug("Retrieved import transaction with ID: {}", id);
-        return result;
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
+        return importTransactionMapper.toDto(entity);
     }
 
     @Override
@@ -283,50 +323,16 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return nextCode;
     }
 
-    // --- Helper methods ---
+    @Override
+    @Transactional
+    public void softDeleteImportTransaction(Long id, Long userId) {
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu nhập với ID: " + id));
 
-    private Customer getSupplier(Long id) {
-        return customerRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Supplier not found with ID: {}", id);
-                    return new CustomerNotFoundException("Supplier not found with ID: " + id);
-                });
+        transaction.setDeletedAt(LocalDateTime.now());
+        transaction.setDeletedBy(userId);
+
+        importTransactionRepository.save(transaction);
     }
 
-    private Store getStore(Long id) {
-        return storeRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Store not found with ID: {}", id);
-                    return new StoreNotFoundException("Store not found with ID: " + id);
-                });
-    }
-
-    private User getStaff(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Staff not found with ID: {}", id);
-                    return new ResourceNotFoundException("Staff not found with ID: " + id);
-                });
-    }
-
-    private Product getProduct(Long id) {
-        return productRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Product not found with ID: {}", id);
-                    return new ResourceNotFoundException("Product not found with ID: " + id);
-                });
-    }
-
-    private ImportTransactionDetail buildDetail(ImportTransaction transaction, Product product,
-                                                CreateImportTransactionRequestDto.DetailDto dto) {
-        ImportTransactionDetail detail = new ImportTransactionDetail();
-        detail.setImportTransaction(transaction);
-        detail.setProduct(product);
-        detail.setImportQuantity(dto.getImportQuantity());
-        detail.setRemainQuantity(dto.getRemainQuantity());
-        detail.setExpireDate(dto.getExpireDate());
-        detail.setUnitImportPrice(dto.getUnitImportPrice());
-        detail.setUnitSalePrice(dto.getUnitSalePrice());
-        return detail;
-    }
 }
