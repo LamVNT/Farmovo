@@ -64,15 +64,14 @@ const ImportPage = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [zones, setZones] = useState([]);
-
-    const [nextImportCode, setNextImportCode] = useState('');
-    const [note, setNote] = useState('');
-    const [paidAmount, setPaidAmount] = useState(0);
-
     const [showSummaryDialog, setShowSummaryDialog] = useState(false);
     const [summaryData, setSummaryData] = useState(null);
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [storeDetails, setStoreDetails] = useState(null);
+
+    const [nextImportCode, setNextImportCode] = useState('');
+    const [note, setNote] = useState('');
+    const [paidAmount, setPaidAmount] = useState(0);
 
     useEffect(() => {
         const loadData = async () => {
@@ -448,62 +447,6 @@ const ImportPage = () => {
         }
     };
 
-    const handleOpenSummaryDialog = async (status) => {
-        const supplier = suppliers.find(s => s.id === selectedSupplier) || {};
-        // Nếu có storeId, lấy thêm chi tiết store nếu có danh sách stores
-        // const store = stores.find(s => s.id === selectedStore) || {};
-        setSummaryData({
-            store: {}, // Nếu có store chi tiết thì truyền vào đây
-            supplier,
-            products: selectedProducts,
-            totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-            paidAmount,
-            note,
-            importDate: new Date(),
-            status,
-        });
-        setSupplierDetails(supplier);
-        // setStoreDetails(store);
-        setShowSummaryDialog(true);
-    };
-
-    const handleConfirmImport = async () => {
-        setShowSummaryDialog(false);
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-        try {
-            const importData = {
-                name: nextImportCode,
-                supplierId: selectedSupplier,
-                storeId: 1,
-                staffId: currentUser?.id || 1,
-                importTransactionNote: note,
-                paidAmount: paidAmount,
-                details: selectedProducts.map(product => ({
-                    productId: product.productId,
-                    importQuantity: product.quantity,
-                    remainQuantity: product.quantity,
-                    expireDate: formatExpireDateForBackend(product.expireDate),
-                    unitImportPrice: product.price,
-                    unitSalePrice: product.salePrice,
-                    zones_id: product.zoneId || '',
-                })),
-                status: summaryData?.status || 'DRAFT',
-            };
-            await importTransactionService.create(importData);
-            setSuccess('Tạo phiếu nhập hàng thành công!');
-            setSelectedProducts([]);
-            setPaidAmount(0);
-            setNote('');
-        } catch (err) {
-            console.error('Error creating import transaction:', err);
-            setError('Không thể tạo phiếu nhập hàng');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     // Helper: kiểm tra value có hợp lệ trong danh sách không
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
@@ -737,7 +680,87 @@ const ImportPage = () => {
         },
     ].filter(Boolean);
 
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.total || 0), 0);
+    // Hàm lấy chi tiết nhà cung cấp
+    const fetchSupplierDetails = async (supplierId) => {
+        if (!supplierId) return null;
+        try {
+            const supplier = await customerService.getCustomerById(supplierId);
+            setSupplierDetails(supplier);
+        } catch (error) {
+            setSupplierDetails(null);
+        }
+    };
+    // Hàm lấy chi tiết cửa hàng (nếu cần)
+    const fetchStoreDetails = async (storeId) => {
+        // Nếu có nhiều store, implement lấy chi tiết ở đây
+        setStoreDetails(null); // placeholder
+    };
+
+    // Tổng tiền hàng
+    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+
+    // Xử lý mở dialog tổng kết
+    const handleShowSummary = async (status) => {
+        if (!selectedSupplier) {
+            setError('Vui lòng chọn nhà cung cấp');
+            return;
+        }
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            return;
+        }
+        await fetchSupplierDetails(selectedSupplier);
+        // Nếu có nhiều store, gọi fetchStoreDetails(storeId) ở đây
+        setSummaryData({
+            supplier: suppliers.find(s => s.id === selectedSupplier) || {},
+            store: {}, // Nếu có nhiều store, truyền đúng object
+            products: selectedProducts,
+            totalAmount,
+            paidAmount,
+            note,
+            importDate: new Date(),
+            status,
+        });
+        setShowSummaryDialog(true);
+    };
+
+    // Xác nhận lưu phiếu nhập
+    const handleConfirmSummary = async () => {
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const importData = {
+                name: nextImportCode,
+                supplierId: selectedSupplier,
+                storeId: 1,
+                staffId: currentUser?.id || 1,
+                importTransactionNote: note,
+                paidAmount: paidAmount,
+                details: selectedProducts.map(product => ({
+                    productId: product.productId,
+                    importQuantity: product.quantity,
+                    remainQuantity: product.quantity,
+                    expireDate: formatExpireDateForBackend(product.expireDate),
+                    unitImportPrice: product.price,
+                    unitSalePrice: product.salePrice,
+                    zones_id: product.zoneId || '',
+                })),
+                status: summaryData.status,
+            };
+            await importTransactionService.create(importData);
+            setSuccess('Tạo phiếu nhập hàng thành công!');
+            setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
+            setShowSummaryDialog(false);
+            setSummaryData(null);
+        } catch (err) {
+            setError('Không thể tạo phiếu nhập hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -945,8 +968,8 @@ const ImportPage = () => {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={() => handleOpenSummaryDialog('DRAFT')} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={() => handleOpenSummaryDialog('COMPLETE')} disabled={loading}>Hoàn thành</Button>
+                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={() => handleShowSummary('DRAFT')} disabled={loading}>Lưu tạm</Button>
+                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={() => handleShowSummary('WAITING_FOR_APPROVE')} disabled={loading}>Hoàn thành</Button>
                 </div>
             </div>
 
@@ -1035,7 +1058,7 @@ const ImportPage = () => {
             <ImportSummaryDialog
                 open={showSummaryDialog}
                 onClose={() => setShowSummaryDialog(false)}
-                onConfirm={handleConfirmImport}
+                onConfirm={handleConfirmSummary}
                 importData={summaryData}
                 formatCurrency={formatCurrency}
                 loading={loading}

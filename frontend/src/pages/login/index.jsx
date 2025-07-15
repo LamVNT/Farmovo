@@ -7,6 +7,7 @@ import { Link, NavLink } from 'react-router-dom';
 import Button from "@mui/material/Button";
 import { CiLogin, CiUser } from "react-icons/ci";
 import SocialLoginButtons from '../../components/login/SocialLoginButtons';
+import FarmovoLogo from '../../assets/Farmovo.png';
 
 const Login = () => {
     const { isLogin } = useContext(MyContext);
@@ -22,7 +23,7 @@ const Login = () => {
         <section className='bg-white w-full'>
             <header className="w-full fixed top-0 left-0 px-4 py-3 flex items-center justify-between z-50">
                 <Link to="/">
-                    <img className="w-[200px]" src="https://ecme-react.themenate.net/img/logo/logo-light-full.png" />
+                    <img className="w-[200px]" src={FarmovoLogo} alt="Farmovo Logo" />
                 </Link>
 
                 <div className="flex items-center gap-0">

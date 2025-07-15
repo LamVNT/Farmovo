@@ -16,6 +16,7 @@ import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
 import { HiOutlineDocumentReport } from "react-icons/hi";
 import { FaBoxOpen, FaExclamationTriangle, FaClock } from "react-icons/fa";
+import FarmovoLogo from '../../assets/Farmovo.png';
 
 
 const Sidebar = () => {
@@ -47,8 +48,8 @@ const Sidebar = () => {
         <>
             <div className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
                 <div className="py-2 w-full">
-                    <Link to="/"><
-                        img src="https://ecme-react.themenate.net/img/logo/logo-light-full.png" className="w-[120px]"/>
+                    <Link to="/">
+                        <img src={FarmovoLogo} alt="Farmovo Logo" className="w-[120px]"/>
                     </Link>
                 </div>
 

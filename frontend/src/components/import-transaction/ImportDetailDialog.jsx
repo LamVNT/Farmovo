@@ -14,52 +14,53 @@ import {
     TableRow,
     Paper,
     Divider,
+    Chip,
 } from '@mui/material';
-import { FaPrint, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaTimes, FaFileExport } from 'react-icons/fa';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PersonIcon from '@mui/icons-material/Person';
 
-const ImportSummaryDialog = ({
+const ImportDetailDialog = ({
     open,
     onClose,
-    onConfirm,
-    importData,
+    transaction,
+    details,
     formatCurrency,
-    loading,
-    currentUser,
     supplierDetails,
-    storeDetails
+    userDetails,
+    storeDetails,
+    onExport
 }) => {
-    if (!importData) return null;
+    if (!transaction) return null;
 
-    const { supplier, store, products, totalAmount, paidAmount, note, importDate, status } = importData;
+    const statusMap = {
+        'DRAFT': { label: '📝 Phiếu tạm thời', color: '#6b7280' },
+        'WAITING_FOR_APPROVE': { label: '⏳ Chờ duyệt', color: '#f59e0b' },
+        'COMPLETE': { label: '✅ Phiếu hoàn thành', color: '#10b981' },
+        'CANCEL': { label: '❌ Đã huỷ', color: '#ef4444' },
+    };
+    const status = statusMap[transaction.status] || { label: transaction.status, color: '#6b7280' };
 
     return (
-        <Dialog 
-            open={open} 
-            onClose={onClose}
-            maxWidth="md"
-            fullWidth
-        >
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        PHIẾU NHẬP HÀNG
+                        CHI TIẾT PHIẾU NHẬP HÀNG
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : status === 'WAITING_FOR_APPROVE' ? '⏳ Chờ duyệt' : '✅ Phiếu hoàn thành'}
+                        {status.label}
                     </Typography>
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {importDate ? new Date(importDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
+                        Ngày: {transaction.importDate ? new Date(transaction.importDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {new Date().toLocaleTimeString('vi-VN')}
+                        Giờ: {transaction.importDate ? new Date(transaction.importDate).toLocaleTimeString('vi-VN') : 'N/A'}
                     </Typography>
                 </div>
             </DialogTitle>
-
             <DialogContent className="p-6">
                 {/* Thông tin cửa hàng và nhà cung cấp */}
                 <div className="grid grid-cols-2 gap-6 mb-6">
@@ -69,13 +70,13 @@ const ImportSummaryDialog = ({
                             THÔNG TIN CỬA HÀNG
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Tên cửa hàng:</strong> {store?.storeName || store?.name || storeDetails?.storeName || 'Chưa có'}
+                            <strong>Tên cửa hàng:</strong> {transaction.storeName || storeDetails?.storeName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> {store?.storeAddress || store?.address || storeDetails?.storeAddress || storeDetails?.address || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {transaction.storeAddress || storeDetails?.storeAddress || storeDetails?.address || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Người tạo:</strong> {currentUser?.fullName || currentUser?.name || 'Chưa có'}
+                            <strong>Người tạo:</strong> {userDetails?.fullName || userDetails?.name || userDetails?.username || transaction.createdBy || 'Chưa có'}
                         </Typography>
                     </div>
                     <div>
@@ -84,13 +85,13 @@ const ImportSummaryDialog = ({
                             THÔNG TIN NHÀ CUNG CẤP
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Tên nhà cung cấp:</strong> {supplier?.name || supplierDetails?.name || 'Chưa có'}
+                            <strong>Tên nhà cung cấp:</strong> {supplierDetails?.name || transaction.supplierName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Số điện thoại:</strong> {supplier?.phone || supplierDetails?.phone || 'Chưa có'}
+                            <strong>Số điện thoại:</strong> {supplierDetails?.phone || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> {supplier?.address || supplierDetails?.address || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {supplierDetails?.address || 'Chưa có'}
                         </Typography>
                     </div>
                 </div>
@@ -101,7 +102,6 @@ const ImportSummaryDialog = ({
                 <Typography variant="subtitle1" className="font-semibold mb-3 text-gray-800">
                     📦 DANH SÁCH SẢN PHẨM
                 </Typography>
-                
                 <TableContainer component={Paper} className="mb-4">
                     <Table size="small">
                         <TableHead>
@@ -109,33 +109,41 @@ const ImportSummaryDialog = ({
                                 <TableCell className="font-semibold">STT</TableCell>
                                 <TableCell className="font-semibold">Tên sản phẩm</TableCell>
                                 <TableCell className="font-semibold text-center">ĐVT</TableCell>
-                                <TableCell className="font-semibold text-center">Số lượng</TableCell>
-                                <TableCell className="font-semibold text-right">Đơn giá</TableCell>
+                                <TableCell className="font-semibold text-center">SL nhập</TableCell>
+                                <TableCell className="font-semibold text-center">SL còn</TableCell>
+                                <TableCell className="font-semibold text-right">Giá nhập</TableCell>
+                                <TableCell className="font-semibold text-right">Giá bán</TableCell>
                                 <TableCell className="font-semibold text-right">Thành tiền</TableCell>
+                                <TableCell className="font-semibold text-center">HSD</TableCell>
+                                <TableCell className="font-semibold text-center">Khu vực</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {products && products.length > 0 ? products.map((product, index) => (
-                                <TableRow key={product.id || index} className="hover:bg-gray-50">
+                            {details && details.length > 0 ? details.map((detail, index) => (
+                                <TableRow key={index} className="hover:bg-gray-50">
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <div>
-                                            <div className="font-medium">{product.name || product.productName || 'Chưa có'}</div>
+                                            <div className="font-medium">{detail.productName || 'Chưa có'}</div>
                                             <div className="text-xs text-gray-500">
-                                                Mã: {product.code || product.productCode || 'N/A'}
+                                                Mã: {detail.productCode || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-center">{product.unit || 'quả'}</TableCell>
-                                    <TableCell className="text-center">{product.quantity || product.importQuantity || 0}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(product.price || product.unitImportPrice || 0)}</TableCell>
+                                    <TableCell className="text-center">quả</TableCell>
+                                    <TableCell className="text-center">{detail.importQuantity}</TableCell>
+                                    <TableCell className="text-center">{detail.remainQuantity}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(detail.unitImportPrice)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(detail.unitSalePrice)}</TableCell>
                                     <TableCell className="text-right font-semibold">
-                                        {formatCurrency((product.price || product.unitImportPrice || 0) * (product.quantity || product.importQuantity || 0))}
+                                        {formatCurrency((detail.unitImportPrice || 0) * (detail.importQuantity || 0))}
                                     </TableCell>
+                                    <TableCell className="text-center">{detail.expireDate ? new Date(detail.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>
+                                    <TableCell className="text-center">{detail.zones_id || ''}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">Không có sản phẩm</TableCell>
+                                    <TableCell colSpan={10} align="center">Không có sản phẩm</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -149,21 +157,18 @@ const ImportSummaryDialog = ({
                             Tổng tiền hàng:
                         </Typography>
                         <Typography variant="body1" className="font-bold text-lg">
-                            {formatCurrency(totalAmount)}
+                            {formatCurrency(transaction.totalAmount)}
                         </Typography>
                     </div>
-                    
                     <div className="flex justify-between items-center mb-2">
                         <Typography variant="body1" className="font-semibold">
                             Số tiền đã trả:
                         </Typography>
                         <Typography variant="body1" className="font-semibold text-blue-600">
-                            {formatCurrency(paidAmount)}
+                            {formatCurrency(transaction.paidAmount)}
                         </Typography>
                     </div>
-                    
                     <Divider className="my-2" />
-                    
                     <div className="flex justify-between items-center">
                         <Typography variant="body1" className="font-semibold">
                             Còn lại:
@@ -171,52 +176,44 @@ const ImportSummaryDialog = ({
                         <Typography 
                             variant="body1" 
                             className={`font-bold text-lg ${
-                                totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'
+                                transaction.totalAmount - transaction.paidAmount > 0 ? 'text-red-600' : 'text-green-600'
                             }`}
                         >
-                            {formatCurrency(totalAmount - paidAmount)}
+                            {formatCurrency(transaction.totalAmount - transaction.paidAmount)}
                         </Typography>
                     </div>
                 </div>
 
                 {/* Ghi chú */}
-                {note && (
+                {transaction.importTransactionNote && (
                     <div className="mt-4">
                         <Typography variant="subtitle2" className="font-semibold mb-1 text-gray-700">
                             📝 Ghi chú:
                         </Typography>
                         <Typography variant="body2" className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
-                            {note}
+                            {transaction.importTransactionNote}
                         </Typography>
                     </div>
                 )}
             </DialogContent>
-
             <DialogActions className="p-4 bg-gray-50">
                 <Button 
-                    onClick={onClose} 
+                    onClick={onExport} 
                     variant="outlined" 
-                    startIcon={<FaTimes />}
-                    disabled={loading}
+                    startIcon={<FaFileExport />}
                 >
-                    Hủy bỏ
+                    Xuất file
                 </Button>
                 <Button 
-                    onClick={onConfirm} 
+                    onClick={onClose} 
                     variant="contained" 
-                    className={`${
-                        status === 'DRAFT' 
-                            ? '!bg-blue-600 hover:!bg-blue-700' 
-                            : '!bg-green-600 hover:!bg-green-700'
-                    } text-white`}
-                    startIcon={loading ? null : (status === 'DRAFT' ? <FaPrint /> : <FaCheck />)}
-                    disabled={loading}
+                    startIcon={<FaTimes />}
                 >
-                    {loading ? 'Đang xử lý...' : (status === 'DRAFT' ? 'Lưu tạm' : (status === 'WAITING_FOR_APPROVE' ? 'Chờ duyệt' : 'Hoàn thành'))}
+                    Đóng
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
 
-export default ImportSummaryDialog; 
+export default ImportDetailDialog; 

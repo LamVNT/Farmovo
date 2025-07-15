@@ -33,6 +33,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
+import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
 
 const getRange = (key) => {
     const today = new Date();
@@ -590,123 +591,21 @@ const ImportTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu nhập */}
-            <Dialog open={openDetailDialog} onClose={() => {
-                setOpenDetailDialog(false);
-                setSupplierDetails(null);
-                setUserDetails(null);
-            }} maxWidth="md" fullWidth>
-                <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
-                <DialogContent>
-                    {selectedTransaction ? (
-                        <div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <strong>Nhà cung cấp:</strong> {supplierDetails ? supplierDetails.name : (selectedTransaction.supplierName || 'N/A')}
-                                </div>
-                                <div>
-                                    <strong>Người tạo:</strong> {userDetails ? userDetails.username : (selectedTransaction.createdBy || 'N/A')}
-                                </div>
-                                <div>
-                                    <strong>Thời gian:</strong> {selectedTransaction.importDate ? new Date(selectedTransaction.importDate).toLocaleString('vi-VN') : ''}
-                                </div>
-                                <div>
-                                    <strong>Trạng thái:</strong> 
-                                    <Chip
-                                        label={getStatusLabel(selectedTransaction.status)}
-                                        style={{
-                                            backgroundColor: getStatusColor(selectedTransaction.status),
-                                            color: '#fff',
-                                            marginLeft: 8
-                                        }}
-                                        size="small"
-                                    />
-                                </div>
-                            </div>
-                            
-                            {selectedDetails && selectedDetails.length > 0 ? (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Sản phẩm</TableCell>
-                                            <TableCell>SL nhập</TableCell>
-                                            <TableCell>SL còn</TableCell>
-                                            <TableCell>Giá nhập</TableCell>
-                                            <TableCell>Giá bán</TableCell>
-                                            <TableCell>Thành tiền</TableCell>
-                                            <TableCell>HSD</TableCell>
-                                            <TableCell>Khu vực</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {selectedDetails.map((detail, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{detail.productName}</TableCell>
-                                                <TableCell>{detail.importQuantity}</TableCell>
-                                                <TableCell>{detail.remainQuantity}</TableCell>
-                                                <TableCell>{detail.unitImportPrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{detail.unitSalePrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{((detail.unitImportPrice || 0) * (detail.importQuantity || 0)).toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{detail.expireDate ? new Date(detail.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>
-                                                <TableCell>{detail.zones_id}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p>Không có dữ liệu chi tiết.</p>
-                            )}
-                            
-                            <div className="mt-4 text-right">
-                                <div className="text-lg font-semibold">
-                                    Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Đã thanh toán: {selectedTransaction.paidAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Còn lại: {(selectedTransaction.totalAmount - (selectedTransaction.paidAmount || 0)).toLocaleString('vi-VN')} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p>Không có dữ liệu chi tiết.</p>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                  {selectedTransaction?.status === 'DRAFT' && (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<ReplyIcon />}
-                      onClick={handleOpenTransaction}
-                    >
-                      Mở phiếu
-                    </Button>
-                  )}
-                  <Button
-                    variant="contained"
-                    style={{ background: '#6b7280', color: '#fff' }}
-                    startIcon={<FaFileExport />}
-                    onClick={handleExportDetail}
-                  >
-                    Xuất file
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<CloseIcon />}
-                    onClick={handleCancelTransaction}
-                  >
-                    Huỷ bỏ
-                  </Button>
-                </DialogActions>
-                {cancelError && (
-                  <Alert severity="error" className="mt-2">{cancelError}</Alert>
-                )}
-                {openError && (
-                  <Alert severity="error" className="mt-2">{openError}</Alert>
-                )}
-            </Dialog>
+            <ImportDetailDialog
+                open={openDetailDialog}
+                onClose={() => {
+                    setOpenDetailDialog(false);
+                    setSupplierDetails(null);
+                    setUserDetails(null);
+                }}
+                transaction={selectedTransaction}
+                details={selectedDetails}
+                formatCurrency={(v) => (v || 0).toLocaleString('vi-VN') + ' VNĐ'}
+                supplierDetails={supplierDetails}
+                userDetails={userDetails}
+                storeDetails={null} // If you have store details, pass here
+                onExport={handleExportDetail}
+            />
 
             {/* Action Menu */}
             <Menu
