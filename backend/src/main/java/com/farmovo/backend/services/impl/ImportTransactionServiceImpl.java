@@ -44,6 +44,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 dto.getSupplierId(), dto.getStoreId(), dto.getStaffId());
 
         ImportTransaction transaction = new ImportTransaction();
+
         transaction.setSupplier(getSupplier(dto.getSupplierId()));
         transaction.setStore(getStore(dto.getStoreId()));
         transaction.setStaff(getStaff(dto.getStaffId()));
@@ -70,7 +71,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
             BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
             totalAmount = totalAmount.add(lineTotal);
-
             detailList.add(detail);
             log.debug("Added detail: productId={}, quantity={}, lineTotal={}", d.getProductId(), d.getImportQuantity(), lineTotal);
         }
@@ -170,13 +170,22 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         detail.setExpireDate(dto.getExpireDate());
         detail.setUnitImportPrice(dto.getUnitImportPrice());
         detail.setUnitSalePrice(dto.getUnitSalePrice());
+
+        // Convert List<String> zones_id → String và set vào entity
+        String zonesIdStr = dto.getZones_id() == null ? null : String.join(",", dto.getZones_id());
+        detail.setZones_id(zonesIdStr);
+        log.debug("Đã set zones_id vào entity: {}", zonesIdStr);
+
+
+        // false là cần kiểm hàng
+        detail.setIsCheck(true);
         return detail;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void cancel(Long id) {
         ImportTransaction transaction = importTransactionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ImportTransaction not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
         transaction.setStatus(ImportTransactionStatus.CANCEL);
         // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
         importTransactionRepository.save(transaction);
@@ -185,7 +194,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     @Transactional(rollbackFor = Exception.class)
     public void open(Long id) {
         ImportTransaction transaction = importTransactionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ImportTransaction not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
         if (transaction.getStatus() != ImportTransactionStatus.DRAFT) {
             throw new RuntimeException("Chỉ có thể mở phiếu khi trạng thái là Nháp (DRAFT)");
         }
@@ -202,19 +211,20 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 .collect(Collectors.toList());
     }
 
+
+    ///////////////
     @Override
     public List<ImportTransactionResponseDto> listAllImportTransaction() {
-        List<ImportTransaction> entities = importTransactionRepository.findAll();
+        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
         return entities.stream()
                 .map(importTransactionMapper::toResponseDto)
                 .collect(Collectors.toList());
     }
 
-
     @Override
     public CreateImportTransactionRequestDto getImportTransactionById(Long id) {
         ImportTransaction entity = importTransactionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ImportTransaction not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
         return importTransactionMapper.toDto(entity);
     }
 
@@ -226,10 +236,16 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return String.format("PN%06d", lastId + 1);
     }
 
-//    @Override
-//    public List<ImportTransactionResponseDto> filterImportTransactions(String search, String status, String startDate, String endDate) {
-//        return List.of();
-//    }
+    @Override
+    @Transactional
+    public void softDeleteImportTransaction(Long id, Long userId) {
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu nhập với ID: " + id));
 
+        transaction.setDeletedAt(LocalDateTime.now());
+        transaction.setDeletedBy(userId);
+
+        importTransactionRepository.save(transaction);
+    }
 
 }

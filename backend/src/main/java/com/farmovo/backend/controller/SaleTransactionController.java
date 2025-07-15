@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -67,16 +68,6 @@ public class SaleTransactionController {
             products = productService.getAllProductSaleDto();
         }
 
-        // Debug logging
-        System.out.println("=== DEBUG SALE TRANSACTION CREATE FORM DATA ===");
-        System.out.println("Customers count: " + customers.size());
-        System.out.println("Stores count: " + stores.size());
-        System.out.println("Products count: " + products.size());
-        System.out.println("Available details count: " + availableDetails.size());
-
-        if (!products.isEmpty()) {
-            System.out.println("First product: " + products.get(0));
-        }
 
         SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
         formData.setCustomers(customers);
@@ -88,11 +79,11 @@ public class SaleTransactionController {
     public ResponseEntity<List<ProductSaleResponseDto>> listAllProductResponseDtoByIdPro(@PathVariable Long productId) {
         // Kiểm tra sản phẩm có tồn tại không
         productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product không tồn tại với ID: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product does not exist with ID: " + productId));
 
         List<ImportTransactionDetail> details = detailRepository.findCompletedDetailsWithQuantityByProductId(productId);
         if (details.isEmpty()) {
-            throw new ResourceNotFoundException("Không tìm thấy lô hàng còn tồn cho sản phẩm ID: " + productId);
+            throw new ResourceNotFoundException("No available lots found for product ID: " + productId);
         }
         List<ProductSaleResponseDto> result = details.stream()
                 .map(productMapper::toDtoSale)
@@ -124,27 +115,29 @@ public class SaleTransactionController {
         return ResponseEntity.ok("Sale transaction updated successfully");
     }
 
-    @GetMapping("/test-data")
-    public ResponseEntity<String> testData() {
-        List<ImportTransactionDetail> allDetails = detailRepository.findAll();
-        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
-
-        StringBuilder result = new StringBuilder();
-        result.append("=== TEST DATA ===\n");
-        result.append("Total ImportTransactionDetail: ").append(allDetails.size()).append("\n");
-        result.append("Available details (remainQuantity > 0): ").append(availableDetails.size()).append("\n");
-
-        if (!availableDetails.isEmpty()) {
-            result.append("\nFirst available detail:\n");
-            ImportTransactionDetail first = availableDetails.get(0);
-            result.append("ID: ").append(first.getId()).append("\n");
-            result.append("Product ID: ").append(first.getProduct().getId()).append("\n");
-            result.append("Product Name: ").append(first.getProduct().getProductName()).append("\n");
-            result.append("Remain Quantity: ").append(first.getRemainQuantity()).append("\n");
-            result.append("Unit Sale Price: ").append(first.getUnitSalePrice()).append("\n");
-        }
-
-        return ResponseEntity.ok(result.toString());
+    @GetMapping("/next-code")
+    public ResponseEntity<String> getNextImportTransactionCode() {
+        // Lấy mã phiếu nhập tiếp theo từ service
+        String nextCode = saleTransactionService.getNextSaleTransactionCode();
+        return ResponseEntity.ok(nextCode);
     }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelSaleTransaction(@PathVariable Long id) {
+        saleTransactionService.cancel(id);
+        return ResponseEntity.ok("Cancelled");
+    }
+
+    @DeleteMapping("/sort-delete/{id}")
+    public ResponseEntity<String> softDeleteSaleTransaction(@PathVariable Long id, HttpServletRequest request) {
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            saleTransactionService.softDeleteSaleTransaction(id, userId);
+            return ResponseEntity.ok("Soft delete successful");
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
+    }
+
 }
 

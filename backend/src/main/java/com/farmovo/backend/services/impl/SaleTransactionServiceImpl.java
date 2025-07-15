@@ -7,9 +7,7 @@ import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.InvalidStatusException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
-import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.models.SaleTransaction;
-import com.farmovo.backend.models.SaleTransactionStatus;
+import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.ImportTransactionService;
 import com.farmovo.backend.services.SaleTransactionService;
@@ -23,6 +21,7 @@ import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,6 +101,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setSaleDate(dto.getSaleDate());
         transaction.setStatus(dto.getStatus());
 
+
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        String newName = String.format("PB%06d", lastId + 1);
+        transaction.setName(newName);
+
+
         transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + dto.getCustomerId())));
         transaction.setStore(storeRepository.findById(dto.getStoreId())
@@ -117,7 +124,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             deductStockFromBatch(dto.getDetail());
         }
-
         saleTransactionRepository.save(transaction);
     }
 
@@ -144,11 +150,38 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         }
     }
 
-
     @Override
     public List<SaleTransactionResponseDto> getAll() {
-        List<SaleTransaction> entities = saleTransactionRepository.findAll();
+        List<SaleTransaction> entities = saleTransactionRepository.findAllSaleActive();
         return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void cancel(Long id) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("ImportTransaction not found with id: " + id));
+        transaction.setStatus(SaleTransactionStatus.CANCEL);
+        // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
+        saleTransactionRepository.save(transaction);
+    }
+
+    @Override
+    public String getNextSaleTransactionCode() {
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        return String.format("PB%06d", lastId + 1);
+    }
+
+    @Override
+    public void softDeleteSaleTransaction(Long id, Long userId) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu bán với ID: " + id));
+
+        transaction.setDeletedAt(LocalDateTime.now());
+        transaction.setDeletedBy(userId);
+
+        saleTransactionRepository.save(transaction);
+    }
 }

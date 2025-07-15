@@ -2,6 +2,7 @@ package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.StoreRequestDto;
 import com.farmovo.backend.exceptions.UserManagementException;
+import com.farmovo.backend.mapper.StoreMapper;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.StoreService;
@@ -19,6 +20,10 @@ public class StoreServiceImpl implements StoreService {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private StoreMapper storeMapper;
+
     @Override
     public List<Store> getAllStores() {
         logger.info("Retrieving all stores");
@@ -75,11 +80,17 @@ public class StoreServiceImpl implements StoreService {
 
     @Override
     public Store convertToEntity(StoreRequestDto dto) {
-        logger.info("Converting StoreRequestDto to Store entity: {}", dto.getName());
+        logger.info("Converting StoreRequestDto to Store entity: {}", dto.getStoreName());
         Store store = new Store();
-        store.setStoreName(dto.getName());
-        store.setStoreDescription(dto.getDescription());
-        store.setStoreAddress(dto.getAddress());
+        store.setStoreName(dto.getStoreName());
+        store.setStoreDescription(dto.getStoreDescription());
+        store.setStoreAddress(dto.getStoreAddress());
         return store;
     }
+
+    @Override
+    public List<StoreRequestDto> getAllStoreDto() {
+        return storeMapper.toDtoList(storeRepository.findAll());
+    }
+
 }

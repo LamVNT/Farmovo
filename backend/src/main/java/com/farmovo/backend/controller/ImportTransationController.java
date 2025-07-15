@@ -3,6 +3,7 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
+import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.ImportTransaction;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +31,7 @@ public class ImportTransationController {
     private final CustomerService customerService;
     private final ProductService productService;
     private final ZoneService zoneService;
+    private final StoreService storeService;
     private final ImportTransactionService importTransactionService;
     private final JwtUtils jwtUtils;
 
@@ -38,12 +41,13 @@ public class ImportTransationController {
         List<CustomerDto> customers = customerService.getAllCustomerDto();
         List<ProductDto> products = productService.getAllProductDto();
         List<ZoneDto> zones = zoneService.getAllZoneDtos();
+        List<StoreRequestDto> stores = storeService.getAllStoreDto();
 
         ImportTransactionCreateFormDataDto formData = new ImportTransactionCreateFormDataDto();
         formData.setCustomers(customers);
         formData.setProducts(products);
         formData.setZones(zones);
-
+        formData.setStores(stores);
         return ResponseEntity.ok(formData);
     }
 
@@ -88,6 +92,7 @@ public class ImportTransationController {
         String nextCode = importTransactionService.getNextImportTransactionCode();
         return ResponseEntity.ok(nextCode);
     }
+
     @PutMapping("/{id}")
     public ResponseEntity<String> updateImportTransaction(
             @PathVariable Long id,
@@ -95,4 +100,16 @@ public class ImportTransationController {
         importTransactionService.update(id, dto);
         return ResponseEntity.ok("Import transaction updated successfully.");
     }
+
+    @DeleteMapping("/sort-delete/{id}")
+    public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            importTransactionService.softDeleteImportTransaction(id, userId);
+            return ResponseEntity.ok("Xóa mềm thành công");
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
+    }
+
 }
