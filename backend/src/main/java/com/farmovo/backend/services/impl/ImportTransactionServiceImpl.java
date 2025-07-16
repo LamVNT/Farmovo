@@ -97,35 +97,32 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Import transaction created successfully. ID: {}, Code: {}, Total: {}, Paid: {}",
                 savedTransaction.getId(), savedTransaction.getName(), totalAmount, transaction.getPaidAmount());
 
-
         // Lưu
         importTransactionRepository.save(transaction);
         log.info("Import transaction created. Total: {}, Paid: {}", totalAmount, transaction.getPaidAmount());
 
-        // Tạo DebtNote nếu paidAmount < || > totalAmount
-        BigDecimal paidAmount = transaction.getPaidAmount();
-        totalAmount = transaction.getTotalAmount();
+        if(dto.getStatus() == ImportTransactionStatus.COMPLETE){
+            // Tạo DebtNote nếu paidAmount < || > totalAmount
+            BigDecimal paidAmount = transaction.getPaidAmount();
+            totalAmount = transaction.getTotalAmount();
 
-// Sửa lại: nợ = totalAmount - paidAmount
-        BigDecimal debtAmount = totalAmount.subtract(paidAmount);
-// > 0: còn nợ supplier ⇒ supplier DƯƠNG
-// < 0: trả dư ⇒ supplier ÂM
+            BigDecimal debtAmount = totalAmount.subtract(paidAmount);
 
-        if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
+            if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
+                String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
 
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getSupplier().getId(),
-                    debtAmount,
-                    "IMPORT",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
+                debtNoteService.createDebtNoteFromTransaction(
+                        transaction.getSupplier().getId(),
+                        debtAmount,
+                        "IMPORT",
+                        debtType,
+                        transaction.getId(),
+                        transaction.getStore().getId()
+                );
 
-            log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
-    }
-
+                log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
+            }
+        }
 
     }
 

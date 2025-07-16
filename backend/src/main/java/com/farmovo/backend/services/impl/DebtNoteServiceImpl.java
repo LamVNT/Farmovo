@@ -9,6 +9,7 @@ import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
 import com.farmovo.backend.services.DebtNoteService;
+import com.farmovo.backend.utils.DebtNoteValidation;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,6 +57,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     @Transactional
     public DebtNoteResponseDto addDebtNote(DebtNoteRequestDto requestDto) {
+        DebtNoteValidation.validate(requestDto);
         logger.debug("Adding debt note: {}", requestDto);
         try {
             Customer customer = customerRepository.findById(requestDto.getCustomerId())

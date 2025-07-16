@@ -13,6 +13,7 @@ import com.farmovo.backend.exceptions.StoreNotFoundException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
+import com.farmovo.backend.models.ImportTransactionStatus;
 import com.farmovo.backend.models.SaleTransaction;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import com.farmovo.backend.repositories.*;
@@ -76,7 +77,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setPaidAmount(dto.getPaidAmount());
         transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
         transaction.setSaleDate(dto.getSaleDate());
-        transaction.setStatus(dto.getStatus());
+        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
         transaction.setCreatedBy(userId);
 
         try {
@@ -106,29 +107,29 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         saleTransactionRepository.save(transaction);
 
-        // Tạo DebtNote nếu paid < || > total
-        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        if(dto.getStatus() == SaleTransactionStatus.COMPLETE){
+            // Tạo DebtNote nếu paid < || > total
+            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
 
-// ✅ đúng hướng tính công nợ tích lũy: khách nợ → âm
-        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount); // Âm: khách nợ | Dương: cửa hàng nợ khách
+            BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount); // Âm: khách nợ | Dương: cửa hàng nợ khách
 
-        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-            BigDecimal debtAmount = rawDebtAmount.abs(); // luôn DƯƠNG khi ghi xuống bảng phiếu nợ
+            if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+                String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+                BigDecimal debtAmount = rawDebtAmount.abs(); // luôn DƯƠNG khi ghi xuống bảng phiếu nợ
 
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getCustomer().getId(),
-                    debtAmount,
-                    "SALE",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
+                debtNoteService.createDebtNoteFromTransaction(
+                        transaction.getCustomer().getId(),
+                        debtAmount,
+                        "SALE",
+                        debtType,
+                        transaction.getId(),
+                        transaction.getStore().getId()
+                );
 
-            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+                log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+            }
         }
-
 
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());

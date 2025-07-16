@@ -11,6 +11,7 @@ import {
     FormControl,
     InputLabel,
     Typography,
+    Box,
 } from "@mui/material";
 import { updateDebtNote } from "../../services/debtService";
 import { getAllStores, uploadEvidence } from "../../services/storeService";
@@ -29,6 +30,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
     });
     const [stores, setStores] = useState([]);
     const [file, setFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -55,6 +57,12 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
                 sourceId: debtNote.sourceId || "",
                 storeId: debtNote.storeId || "",
             });
+            // Nếu có evidence cũ và là ảnh, hiển thị preview
+            if (debtNote.debtEvidences && (debtNote.debtEvidences.endsWith('.jpg') || debtNote.debtEvidences.endsWith('.jpeg') || debtNote.debtEvidences.endsWith('.png') || debtNote.debtEvidences.endsWith('.webp'))) {
+                setPreviewUrl(debtNote.debtEvidences.startsWith('http') ? debtNote.debtEvidences : `${import.meta.env.VITE_API_URL}/uploads/${debtNote.debtEvidences}`);
+            } else {
+                setPreviewUrl(null);
+            }
         }
     }, [debtNote, customerId]);
 
@@ -68,9 +76,15 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
         if (selectedFile && !selectedFile.type.startsWith("image/")) {
             setError("Vui lòng chọn file ảnh (jpg, png, v.v.)");
             setFile(null);
+            setPreviewUrl(null);
         } else {
             setFile(selectedFile);
             setError("");
+            if (selectedFile) {
+                setPreviewUrl(URL.createObjectURL(selectedFile));
+            } else {
+                setPreviewUrl(null);
+            }
         }
     };
 
@@ -98,6 +112,7 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
             const updatedDebtNote = await updateDebtNote(debtNote.id, data);
             onUpdate(updatedDebtNote);
             setFile(null);
+            setPreviewUrl(null);
             setError("");
             onClose();
         } catch (error) {
@@ -115,97 +130,143 @@ const EditDebtDialog = ({ open, onClose, debtNote, customerId, onUpdate }) => {
                         {error}
                     </Typography>
                 )}
-                <TextField
-                    margin="dense"
-                    name="debtAmount"
-                    label="Số tiền nợ"
-                    type="number"
-                    fullWidth
-                    value={formData.debtAmount}
-                    disabled
-                    InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                    margin="dense"
-                    name="debtDate"
-                    label="Ngày giao dịch"
-                    type="datetime-local"
-                    fullWidth
-                    value={formData.debtDate}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                />
-                <FormControl fullWidth margin="dense">
-                    <InputLabel>Loại nợ</InputLabel>
-                    <Select
-                        name="debtType"
-                        value={formData.debtType}
-                        onChange={handleChange}
-                        label="Loại nợ"
-                        required
-                    >
-                        <MenuItem value="+">Cửa hàng nợ</MenuItem>
-                        <MenuItem value="-">Khách hàng nợ</MenuItem>
-                    </Select>
-                </FormControl>
-                <TextField
-                    margin="dense"
-                    name="debtDescription"
-                    label="Mô tả"
-                    fullWidth
-                    value={formData.debtDescription}
-                    onChange={handleChange}
-                />
-                <FormControl fullWidth margin="dense">
-                    <InputLabel shrink>Bằng chứng (tùy chọn)</InputLabel>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        style={{ marginTop: "16px" }}
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Số tiền nợ</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="debtAmount"
+                        type="number"
+                        fullWidth
+                        value={formData.debtAmount}
+                        disabled
+                        InputLabelProps={{ shrink: true }}
+                        label=""
+                        sx={{ ml: 2 }}
                     />
-                    {formData.debtEvidences && (
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                            File hiện tại: {formData.debtEvidences}
-                        </Typography>
-                    )}
-                </FormControl>
-                <TextField
-                    margin="dense"
-                    name="fromSource"
-                    label="Nguồn (tùy chọn)"
-                    fullWidth
-                    value={formData.fromSource}
-                    onChange={handleChange}
-                />
-                <TextField
-                    margin="dense"
-                    name="sourceId"
-                    label="ID nguồn (tùy chọn)"
-                    type="number"
-                    fullWidth
-                    value={formData.sourceId}
-                    onChange={handleChange}
-                />
-                <FormControl fullWidth margin="dense">
-                    <InputLabel>ID cửa hàng</InputLabel>
-                    <Select
-                        name="storeId"
-                        value={formData.storeId}
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Ngày giao dịch</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="debtDate"
+                        type="datetime-local"
+                        fullWidth
+                        value={formData.debtDate}
                         onChange={handleChange}
-                        label="ID cửa hàng"
-                    >
-                        <MenuItem value="">Chọn cửa hàng</MenuItem>
-                        {stores.map((store) => (
-                            <MenuItem key={store.id} value={store.id}>
-                                {store.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                        InputLabelProps={{ shrink: true }}
+                        label=""
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Loại nợ</Typography>
+                    </Box>
+                    <FormControl fullWidth margin="dense" sx={{ ml: 2 }}>
+                        <Select
+                            name="debtType"
+                            value={formData.debtType}
+                            label=""
+                            required
+                            disabled
+                        >
+                            <MenuItem value="+">Cửa hàng nợ</MenuItem>
+                            <MenuItem value="-">Khách hàng nợ</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Mô tả</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="debtDescription"
+                        fullWidth
+                        value={formData.debtDescription}
+                        onChange={handleChange}
+                        disabled
+                        label=""
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Bằng chứng (tùy chọn)</Typography>
+                    </Box>
+                    <Box sx={{ ml: 2, flex: 1 }}>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            style={{ marginTop: "16px" }}
+                        />
+                        {previewUrl && (
+                            <img
+                                src={previewUrl}
+                                alt="Preview"
+                                style={{ maxWidth: "100%", maxHeight: 200, marginTop: 8, borderRadius: 8 }}
+                            />
+                        )}
+                        {formData.debtEvidences && !previewUrl && (
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                                File hiện tại: {formData.debtEvidences}
+                            </Typography>
+                        )}
+                    </Box>
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Nguồn (tùy chọn)</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="fromSource"
+                        fullWidth
+                        value={formData.fromSource}
+                        onChange={handleChange}
+                        disabled
+                        label=""
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>ID nguồn (tùy chọn)</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="sourceId"
+                        type="number"
+                        fullWidth
+                        value={formData.sourceId}
+                        onChange={handleChange}
+                        disabled
+                        label=""
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <Box minWidth={120}>
+                        <Typography>Tên cửa hàng</Typography>
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        name="storeName"
+                        fullWidth
+                        value={stores.find((store) => store.id === formData.storeId)?.name || ''}
+                        disabled
+                        label=""
+                        sx={{ ml: 2 }}
+                    />
+                </Box>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose}>Hủy</Button>
+                <Button onClick={() => { onClose(); setPreviewUrl(null); }}>Hủy</Button>
                 <Button onClick={handleSubmit} color="primary">
                     Cập nhật
                 </Button>
