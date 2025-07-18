@@ -18,7 +18,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import DebtTable from "../../components/debt/DebtTable";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
-import EditDebtDialog from "../../components/debt/EditDebtDialog.jsx";
+import DebtDetailDialog from "../../components/debt/EditDebtDialog.jsx";
 import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
 import { getAllCustomers, getCustomerById } from "../../services/customerService";
 
@@ -29,7 +29,7 @@ const DebtManagement = () => {
     const [debtNotes, setDebtNotes] = useState([]);
     const [totalDebt, setTotalDebt] = useState(null);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
-    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [debtTableOpen, setDebtTableOpen] = useState(false); // State cho modal DebtTable
     const [selectedDebtNote, setSelectedDebtNote] = useState(null);
     const [error, setError] = useState("");
@@ -93,18 +93,10 @@ const DebtManagement = () => {
         }
     };
 
-    const handleEditDebtNote = (debtNote) => {
+    const handleViewDebtNote = (debtNote) => {
         if (debtNote) {
             setSelectedDebtNote(debtNote);
-            setEditDialogOpen(true);
-        }
-    };
-
-    const handleUpdateDebtNote = (updatedDebtNote) => {
-        if (updatedDebtNote) {
-            setDebtNotes(
-                debtNotes.map((note) => (note.id === updatedDebtNote.id ? updatedDebtNote : note))
-            );
+            setDetailDialogOpen(true);
         }
     };
 
@@ -231,7 +223,7 @@ const DebtManagement = () => {
                     open={debtTableOpen}
                     onClose={() => setDebtTableOpen(false)}
                     debtNotes={debtNotes}
-                    onEdit={handleEditDebtNote}
+                    onEdit={handleViewDebtNote}
                     customer={customer}
                     totalDebt={totalDebt}
                     onAddDebt={() => setAddDialogOpen(true)}
@@ -240,12 +232,10 @@ const DebtManagement = () => {
                     onAddDebtNote={handleAddDebtNote}
                 />
             )}
-            <EditDebtDialog
-                open={editDialogOpen}
-                onClose={() => setEditDialogOpen(false)}
+            <DebtDetailDialog
+                open={detailDialogOpen}
+                onClose={() => setDetailDialogOpen(false)}
                 debtNote={selectedDebtNote}
-                customerId={selectedCustomerId}
-                onUpdate={handleUpdateDebtNote}
             />
         </Container>
     );

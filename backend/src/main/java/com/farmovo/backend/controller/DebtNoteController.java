@@ -23,7 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
 public class DebtNoteController {
-
+    
     private static final Logger logger = LogManager.getLogger(DebtNoteController.class);
     private final DebtNoteService debtNoteService;
 
