@@ -26,6 +26,7 @@ import { Link } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
+import { getStoreById } from "../../services/storeService";
 import ReplyIcon from '@mui/icons-material/Reply';
 import SaveIcon from '@mui/icons-material/Save';
 import ReplyAllIcon from '@mui/icons-material/ReplyAll';
@@ -34,6 +35,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
 import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
+import { getZones } from '../../services/zoneService';
 
 const getRange = (key) => {
     const today = new Date();
@@ -94,6 +96,7 @@ const ImportTransactionPage = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [zones, setZones] = useState([]);
 
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -102,6 +105,7 @@ const ImportTransactionPage = () => {
     const [actionRow, setActionRow] = useState(null);
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [userDetails, setUserDetails] = useState(null);
+    const [storeDetails, setStoreDetails] = useState(null);
 
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
@@ -115,8 +119,11 @@ const ImportTransactionPage = () => {
         try {
             const data = await importTransactionService.listAll();
             setTransactions(data);
+            
+            // Load zones data
+            const zonesData = await getZones();
+            setZones(zonesData);
         } catch (err) {
-            console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu nhập hàng');
         } finally {
             setLoading(false);
@@ -168,6 +175,12 @@ const ImportTransactionPage = () => {
 
         return true;
     });
+    // Sort by newest importDate first
+    filteredTransactions.sort((a, b) => {
+        const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+        const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+        return dateB - dateA;
+    });
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -197,7 +210,6 @@ const ImportTransactionPage = () => {
                     const supplier = await getCustomerById(transaction.supplierId);
                     setSupplierDetails(supplier);
                 } catch (error) {
-                    console.error("Lỗi khi tải thông tin supplier:", error);
                     setSupplierDetails(null);
                 }
             }
@@ -208,8 +220,17 @@ const ImportTransactionPage = () => {
                     const user = await userService.getUserById(transaction.createdBy);
                     setUserDetails(user);
                 } catch (error) {
-                    console.error("Lỗi khi tải thông tin user:", error);
                     setUserDetails(null);
+                }
+            }
+
+            // Fetch thông tin store
+            if (transaction.storeId) {
+                try {
+                    const store = await getStoreById(transaction.storeId);
+                    setStoreDetails(store);
+                } catch (error) {
+                    setStoreDetails(null);
                 }
             }
             
@@ -276,7 +297,6 @@ const ImportTransactionPage = () => {
         try {
             exportImportTransactions(filteredTransactions);
         } catch (error) {
-            console.error('Lỗi khi xuất file:', error);
             alert('Không thể xuất file. Vui lòng thử lại!');
         }
     };
@@ -288,7 +308,6 @@ const ImportTransactionPage = () => {
                 exportImportTransactionDetail(selectedTransaction, selectedDetails, supplierDetails, userDetails);
             }
         } catch (error) {
-            console.error('Lỗi khi xuất file chi tiết:', error);
             alert('Không thể xuất file chi tiết. Vui lòng thử lại!');
         }
     };
@@ -315,7 +334,25 @@ const ImportTransactionPage = () => {
 
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
+        {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => {
+                // Try to use params.rowIndex (for newer DataGrid), fallback to indexOf in visibleRows
+                if (typeof params.rowIndex === 'number') {
+                    return params.rowIndex + 1;
+                }
+                // fallback: try to find index in filteredTransactions
+                if (params.id) {
+                    const idx = filteredTransactions.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            },
+        },
         { field: 'name', headerName: 'Tên phiếu nhập', flex: 1 },
         { 
             field: 'importDate', 
@@ -580,10 +617,11 @@ const ImportTransactionPage = () => {
                             <DataGrid
                                 rows={filteredTransactions}
                                 columns={columns}
-                                pageSize={10}
-                                rowsPerPageOptions={[10]}
+                                rowsPerPageOptions={[25, 50, 100]}
+                                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
                                 checkboxSelection
                                 disableSelectionOnClick
+                                getRowId={row => row.id}
                             />
                         )}
                     </div>
@@ -597,14 +635,16 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     setSupplierDetails(null);
                     setUserDetails(null);
+                    setStoreDetails(null);
                 }}
                 transaction={selectedTransaction}
                 details={selectedDetails}
                 formatCurrency={(v) => (v || 0).toLocaleString('vi-VN') + ' VNĐ'}
                 supplierDetails={supplierDetails}
                 userDetails={userDetails}
-                storeDetails={null} // If you have store details, pass here
+                storeDetails={storeDetails}
                 onExport={handleExportDetail}
+                zones={zones}
             />
 
             {/* Action Menu */}

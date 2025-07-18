@@ -19,6 +19,7 @@ import {
 import { FaTimes, FaFileExport } from 'react-icons/fa';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PersonIcon from '@mui/icons-material/Person';
+import { exportImportTransactionPdf } from '../../utils/pdfExport';
 
 const ImportDetailDialog = ({
     open,
@@ -29,7 +30,8 @@ const ImportDetailDialog = ({
     supplierDetails,
     userDetails,
     storeDetails,
-    onExport
+    onExport,
+    zones = [] // Thêm zones data
 }) => {
     if (!transaction) return null;
 
@@ -46,7 +48,7 @@ const ImportDetailDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        CHI TIẾT PHIẾU NHẬP HÀNG
+                        {`CHI TIẾT PHIẾU NHẬP HÀNG${transaction.name ? `: ${transaction.name}` : ''}`}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status.label}
@@ -70,7 +72,7 @@ const ImportDetailDialog = ({
                             THÔNG TIN CỬA HÀNG
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Tên cửa hàng:</strong> {transaction.storeName || storeDetails?.storeName || 'Chưa có'}
+                            <strong>Tên cửa hàng:</strong> {storeDetails?.name || transaction.storeName || storeDetails?.storeName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
                             <strong>Địa chỉ:</strong> {transaction.storeAddress || storeDetails?.storeAddress || storeDetails?.address || 'Chưa có'}
@@ -110,7 +112,6 @@ const ImportDetailDialog = ({
                                 <TableCell className="font-semibold">Tên sản phẩm</TableCell>
                                 <TableCell className="font-semibold text-center">ĐVT</TableCell>
                                 <TableCell className="font-semibold text-center">SL nhập</TableCell>
-                                <TableCell className="font-semibold text-center">SL còn</TableCell>
                                 <TableCell className="font-semibold text-right">Giá nhập</TableCell>
                                 <TableCell className="font-semibold text-right">Giá bán</TableCell>
                                 <TableCell className="font-semibold text-right">Thành tiền</TableCell>
@@ -122,7 +123,7 @@ const ImportDetailDialog = ({
                             {details && details.length > 0 ? details.map((detail, index) => (
                                 <TableRow key={index} className="hover:bg-gray-50">
                                     <TableCell>{index + 1}</TableCell>
-                                    <TableCell>
+                                    <TableCell style={{ width: '150px', minWidth: '150px' }}>
                                         <div>
                                             <div className="font-medium">{detail.productName || 'Chưa có'}</div>
                                             <div className="text-xs text-gray-500">
@@ -132,18 +133,26 @@ const ImportDetailDialog = ({
                                     </TableCell>
                                     <TableCell className="text-center">quả</TableCell>
                                     <TableCell className="text-center">{detail.importQuantity}</TableCell>
-                                    <TableCell className="text-center">{detail.remainQuantity}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(detail.unitImportPrice)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(detail.unitSalePrice)}</TableCell>
                                     <TableCell className="text-right font-semibold">
                                         {formatCurrency((detail.unitImportPrice || 0) * (detail.importQuantity || 0))}
                                     </TableCell>
                                     <TableCell className="text-center">{detail.expireDate ? new Date(detail.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>
-                                    <TableCell className="text-center">{detail.zones_id || ''}</TableCell>
+                                    <TableCell className="text-center">
+                                        {(() => {
+                                            if (!detail.zones_id || !Array.isArray(detail.zones_id)) return '';
+                                            const zoneNames = detail.zones_id.map(zoneId => {
+                                                const zone = zones.find(z => z.id === Number(zoneId) || z.id === zoneId);
+                                                return zone ? (zone.name || zone.zoneName) : zoneId;
+                                            });
+                                            return zoneNames.join(', ');
+                                        })()}
+                                    </TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={10} align="center">Không có sản phẩm</TableCell>
+                                    <TableCell colSpan={9} align="center">Không có sản phẩm</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -197,6 +206,13 @@ const ImportDetailDialog = ({
                 )}
             </DialogContent>
             <DialogActions className="p-4 bg-gray-50">
+                <Button 
+                    variant="outlined"
+                    onClick={() => exportImportTransactionPdf(transaction, details, supplierDetails, userDetails, storeDetails, zones)}
+                    startIcon={<FaFileExport />}
+                >
+                    Xuất PDF
+                </Button>
                 <Button 
                     onClick={onExport} 
                     variant="outlined" 

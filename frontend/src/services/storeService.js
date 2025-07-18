@@ -32,3 +32,17 @@ export const uploadEvidence = async (file) => {
         throw error;
     }
 };
+
+export const getStoreById = async (storeId) => {
+    console.log(`Fetching store with ID: ${storeId}`);
+    try {
+        const response = await axios.get(`${API_URL}/store/${storeId}`, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully fetched store with ID: ${storeId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching store with ID: ${storeId}`, error.response?.data || error.message);
+        throw error;
+    }
+};

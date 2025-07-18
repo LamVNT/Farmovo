@@ -44,7 +44,7 @@ const ImportSummaryDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        PHIẾU NHẬP HÀNG
+                        {`PHIẾU NHẬP HÀNG${importData.importCode ? `: ${importData.importCode}` : ''}`}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : status === 'WAITING_FOR_APPROVE' ? '⏳ Chờ duyệt' : '✅ Phiếu hoàn thành'}
