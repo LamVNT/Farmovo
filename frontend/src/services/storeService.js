@@ -46,3 +46,38 @@ export const getStoreById = async (storeId) => {
         throw error;
     }
 };
+
+export const createStore = async (store) => {
+    try {
+        const response = await axios.post(`${API_URL}/store`, store, {
+            withCredentials: true,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error creating store:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const updateStore = async (id, store) => {
+    try {
+        const response = await axios.put(`${API_URL}/store/${id}`, store, {
+            withCredentials: true,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error updating store:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const deleteStore = async (id) => {
+    try {
+        await axios.delete(`${API_URL}/store/${id}`, {
+            withCredentials: true,
+        });
+    } catch (error) {
+        console.error("Error deleting store:", error.response?.data || error.message);
+        throw error;
+    }
+};

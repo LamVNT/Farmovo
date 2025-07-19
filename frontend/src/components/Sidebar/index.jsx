@@ -17,6 +17,7 @@ import api from "../../services/axiosClient.js";
 import { HiOutlineDocumentReport } from "react-icons/hi";
 import { FaBoxOpen, FaExclamationTriangle, FaClock } from "react-icons/fa";
 import FarmovoLogo from '../../assets/Farmovo.png';
+import { FaStore } from "react-icons/fa6";
 
 
 const Sidebar = () => {
@@ -157,6 +158,15 @@ const Sidebar = () => {
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <TbCategory className="text-[20px]"/> <span>Category</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to="/store">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FaStore className="text-[20px]"/> <span>Store</span>
                             </Button>
                         </Link>
                     </li>

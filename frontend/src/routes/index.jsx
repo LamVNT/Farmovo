@@ -29,6 +29,7 @@ import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
+import Store from "../pages/store/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -229,6 +230,16 @@ const router = createBrowserRouter([
     {
         path: "/reports/expiring-lots",
         element: <ExpiringLotsReport />,
+    },
+    {
+        path: "/store",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <Store />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
 ]);
 

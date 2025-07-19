@@ -25,7 +25,35 @@ function App() {
     return (
         <MyContext.Provider value={values}>
             <RouterProvider router={router} />
-            <Toaster position="top-right" reverseOrder={false} />
+            <Toaster
+                position="top-center"
+                reverseOrder={false}
+                toastOptions={{
+                    style: {
+                        borderRadius: '12px',
+                        background: '#fff',
+                        color: '#222',
+                        fontWeight: 600,
+                        fontSize: '1.1rem',
+                        boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                        padding: '16px 24px',
+                        minWidth: '320px',
+                        maxWidth: '90vw',
+                    },
+                    success: {
+                        iconTheme: {
+                            primary: '#22c55e',
+                            secondary: '#fff',
+                        },
+                    },
+                    error: {
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                        },
+                    },
+                }}
+            />
         </MyContext.Provider>
     );
 }
