@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import {Dialog,DialogTitle,DialogContent,DialogActions,Button, TextField } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
 import ZoneFormDialog from "../../components/zone/ZoneFormDialog";
 import ZoneTable from "../../components/zone/ZoneTable";
-import ZoneVisual from "../../components/zone/ZoneVisual";
 import { getZones, createZone, updateZone, deleteZone } from "../../services/zoneService";
 
 const Zone = () => {
@@ -18,6 +17,8 @@ const Zone = () => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [zoneToDelete, setZoneToDelete] = useState(null);
     const [zoneNameError, setZoneNameError] = useState("");
+    const [zoneDescriptionError, setZoneDescriptionError] = useState("");
+
 
     // Frontend pagination
     const [page, setPage] = useState(0);
@@ -39,7 +40,7 @@ const Zone = () => {
 
     const filteredZones = useMemo(() =>
         zones.filter(z =>
-            z.zoneName.toLowerCase().includes(searchText.toLowerCase())
+            z.zoneDescription.toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
@@ -70,41 +71,6 @@ const Zone = () => {
         setConfirmOpen(true);
     };
 
-    // const handleDelete = async (id) => {
-    //     if (window.confirm("Are you sure you want to delete this zone?")) {
-    //         try {
-    //             await deleteZone(id);
-    //             setZones(prev => prev.filter(z => z.id !== id));
-    //         } catch {
-    //             setError("Failed to delete zone");
-    //         }
-    //     }
-    // };
-
-    // const handleSubmit = async () => {
-    //     if (!form.zoneName.trim()) return;
-    //
-    //     const pattern = /^Z_\[\d+;\d+\]$/;
-    //     if (!pattern.test(form.zoneName)) {
-    //         setError("Zone name must follow pattern Z_[row;column] (e.g: Z_[1;2])");
-    //         return;
-    //     }
-    //
-    //     try {
-    //         if (editMode) {
-    //             const updated = await updateZone(form.id, form);
-    //             setZones(prev => prev.map(z => (z.id === form.id ? updated : z)));
-    //         } else {
-    //             const created = await createZone(form);
-    //             setZones(prev => [...prev, created]);
-    //         }
-    //         setOpenDialog(false);
-    //         setError(null);
-    //     } catch {
-    //         setError(`Failed to ${editMode ? "update" : "create"} zone`);
-    //     }
-    // };
-
     const handleSubmit = async () => {
         setZoneNameError(""); // Reset lỗi
 
@@ -112,13 +78,15 @@ const Zone = () => {
             setZoneNameError("Zone name is required");
             return;
         }
-
-        const pattern = /^Z_\[\d+;\d+\]$/;
-        if (!pattern.test(form.zoneName)) {
-            setZoneNameError("Zone name must follow pattern Z_[row;column] (e.g: Z_[1;2])");
+        if (form.zoneName.length > 100) {
+            setZoneNameError("Zone name cannot > 100 characters");
             return;
         }
-
+        // Kiểm tra zoneDescription có vượt quá 1000 ký tự không
+        if (form.zoneDescription && form.zoneDescription.length > 1000) {
+            setZoneDescriptionError("Zone description cannot be > 1000 characters");
+            return;
+        }
         const isDuplicate = zones.some(z =>
             z.zoneName === form.zoneName && z.id !== form.id
         );
@@ -137,6 +105,7 @@ const Zone = () => {
             }
             setOpenDialog(false);
             setZoneNameError("");
+            setZoneDescriptionError("");
         } catch {
             setError(`Failed to ${editMode ? "update" : "create"} zone`);
         }
@@ -148,24 +117,23 @@ const Zone = () => {
     return (
         <div className="p-5 bg-white shadow-md rounded-md">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Zone Management</h2>
+                <h2 className="text-xl font-semibold">Quản lý khu vực</h2>
                 <div className="flex gap-3">
                     <TextField
                         size="small"
-                        label="Search Zone"
+                        label="Tìm kiếm khu vực"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
                     <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
-                        Add
+                        Thêm
                     </Button>
                 </div>
             </div>
 
-            {/* Layout chia đôi */}
-            <div className="flex gap-6">
-                {/* Bảng Zone Table co giãn */}
-                <div className="flex-grow min-w-[300px] max-w-[600px]">
+            {/* Bảng Zone Table chiếm full chiều rộng */}
+            <div className="flex">
+                <div className="flex-grow min-w-[300px] max-w-full">
                     <ZoneTable
                         rows={filteredZones}
                         onEdit={handleOpenEdit}
@@ -178,17 +146,6 @@ const Zone = () => {
                         setRowsPerPage={setRowsPerPage}
                     />
                 </div>
-
-                {/* Bảng Layout giữ nguyên kích thước, không bị bóp nhỏ */}
-                {/*<div className="flex-shrink-0" style={{ minWidth: "650px" }}>*/}
-                {/*    <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>*/}
-                {/*    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />*/}
-                {/*</div>*/}
-                <div className="flex-grow h-[500px]">
-                    <h3 className="text-lg font-semibold mb-2 text-center">Warehouse Layout</h3>
-                    <ZoneVisual zones={zones} hoveredZoneId={hoveredZoneId} />
-                </div>
-
             </div>
 
             <ZoneFormDialog
@@ -199,15 +156,16 @@ const Zone = () => {
                 onSubmit={handleSubmit}
                 editMode={editMode}
                 zoneNameError={zoneNameError}
+                zoneDescriptionError={zoneDescriptionError}
             />
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogTitle>Xác nhận xóa</DialogTitle>
                 <DialogContent>
-                    Are you sure you want to delete this zone?
+                    Bạn có chắc chắn muốn xóa khu vực này không?
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-                    <Button onClick={handleDelete} color="error" variant="contained">Delete</Button>
+                    <Button onClick={() => setConfirmOpen(false)}>Hủy</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
                 </DialogActions>
             </Dialog>
         </div>
@@ -215,3 +173,7 @@ const Zone = () => {
 };
 
 export default Zone;
+
+
+
+

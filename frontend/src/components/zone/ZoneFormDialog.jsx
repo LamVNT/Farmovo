@@ -1,7 +1,7 @@
 import React from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
 
-const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError }) => {
+const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError,zoneDescriptionError }) => {
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{editMode ? "Edit Zone" : "Add Zone"}</DialogTitle>
@@ -18,8 +18,10 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                     label="Zone Description"
                     value={form.zoneDescription}
                     onChange={(e) => setForm({ ...form, zoneDescription: e.target.value })}
+                    error={Boolean(zoneDescriptionError)}
+                    helperText={zoneDescriptionError}
                     multiline
-                    rows={4}
+                    rows={10}
                 />
             </DialogContent>
             <DialogActions>

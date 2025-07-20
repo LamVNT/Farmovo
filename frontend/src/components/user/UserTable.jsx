@@ -17,20 +17,6 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
             flex: 1,
             renderCell: (params) => (params.value ? 'Hoạt động' : 'Không hoạt động'),
         },
-        {
-            field: 'createAt',
-            headerName: 'Ngày tạo',
-            flex: 1.5,
-            renderCell: (params) =>
-                params.value ? new Date(params.value).toLocaleString('vi-VN') : 'N/A',
-        },
-        {
-            field: 'updateAt',
-            headerName: 'Ngày cập nhật',
-            flex: 1.5,
-            renderCell: (params) =>
-                params.value ? new Date(params.value).toLocaleString('vi-VN') : 'N/A',
-        },
         { field: 'storeName', headerName: 'Cửa hàng', flex: 1, renderCell: (params) => params.value || 'N/A' },
         {
             field: 'actions',
