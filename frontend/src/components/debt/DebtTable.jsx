@@ -7,35 +7,23 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
-    Paper,
     Button,
     TablePagination,
     TextField,
     InputAdornment,
+    IconButton
 } from "@mui/material";
 import SearchIcon from '@mui/icons-material/Search';
 import AddDebtDialog from "./AddDebtDialog";
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
-const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, addDebtDialogProps }) => {
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
+const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, addDebtDialogProps, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange }) => {
     const [search, setSearch] = useState("");
-
-    const handleChangePage = (event, newPage) => {
-        setPage(newPage);
-    };
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
     const handleSearchChange = (e) => {
         setSearch(e.target.value);
-        setPage(0);
     };
-
     const filteredNotes = debtNotes
         ? debtNotes.filter(note => {
             const desc = note.debtDescription?.toLowerCase() || "";
@@ -46,8 +34,6 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
             );
         })
         : [];
-    const paginatedNotes = filteredNotes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
     const formatTotalDebt = (totalDebt) => {
         if (totalDebt == null || totalDebt === 0) return "0";
         if (totalDebt < 0) {
@@ -90,7 +76,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                         />
                     </>
                 )}
-                {/* Search bar */}
+                {/* Search bar ngoài bảng */}
                 <TextField
                     placeholder="Tìm kiếm mô tả hoặc loại nợ..."
                     value={search}
@@ -106,21 +92,21 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                     }}
                 />
                 {/* Bảng giao dịch nợ */}
-                <TableContainer component={Paper}>
+                <div style={{ width: '100%', overflowX: 'auto' }}>
                     <Table>
                         <TableHead>
-                            <TableRow>
-                                <TableCell>ID</TableCell>
-                                <TableCell>Ngày giao dịch</TableCell>
-                                <TableCell>Loại nợ</TableCell>
-                                <TableCell>Mô tả</TableCell>
-                                <TableCell>Nguồn</TableCell>
-                                <TableCell>Hành động</TableCell>
+                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                                <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Ngày giao dịch</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Loại nợ</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Mô tả</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Nguồn</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {paginatedNotes && paginatedNotes.length > 0 ? (
-                                paginatedNotes.map((note) => (
+                            {filteredNotes && filteredNotes.length > 0 ? (
+                                filteredNotes.map((note) => (
                                     <TableRow key={note.id || Math.random()}>
                                         <TableCell>{note.id || "N/A"}</TableCell>
                                         <TableCell>
@@ -135,14 +121,9 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                         <TableCell>{note.debtDescription || "N/A"}</TableCell>
                                         <TableCell>{note.fromSource || "N/A"}</TableCell>
                                         <TableCell>
-                                            <Button
-                                                variant="outlined"
-                                                color="primary"
-                                                onClick={() => onEdit(note)}
-                                                disabled={!note.id}
-                                            >
-                                                Chi Tiết
-                                            </Button>
+                                            <IconButton color="primary" onClick={() => onEdit(note)} disabled={!note.id}>
+                                                <VisibilityIcon />
+                                            </IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -153,17 +134,18 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                             )}
                         </TableBody>
                     </Table>
-                </TableContainer>
-                <TablePagination
-                    component="div"
-                    count={filteredNotes.length}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[5, 10, 25]}
-                />
+                </div>
             </DialogContent>
+            <TablePagination
+                component="div"
+                count={debtNotesTotalItems}
+                page={debtNotesPage}
+                onPageChange={onDebtNotesPageChange}
+                rowsPerPage={debtNotesRowsPerPage}
+                onRowsPerPageChange={onDebtNotesRowsPerPageChange}
+                rowsPerPageOptions={[5, 10, 25]}
+                labelRowsPerPage="Số dòng mỗi trang"
+            />
             <DialogActions>
                 <Button onClick={onClose} color="primary">
                     Đóng

@@ -3,6 +3,7 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
 import com.farmovo.backend.services.DebtNoteService;
+import com.farmovo.backend.services.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,22 +18,38 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.farmovo.backend.models.DebtNote;
 
 @RestController
 @RequestMapping("/api/debt/admin")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
 public class DebtNoteController {
-    
+
     private static final Logger logger = LogManager.getLogger(DebtNoteController.class);
     private final DebtNoteService debtNoteService;
+    private final S3Service s3Service;
 
     @GetMapping("/customer/{customerId}/debt-notes")
-    public ResponseEntity<List<DebtNoteResponseDto>> getDebtNotes(@PathVariable Long customerId) {
-        logger.debug("Received request to get debt notes for customer ID: {}", customerId);
-        List<DebtNoteResponseDto> debtNotes = debtNoteService.findDebtNotesByCustomerId(customerId);
-        logger.info("Successfully retrieved {} debt notes for customer ID: {}", debtNotes.size(), customerId);
-        return ResponseEntity.ok(debtNotes);
+    public ResponseEntity<Map<String, Object>> getDebtNotes(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.debug("Received request to get debt notes for customer ID: {} page: {} size: {}", customerId, page, size);
+        Page<DebtNoteResponseDto> pageResult = debtNoteService.getDebtNotesPage(customerId, page, size);
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", pageResult.getContent());
+        response.put("currentPage", pageResult.getNumber());
+        response.put("totalItems", pageResult.getTotalElements());
+        response.put("totalPages", pageResult.getTotalPages());
+        logger.info("Successfully retrieved {} debt notes for customer ID: {} (page {}/{})", pageResult.getNumberOfElements(), customerId, pageResult.getNumber() + 1, pageResult.getTotalPages());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/debt-note")
@@ -62,17 +79,23 @@ public class DebtNoteController {
     }
 
     @PostMapping("/upload-evidence")
-    public ResponseEntity<String> uploadEvidence(@RequestParam("file") MultipartFile file) throws IOException {
-        logger.debug("Received request to upload evidence file: {}", file.getOriginalFilename());
-        if (file.isEmpty()) {
-            logger.error("Uploaded file is empty");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("File is empty");
+    public ResponseEntity<String> uploadEvidence(@RequestParam("file") MultipartFile file) {
+        try {
+            String key = s3Service.uploadEvidence(file);  // Trả key
+            return ResponseEntity.ok(key);
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body("Failed to upload: " + e.getMessage());
         }
-        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        Path path = Paths.get("uploads/" + fileName);
-        Files.createDirectories(path.getParent());
-        Files.write(path, file.getBytes());
-        logger.info("Successfully uploaded evidence file: {}", fileName);
-        return ResponseEntity.ok(fileName);
+    }
+
+    // Thêm endpoint mới nếu cần
+    @GetMapping("/presigned-evidence")
+    public ResponseEntity<String> getPresignedEvidence(@RequestParam("key") String key) {
+        try {
+            String presignedUrl = s3Service.generatePresignedUrl(key);
+            return ResponseEntity.ok(presignedUrl);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to generate presigned URL: " + e.getMessage());
+        }
     }
 }

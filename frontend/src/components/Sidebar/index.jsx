@@ -107,6 +107,15 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
+                        <Link to="/customers">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FiUsers className="text-[20px]"/> <span>Customers</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
                         <Link to="/debts">
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]

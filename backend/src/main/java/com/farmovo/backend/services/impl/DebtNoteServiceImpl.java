@@ -9,10 +9,15 @@ import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
 import com.farmovo.backend.services.DebtNoteService;
+import com.farmovo.backend.services.S3Service;
 import com.farmovo.backend.utils.DebtNoteValidation;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +35,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private final DebtNoteRepository debtNoteRepository;
     private final StoreRepository storeRepository;
     private final CustomerService customerService;
+    private final S3Service s3Service;
 
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerId(Long customerId) {
@@ -52,6 +58,23 @@ public class DebtNoteServiceImpl implements DebtNoteService {
             logger.error("Unexpected error while finding debt notes for customer ID: {}. Error: {}", customerId, e.getMessage());
             throw new IllegalStateException("Failed to find debt notes: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
+        return debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable)
+                .getContent()
+                .stream()
+                .map(this::mapToDebtNoteResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<DebtNoteResponseDto> getDebtNotesPage(Long customerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
+        Page<DebtNote> pageResult = debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable);
+        return pageResult.map(this::mapToDebtNoteResponseDto);
     }
 
     @Override
@@ -182,6 +205,24 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     }
 
     private DebtNoteResponseDto mapToDebtNoteResponseDto(DebtNote debtNote) {
+        String evidence = debtNote.getDebtEvidences();
+        String evidenceUrl = evidence;
+        if (evidence != null && !evidence.isEmpty()) {
+            // Luôn generate pre-signed, giả sử evidence là key hoặc URL (extract key nếu cần)
+            if (evidence.startsWith("http")) {
+                // Nếu là URL public, extract key từ URL
+                evidenceUrl = evidence.substring(evidence.lastIndexOf("/") + 1);  // Extract key
+            }
+            try {
+                evidenceUrl = s3Service.generatePresignedUrl(evidenceUrl);
+                logger.info("Generated pre-signed URL for evidence key '{}': {}", evidence, evidenceUrl);
+            } catch (Exception e) {
+                logger.error("Failed to generate pre-signed URL for '{}': {}", evidence, e.getMessage());
+                evidenceUrl = "";  // Hoặc fallback
+            }
+        } else {
+            logger.info("Debt evidence is empty");
+        }
         return new DebtNoteResponseDto(
                 debtNote.getId(),
                 debtNote.getCustomer().getId(),
@@ -190,7 +231,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
                 debtNote.getStore() != null ? debtNote.getStore().getId() : null,
                 debtNote.getDebtType() != null ? debtNote.getDebtType() : "",
                 debtNote.getDebtDescription() != null ? debtNote.getDebtDescription() : "",
-                debtNote.getDebtEvidences() != null ? debtNote.getDebtEvidences() : "",
+                evidenceUrl != null ? evidenceUrl : "",
                 debtNote.getFromSource() != null ? debtNote.getFromSource() : "",
                 debtNote.getSourceId(),
                 debtNote.getCreatedAt() != null ? debtNote.getCreatedAt() : LocalDateTime.now(),

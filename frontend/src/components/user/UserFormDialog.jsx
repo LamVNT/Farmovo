@@ -9,25 +9,29 @@ import {
     FormControlLabel,
     Checkbox,
     Autocomplete,
+    CircularProgress, // Thêm để hiển thị loading
 } from '@mui/material';
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/stores`;
+const API_URL = `${import.meta.env.VITE_API_URL}`;
 
 const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
     const [stores, setStores] = useState([]);
     const [roles, setRoles] = useState([]);
+    const [storesLoading, setStoresLoading] = useState(true); // Thêm state loading cho stores
 
     useEffect(() => {
         const fetchStores = async () => {
             try {
-                const response = await axios.get(`${API_URL}/admin/storeList`, {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, {
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                 });
                 setStores(response.data.map(store => ({ id: store.id, name: store.name })));
             } catch (error) {
                 console.error('Không thể lấy danh sách cửa hàng:', error);
+            } finally {
+                setStoresLoading(false); // Kết thúc loading dù thành công hay thất bại
             }
         };
 
@@ -44,10 +48,24 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
         };
 
         if (open) {
+            setStoresLoading(true); // Reset loading khi mở dialog
             fetchStores();
             fetchRoles();
         }
     }, [open]);
+
+    // Thêm useEffect để sync value sau khi stores load
+    useEffect(() => {
+        if (!storesLoading && form.storeId && stores.length > 0) {
+            const matchedStore = stores.find(store => store.id === form.storeId);
+            if (matchedStore && matchedStore.name !== form.storeName) {
+                // Nếu tìm thấy và name không khớp (hiếm), update form
+                setForm(prev => ({ ...prev, storeName: matchedStore.name }));
+            } else if (!matchedStore) {
+                console.warn(`Store ID ${form.storeId} not found in list. Using fallback name: ${form.storeName}`);
+            }
+        }
+    }, [storesLoading, stores, form.storeId, form.storeName, setForm]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -125,11 +143,19 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     }
                     label="Hoạt động"
                 />
+                {/* Autocomplete cho cửa hàng với loading */}
                 <Autocomplete
                     options={stores}
                     getOptionLabel={(option) => option.name || ''}
-                    value={stores.find((store) => store.id === form.storeId) || null}
+                    value={
+                        storesLoading
+                            ? null
+                            : stores.find((store) => String(store.id) === String(form.storeId)) ||
+                              (form.storeId && form.storeName ? { id: form.storeId, name: form.storeName } : null)
+                    }
                     onChange={handleStoreChange}
+                    loading={storesLoading}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                     renderInput={(params) => (
                         <TextField
                             {...params}
@@ -137,6 +163,15 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Cửa hàng *"
                             fullWidth
                             required
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {storesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
                         />
                     )}
                 />
@@ -170,13 +205,6 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Ngày cập nhật"
                             fullWidth
                             value={form.updateAt ? new Date(form.updateAt).toLocaleString('vi-VN') : 'N/A'}
-                            disabled
-                        />
-                        <TextField
-                            margin="dense"
-                            label="Tên cửa hàng"
-                            fullWidth
-                            value={form.storeName || 'N/A'}
                             disabled
                         />
                     </>
