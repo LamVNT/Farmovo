@@ -16,7 +16,8 @@ public interface ZoneMapper {
     ZoneMapper INSTANCE = Mappers.getMapper(ZoneMapper.class);
 
     ZoneDto toDto(Zone zone);
-
+    @Mapping(target = "zoneName", source = "zoneName")
+    @Mapping(target = "zoneDescription", source = "zoneDescription")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Zone toEntity(ZoneRequestDto requestDto);
@@ -25,6 +26,8 @@ public interface ZoneMapper {
 
     @Mapping(target = "zoneName", source = "zoneName")
     @Mapping(target = "zoneDescription", source = "zoneDescription")
+    @Mapping(target = "createAt", source = "createdAt")
+    @Mapping(target = "updateAt", source = "updatedAt")
     ZoneResponseDto toResponseDto(Zone zone);
 
 }

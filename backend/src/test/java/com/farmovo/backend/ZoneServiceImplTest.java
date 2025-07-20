@@ -32,7 +32,6 @@ class ZoneServiceImplTest {
     @InjectMocks
     private ZoneServiceImpl zoneService;
 
-
     @Test
     void testCreateZoneSuccess() {
         // Given

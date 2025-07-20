@@ -32,3 +32,18 @@ export const uploadEvidence = async (file) => {
         throw error;
     }
 };
+export const createStore = async ({ name }) => {
+    try {
+        const response = await axios.post(
+            `${API_URL}/admin/store`,
+            { name },
+            {
+                withCredentials: true,
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error('Error creating store:', error.response?.data || error.message);
+        throw error;
+    }
+};

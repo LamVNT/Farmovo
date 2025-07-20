@@ -33,7 +33,7 @@ public class ZoneController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteZone(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteZone(@Valid @PathVariable Long id) {
         zoneService.deleteZone(id);
         return ResponseEntity.noContent().build();
     }
