@@ -32,3 +32,52 @@ export const uploadEvidence = async (file) => {
         throw error;
     }
 };
+
+export const getStoreById = async (storeId) => {
+    console.log(`Fetching store with ID: ${storeId}`);
+    try {
+        const response = await axios.get(`${API_URL}/store/${storeId}`, {
+            withCredentials: true, // Sử dụng cookie để xác thực
+        });
+        console.log(`Successfully fetched store with ID: ${storeId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching store with ID: ${storeId}`, error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const createStore = async (store) => {
+    try {
+        const response = await axios.post(`${API_URL}/store`, store, {
+            withCredentials: true,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error creating store:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const updateStore = async (id, store) => {
+    try {
+        const response = await axios.put(`${API_URL}/store/${id}`, store, {
+            withCredentials: true,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error updating store:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const deleteStore = async (id) => {
+    try {
+        await axios.delete(`${API_URL}/store/${id}`, {
+            withCredentials: true,
+        });
+    } catch (error) {
+        console.error("Error deleting store:", error.response?.data || error.message);
+        throw error;
+    }
+};

@@ -17,6 +17,8 @@ import {MyContext} from "../../App.jsx";
 import api from "../../services/axiosClient.js";
 import { HiOutlineDocumentReport } from "react-icons/hi";
 import { FaBoxOpen, FaExclamationTriangle, FaClock } from "react-icons/fa";
+import FarmovoLogo from '../../assets/Farmovo.png';
+import { FaStore } from "react-icons/fa6";
 
 
 const Sidebar = () => {
@@ -48,8 +50,8 @@ const Sidebar = () => {
         <>
             <div className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
                 <div className="py-2 w-full">
-                    <Link to="/"><
-                        img src="https://ecme-react.themenate.net/img/logo/logo-light-full.png" className="w-[120px]"/>
+                    <Link to="/">
+                        <img src={FarmovoLogo} alt="Farmovo Logo" className="w-[120px]"/>
                     </Link>
                 </div>
 
@@ -166,6 +168,15 @@ const Sidebar = () => {
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <TbCategory className="text-[20px]"/> <span>Category</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to="/store">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FaStore className="text-[20px]"/> <span>Store</span>
                             </Button>
                         </Link>
                     </li>

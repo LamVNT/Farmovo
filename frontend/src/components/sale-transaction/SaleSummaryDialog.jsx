@@ -24,7 +24,8 @@ const SaleSummaryDialog = ({
     onConfirm,
     saleData,
     formatCurrency,
-    loading
+    loading,
+    currentUser
 }) => {
     if (!saleData) return null;
 
@@ -68,6 +69,9 @@ const SaleSummaryDialog = ({
                         </Typography>
                         <Typography variant="body2" className="mb-1">
                             <strong>Địa chỉ:</strong> {store?.storeAddress || store?.address || 'Chưa có'}
+                        </Typography>
+                        <Typography variant="body2" className="mb-1">
+                            <strong>Người tạo:</strong> {currentUser?.fullName || currentUser?.name || 'Chưa có'}
                         </Typography>
                         {store?.storeDescription && (
                             <Typography variant="body2" className="mb-1">

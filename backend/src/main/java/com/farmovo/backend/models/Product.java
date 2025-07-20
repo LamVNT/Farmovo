@@ -21,10 +21,10 @@ public class Product extends Base {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "product_name", length = 1000)
+    @Column(name = "product_name", length = 100)
     private String productName;
 
-    @Column(name = "product_description", length = 1000)
+    @Column(name = "product_description", length = 100)
     private String productDescription;
 
     @Column(name = "product_quantity", nullable = false)

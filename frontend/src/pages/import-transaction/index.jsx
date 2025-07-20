@@ -12,7 +12,13 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { FaPlus, FaFileExport } from "react-icons/fa";
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+// Không cần import FaPlus nữa vì đã dùng Material-UI icons
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -26,6 +32,7 @@ import { Link } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
+import { getStoreById } from "../../services/storeService";
 import ReplyIcon from '@mui/icons-material/Reply';
 import SaveIcon from '@mui/icons-material/Save';
 import ReplyAllIcon from '@mui/icons-material/ReplyAll';
@@ -33,6 +40,8 @@ import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
+import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
+import { getZones } from '../../services/zoneService';
 
 const getRange = (key) => {
     const today = new Date();
@@ -93,6 +102,8 @@ const ImportTransactionPage = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [zones, setZones] = useState([]);
 
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -101,11 +112,25 @@ const ImportTransactionPage = () => {
     const [actionRow, setActionRow] = useState(null);
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [userDetails, setUserDetails] = useState(null);
+    const [storeDetails, setStoreDetails] = useState(null);
 
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
     // Thêm state cho thông báo lỗi khi mở phiếu
     const [openError, setOpenError] = useState(null);
+
+    // Auto-dismiss error/success messages
+    useEffect(() => {
+        if (error || success || openError || cancelError) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+                setOpenError(null);
+                setCancelError(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success, openError, cancelError]);
 
     // Load transactions from API
     const loadTransactions = async () => {
@@ -114,8 +139,11 @@ const ImportTransactionPage = () => {
         try {
             const data = await importTransactionService.listAll();
             setTransactions(data);
+            
+            // Load zones data
+            const zonesData = await getZones();
+            setZones(zonesData);
         } catch (err) {
-            console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu nhập hàng');
         } finally {
             setLoading(false);
@@ -167,6 +195,12 @@ const ImportTransactionPage = () => {
 
         return true;
     });
+    // Sort by newest importDate first
+    filteredTransactions.sort((a, b) => {
+        const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+        const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+        return dateB - dateA;
+    });
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -196,7 +230,6 @@ const ImportTransactionPage = () => {
                     const supplier = await getCustomerById(transaction.supplierId);
                     setSupplierDetails(supplier);
                 } catch (error) {
-                    console.error("Lỗi khi tải thông tin supplier:", error);
                     setSupplierDetails(null);
                 }
             }
@@ -207,8 +240,17 @@ const ImportTransactionPage = () => {
                     const user = await userService.getUserById(transaction.createdBy);
                     setUserDetails(user);
                 } catch (error) {
-                    console.error("Lỗi khi tải thông tin user:", error);
                     setUserDetails(null);
+                }
+            }
+
+            // Fetch thông tin store
+            if (transaction.storeId) {
+                try {
+                    const store = await getStoreById(transaction.storeId);
+                    setStoreDetails(store);
+                } catch (error) {
+                    setStoreDetails(null);
                 }
             }
             
@@ -235,12 +277,68 @@ const ImportTransactionPage = () => {
     const handleOpenTransaction = async () => {
         if (!selectedTransaction?.id) return;
         setOpenError(null);
+        setLoading(true);
         try {
             await importTransactionService.openTransaction(selectedTransaction.id);
             setOpenDetailDialog(false);
             loadTransactions();
+            // Thêm thông báo thành công
+            setSuccess('Mở phiếu thành công!');
         } catch (err) {
             setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý đóng phiếu (quay về DRAFT)
+    const handleCloseTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.closeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Đóng phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hoàn thành phiếu
+    const handleCompleteTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.completeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hoàn thành phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hủy phiếu từ dialog
+    const handleCancelTransactionFromDialog = async () => {
+        if (!selectedTransaction?.id) return;
+        setCancelError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.updateStatus(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hủy phiếu thành công!');
+        } catch (err) {
+            setCancelError('Không thể hủy phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -260,6 +358,62 @@ const ImportTransactionPage = () => {
         handleActionClose();
     };
 
+    const handleOpenTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.openTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Mở phiếu thành công!');
+            } catch (err) {
+                setError('Không thể mở phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCloseTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.closeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Đóng phiếu thành công!');
+            } catch (err) {
+                setError('Không thể đóng phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.completeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Hoàn thành phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCancelTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.updateStatus(actionRow.id);
+                loadTransactions();
+                setSuccess('Hủy phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hủy phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
     const handleEdit = () => {
         // TODO: Thêm logic sửa
         handleActionClose();
@@ -275,7 +429,6 @@ const ImportTransactionPage = () => {
         try {
             exportImportTransactions(filteredTransactions);
         } catch (error) {
-            console.error('Lỗi khi xuất file:', error);
             alert('Không thể xuất file. Vui lòng thử lại!');
         }
     };
@@ -287,7 +440,6 @@ const ImportTransactionPage = () => {
                 exportImportTransactionDetail(selectedTransaction, selectedDetails, supplierDetails, userDetails);
             }
         } catch (error) {
-            console.error('Lỗi khi xuất file chi tiết:', error);
             alert('Không thể xuất file chi tiết. Vui lòng thử lại!');
         }
     };
@@ -314,7 +466,25 @@ const ImportTransactionPage = () => {
 
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
+        {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => {
+                // Try to use params.rowIndex (for newer DataGrid), fallback to indexOf in visibleRows
+                if (typeof params.rowIndex === 'number') {
+                    return params.rowIndex + 1;
+                }
+                // fallback: try to find index in filteredTransactions
+                if (params.id) {
+                    const idx = filteredTransactions.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            },
+        },
         { field: 'name', headerName: 'Tên phiếu nhập', flex: 1 },
         { 
             field: 'importDate', 
@@ -414,15 +584,25 @@ const ImportTransactionPage = () => {
 
     return (
         <div className="w-full relative">
+            {error && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {error}
+                </Alert>
+            )}
+            {success && (
+                <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {success}
+                </Alert>
+            )}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/import/new">
-                        <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">
+                        <Button variant="contained" startIcon={<AddIcon />} className="!bg-green-600 hover:!bg-green-700">
                             Nhập hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />} onClick={handleExportAll}>
+                    <Button variant="outlined" startIcon={<TableChartIcon />} onClick={handleExportAll}>
                         Xuất file
                     </Button>
                 </div>
@@ -579,10 +759,11 @@ const ImportTransactionPage = () => {
                             <DataGrid
                                 rows={filteredTransactions}
                                 columns={columns}
-                                pageSize={10}
-                                rowsPerPageOptions={[10]}
+                                rowsPerPageOptions={[25, 50, 100]}
+                                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
                                 checkboxSelection
                                 disableSelectionOnClick
+                                getRowId={row => row.id}
                             />
                         )}
                     </div>
@@ -590,123 +771,42 @@ const ImportTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu nhập */}
-            <Dialog open={openDetailDialog} onClose={() => {
-                setOpenDetailDialog(false);
-                setSupplierDetails(null);
-                setUserDetails(null);
-            }} maxWidth="md" fullWidth>
-                <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
-                <DialogContent>
-                    {selectedTransaction ? (
-                        <div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <strong>Nhà cung cấp:</strong> {supplierDetails ? supplierDetails.name : (selectedTransaction.supplierName || 'N/A')}
-                                </div>
-                                <div>
-                                    <strong>Người tạo:</strong> {userDetails ? userDetails.username : (selectedTransaction.createdBy || 'N/A')}
-                                </div>
-                                <div>
-                                    <strong>Thời gian:</strong> {selectedTransaction.importDate ? new Date(selectedTransaction.importDate).toLocaleString('vi-VN') : ''}
-                                </div>
-                                <div>
-                                    <strong>Trạng thái:</strong> 
-                                    <Chip
-                                        label={getStatusLabel(selectedTransaction.status)}
-                                        style={{
-                                            backgroundColor: getStatusColor(selectedTransaction.status),
-                                            color: '#fff',
-                                            marginLeft: 8
-                                        }}
-                                        size="small"
-                                    />
-                                </div>
-                            </div>
-                            
-                            {selectedDetails && selectedDetails.length > 0 ? (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Sản phẩm</TableCell>
-                                            <TableCell>SL nhập</TableCell>
-                                            <TableCell>SL còn</TableCell>
-                                            <TableCell>Giá nhập</TableCell>
-                                            <TableCell>Giá bán</TableCell>
-                                            <TableCell>Thành tiền</TableCell>
-                                            <TableCell>HSD</TableCell>
-                                            <TableCell>Khu vực</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {selectedDetails.map((detail, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{detail.productName}</TableCell>
-                                                <TableCell>{detail.importQuantity}</TableCell>
-                                                <TableCell>{detail.remainQuantity}</TableCell>
-                                                <TableCell>{detail.unitImportPrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{detail.unitSalePrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{((detail.unitImportPrice || 0) * (detail.importQuantity || 0)).toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{detail.expireDate ? new Date(detail.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>
-                                                <TableCell>{detail.zones_id}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p>Không có dữ liệu chi tiết.</p>
-                            )}
-                            
-                            <div className="mt-4 text-right">
-                                <div className="text-lg font-semibold">
-                                    Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Đã thanh toán: {selectedTransaction.paidAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Còn lại: {(selectedTransaction.totalAmount - (selectedTransaction.paidAmount || 0)).toLocaleString('vi-VN')} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p>Không có dữ liệu chi tiết.</p>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                  {selectedTransaction?.status === 'DRAFT' && (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<ReplyIcon />}
-                      onClick={handleOpenTransaction}
-                    >
-                      Mở phiếu
-                    </Button>
-                  )}
-                  <Button
-                    variant="contained"
-                    style={{ background: '#6b7280', color: '#fff' }}
-                    startIcon={<FaFileExport />}
-                    onClick={handleExportDetail}
-                  >
-                    Xuất file
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<CloseIcon />}
-                    onClick={handleCancelTransaction}
-                  >
-                    Huỷ bỏ
-                  </Button>
-                </DialogActions>
-                {cancelError && (
-                  <Alert severity="error" className="mt-2">{cancelError}</Alert>
-                )}
-                {openError && (
-                  <Alert severity="error" className="mt-2">{openError}</Alert>
-                )}
-            </Dialog>
+            <ImportDetailDialog
+                open={openDetailDialog}
+                onClose={() => {
+                    setOpenDetailDialog(false);
+                    setSupplierDetails(null);
+                    setUserDetails(null);
+                    setStoreDetails(null);
+                    setCancelError(null);
+                    setOpenError(null);
+                }}
+                transaction={selectedTransaction}
+                details={selectedDetails}
+                formatCurrency={(v) => (v || 0).toLocaleString('vi-VN') + ' VNĐ'}
+                supplierDetails={supplierDetails}
+                userDetails={userDetails}
+                storeDetails={storeDetails}
+                onExport={handleExportDetail}
+                onOpenTransaction={handleOpenTransaction}
+                onCloseTransaction={handleCloseTransaction}
+                onCompleteTransaction={handleCompleteTransaction}
+                onCancelTransaction={handleCancelTransactionFromDialog}
+                loading={loading}
+                zones={zones}
+            />
+
+            {/* Hiển thị thông báo lỗi cho dialog */}
+            {cancelError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {cancelError}
+                </Alert>
+            )}
+            {openError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {openError}
+                </Alert>
+            )}
 
             {/* Action Menu */}
             <Menu
@@ -728,6 +828,46 @@ const ImportTransactionPage = () => {
                     </ListItemIcon>
                     <ListItemText>Xem chi tiết</ListItemText>
                 </MenuItem>
+                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleOpenTransactionMenu}>
+                        <ListItemIcon>
+                            <LockOpenIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Mở phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCloseTransactionMenu}>
+                        <ListItemIcon>
+                            <SaveIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Đóng phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCompleteTransactionMenu}>
+                        <ListItemIcon>
+                            <CheckIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hoàn thành</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hủy phiếu" cho các trạng thái DRAFT và WAITING_FOR_APPROVE */}
+                {(actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') && (
+                    <MenuItem onClick={handleCancelTransactionMenu}>
+                        <ListItemIcon>
+                            <CancelIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hủy phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
                 <MenuItem onClick={handleEdit}>
                     <ListItemIcon>
                         <EditIcon fontSize="small" />

@@ -1,5 +1,4 @@
 package com.farmovo.backend.services.impl;
-
 import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
@@ -14,6 +13,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.farmovo.backend.validator.ZoneValidation.validateZoneDescription;
+import static com.farmovo.backend.validator.ZoneValidation.validateZoneName;
 
 @Service
 public class ZoneServiceImpl implements ZoneService {
@@ -40,10 +42,8 @@ public class ZoneServiceImpl implements ZoneService {
     @Override
     public ZoneResponseDto createZone(ZoneRequestDto request) {
         Zone zone = zoneMapper.toEntity(request);
-        String zoneName = zone.getZoneName();
-        if (zoneName != null && !zoneName.matches("Z_\\[\\d+;\\d+\\]")) {
-            throw new IllegalArgumentException("Zone name must follow pattern Z_[row;column] (e.g :Z_[1;2])");
-        }
+        validateZoneName(zone.getZoneName());
+        validateZoneDescription(zone.getZoneDescription());
         zone.setCreatedAt(LocalDateTime.now());
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
     }
@@ -52,20 +52,21 @@ public class ZoneServiceImpl implements ZoneService {
     public ZoneResponseDto updateZone(Long id, ZoneRequestDto request) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
-        String zoneName = request.getZoneName();
-        if (zoneName != null && !zoneName.matches("Z_\\[\\d+;\\d+\\]")) {
-            throw new IllegalArgumentException("Zone name must follow pattern Z_[row;column] (e.g : Z_[1;2])");
+        if (!zone.getZoneName().equals(request.getZoneName())) {
+            validateZoneName(request.getZoneName());  // Chỉ kiểm tra nếu tên zone thay đổi
         }
+        validateZoneDescription(zone.getZoneDescription());
+        // Cập nhật thông tin zone
         zone.setZoneName(request.getZoneName());
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
+        // Lưu lại và trả về kết quả
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
-        }
-
+    }
     @Override
     public void deleteZone(Long id) {
         Zone zone = zoneRepository.findById(id)
-        .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
+                .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
         zoneRepository.delete(zone);
     }
 }

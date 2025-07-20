@@ -30,6 +30,8 @@ import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import CustomerManagementPage from "../pages/customer";
+import ForgotPassword from "../pages/ForgotPassword";
+import Store from "../pages/store/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -55,6 +57,14 @@ const router = createBrowserRouter([
         element: (
             <GuestRoute>
                 <Signup />
+            </GuestRoute>
+        ),
+    },
+    {
+        path: "/forgot-password",
+        element: (
+            <GuestRoute>
+                <ForgotPassword />
             </GuestRoute>
         ),
     },
@@ -237,6 +247,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <CustomerManagementPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/store",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <Store />
                 </MainLayout>
             </ProtectedRoute>
         ),

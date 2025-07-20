@@ -12,10 +12,7 @@ import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.SaleTransactionMapper;
-import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.models.ImportTransactionStatus;
-import com.farmovo.backend.models.SaleTransaction;
-import com.farmovo.backend.models.SaleTransactionStatus;
+import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.ImportTransactionService;
@@ -31,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -80,6 +78,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
         transaction.setCreatedBy(userId);
 
+        // Lưu chi tiết dưới dạng JSON string
         try {
             String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
             transaction.setDetail(jsonDetail);
@@ -107,17 +106,13 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         saleTransactionRepository.save(transaction);
 
-        if(dto.getStatus() == SaleTransactionStatus.COMPLETE){
-            // Tạo DebtNote nếu paid < || > total
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
             BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-
-            BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount); // Âm: khách nợ | Dương: cửa hàng nợ khách
-
+            BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
             if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
                 String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-                BigDecimal debtAmount = rawDebtAmount.abs(); // luôn DƯƠNG khi ghi xuống bảng phiếu nợ
-
+                BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
                 debtNoteService.createDebtNoteFromTransaction(
                         transaction.getCustomer().getId(),
                         debtAmount,
@@ -126,7 +121,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                         transaction.getId(),
                         transaction.getStore().getId()
                 );
-
                 log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
             }
         }
@@ -160,6 +154,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
         transaction.setSaleDate(dto.getSaleDate());
         transaction.setStatus(dto.getStatus());
+
+
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        String newName = String.format("PB%06d", lastId + 1);
+        transaction.setName(newName);
+
 
         transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> {
@@ -222,19 +224,73 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
                     item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
         }
-
-        log.info("Stock deduction completed successfully");
     }
+
 
     @Override
     public List<SaleTransactionResponseDto> getAll() {
-        log.debug("Getting all sale transactions");
+        List<SaleTransaction> entities = saleTransactionRepository.findAllSaleActive();
+        return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    }
 
-        List<SaleTransaction> entities = saleTransactionRepository.findAll();
-        List<SaleTransactionResponseDto> result = saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    @Override
+    @Transactional
+    public void complete(Long id) {
+        var transaction = saleTransactionRepository.findById(id)
+            .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+        transaction.setStatus(com.farmovo.backend.models.SaleTransactionStatus.COMPLETE);
+        saleTransactionRepository.save(transaction);
 
-        log.debug("Retrieved {} sale transactions", result.size());
-        return result;
+
+
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+            BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getCustomer().getId(),
+                    debtAmount,
+                    "SALE",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+        }
+
+
+
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void cancel(Long id) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("ImportTransaction not found with id: " + id));
+        transaction.setStatus(SaleTransactionStatus.CANCEL);
+        // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
+        saleTransactionRepository.save(transaction);
+    }
+
+    @Override
+    public String getNextSaleTransactionCode() {
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        return String.format("PB%06d", lastId + 1);
+    }
+
+    @Override
+    public void softDeleteSaleTransaction(Long id, Long userId) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu bán với ID: " + id));
+
+        transaction.setDeletedAt(LocalDateTime.now());
+        transaction.setDeletedBy(userId);
+
+        saleTransactionRepository.save(transaction);
     }
 
     @Override

@@ -20,6 +20,8 @@ import {
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { Link } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
+import { userService } from "../../services/userService";
+import { getCustomerById } from "../../services/customerService";
 import { exportSaleTransactions, exportSaleTransactionDetail } from '../../utils/excelExport';
 import DialogActions from '@mui/material/DialogActions';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -30,6 +32,13 @@ import ListItemText from '@mui/material/ListItemText';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SaleDetailDialog from "../../components/sale-transaction/SaleDetailDialog";
+import { formatCurrency } from "../../utils/formatters";
+import CheckIcon from '@mui/icons-material/Check';
+import CancelIcon from '@mui/icons-material/Cancel';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import Typography from '@mui/material/Typography';
 
 const getRange = (key) => {
     const today = new Date();
@@ -91,8 +100,14 @@ const SaleTransactionPage = () => {
     const [error, setError] = useState(null);
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [userDetails, setUserDetails] = useState(null);
+    const [customerDetails, setCustomerDetails] = useState(null);
     const [actionAnchorEl, setActionAnchorEl] = useState(null);
     const [actionRow, setActionRow] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
+    const [confirmRow, setConfirmRow] = useState(null);
 
     const handleActionClick = (event, row) => {
         setActionAnchorEl(event.currentTarget);
@@ -162,6 +177,16 @@ const SaleTransactionPage = () => {
         loadTransactions();
     }, []);
 
+    useEffect(() => {
+        if (error || success) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success]);
+
     const getStatusKeys = () => {
         const keys = [];
         if (filter.status.draft) keys.push('DRAFT');
@@ -217,14 +242,89 @@ const SaleTransactionPage = () => {
         try {
             // Lấy chi tiết đầy đủ từ API
             const detailedTransaction = await saleTransactionService.getById(row.id);
+
+            // Nếu thiếu customerId/storeId, lấy lại từ row gốc
+            if (!detailedTransaction.customerId && row.customerId) {
+                detailedTransaction.customerId = row.customerId;
+            }
+            if (!detailedTransaction.storeId && row.storeId) {
+                detailedTransaction.storeId = row.storeId;
+            }
+
             setSelectedTransaction(detailedTransaction);
+            
+            // Lấy thông tin người tạo nếu có createdBy
+            if (detailedTransaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(detailedTransaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    console.error('Error loading user details:', error);
+                    setUserDetails(null);
+                }
+            } else {
+                setUserDetails(null);
+            }
+            
+            // Lấy thông tin chi tiết khách hàng nếu có customerId
+            if (detailedTransaction.customerId) {
+                try {
+                    const customer = await getCustomerById(detailedTransaction.customerId);
+                    setCustomerDetails(customer);
+                } catch (error) {
+                    console.error('Error loading customer details:', error);
+                    setCustomerDetails(null);
+                }
+            } else {
+                setCustomerDetails(null);
+            }
+            
             setOpenDetailDialog(true);
         } catch (error) {
             console.error('Error loading transaction details:', error);
             // Fallback to row data if API fails
             setSelectedTransaction(row);
+            setUserDetails(null);
+            setCustomerDetails(null);
             setOpenDetailDialog(true);
         }
+    };
+
+    // Xử lý hủy phiếu
+    const handleCancel = async (row) => {
+        if (!row) return;
+        try {
+            await saleTransactionService.cancel(row.id);
+            setSuccess('Hủy phiếu thành công!');
+            setOpenDetailDialog(false);
+            setSelectedTransaction(null);
+            setUserDetails(null);
+            setCustomerDetails(null);
+            loadTransactions();
+        } catch (error) {
+            setError('Không thể hủy phiếu. Vui lòng thử lại!');
+        }
+    };
+    // Xử lý hoàn thành phiếu
+    const handleComplete = async (row) => {
+        if (!row) return;
+        try {
+            await saleTransactionService.complete(row.id);
+            setSuccess('Hoàn thành phiếu thành công!');
+            setOpenDetailDialog(false);
+            setSelectedTransaction(null);
+            setUserDetails(null);
+            setCustomerDetails(null);
+            loadTransactions();
+        } catch (error) {
+            setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        }
+    };
+
+    const handleConfirm = () => {
+        setConfirmOpen(false);
+        if (confirmType === 'complete') handleComplete(confirmRow);
+        if (confirmType === 'cancel') handleCancel(confirmRow);
     };
 
     const columns = [
@@ -492,6 +592,11 @@ const SaleTransactionPage = () => {
                         />
                     </div>
                     
+                    {success && (
+                        <Alert severity="success" className="mb-4">
+                            {success}
+                        </Alert>
+                    )}
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
@@ -518,80 +623,22 @@ const SaleTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu bán hàng */}
-            <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Chi tiết phiếu bán hàng: {selectedTransaction?.id}</DialogTitle>
-                <DialogContent>
-                    {selectedTransaction ? (
-                        <div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <strong>Khách hàng:</strong> {selectedTransaction.customerName}
-                                </div>
-                                <div>
-                                    <strong>Cửa hàng:</strong> {selectedTransaction.storeName}
-                                </div>
-                                <div>
-                                    <strong>Thời gian:</strong> {selectedTransaction.saleDate ? new Date(selectedTransaction.saleDate).toLocaleString('vi-VN') : ''}
-                                </div>
-                                <div>
-                                    <strong>Trạng thái:</strong> 
-                                    <Chip
-                                        label={selectedTransaction.status === 'COMPLETE' ? 'Đã hoàn thành' : 'Nháp'}
-                                        style={{
-                                            backgroundColor: selectedTransaction.status === 'COMPLETE' ? '#10b981' : '#6b7280',
-                                            color: '#fff',
-                                            marginLeft: 8
-                                        }}
-                                        size="small"
-                                    />
-                                </div>
-                            </div>
-                            
-                            {selectedTransaction.detail && selectedTransaction.detail.length > 0 ? (
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Sản phẩm</TableCell>
-                                            <TableCell>Số lượng</TableCell>
-                                            <TableCell>Đơn giá</TableCell>
-                                            <TableCell>Thành tiền</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {selectedTransaction.detail.map((item, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>{item.productName}</TableCell>
-                                                <TableCell>{item.quantity}</TableCell>
-                                                <TableCell>{item.unitSalePrice?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                                <TableCell>{(item.unitSalePrice * item.quantity)?.toLocaleString('vi-VN')} VNĐ</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p>Không có dữ liệu chi tiết.</p>
-                            )}
-                            
-                            <div className="mt-4 text-right">
-                                <div className="text-lg font-semibold">
-                                    Tổng tiền: {selectedTransaction.totalAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                                <div className="text-md">
-                                    Đã thanh toán: {selectedTransaction.paidAmount?.toLocaleString('vi-VN')} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p>Không có dữ liệu chi tiết.</p>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleExportDetail} color="secondary" startIcon={<FaFileExport />}>
-                        Xuất chi tiết
-                    </Button>
-                    <Button onClick={() => setOpenDetailDialog(false)} color="primary">Đóng</Button>
-                </DialogActions>
-            </Dialog>
+            <SaleDetailDialog
+                open={openDetailDialog}
+                onClose={() => {
+                    setOpenDetailDialog(false);
+                    setSelectedTransaction(null);
+                    setUserDetails(null);
+                    setCustomerDetails(null);
+                }}
+                transaction={selectedTransaction}
+                formatCurrency={formatCurrency}
+                onExport={() => handleExportDetail(selectedTransaction)}
+                userDetails={userDetails}
+                customerDetails={customerDetails}
+                onCancel={() => handleCancel(selectedTransaction)}
+                onComplete={() => handleComplete(selectedTransaction)}
+            />
 
             <Menu
                 anchorEl={actionAnchorEl}
@@ -620,18 +667,58 @@ const SaleTransactionPage = () => {
                     handleExportDetail(actionRow);
                     handleActionClose();
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><FaDownload fontSize="small" /></ListItemIcon>
+                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất chi tiết" />
                 </MenuItem>
-                <MenuItem onClick={handleEdit} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Sửa" />
+                {actionRow && actionRow.status !== 'COMPLETE' && actionRow.status !== 'CANCEL' && (
+                    <MenuItem onClick={() => {
+                        setConfirmType('complete');
+                        setConfirmRow(actionRow);
+                        setConfirmOpen(true);
+                        handleActionClose();
+                    }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText primary="Hoàn thành" />
+                    </MenuItem>
+                )}
+                <MenuItem onClick={() => {
+                    setConfirmType('cancel');
+                    setConfirmRow(actionRow);
+                    setConfirmOpen(true);
+                    handleActionClose();
+                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
+                    <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemText primary="Hủy phiếu" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
                     <ListItemText primary="Xóa" />
                 </MenuItem>
             </Menu>
+            {/* Dialog xác nhận chuyên nghiệp cho menu ba chấm */}
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+                <DialogTitle className="flex items-center gap-2">
+                    {confirmType === 'complete' ? (
+                        <CheckCircleIcon color="success" fontSize="large" />
+                    ) : (
+                        <CancelIcon color="error" fontSize="large" />
+                    )}
+                    {confirmType === 'complete' ? 'Xác nhận hoàn thành phiếu' : 'Xác nhận hủy phiếu'}
+                </DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        {confirmType === 'complete'
+                            ? 'Bạn có chắc chắn muốn hoàn thành phiếu bán hàng này? Sau khi hoàn thành, phiếu sẽ không thể chỉnh sửa.'
+                            : 'Bạn có chắc chắn muốn hủy phiếu bán hàng này? Thao tác này không thể hoàn tác.'}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmOpen(false)} color="inherit">Huỷ</Button>
+                    <Button onClick={handleConfirm} color={confirmType === 'complete' ? 'success' : 'error'} variant="contained">
+                        Xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

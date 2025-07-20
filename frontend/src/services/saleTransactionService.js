@@ -65,6 +65,26 @@ const saleTransactionService = {
             console.error('Error response:', error.response);
             throw error;
         }
+    },
+
+    async cancel(id) {
+        try {
+            const res = await api.put(`/sale-transactions/${id}/cancel`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in cancel:', error);
+            throw error;
+        }
+    },
+
+    async complete(id) {
+        try {
+            const res = await api.put(`/sale-transactions/${id}/complete`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in complete:', error);
+            throw error;
+        }
     }
 };
 

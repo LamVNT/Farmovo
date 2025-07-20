@@ -9,6 +9,7 @@ import Checkbox from "@mui/material/Checkbox"
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { FaRegEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
+import FarmovoLogo from '../../assets/Farmovo.png';
 
 
 const Signup = () => {
@@ -25,7 +26,7 @@ const Signup = () => {
     return(
         <section className='bg-white w-full'>
             <header className="w-full fixed top-0 left-0  px-4 py-3 flex items-center justify-between z-50">
-                <Link to="/"><img className="w-[200px]" src="https://ecme-react.themenate.net/img/logo/logo-light-full.png"/></Link>
+                <Link to="/"><img className="w-[200px]" src={FarmovoLogo} alt="Farmovo Logo"/></Link>
 
                 <div className="flex items-center gap-0">
                     <NavLink

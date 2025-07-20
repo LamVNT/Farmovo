@@ -20,6 +20,8 @@ public interface ProductMapper {
     @Mapping(source = "category.categoryName", target = "categoryName")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "store.storeName", target = "storeName")
+    @Mapping(source = "createdAt", target = "createdAt")
+    @Mapping(source = "updatedAt", target = "updatedAt")
     ProductDto toDto(Product product);
 
     List<ProductDto> toDtoList(List<Product> products);

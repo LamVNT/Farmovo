@@ -19,6 +19,13 @@ public interface SaleTransactionService {
 
     List<SaleTransactionResponseDto> getAll();
 
+    void cancel(Long id);
+
+    String getNextSaleTransactionCode();
+
+    void softDeleteSaleTransaction(Long id, Long userId);
+
     SaleTransactionResponseDto getById(Long id);
 
+    void complete(Long id);
 }

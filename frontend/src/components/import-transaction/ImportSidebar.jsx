@@ -15,12 +15,15 @@ const ImportSidebar = ({
     currentUser,
     suppliers,
     selectedSupplier,
+    onSupplierChange,
+    stores,
+    selectedStore,
+    onStoreChange,
     nextImportCode,
     note,
     paidAmount,
     totalAmount,
     loading,
-    onSupplierChange,
     onNoteChange,
     onPaidAmountChange,
     onSaveDraft,
@@ -59,6 +62,28 @@ const ImportSidebar = ({
                     {suppliers.map((supplier) => (
                         <MenuItem key={supplier.id} value={supplier.id}>
                             🏬 {supplier.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </div>
+
+            <div>
+                <div className="font-semibold mb-1">Cửa hàng</div>
+                <Select
+                    size="small"
+                    fullWidth
+                    displayEmpty
+                    value={isValidValue(selectedStore, stores) ? selectedStore : ''}
+                    onChange={onStoreChange}
+                    renderValue={(selected) =>
+                        selected && stores.find((s) => String(s.id) === String(selected))
+                            ? stores.find((s) => String(s.id) === String(selected)).name
+                            : 'Chọn cửa hàng'
+                    }
+                >
+                    {stores.map((store) => (
+                        <MenuItem key={store.id} value={store.id}>
+                            🏪 {store.name}
                         </MenuItem>
                     ))}
                 </Select>
