@@ -94,7 +94,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogTitle>{editMode ? 'Chỉnh sửa người dùng' : 'Thêm người dùng'}</DialogTitle>
-            <DialogContent>
+            <DialogContent style={{ maxHeight: '70vh', overflowY: 'auto', paddingTop: 8, paddingBottom: 8 }}>
                 {editMode && (
                     <TextField
                         margin="dense"
