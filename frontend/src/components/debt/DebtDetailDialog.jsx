@@ -39,7 +39,6 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
     let previewUrl = debtNote.debtEvidences || null;
     if (debtNote.debtEvidences) {
         if (
-            debtNote.debtEvidences.startsWith("http://") ||
             debtNote.debtEvidences.startsWith("https://")
         ) {
             previewUrl = debtNote.debtEvidences;
@@ -52,6 +51,9 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
             previewUrl = `${S3_BUCKET_URL}/${debtNote.debtEvidences}`;
         }
     }
+    // Log để debug
+    console.log('debtNote.debtEvidences:', debtNote.debtEvidences);
+    console.log('previewUrl:', previewUrl);
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -129,16 +131,18 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                 <Box mb={2}>
                     <Typography variant="subtitle2">Bằng chứng</Typography>
                     <Box>
-                        {debtNote.debtEvidences && (
+                        {previewUrl && (
                             <img
-                                src={debtNote.debtEvidences}
+                                src={previewUrl}
                                 alt="Preview"
                                 style={{ maxWidth: "100%", maxHeight: 160, marginTop: 8, borderRadius: 8 }}
+                                onError={e => { e.target.style.display = 'none'; }}
                             />
                         )}
-                        {debtNote.debtEvidences && !debtNote.debtEvidences.startsWith("http") && (
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                                {debtNote.debtEvidences}
+                        {/* Nếu không có bằng chứng */}
+                        {!debtNote.debtEvidences && (
+                            <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+                                Không có bằng chứng
                             </Typography>
                         )}
                     </Box>

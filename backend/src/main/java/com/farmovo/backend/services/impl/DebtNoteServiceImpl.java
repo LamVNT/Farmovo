@@ -14,6 +14,7 @@ import com.farmovo.backend.utils.DebtNoteValidation;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private final StoreRepository storeRepository;
     private final CustomerService customerService;
     private final S3Service s3Service;
+
+    @Value("${aws.s3.bucket}")  // Thêm dòng này để inject bucketName
+    private String bucketName;
 
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerId(Long customerId) {
@@ -206,19 +210,19 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     private DebtNoteResponseDto mapToDebtNoteResponseDto(DebtNote debtNote) {
         String evidence = debtNote.getDebtEvidences();
-        String evidenceUrl = evidence;
+        String evidenceUrl = "";
         if (evidence != null && !evidence.isEmpty()) {
-            // Luôn generate pre-signed, giả sử evidence là key hoặc URL (extract key nếu cần)
-            if (evidence.startsWith("http")) {
-                // Nếu là URL public, extract key từ URL
-                evidenceUrl = evidence.substring(evidence.lastIndexOf("/") + 1);  // Extract key
+            String keyToUse = evidence;
+            if (evidence.startsWith("https://")) {
+                // Extract key từ URL public (bỏ domain)
+                keyToUse = evidence.replace("https://" + bucketName + ".s3.amazonaws.com/", "");  // Thêm @Value("${aws.s3.bucket}") nếu cần
             }
             try {
-                evidenceUrl = s3Service.generatePresignedUrl(evidenceUrl);
-                logger.info("Generated pre-signed URL for evidence key '{}': {}", evidence, evidenceUrl);
+                evidenceUrl = s3Service.generatePresignedUrl(keyToUse);
+                logger.info("Generated pre-signed URL for evidence key '{}': {}", keyToUse, evidenceUrl);
             } catch (Exception e) {
-                logger.error("Failed to generate pre-signed URL for '{}': {}", evidence, e.getMessage());
-                evidenceUrl = "";  // Hoặc fallback
+                logger.error("Failed to generate pre-signed URL for '{}': {}", keyToUse, e.getMessage());
+                evidenceUrl = evidence;  // Fallback về evidence gốc (có thể là URL public)
             }
         } else {
             logger.info("Debt evidence is empty");

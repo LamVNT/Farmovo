@@ -47,17 +47,17 @@ public class S3Service {
     }
 
     public String generatePresignedUrl(String key) {
-        // Kiểm tra object tồn tại trước
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
                     .build();
-            s3Client.headObject(headRequest);
+            HeadObjectResponse response = s3Client.headObject(headRequest);  // Lấy response để log
+            System.out.println("HeadObject success for key: " + key + ", ETag: " + response.eTag());  // Log để debug
         } catch (NoSuchKeyException e) {
-            throw new IllegalArgumentException("Object không tồn tại với key: " + key);
+            throw new IllegalArgumentException("Object không tồn tại với key: " + key + " - " + e.getMessage());
         } catch (S3Exception e) {
-            throw new IllegalArgumentException("Lỗi quyền truy cập object: " + e.getMessage());
+            throw new IllegalArgumentException("Lỗi quyền truy cập object: " + e.awsErrorDetails().errorMessage() + " (Code: " + e.statusCode() + ")");
         }
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
