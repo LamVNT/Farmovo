@@ -81,7 +81,7 @@ const LoginForm = () => {
                     />
                     Remember Me
                 </label>
-                <a href="#" className="text-sm text-blue-500 hover:underline">Forgot password?</a>
+                <a onClick={() => navigate("/forgot-password")} className="text-sm text-blue-500 hover:underline">Forgot password?</a>
             </div>
 
             <button
