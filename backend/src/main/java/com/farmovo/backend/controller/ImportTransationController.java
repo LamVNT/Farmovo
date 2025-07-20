@@ -78,13 +78,17 @@ public class ImportTransationController {
 
     @PostMapping("/save")
     public ResponseEntity<?> create(@RequestBody CreateImportTransactionRequestDto dto, HttpServletRequest request) {
-        String token = jwtUtils.getJwtFromCookies(request);
-        if (token != null && jwtUtils.validateJwtToken(token)) {
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            importTransactionService.createImportTransaction(dto, userId);
-        }
+//        String token = jwtUtils.getJwtFromCookies(request);
+//        if (token != null && jwtUtils.validateJwtToken(token)) {
+//            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+//            importTransactionService.createImportTransaction(dto, userId);
+//        }
+
+        importTransactionService.createImportTransaction(dto, 4L);
+
         return ResponseEntity.ok("Tạo phiếu nhập thành công");
     }
+
 
     @GetMapping("/next-code")
     public ResponseEntity<String> getNextImportTransactionCode() {
@@ -100,6 +104,7 @@ public class ImportTransationController {
         importTransactionService.update(id, dto);
         return ResponseEntity.ok("Import transaction updated successfully.");
     }
+
 
     @DeleteMapping("/sort-delete/{id}")
     public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {

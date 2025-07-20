@@ -29,6 +29,7 @@ import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
+import ForgotPassword from "../pages/ForgotPassword";
 
 const router = createBrowserRouter([
     {
@@ -54,6 +55,14 @@ const router = createBrowserRouter([
         element: (
             <GuestRoute>
                 <Signup />
+            </GuestRoute>
+        ),
+    },
+    {
+        path: "/forgot-password",
+        element: (
+            <GuestRoute>
+                <ForgotPassword />
             </GuestRoute>
         ),
     },

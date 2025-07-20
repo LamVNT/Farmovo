@@ -39,7 +39,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final ImportTransactionDetailRepository importTransactionDetailRepository;
     private static final Logger log = LogManager.getLogger(ImportTransactionService.class);
     private final SaleTransactionValidator saleTransactionValidator;
-
+    private final ProductRepository productRepository;
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
         List<ImportTransactionDetail> details = detailRepository.findByProductId(productId);
@@ -77,6 +77,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         // Nếu là COMPLETE → trừ kho
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             deductStockFromBatch(dto.getDetail());
+            deductStockIfComplete(dto.getDetail());
         }
 
         saleTransactionRepository.save(transaction);
@@ -123,8 +124,26 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             deductStockFromBatch(dto.getDetail());
+            deductStockIfComplete(dto.getDetail());
         }
         saleTransactionRepository.save(transaction);
+    }
+
+    private void deductStockIfComplete(List<ProductSaleResponseDto> details) {
+        for (ProductSaleResponseDto d : details) {
+            Product product = productRepository.findById(d.getProId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + d.getProId()));
+
+            int currentQuantity = product.getProductQuantity();
+            if (currentQuantity < d.getQuantity()) {
+                throw new BadRequestException("Sản phẩm ID " + d.getProId() + " không đủ số lượng trong kho.");
+            }
+
+            int updatedQuantity = currentQuantity - d.getQuantity();
+            product.setProductQuantity(updatedQuantity);
+            productRepository.save(product);
+            log.info("Giảm kho: productId={}, newQuantity={}", product.getId(), updatedQuantity);
+        }
     }
 
 

@@ -1,6 +1,7 @@
 package com.farmovo.backend.repositories;
 
 import com.farmovo.backend.models.ForgotPassword;
+import com.farmovo.backend.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +30,14 @@ public interface ForgotPasswordRepository extends JpaRepository<ForgotPassword, 
     @Transactional
     @Query("DELETE FROM ForgotPassword fp WHERE fp.expirationTime < :currentTime")
     void deleteExpiredOtps(@Param("currentTime") Date currentTime);
+
+    @Query("SELECT f FROM ForgotPassword f WHERE f.user.email = :email")
+    Optional<ForgotPassword> findByEmail(@Param("email") String email);
+
+    Optional<ForgotPassword> findByUser(User user);
+
+    Optional<ForgotPassword> findByOtpAndUser(Integer otp, User user);
+
+
+
 }

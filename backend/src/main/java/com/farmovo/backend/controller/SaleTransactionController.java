@@ -33,11 +33,8 @@ public class SaleTransactionController {
     private final SaleTransactionService saleTransactionService;
     private final CustomerService customerService;
     private final ProductService productService;
-    private final ZoneService zoneService;
-    private final ImportTransactionDetailService importTransactionDetailService;
     private final ProductRepository productRepository;
     private final JwtUtils jwtUtils;
-
     private final StoreService storeService;
 
 
@@ -93,11 +90,13 @@ public class SaleTransactionController {
 
     @PostMapping("/save")
     public ResponseEntity<String> save(@RequestBody CreateSaleTransactionRequestDto dto, HttpServletRequest request) {
-        String token = jwtUtils.getJwtFromCookies(request);
-        if (token != null && jwtUtils.validateJwtToken(token)) {
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            saleTransactionService.save(dto,userId);
-        }
+//        String token = jwtUtils.getJwtFromCookies(request);
+//        if (token != null && jwtUtils.validateJwtToken(token)) {
+//            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+//            saleTransactionService.save(dto,userId);
+//        }
+        saleTransactionService.save(dto,4L);
+
         return ResponseEntity.ok("Sale transaction saved successfully.");
     }
 
@@ -138,6 +137,5 @@ public class SaleTransactionController {
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
     }
-
 }
 

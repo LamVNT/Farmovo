@@ -82,6 +82,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         // Lưu
         importTransactionRepository.save(transaction);
         log.info("Import transaction created. Total: {}, Paid: {}", totalAmount, transaction.getPaidAmount());
+        updateProductStockIfComplete(transaction);
     }
 
     @Override
@@ -123,7 +124,21 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
 
         importTransactionRepository.save(transaction);
+        updateProductStockIfComplete(transaction);
         log.info("Import transaction updated successfully with ID: {}", id);
+    }
+
+    //// hàm
+    private void updateProductStockIfComplete(ImportTransaction transaction) {
+        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
+            for (ImportTransactionDetail detail : transaction.getDetails()) {
+                Product product = detail.getProduct();
+                int updatedQuantity = product.getProductQuantity() + detail.getImportQuantity();
+                product.setProductQuantity(updatedQuantity);
+                productRepository.save(product); // Lưu lại thay đổi số lượng
+                log.info("Updated product quantity. productId={}, newQuantity={}", product.getId(), updatedQuantity);
+            }
+        }
     }
 
     // --- Helper methods ---
