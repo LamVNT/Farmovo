@@ -87,6 +87,40 @@ public class ImportTransationController {
         }
     }
 
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<?> completeImportTransaction(@PathVariable Long id) {
+        log.info("Completing import transaction with ID: {}", id);
+
+        try {
+            importTransactionService.complete(id);
+            log.info("Import transaction with ID: {} completed successfully", id);
+            return ResponseEntity.ok("Completed");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Import transaction not found for completion: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error completing import transaction: {}", id, e);
+            throw new BadRequestException("Không thể hoàn thành phiếu nhập hàng: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/close-transaction")
+    public ResponseEntity<?> closeImportTransaction(@PathVariable Long id) {
+        log.info("Closing import transaction with ID: {}", id);
+
+        try {
+            importTransactionService.close(id);
+            log.info("Import transaction with ID: {} closed successfully", id);
+            return ResponseEntity.ok("Closed");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Import transaction not found for closing: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error closing import transaction: {}", id, e);
+            throw new BadRequestException("Không thể đóng phiếu nhập hàng: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/list-all")
     public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
         log.info("Getting all import transactions");
@@ -148,6 +182,17 @@ public class ImportTransationController {
         return ResponseEntity.ok(nextCode);
     }
 
+    @DeleteMapping("/sort-delete/{id}")
+    public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            importTransactionService.softDeleteImportTransaction(id, userId);
+            return ResponseEntity.ok("Xóa mềm thành công");
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<String> updateImportTransaction(
             @PathVariable Long id,
@@ -165,17 +210,6 @@ public class ImportTransationController {
             log.error("Error updating import transaction: {}", id, e);
             throw new BadRequestException("Không thể cập nhật phiếu nhập hàng: " + e.getMessage());
         }
-    }
-
-    @DeleteMapping("/sort-delete/{id}")
-    public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {
-        String token = jwtUtils.getJwtFromCookies(request);
-        if (token != null && jwtUtils.validateJwtToken(token)) {
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            importTransactionService.softDeleteImportTransaction(id, userId);
-            return ResponseEntity.ok("Xóa mềm thành công");
-        }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ");
     }
 
 }

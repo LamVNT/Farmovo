@@ -177,6 +177,12 @@ public class SaleTransactionController {
         return ResponseEntity.ok("Cancelled");
     }
 
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<?> completeSaleTransaction(@PathVariable Long id) {
+        saleTransactionService.complete(id);
+        return ResponseEntity.ok("Completed");
+    }
+
     @DeleteMapping("/sort-delete/{id}")
     public ResponseEntity<String> softDeleteSaleTransaction(@PathVariable Long id, HttpServletRequest request) {
         String token = jwtUtils.getJwtFromCookies(request);

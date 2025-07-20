@@ -15,7 +15,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
     const columns = [
         { field: 'id', headerName: 'ID', width: 80 },
         { field: 'productName', headerName: 'Tên sản phẩm', width: 200 },
-        { field: 'productDescription', headerName: 'Mô tả', width: 300 },
+        { field: 'productDescription', headerName: 'Mô tả', width: 250 },
         { field: 'productQuantity', headerName: 'Số lượng', width: 120 },
         {
             field: 'categoryName',
@@ -23,18 +23,34 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
             width: 150,
             renderCell: (params) => {
                 const value = params.row.categoryName;
-                console.log('Category cell for row', params.row.id, ':', value);
                 return <span>{value || 'N/A'}</span>;
             },
         },
         {
             field: 'storeName',
             headerName: 'Cửa hàng',
-            width: 200,
+            width: 150,
             renderCell: (params) => {
                 const value = params.row.storeName;
-                console.log('Store cell for row', params.row.id, ':', value);
                 return <span>{value || 'N/A'}</span>;
+            },
+        },
+        {
+            field: 'createdAt',
+            headerName: 'Ngày tạo',
+            width: 150,
+            renderCell: (params) => {
+                const value = params.row.createdAt;
+                return value ? new Date(value).toLocaleDateString('vi-VN') : 'N/A';
+            },
+        },
+        {
+            field: 'updatedAt',
+            headerName: 'Cập nhật lần cuối',
+            width: 150,
+            renderCell: (params) => {
+                const value = params.row.updatedAt;
+                return value ? new Date(value).toLocaleDateString('vi-VN') : 'N/A';
             },
         },
         {
@@ -64,6 +80,13 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                 rowsPerPageOptions={[5, 10, 25, 50, 100]}
                 disableRowSelectionOnClick
                 getRowId={(row) => row.id}
+                initialState={{
+                    sorting: {
+                        sortModel: [],
+                    },
+                }}
+                sortingMode="server"
+                disableColumnSorting={true}
                 sx={{
                     borderRadius: 3,
                     boxShadow: 3,

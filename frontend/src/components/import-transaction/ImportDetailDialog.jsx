@@ -15,10 +15,18 @@ import {
     Paper,
     Divider,
     Chip,
+    CircularProgress,
 } from '@mui/material';
-import { FaTimes, FaFileExport } from 'react-icons/fa';
+// Không cần import FaFileExport nữa vì đã dùng Material-UI icons
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PersonIcon from '@mui/icons-material/Person';
+import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
+import TableChartIcon from '@mui/icons-material/TableChart';
 import { exportImportTransactionPdf } from '../../utils/pdfExport';
 
 const ImportDetailDialog = ({
@@ -31,6 +39,11 @@ const ImportDetailDialog = ({
     userDetails,
     storeDetails,
     onExport,
+    onOpenTransaction, // Thêm prop mới
+    onCloseTransaction, // Thay đổi tên prop
+    onCancelTransaction, // Thêm prop mới
+    onCompleteTransaction, // Thêm prop mới cho hoàn thành
+    loading = false, // Thêm prop loading
     zones = [] // Thêm zones data
 }) => {
     if (!transaction) return null;
@@ -206,24 +219,71 @@ const ImportDetailDialog = ({
                 )}
             </DialogContent>
             <DialogActions className="p-4 bg-gray-50">
+                {transaction.status === 'DRAFT' && onOpenTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="primary"
+                        onClick={onOpenTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Mở phiếu'}
+                    </Button>
+                )}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="secondary"
+                        onClick={onCloseTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Đóng phiếu'}
+                    </Button>
+                )}
+                {(transaction.status === 'DRAFT' || transaction.status === 'WAITING_FOR_APPROVE') && onCancelTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="error"
+                        onClick={onCancelTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CancelIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Hủy phiếu'}
+                    </Button>
+                )}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onCompleteTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="success"
+                        onClick={onCompleteTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Hoàn thành'}
+                    </Button>
+                )}
                 <Button 
                     variant="outlined"
+                    color="success"
                     onClick={() => exportImportTransactionPdf(transaction, details, supplierDetails, userDetails, storeDetails, zones)}
-                    startIcon={<FaFileExport />}
+                    startIcon={<PictureAsPdfIcon />}
                 >
                     Xuất PDF
                 </Button>
                 <Button 
                     onClick={onExport} 
                     variant="outlined" 
-                    startIcon={<FaFileExport />}
+                    color="success"
+                    startIcon={<TableChartIcon />}
                 >
-                    Xuất file
+                    Xuất Excel
                 </Button>
                 <Button 
                     onClick={onClose} 
-                    variant="contained" 
-                    startIcon={<FaTimes />}
+                    variant="outlined" 
+                    color="inherit"
+                    startIcon={<CloseIcon />}
                 >
                     Đóng
                 </Button>

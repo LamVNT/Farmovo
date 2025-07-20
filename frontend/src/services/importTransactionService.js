@@ -41,6 +41,16 @@ const importTransactionService = {
         return res.data;
     },
 
+    async completeTransaction(id) {
+        const res = await api.put(`/import-transaction/${id}/complete`);
+        return res.data;
+    },
+
+    async closeTransaction(id) {
+        const res = await api.put(`/import-transaction/${id}/close-transaction`);
+        return res.data;
+    },
+
     async getNextCode() {
         const res = await api.get('/import-transaction/next-code');
         return res.data;

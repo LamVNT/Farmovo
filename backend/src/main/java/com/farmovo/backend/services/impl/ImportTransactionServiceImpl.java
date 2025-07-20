@@ -124,8 +124,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
             log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
     }
-
-
     }
 
     @Override
@@ -279,6 +277,53 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void complete(Long id) {
+        log.info("Completing import transaction with ID: {}", id);
+
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
+
+        if (transaction.getStatus() != ImportTransactionStatus.WAITING_FOR_APPROVE) {
+            log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "hoàn thành phiếu");
+        }
+
+        ImportTransactionStatus oldStatus = transaction.getStatus();
+        transaction.setStatus(ImportTransactionStatus.COMPLETE);
+        importTransactionRepository.save(transaction);
+
+        // Cập nhật số lượng sản phẩm khi hoàn thành phiếu nhập
+        updateProductStockIfComplete(transaction);
+
+        log.info("Import transaction completed successfully. ID: {}, Old status: {}, New status: {}",
+                id, oldStatus, transaction.getStatus());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void close(Long id) {
+        log.info("Closing import transaction with ID: {}", id);
+
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
+
+        if (transaction.getStatus() != ImportTransactionStatus.WAITING_FOR_APPROVE) {
+            log.warn("Attempted to close non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "đóng phiếu");
+        }
+
+        ImportTransactionStatus oldStatus = transaction.getStatus();
+        transaction.setStatus(ImportTransactionStatus.DRAFT);
+        importTransactionRepository.save(transaction);
+
+        log.info("Import transaction closed successfully. ID: {}, Old status: {}, New status: {}",
+                id, oldStatus, transaction.getStatus());
+    }
+
+    @Override
     public List<CreateImportTransactionRequestDto> listAllImportTransaction1() {
         log.debug("Getting all import transactions (method 1)");
 
@@ -333,6 +378,22 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setDeletedBy(userId);
 
         importTransactionRepository.save(transaction);
+    }
+
+    /**
+     * Cập nhật số lượng sản phẩm khi phiếu nhập được hoàn thành
+     * @param transaction Phiếu nhập hàng
+     */
+    private void updateProductStockIfComplete(ImportTransaction transaction) {
+        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
+            for (ImportTransactionDetail detail : transaction.getDetails()) {
+                Product product = detail.getProduct();
+                int updatedQuantity = product.getProductQuantity() + detail.getImportQuantity();
+                product.setProductQuantity(updatedQuantity);
+                productRepository.save(product); // Lưu lại thay đổi số lượng
+                log.info("Updated product quantity. productId={}, newQuantity={}", product.getId(), updatedQuantity);
+            }
+        }
     }
 
 }

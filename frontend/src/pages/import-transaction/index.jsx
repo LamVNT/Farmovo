@@ -12,7 +12,13 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { FaPlus, FaFileExport } from "react-icons/fa";
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+// Không cần import FaPlus nữa vì đã dùng Material-UI icons
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -96,6 +102,7 @@ const ImportTransactionPage = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [zones, setZones] = useState([]);
 
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
@@ -111,6 +118,19 @@ const ImportTransactionPage = () => {
     const [cancelError, setCancelError] = useState(null);
     // Thêm state cho thông báo lỗi khi mở phiếu
     const [openError, setOpenError] = useState(null);
+
+    // Auto-dismiss error/success messages
+    useEffect(() => {
+        if (error || success || openError || cancelError) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+                setOpenError(null);
+                setCancelError(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success, openError, cancelError]);
 
     // Load transactions from API
     const loadTransactions = async () => {
@@ -257,12 +277,68 @@ const ImportTransactionPage = () => {
     const handleOpenTransaction = async () => {
         if (!selectedTransaction?.id) return;
         setOpenError(null);
+        setLoading(true);
         try {
             await importTransactionService.openTransaction(selectedTransaction.id);
             setOpenDetailDialog(false);
             loadTransactions();
+            // Thêm thông báo thành công
+            setSuccess('Mở phiếu thành công!');
         } catch (err) {
             setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý đóng phiếu (quay về DRAFT)
+    const handleCloseTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.closeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Đóng phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hoàn thành phiếu
+    const handleCompleteTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.completeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hoàn thành phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hủy phiếu từ dialog
+    const handleCancelTransactionFromDialog = async () => {
+        if (!selectedTransaction?.id) return;
+        setCancelError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.updateStatus(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hủy phiếu thành công!');
+        } catch (err) {
+            setCancelError('Không thể hủy phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -279,6 +355,62 @@ const ImportTransactionPage = () => {
 
     const handleViewDetailMenu = () => {
         handleViewDetail(actionRow);
+        handleActionClose();
+    };
+
+    const handleOpenTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.openTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Mở phiếu thành công!');
+            } catch (err) {
+                setError('Không thể mở phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCloseTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.closeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Đóng phiếu thành công!');
+            } catch (err) {
+                setError('Không thể đóng phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.completeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Hoàn thành phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCancelTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.updateStatus(actionRow.id);
+                loadTransactions();
+                setSuccess('Hủy phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hủy phiếu. Vui lòng thử lại!');
+            }
+        }
         handleActionClose();
     };
 
@@ -452,15 +584,25 @@ const ImportTransactionPage = () => {
 
     return (
         <div className="w-full relative">
+            {error && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {error}
+                </Alert>
+            )}
+            {success && (
+                <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {success}
+                </Alert>
+            )}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/import/new">
-                        <Button variant="contained" startIcon={<FaPlus />} className="!bg-green-600 hover:!bg-green-700">
+                        <Button variant="contained" startIcon={<AddIcon />} className="!bg-green-600 hover:!bg-green-700">
                             Nhập hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport />} onClick={handleExportAll}>
+                    <Button variant="outlined" startIcon={<TableChartIcon />} onClick={handleExportAll}>
                         Xuất file
                     </Button>
                 </div>
@@ -636,6 +778,8 @@ const ImportTransactionPage = () => {
                     setSupplierDetails(null);
                     setUserDetails(null);
                     setStoreDetails(null);
+                    setCancelError(null);
+                    setOpenError(null);
                 }}
                 transaction={selectedTransaction}
                 details={selectedDetails}
@@ -644,8 +788,25 @@ const ImportTransactionPage = () => {
                 userDetails={userDetails}
                 storeDetails={storeDetails}
                 onExport={handleExportDetail}
+                onOpenTransaction={handleOpenTransaction}
+                onCloseTransaction={handleCloseTransaction}
+                onCompleteTransaction={handleCompleteTransaction}
+                onCancelTransaction={handleCancelTransactionFromDialog}
+                loading={loading}
                 zones={zones}
             />
+
+            {/* Hiển thị thông báo lỗi cho dialog */}
+            {cancelError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {cancelError}
+                </Alert>
+            )}
+            {openError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {openError}
+                </Alert>
+            )}
 
             {/* Action Menu */}
             <Menu
@@ -667,6 +828,46 @@ const ImportTransactionPage = () => {
                     </ListItemIcon>
                     <ListItemText>Xem chi tiết</ListItemText>
                 </MenuItem>
+                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleOpenTransactionMenu}>
+                        <ListItemIcon>
+                            <LockOpenIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Mở phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCloseTransactionMenu}>
+                        <ListItemIcon>
+                            <SaveIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Đóng phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCompleteTransactionMenu}>
+                        <ListItemIcon>
+                            <CheckIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hoàn thành</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hủy phiếu" cho các trạng thái DRAFT và WAITING_FOR_APPROVE */}
+                {(actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') && (
+                    <MenuItem onClick={handleCancelTransactionMenu}>
+                        <ListItemIcon>
+                            <CancelIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hủy phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
                 <MenuItem onClick={handleEdit}>
                     <ListItemIcon>
                         <EditIcon fontSize="small" />

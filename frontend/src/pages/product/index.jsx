@@ -31,6 +31,15 @@ const Product = () => {
             try {
                 const data = await productService.getAllProducts();
                 console.log('Product page - fetched data:', data);
+                if (data && data.length > 0) {
+                    console.log('First product sample:', data[0]);
+                    console.log('Products with timestamps:', data.map(p => ({
+                        id: p.id,
+                        name: p.productName,
+                        createdAt: p.createdAt,
+                        updatedAt: p.updatedAt
+                    })));
+                }
                 setProducts(data);
             } catch (err) {
                 console.error('Product page - error:', err);
@@ -43,11 +52,39 @@ const Product = () => {
     }, []);
 
     const filteredProducts = useMemo(() => {
-        return Array.isArray(products)
-            ? products.filter(p =>
+        if (!Array.isArray(products)) return [];
+        
+        // Lọc theo search text
+        const filtered = products.filter(p =>
                 (p.productName || '').toLowerCase().includes(searchText.toLowerCase())
-            )
-            : [];
+        );
+        
+        // Sắp xếp theo thứ tự: mới cập nhật nhất trước, sau đó mới tạo nhất
+        const sorted = filtered.sort((a, b) => {
+            // Ưu tiên theo updatedAt trước
+            if (a.updatedAt && b.updatedAt) {
+                const updatedDiff = new Date(b.updatedAt) - new Date(a.updatedAt);
+                if (updatedDiff !== 0) return updatedDiff;
+            }
+            
+            // Nếu updatedAt bằng nhau hoặc không có, sắp xếp theo createdAt
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            }
+            
+            // Fallback: sắp xếp theo ID (mới nhất trước)
+            return b.id - a.id;
+        });
+        
+        // Debug: kiểm tra thứ tự sau khi sắp xếp
+        console.log('Sorted products order:', sorted.map(p => ({
+            id: p.id,
+            name: p.productName,
+            updatedAt: p.updatedAt,
+            createdAt: p.createdAt
+        })));
+        
+        return sorted;
     }, [searchText, products]);
 
     const handleOpenCreate = () => {

@@ -21,11 +21,15 @@ import {
     TextField as MuiTextField,
     Popover,
 } from '@mui/material';
-import { FaLock, FaCheck, FaSearch, FaEye } from 'react-icons/fa';
+import { FaSearch } from 'react-icons/fa';
 import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
-import { FiPlus } from 'react-icons/fi';
+// Không cần import FiPlus nữa vì đã dùng Material-UI icons
+import AddIcon from '@mui/icons-material/Add';
 import { DataGrid } from '@mui/x-data-grid';
 import { FaRegTrashCan } from "react-icons/fa6";
+import LockIcon from '@mui/icons-material/Lock';
+import CheckIcon from '@mui/icons-material/Check';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import AddProductDialog from './AddProductDialog';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -798,7 +802,7 @@ const ImportPage = () => {
                         </div>
                         {/* Icon con mắt nằm ngoài vùng Select, luôn bấm được */}
                         <IconButton size="small" style={{ marginLeft: 8, color: '#1976d2', zIndex: 2 }} onClick={e => { e.stopPropagation(); setZonePopoverAnchor(e.currentTarget); setZonePopoverProductId(params.row.id); }}>
-                            <FaEye />
+                            <VisibilityIcon />
                         </IconButton>
                     </div>
                 );
@@ -1006,7 +1010,7 @@ const ImportPage = () => {
                             }}
                         />
                         <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
-                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><FiPlus /></IconButton></Tooltip>
+                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
                         {(isSearchFocused || searchTerm.trim() !== '') && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
                                 {filteredProducts.length > 0 ? (
@@ -1039,7 +1043,7 @@ const ImportPage = () => {
 
                     <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
-                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><FaEye /></IconButton>
+                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><VisibilityIcon /></IconButton>
                         </Tooltip>
                         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                             {Object.entries(columnVisibility).map(([col, visible]) => (
@@ -1242,8 +1246,8 @@ const ImportPage = () => {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} onClick={() => handleShowSummary('DRAFT')} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} onClick={() => handleShowSummary('WAITING_FOR_APPROVE')} disabled={loading}>Hoàn thành</Button>
+                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} onClick={() => handleShowSummary('DRAFT')} disabled={loading}>Lưu tạm</Button>
+                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} onClick={() => handleShowSummary('WAITING_FOR_APPROVE')} disabled={loading}>Hoàn thành</Button>
                 </div>
             </div>
 

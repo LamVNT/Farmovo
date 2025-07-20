@@ -238,6 +238,15 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
     }
 
+    @Override
+    @Transactional
+    public void complete(Long id) {
+        var transaction = saleTransactionRepository.findById(id)
+            .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+        transaction.setStatus(com.farmovo.backend.models.SaleTransactionStatus.COMPLETE);
+        saleTransactionRepository.save(transaction);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void cancel(Long id) {

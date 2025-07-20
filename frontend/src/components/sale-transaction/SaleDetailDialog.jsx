@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -20,6 +20,10 @@ import {
 import { FaTimes, FaFileExport } from 'react-icons/fa';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PersonIcon from '@mui/icons-material/Person';
+import CheckIcon from '@mui/icons-material/Check';
+import CancelIcon from '@mui/icons-material/Cancel';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const SaleDetailDialog = ({
     open,
@@ -28,8 +32,17 @@ const SaleDetailDialog = ({
     formatCurrency,
     onExport,
     userDetails,
-    customerDetails
+    customerDetails,
+    onCancel,
+    onComplete
 }) => {
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
+    const handleConfirm = () => {
+        setConfirmOpen(false);
+        if (confirmType === 'complete') onComplete && onComplete();
+        if (confirmType === 'cancel') onCancel && onCancel();
+    };
     if (!transaction) return null;
 
     const { customerName, storeName, saleDate, status, totalAmount, paidAmount, saleTransactionNote, detail } = transaction;
@@ -201,19 +214,72 @@ const SaleDetailDialog = ({
                 <Button 
                     onClick={onExport} 
                     variant="outlined" 
-                    startIcon={<FaFileExport />}
+                    startIcon={<TableChartIcon />}
                     color="secondary"
+                    sx={{ ml: 0 }}
                 >
                     Xuất chi tiết
+                </Button>
+                {status !== 'COMPLETE' && status !== 'CANCEL' && (
+                    <Button
+                        onClick={() => {
+                            setConfirmType('complete');
+                            setConfirmOpen(true);
+                        }}
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckIcon />}
+                        sx={{ ml: 1 }}
+                    >
+                        Hoàn thành
+                    </Button>
+                )}
+                <Button
+                    onClick={() => {
+                        setConfirmType('cancel');
+                        setConfirmOpen(true);
+                    }}
+                    variant="outlined"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    sx={{ ml: 1 }}
+                    disabled={status === 'CANCEL'}
+                >
+                    Hủy phiếu
                 </Button>
                 <Button 
                     onClick={onClose} 
                     variant="contained" 
                     startIcon={<FaTimes />}
+                    sx={{ ml: 1 }}
                 >
                     Đóng
                 </Button>
             </DialogActions>
+            {/* Dialog xác nhận chuyên nghiệp */}
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+                <DialogTitle className="flex items-center gap-2">
+                    {confirmType === 'complete' ? (
+                        <CheckCircleIcon color="success" fontSize="large" />
+                    ) : (
+                        <CancelIcon color="error" fontSize="large" />
+                    )}
+                    {confirmType === 'complete' ? 'Xác nhận hoàn thành phiếu' : 'Xác nhận hủy phiếu'}
+                </DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        {confirmType === 'complete'
+                            ? 'Bạn có chắc chắn muốn hoàn thành phiếu bán hàng này? Sau khi hoàn thành, phiếu sẽ không thể chỉnh sửa.'
+                            : 'Bạn có chắc chắn muốn hủy phiếu bán hàng này? Thao tác này không thể hoàn tác.'}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmOpen(false)} color="inherit">Huỷ</Button>
+                    <Button onClick={handleConfirm} color={confirmType === 'complete' ? 'success' : 'error'} variant="contained">
+                        Xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Dialog>
     );
 };

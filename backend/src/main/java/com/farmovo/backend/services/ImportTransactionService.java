@@ -25,6 +25,10 @@ public interface ImportTransactionService {
 
     void open(Long id);
 
+    void complete(Long id);
+
+    void close(Long id);
+
     String getNextImportTransactionCode();
 
     void softDeleteImportTransaction(Long id, Long userId);

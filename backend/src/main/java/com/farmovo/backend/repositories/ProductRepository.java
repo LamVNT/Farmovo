@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.store")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.store ORDER BY p.createdAt DESC, p.updatedAt DESC")
     List<Product> findAllWithCategoryAndStore();
 
     @Query("SELECT p FROM Product p WHERE p.category IS NULL OR p.store IS NULL")

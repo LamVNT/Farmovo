@@ -34,6 +34,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaleDetailDialog from "../../components/sale-transaction/SaleDetailDialog";
 import { formatCurrency } from "../../utils/formatters";
+import CheckIcon from '@mui/icons-material/Check';
+import CancelIcon from '@mui/icons-material/Cancel';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import Typography from '@mui/material/Typography';
 
 const getRange = (key) => {
     const today = new Date();
@@ -99,6 +104,10 @@ const SaleTransactionPage = () => {
     const [customerDetails, setCustomerDetails] = useState(null);
     const [actionAnchorEl, setActionAnchorEl] = useState(null);
     const [actionRow, setActionRow] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
+    const [confirmRow, setConfirmRow] = useState(null);
 
     const handleActionClick = (event, row) => {
         setActionAnchorEl(event.currentTarget);
@@ -168,6 +177,16 @@ const SaleTransactionPage = () => {
         loadTransactions();
     }, []);
 
+    useEffect(() => {
+        if (error || success) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success]);
+
     const getStatusKeys = () => {
         const keys = [];
         if (filter.status.draft) keys.push('DRAFT');
@@ -223,6 +242,15 @@ const SaleTransactionPage = () => {
         try {
             // Lấy chi tiết đầy đủ từ API
             const detailedTransaction = await saleTransactionService.getById(row.id);
+
+            // Nếu thiếu customerId/storeId, lấy lại từ row gốc
+            if (!detailedTransaction.customerId && row.customerId) {
+                detailedTransaction.customerId = row.customerId;
+            }
+            if (!detailedTransaction.storeId && row.storeId) {
+                detailedTransaction.storeId = row.storeId;
+            }
+
             setSelectedTransaction(detailedTransaction);
             
             // Lấy thông tin người tạo nếu có createdBy
@@ -260,6 +288,43 @@ const SaleTransactionPage = () => {
             setCustomerDetails(null);
             setOpenDetailDialog(true);
         }
+    };
+
+    // Xử lý hủy phiếu
+    const handleCancel = async (row) => {
+        if (!row) return;
+        try {
+            await saleTransactionService.cancel(row.id);
+            setSuccess('Hủy phiếu thành công!');
+            setOpenDetailDialog(false);
+            setSelectedTransaction(null);
+            setUserDetails(null);
+            setCustomerDetails(null);
+            loadTransactions();
+        } catch (error) {
+            setError('Không thể hủy phiếu. Vui lòng thử lại!');
+        }
+    };
+    // Xử lý hoàn thành phiếu
+    const handleComplete = async (row) => {
+        if (!row) return;
+        try {
+            await saleTransactionService.complete(row.id);
+            setSuccess('Hoàn thành phiếu thành công!');
+            setOpenDetailDialog(false);
+            setSelectedTransaction(null);
+            setUserDetails(null);
+            setCustomerDetails(null);
+            loadTransactions();
+        } catch (error) {
+            setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        }
+    };
+
+    const handleConfirm = () => {
+        setConfirmOpen(false);
+        if (confirmType === 'complete') handleComplete(confirmRow);
+        if (confirmType === 'cancel') handleCancel(confirmRow);
     };
 
     const columns = [
@@ -527,6 +592,11 @@ const SaleTransactionPage = () => {
                         />
                     </div>
                     
+                    {success && (
+                        <Alert severity="success" className="mb-4">
+                            {success}
+                        </Alert>
+                    )}
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
@@ -566,6 +636,8 @@ const SaleTransactionPage = () => {
                 onExport={() => handleExportDetail(selectedTransaction)}
                 userDetails={userDetails}
                 customerDetails={customerDetails}
+                onCancel={() => handleCancel(selectedTransaction)}
+                onComplete={() => handleComplete(selectedTransaction)}
             />
 
             <Menu
@@ -595,18 +667,58 @@ const SaleTransactionPage = () => {
                     handleExportDetail(actionRow);
                     handleActionClose();
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><FaDownload fontSize="small" /></ListItemIcon>
+                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất chi tiết" />
                 </MenuItem>
-                <MenuItem onClick={handleEdit} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Sửa" />
+                {actionRow && actionRow.status !== 'COMPLETE' && actionRow.status !== 'CANCEL' && (
+                    <MenuItem onClick={() => {
+                        setConfirmType('complete');
+                        setConfirmRow(actionRow);
+                        setConfirmOpen(true);
+                        handleActionClose();
+                    }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText primary="Hoàn thành" />
+                    </MenuItem>
+                )}
+                <MenuItem onClick={() => {
+                    setConfirmType('cancel');
+                    setConfirmRow(actionRow);
+                    setConfirmOpen(true);
+                    handleActionClose();
+                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
+                    <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemText primary="Hủy phiếu" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
                     <ListItemText primary="Xóa" />
                 </MenuItem>
             </Menu>
+            {/* Dialog xác nhận chuyên nghiệp cho menu ba chấm */}
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+                <DialogTitle className="flex items-center gap-2">
+                    {confirmType === 'complete' ? (
+                        <CheckCircleIcon color="success" fontSize="large" />
+                    ) : (
+                        <CancelIcon color="error" fontSize="large" />
+                    )}
+                    {confirmType === 'complete' ? 'Xác nhận hoàn thành phiếu' : 'Xác nhận hủy phiếu'}
+                </DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        {confirmType === 'complete'
+                            ? 'Bạn có chắc chắn muốn hoàn thành phiếu bán hàng này? Sau khi hoàn thành, phiếu sẽ không thể chỉnh sửa.'
+                            : 'Bạn có chắc chắn muốn hủy phiếu bán hàng này? Thao tác này không thể hoàn tác.'}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmOpen(false)} color="inherit">Huỷ</Button>
+                    <Button onClick={handleConfirm} color={confirmType === 'complete' ? 'success' : 'error'} variant="contained">
+                        Xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };
