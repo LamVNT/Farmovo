@@ -20,4 +20,5 @@ public class UserResponseDto {
     private Long storeId;
     private String storeName;
     private List<String> roles; // Thêm danh sách role
+    private String email;
 }

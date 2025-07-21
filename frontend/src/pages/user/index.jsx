@@ -22,6 +22,7 @@ const UserManagement = () => {
         updateAt: '',
         storeName: '',
         roles: [],
+        email: '',
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ const UserManagement = () => {
             updateAt: '',
             storeName: '',
             roles: [], // Reset roles khi tạo mới
+            email: '',
         });
         setEditMode(false);
         setOpenDialog(true);
@@ -81,6 +83,7 @@ const UserManagement = () => {
             updateAt: user.updateAt || '',
             storeName: user.storeName || '',
             roles: user.roles || [], // Lấy roles từ dữ liệu
+            email: user.email || '',
         });
         setEditMode(true);
         setOpenDialog(true);
@@ -116,6 +119,7 @@ const UserManagement = () => {
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
+            email: form.email || undefined,
         };
         try {
             if (editMode) {

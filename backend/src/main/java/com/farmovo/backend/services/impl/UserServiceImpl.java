@@ -100,6 +100,7 @@ public class UserServiceImpl implements UserService {
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
                 if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
+                if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());
                 // Cập nhật authorities (roles)
                 if (user.getAuthorities() != null) {
@@ -164,6 +165,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(dto.getPassword());
         user.setStatus(dto.getStatus());
+        user.setEmail(dto.getEmail());
         if (dto.getStoreId() != null) {
             Store store = storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> {
@@ -192,6 +194,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(dto.getPassword());
         user.setStatus(dto.getStatus());
+        user.setEmail(dto.getEmail());
         if (dto.getStoreId() != null) {
             Store store = storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> {
