@@ -96,7 +96,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                     <Table>
                         <TableHead>
                             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                                <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell>
+                                {/* <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell> */}
                                 <TableCell sx={{ fontWeight: 'bold' }}>Ngày giao dịch</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Loại nợ</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Mô tả</TableCell>
@@ -108,7 +108,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                             {filteredNotes && filteredNotes.length > 0 ? (
                                 filteredNotes.map((note) => (
                                     <TableRow key={note.id || Math.random()}>
-                                        <TableCell>{note.id || "N/A"}</TableCell>
+                                        {/* <TableCell>{note.id || "N/A"}</TableCell> */}
                                         <TableCell>
                                             {note.debtDate
                                                 ? new Date(note.debtDate).toLocaleString("vi-VN", {
@@ -129,7 +129,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={7}>Không có giao dịch nợ</TableCell>
+                                    <TableCell colSpan={6}>Không có giao dịch nợ</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
