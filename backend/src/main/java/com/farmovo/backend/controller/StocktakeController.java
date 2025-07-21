@@ -11,6 +11,8 @@ import com.farmovo.backend.services.StocktakeService;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,13 +42,24 @@ public class StocktakeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<StocktakeResponseDto>> getAllStocktakes() {
-        return ResponseEntity.ok(stocktakeService.getAllStocktakes());
+    public ResponseEntity<List<StocktakeResponseDto>> getAllStocktakes(
+            @RequestParam(required = false) String storeId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String note,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
+    ) {
+        return ResponseEntity.ok(stocktakeService.getAllStocktakes(storeId, status, note, fromDate, toDate));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<StocktakeResponseDto> getStocktakeById(@PathVariable Long id) {
         return ResponseEntity.ok(stocktakeService.getStocktakeById(id));
+    }
+
+    @GetMapping("/{id}/export-excel")
+    public ResponseEntity<ByteArrayResource> exportStocktakeToExcel(@PathVariable Long id) throws Exception {
+        return stocktakeService.exportStocktakeToExcel(id);
     }
 
     //    @PreAuthorize("hasRole('OWNER')") // Chỉ Owner mới được phê duyệt/hủy phiếu

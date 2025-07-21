@@ -9,7 +9,6 @@ import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
 import com.farmovo.backend.services.DebtNoteService;
-import com.farmovo.backend.services.S3Service;
 import com.farmovo.backend.utils.DebtNoteValidation;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;

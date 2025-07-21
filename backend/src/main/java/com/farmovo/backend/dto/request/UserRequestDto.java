@@ -33,4 +33,5 @@ public class UserRequestDto {
     private Long storeId;
 
     private List<String> roles; // Thêm danh sách role
+    private String email;
 }

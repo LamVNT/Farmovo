@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -10,24 +10,63 @@ import {
     Checkbox,
     Autocomplete,
     CircularProgress, // Thêm để hiển thị loading
+    InputAdornment,
+    IconButton
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL}`;
 
-const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
+function removeVietnameseTones(str) {
+    return str
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
+function generateUsername(fullName, existingUsernames) {
+    if (!fullName) return '';
+    const parts = removeVietnameseTones(fullName.trim()).split(/\s+/);
+    if (parts.length === 0) return '';
+    const lastName = parts[parts.length - 1];
+    const initials = parts.slice(0, -1).map(p => p[0]?.toUpperCase() || '').join('');
+    let base = lastName + (initials ? initials : '');
+    base = base.replace(/[^a-zA-Z0-9]/g, '');
+    let number = 1;
+    let username = base + number;
+    while (existingUsernames.includes(username)) {
+        number++;
+        username = base + number;
+    }
+    return username;
+}
+
+function generateRandomPassword(length = 5) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
     const [stores, setStores] = useState([]);
     const [roles, setRoles] = useState([]);
     const [storesLoading, setStoresLoading] = useState(true); // Thêm state loading cho stores
+    const [allUsernames, setAllUsernames] = useState([]);
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         const fetchStores = async () => {
             try {
                 const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, {
                     withCredentials: true,
-                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                 });
-                setStores(response.data.map(store => ({id: store.id, name: store.name})));
+                setStores(response.data.map(store => ({ id: store.id, name: store.name })));
             } catch (error) {
                 console.error('Không thể lấy danh sách cửa hàng:', error);
             } finally {
@@ -39,7 +78,7 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
             try {
                 const response = await axios.get(`${import.meta.env.VITE_API_URL}/authorities/admin/roleList`, {
                     withCredentials: true,
-                    headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                 });
                 setRoles(response.data.map(role => role.role));
             } catch (error) {
@@ -47,12 +86,25 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
             }
         };
 
+        const fetchUsernames = async () => {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/userList`, {
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                });
+                setAllUsernames(response.data.map(u => u.username));
+            } catch (error) {
+                setAllUsernames([]);
+            }
+        };
+
         if (open) {
             setStoresLoading(true); // Reset loading khi mở dialog
             fetchStores();
             fetchRoles();
+            if (!editMode) fetchUsernames();
         }
-    }, [open]);
+    }, [open, editMode]);
 
     // Thêm useEffect để sync value sau khi stores load
     useEffect(() => {
@@ -67,13 +119,28 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
         }
     }, [storesLoading, stores, form.storeId, form.storeName, setForm]);
 
+    useEffect(() => {
+        if (open && !editMode) {
+            // Khi mở dialog thêm mới, tự động sinh password
+            setForm(prev => ({ ...prev, password: generateRandomPassword(5) }));
+        }
+    }, [open, editMode, setForm]);
+
     const handleChange = (e) => {
-        const {name, value} = e.target;
-        setForm((prev) => ({...prev, [name]: value}));
+        const { name, value } = e.target;
+        setForm((prev) => {
+            let updated = { ...prev, [name]: value };
+            if (name === 'fullName' && !editMode) {
+                // Tự động tạo username khi nhập fullName
+                const username = generateUsername(value, allUsernames);
+                updated.username = username;
+            }
+            return updated;
+        });
     };
 
     const handleStatusChange = (e) => {
-        setForm((prev) => ({...prev, status: e.target.checked}));
+        setForm((prev) => ({ ...prev, status: e.target.checked }));
     };
 
     const handleStoreChange = (event, value) => {
@@ -89,6 +156,11 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
             ...prev,
             roles: value || [],
         }));
+    };
+
+    const handleClickShowPassword = () => setShowPassword((show) => !show);
+    const handleMouseDownPassword = (event) => {
+        event.preventDefault();
     };
 
     return (
@@ -116,6 +188,16 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
                 />
                 <TextField
                     margin="dense"
+                    label="Email"
+                    name="email"
+                    type="email"
+                    fullWidth
+                    value={form.email || ''}
+                    onChange={handleChange}
+                    required={false}
+                />
+                <TextField
+                    margin="dense"
                     label="Tên đăng nhập"
                     name="username"
                     fullWidth
@@ -127,11 +209,25 @@ const UserFormDialog = ({open, onClose, onSubmit, form, setForm, editMode}) => {
                     margin="dense"
                     label="Mật khẩu"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     fullWidth
-                    value={form.password || ''}
+                    value={editMode ? (form.password || '******') : (form.password || '')}
                     onChange={handleChange}
                     required={!editMode}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    aria-label="toggle password visibility"
+                                    onClick={handleClickShowPassword}
+                                    onMouseDown={handleMouseDownPassword}
+                                    edge="end"
+                                >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
                 />
                 <FormControlLabel
                     control={

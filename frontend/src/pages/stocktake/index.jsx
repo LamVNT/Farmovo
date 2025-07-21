@@ -75,7 +75,14 @@ const StockTakePage = () => {
     const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
 
     useEffect(() => {
-        getStocktakeList()
+        setLoading(true);
+        getStocktakeList({
+            storeId: storeFilter,
+            status: statusFilter,
+            note: noteFilter,
+            fromDate: dateFilter,
+            toDate: dateFilter
+        })
             .then(res => {
                 setStocktakes(res.data);
             })
@@ -85,8 +92,8 @@ const StockTakePage = () => {
             .finally(() => setLoading(false));
         productService.getAllProducts().then(setProducts);
         getZones().then(setZones);
-        getAllStores().then(setStores); // Lấy danh sách kho
-    }, []);
+        getAllStores().then(setStores);
+    }, [storeFilter, statusFilter, noteFilter, dateFilter]);
 
     const handleCreate = (rows) => {
         createStocktake({
@@ -103,125 +110,6 @@ const StockTakePage = () => {
                 .catch(() => alert("Lỗi khi reload danh sách!"))
                 .finally(() => setLoading(false));
         }).catch(() => alert("Tạo phiếu kiểm kê thất bại!"));
-    };
-
-    const handleExportExcel = () => {
-        if (selectedIds.length === 0) {
-            alert("Vui lòng chọn ít nhất một phiếu để export!");
-            return;
-        }
-        let exportRows = [];
-        const selectedStocktakes = stocktakes.filter(st => selectedIds.includes(st.id));
-        selectedStocktakes.forEach(st => {
-            let details = [];
-            try {
-                details = JSON.parse(st.detail);
-            } catch {}
-            if (!details || !Array.isArray(details) || details.length === 0) {
-                exportRows.push({
-                    ID: st.id,
-                    "Ngày kiểm kê": new Date(st.stocktakeDate).toLocaleString("vi-VN", {hour12: false}),
-                    "Ghi chú phiếu": st.stocktakeNote,
-                    "Trạng thái": st.status,
-                    "Sản phẩm": "",
-                    "Khu vực đã kiểm": "",
-                    "Thực tế": "",
-                    "Tồn kho hệ thống": "",
-                    "Chênh lệch": "",
-                    "Ghi chú chi tiết": ""
-                });
-            } else {
-                details.forEach(d => {
-                    exportRows.push({
-                        ID: st.id,
-                        "Ngày kiểm kê": new Date(st.stocktakeDate).toLocaleString("vi-VN", {hour12: false}),
-                        "Ghi chú phiếu": st.stocktakeNote,
-                        "Trạng thái": st.status,
-                        "Sản phẩm": products.find(p => p.id === d.productId)?.productName || d.productId,
-                        "Khu vực đã kiểm": d.zones_id ? d.zones_id.map(zid => zones.find(z => z.id === zid)?.zoneName || zid).join(", ") : "",
-                        "Thực tế": d.real,
-                        "Tồn kho hệ thống": d.remain,
-                        "Chênh lệch": d.diff,
-                        "Ghi chú chi tiết": d.note
-                    });
-                });
-            }
-        });
-        const ws = XLSX.utils.json_to_sheet(exportRows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "StockTake");
-        const excelBuffer = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
-        saveAs(new Blob([excelBuffer], {type: 'application/octet-stream'}), 'stocktake-details.xlsx');
-        setSelectMode(false);
-        setSelectedIds([]);
-    };
-
-    const handleSendForApproval = (id) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Gửi phê duyệt phiếu kiểm kê",
-            content: "Bạn có chắc chắn muốn gửi phê duyệt phiếu này?",
-            onConfirm: async () => {
-                setConfirmDialog(prev => ({...prev, isOpen: false}));
-                setActionLoading(prev => ({...prev, [id]: true}));
-                try {
-                    await updateStocktakeStatus(id, "INPROGRESS");
-                    setSnackbar({isOpen: true, message: "Đã gửi phê duyệt!", severity: "success"});
-                    reloadStocktakeList();
-                } catch (e) {
-                    setSnackbar({isOpen: true, message: "Không thể gửi phê duyệt: " + (e?.response?.data?.message || ""), severity: "error"});
-                } finally {
-                    setActionLoading(prev => ({...prev, [id]: false}));
-                }
-            }
-        });
-    };
-    const handleApprove = (id) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Duyệt phiếu kiểm kê",
-            content: "Bạn có chắc chắn muốn duyệt phiếu này?",
-            onConfirm: async () => {
-                setConfirmDialog(prev => ({...prev, isOpen: false}));
-                setActionLoading(prev => ({...prev, [id]: true}));
-                try {
-                    await updateStocktakeStatus(id, "COMPLETED");
-                    setSnackbar({isOpen: true, message: "Đã duyệt thành công!", severity: "success"});
-                    reloadStocktakeList();
-                } catch (e) {
-                    setSnackbar({isOpen: true, message: "Không thể duyệt: " + (e?.response?.data?.message || ""), severity: "error"});
-                } finally {
-                    setActionLoading(prev => ({...prev, [id]: false}));
-                }
-            }
-        });
-    };
-    const handleCancel = (id) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Hủy phiếu kiểm kê",
-            content: "Bạn có chắc chắn muốn hủy phiếu này?",
-            onConfirm: async () => {
-                setConfirmDialog(prev => ({...prev, isOpen: false}));
-                setActionLoading(prev => ({...prev, [id]: true}));
-                try {
-                    await updateStocktakeStatus(id, "CANCELLED");
-                    setSnackbar({isOpen: true, message: "Đã hủy phiếu!", severity: "success"});
-                    reloadStocktakeList();
-                } catch (e) {
-                    setSnackbar({isOpen: true, message: "Không thể hủy: " + (e?.response?.data?.message || ""), severity: "error"});
-                } finally {
-                    setActionLoading(prev => ({...prev, [id]: false}));
-                }
-            }
-        });
-    };
-    const reloadStocktakeList = () => {
-        setLoading(true);
-        getStocktakeList()
-            .then(res => setStocktakes(res.data))
-            .catch(() => alert("Lỗi khi reload danh sách!"))
-            .finally(() => setLoading(false));
     };
 
     // Lọc và tìm kiếm
@@ -360,36 +248,7 @@ const StockTakePage = () => {
                 >
                     Tạo phiếu kiểm kê mới
                 </Button>
-                {!selectMode ? (
-                    <Button
-                        variant="outlined"
-                        sx={{borderRadius: 2, fontWeight: 600, mr: 1}}
-                        onClick={handleExportClick}
-                    >
-                        Export Excel
-                    </Button>
-                ) : (
-                    <>
-                        <Tooltip title="Export các phiếu đã chọn">
-                            <IconButton
-                                color="success"
-                                onClick={handleExportExcel}
-                                sx={{mr: 1, bgcolor: '#4caf50', color: '#fff', '&:hover': {bgcolor: '#388e3c'}}}
-                            >
-                                <CheckIcon/>
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Hủy chọn">
-                            <IconButton
-                                color="error"
-                                onClick={handleCancelSelect}
-                                sx={{bgcolor: '#f44336', color: '#fff', '&:hover': {bgcolor: '#b71c1c'}}}
-                            >
-                                <CloseIcon/>
-                            </IconButton>
-                        </Tooltip>
-                    </>
-                )}
+                {/* Xóa toàn bộ logic export Excel ở trang danh sách (handleExportExcel, handleExportClick, handleCancelSelect, selectMode, selectedIds, các nút liên quan) */}
             </Box>
             {loading ? (
                 <Box sx={{textAlign: "center", mt: 6}}>
@@ -538,18 +397,7 @@ const StockTakePage = () => {
                                             {/* Staff chỉ sửa/hủy khi DRAFT */}
                                             {userRole === "STAFF" && st.status === "DRAFT" && (
                                                 <>
-                                                    <Tooltip title="Gửi phê duyệt">
-                                                        <span>
-                                                            <IconButton
-                                                                color="success"
-                                                                onClick={() => handleSendForApproval(st.id)}
-                                                                disabled={actionLoading[st.id]}
-                                                                size="small"
-                                                            >
-                                                                <SendIcon/>
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
+                                                    {/* Xóa toàn bộ logic gửi phê duyệt (handleSendForApproval, nút gửi phê duyệt) */}
                                                     <Tooltip title="Hủy phiếu">
                                                         <span>
                                                             <IconButton

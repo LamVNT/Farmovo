@@ -1,13 +1,14 @@
 package com.farmovo.backend.dto.request;
 
+import com.farmovo.backend.dto.response.StocktakeDetailDto;
 import lombok.Data;
-
 import java.time.Instant;
+import java.util.List;
 
 @Data
 public class StocktakeRequestDto {
     private Instant stocktakeDate;
-    private String detail; // JSON string
+    private List<StocktakeDetailDto> detail; // Chuẩn hóa detail là List object
     private String stocktakeNote;
     private Long storeId;
     private String status; // DRAFT, IN_PROGRESS, COMPLETED, CANCELLED

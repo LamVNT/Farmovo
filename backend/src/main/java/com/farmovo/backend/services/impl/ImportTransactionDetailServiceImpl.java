@@ -238,11 +238,16 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     }
 
     @Override
-    public List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, String importDate, Boolean isCheck) {
+    public List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, String importDate, Boolean isCheck, String batchCode) {
         List<ImportTransactionDetail> all = detailRepository.findAll();
         ObjectMapper objectMapper = new ObjectMapper();
         return all.stream().filter(row -> {
             boolean match = true;
+            // Bổ sung: loại các lô Remain=0 & IsCheck=true
+            if ((row.getRemainQuantity() != null && row.getRemainQuantity() == 0)
+                && (row.getIsCheck() != null && row.getIsCheck())) {
+                return false;
+            }
             if (store != null && !store.isEmpty()) {
                 Store s = row.getProduct() != null ? row.getProduct().getStore() : null;
                 if (s == null || !s.getStoreName().equalsIgnoreCase(store)) match = false;
@@ -269,6 +274,10 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             }
             if (isCheck != null) {
                 if (row.getIsCheck() == null || !row.getIsCheck().equals(isCheck)) match = false;
+            }
+            // Bổ sung: filter theo batchCode
+            if (batchCode != null && !batchCode.isEmpty()) {
+                if (row.getName() == null || !row.getName().equalsIgnoreCase(batchCode)) match = false;
             }
             return match;
         }).map(row -> {

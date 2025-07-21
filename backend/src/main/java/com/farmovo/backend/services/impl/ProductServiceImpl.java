@@ -107,8 +107,14 @@ public class ProductServiceImpl implements ProductService {
             product.setProductQuantity(productRequestDto.getProductQuantity() != null ? productRequestDto.getProductQuantity() : 0);
             product.setCategory(category);
             product.setStore(store);
+            // Lưu lần đầu để lấy id
             Product savedProduct = productRepository.save(product);
-            logger.info("Product created successfully: id={}", savedProduct.getId());
+            // Sinh mã tự động SP000001
+            String code = String.format("SP%06d", savedProduct.getId());
+            savedProduct.setProductCode(code);
+            // Lưu lại với mã code
+            savedProduct = productRepository.save(savedProduct);
+            logger.info("Product created successfully: id={}, code={}", savedProduct.getId(), savedProduct.getProductCode());
             return productMapper.toDto(savedProduct);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             logger.error("Validation error: {}", e.getMessage());

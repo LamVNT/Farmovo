@@ -8,6 +8,8 @@ import {
     TextField,
     IconButton,
 } from '@mui/material';
+import Alert from '@mui/material/Alert';
+import InputAdornment from '@mui/material/InputAdornment';
 
 const SaleProductDialog = ({ 
     open, 
@@ -77,6 +79,10 @@ const SaleProductDialog = ({
             </DialogTitle>
             <DialogContent style={{padding: 0}}>
                 <div className="flex flex-col gap-4 p-6">
+                    {/* Alert lỗi tổng nếu có batch sai */}
+                    {selectedBatches.some(b => b.quantity < 1 || b.quantity > (b.batch?.remainQuantity || 0)) && (
+                        <Alert severity="error" className="mb-2">Có lô hàng nhập sai số lượng! Số lượng phải từ 1 đến tồn kho.</Alert>
+                    )}
                     {/* Phần trên: Danh sách sản phẩm với filter */}
                     <div className="mb-2">
                         <TextField
@@ -87,6 +93,7 @@ const SaleProductDialog = ({
                             onChange={e => setProductSearch(e.target.value)}
                             sx={{ mb: 2, background: '#f9fafb', borderRadius: 2 }}
                         />
+                        <div className="font-bold text-blue-700 mb-2 ml-1">Sản phẩm</div>
                         <div className="border border-gray-200 rounded-xl max-h-48 overflow-y-auto bg-white">
                             {filteredProducts.length > 0 ? filteredProducts.map((product, idx) => (
                                 <div
@@ -103,6 +110,7 @@ const SaleProductDialog = ({
                             )}
                         </div>
                     </div>
+                    <div className="font-bold text-blue-700 ml-1">Lô hàng</div>
                     {/* Phần dưới: Danh sách batch của sản phẩm đã chọn */}
                     <div className="border border-gray-200 rounded-xl p-2 max-h-64 overflow-y-auto flex flex-col gap-3 bg-white">
                         {selectedProduct ? (
@@ -112,11 +120,15 @@ const SaleProductDialog = ({
                                         const isSelected = selectedBatches.some(b => b.batchId === batch.id);
                                         const selectedBatchData = selectedBatches.find(b => b.batchId === batch.id);
                                         const quantity = selectedBatchData ? selectedBatchData.quantity : 1;
+                                        const isError = isSelected && (quantity < 1 || quantity > batch.remainQuantity);
                                         return (
                                             <div
                                                 key={batch.id}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition hover:bg-blue-50 cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} ${idx === 0 ? 'mt-1' : ''}`}
-                                                style={{ minHeight: 56, borderBottom: idx === availableBatches.length-1 ? 'none' : '1px solid #f1f1f1' }}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition cursor-pointer
+                                                    ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}
+                                                    ${isError ? 'border-red-500 bg-red-50' : ''}
+                                                    ${idx === 0 ? 'mt-1' : ''}`}
+                                                style={{ minHeight: 56, borderBottom: idx === availableBatches.length-1 ? 'none' : isSelected ? '2px solid #2563eb' : '1px solid #f1f1f1' }}
                                                 onClick={() => handleBatchSelection(batch)}
                                             >
                                                 <div className="flex-1">
@@ -128,21 +140,35 @@ const SaleProductDialog = ({
                                                         <span className="col-span-1">Hạn: <span className="font-bold text-red-700">{batch.expireDate ? new Date(batch.expireDate).toLocaleDateString('vi-VN') : 'N/A'}</span></span>
                                                     </div>
                                                 </div>
-                                                <TextField
-                                                    type="number"
-                                                    size="small"
-                                                    value={quantity}
-                                                    onChange={(e) => {
-                                                        e.stopPropagation();
-                                                        const val = parseInt(e.target.value) || 1;
-                                                        if (isSelected) {
-                                                            handleQuantityChange(batch.id, val);
-                                                        }
-                                                    }}
-                                                    inputProps={{ min: 1, max: batch.remainQuantity, style: { padding: 4, width: 60 } }}
-                                                    variant="standard"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
+                                                <div className="flex flex-col items-end" style={{ minWidth: 80, position: 'relative' }}>
+                                                    <TextField
+                                                        type="number"
+                                                        size="small"
+                                                        value={quantity}
+                                                        error={isError}
+                                                        onChange={(e) => {
+                                                            e.stopPropagation();
+                                                            const val = parseInt(e.target.value) || 1;
+                                                            if (isSelected) {
+                                                                handleQuantityChange(batch.id, val);
+                                                            }
+                                                        }}
+                                                        inputProps={{ min: 1, max: batch.remainQuantity, style: { padding: 4, width: 60 } }}
+                                                        variant="standard"
+                                                        onFocus={(e) => {
+                                                            if (quantity === 1 && e.target.value === '1') {
+                                                                e.target.value = '';
+                                                                handleQuantityChange(batch.id, '');
+                                                            }
+                                                        }}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                    {isError && (
+                                                        <span className="text-xs text-red-600 mt-1" style={{ whiteSpace: 'nowrap' }}>
+                                                            Số lượng phải từ 1 đến {batch.remainQuantity}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -164,7 +190,7 @@ const SaleProductDialog = ({
                     variant="contained"
                     color="primary"
                     className="!bg-blue-600 hover:!bg-blue-700 rounded-lg px-6"
-                    disabled={selectedBatches.length === 0 || selectedBatches.some(b => b.quantity <= 0 || b.quantity > b.batch.remainQuantity)}
+                    disabled={selectedBatches.length === 0 || selectedBatches.some(b => b.quantity < 1 || b.quantity > (b.batch?.remainQuantity || 0))}
                     onClick={handleAdd}
                 >
                     Thêm ({selectedBatches.length})

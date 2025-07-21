@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Select,
     MenuItem,
@@ -12,6 +12,8 @@ import { FaLock, FaCheck } from 'react-icons/fa';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
+import Autocomplete from '@mui/material/Autocomplete';
+import saleTransactionService from '../../services/saleTransactionService';
 
 const SaleSidebar = ({
     currentUser,
@@ -35,6 +37,11 @@ const SaleSidebar = ({
     formatCurrency,
     isValidValue
 }) => {
+    const [nextCode, setNextCode] = useState('');
+    useEffect(() => {
+        saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
+    }, []);
+
     return (
         <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
             <div className="flex justify-between items-center">
@@ -47,51 +54,36 @@ const SaleSidebar = ({
                     {new Date().toLocaleString('vi-VN')}
                 </span>
             </div>
+            {/* Hiển thị mã phiếu bán */}
+            <div className="mb-2">
+                <div className="text-xs text-gray-600 font-medium">Mã phiếu bán</div>
+                <div className="font-bold text-lg tracking-widest text-blue-900">{nextCode}</div>
+            </div>
 
             <div>
                 <div className="font-semibold mb-1">Khách hàng</div>
-                <Select
-                    size="small"
+                <Autocomplete
+                    options={customers.slice(0, 5)}
+                    getOptionLabel={(option) => option.name || option.customerName || ''}
+                    value={customers.find(c => String(c.id) === String(selectedCustomer)) || null}
+                    onChange={(e, value) => onCustomerChange({ target: { value: value ? value.id : '' } })}
+                    renderInput={(params) => <TextField {...params} label="Chọn khách hàng" size="small" variant="outlined" />}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                     fullWidth
-                    displayEmpty
-                    value={isValidValue(selectedCustomer, customers) ? selectedCustomer : ''}
-                    onChange={onCustomerChange}
-                    renderValue={(selected) =>
-                        selected && customers.find((c) => String(c.id) === String(selected))
-                            ? customers.find((c) => String(c.id) === String(selected)).name || 
-                              customers.find((c) => String(c.id) === String(selected)).customerName
-                            : 'Chọn khách hàng'
-                    }
-                >
-                    {customers.map((customer) => (
-                        <MenuItem key={customer.id} value={customer.id}>
-                            👤 {customer.name || customer.customerName}
-                        </MenuItem>
-                    ))}
-                </Select>
+                />
             </div>
 
             <div>
                 <div className="font-semibold mb-1">Cửa hàng</div>
-                <Select
-                    size="small"
+                <Autocomplete
+                    options={stores.slice(0, 5)}
+                    getOptionLabel={(option) => option.name || option.storeName || ''}
+                    value={stores.find(s => String(s.id) === String(selectedStore)) || null}
+                    onChange={(e, value) => onStoreChange({ target: { value: value ? value.id : '' } })}
+                    renderInput={(params) => <TextField {...params} label="Chọn cửa hàng" size="small" variant="outlined" />}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                     fullWidth
-                    displayEmpty
-                    value={isValidValue(selectedStore, stores) ? selectedStore : ''}
-                    onChange={onStoreChange}
-                    renderValue={(selected) =>
-                        selected && stores.find((s) => String(s.id) === String(selected))
-                            ? stores.find((s) => String(s.id) === String(selected)).name || 
-                              stores.find((s) => String(s.id) === String(selected)).storeName
-                            : 'Chọn cửa hàng'
-                    }
-                >
-                    {stores.map((store) => (
-                        <MenuItem key={store.id} value={store.id}>
-                            🏬 {store.name || store.storeName}
-                        </MenuItem>
-                    ))}
-                </Select>
+                />
             </div>
 
             <div>

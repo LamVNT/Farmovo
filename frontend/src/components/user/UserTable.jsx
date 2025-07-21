@@ -32,9 +32,8 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
                         {/* <TableCell>ID</TableCell> */}
                         <TableCell>Họ tên</TableCell>
                         <TableCell>Tên đăng nhập</TableCell>
+                        <TableCell>Email</TableCell>
                         <TableCell>Trạng thái</TableCell>
-                        <TableCell>Ngày tạo</TableCell>
-                        <TableCell>Ngày cập nhật</TableCell>
                         <TableCell>Cửa hàng</TableCell>
                         <TableCell>Hành động</TableCell>
                     </TableRow>
@@ -45,9 +44,8 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
                             {/* <TableCell>{row.id}</TableCell> */}
                             <TableCell>{row.fullName}</TableCell>
                             <TableCell>{row.username}</TableCell>
+                            <TableCell>{row.email || 'N/A'}</TableCell>
                             <TableCell>{row.status ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
-                            <TableCell>{row.createAt ? new Date(row.createAt).toLocaleString('vi-VN') : 'N/A'}</TableCell>
-                            <TableCell>{row.updateAt ? new Date(row.updateAt).toLocaleString('vi-VN') : 'N/A'}</TableCell>
                             <TableCell>{row.storeName || 'N/A'}</TableCell>
                             <TableCell>
                                 <IconButton onClick={() => onEdit(row)}>

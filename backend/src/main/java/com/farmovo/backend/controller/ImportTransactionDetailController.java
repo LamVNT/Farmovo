@@ -67,9 +67,10 @@ public class ImportTransactionDetailController {
         @RequestParam(required = false) String zone,
         @RequestParam(required = false) String product,
         @RequestParam(required = false) String importDate,
-        @RequestParam(required = false) Boolean isCheck
+        @RequestParam(required = false) Boolean isCheck,
+        @RequestParam(required = false) String batchCode
     ) {
-        List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, importDate, isCheck);
+        List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, importDate, isCheck, batchCode);
         return ResponseEntity.ok(result);
     }
 

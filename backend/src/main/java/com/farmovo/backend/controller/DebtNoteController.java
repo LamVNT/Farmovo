@@ -3,7 +3,7 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
 import com.farmovo.backend.services.DebtNoteService;
-import com.farmovo.backend.services.S3Service;
+import com.farmovo.backend.services.impl.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,17 +14,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import com.farmovo.backend.models.DebtNote;
 
 @RestController
 @RequestMapping("/api/debt/admin")

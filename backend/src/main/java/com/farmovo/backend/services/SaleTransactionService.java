@@ -27,4 +27,6 @@ public interface SaleTransactionService {
     SaleTransactionResponseDto getById(Long id);
 
     void complete(Long id);
+
+    byte[] exportPdf(Long id);
 }

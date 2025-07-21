@@ -10,6 +10,19 @@ import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.StocktakeRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
+import com.farmovo.backend.repositories.ProductRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import com.farmovo.backend.services.StocktakeService;
 import com.farmovo.backend.validator.StocktakeValidator;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,6 +32,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
+import com.farmovo.backend.services.ImportTransactionDetailService;
 
 @Service
 public class StocktakeServiceImpl implements StocktakeService {
@@ -32,38 +46,43 @@ public class StocktakeServiceImpl implements StocktakeService {
     private StocktakeMapper stocktakeMapper;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private ProductRepository productRepository;
+    @Autowired
+    private ImportTransactionDetailService importTransactionDetailService;
+
+    // ENRICH DETAIL UTILITY
+    private StocktakeDetailDto enrichDetail(ImportTransactionDetail lot, Product product, StocktakeDetailDto base) {
+        StocktakeDetailDto dto = new StocktakeDetailDto();
+        dto.setBatchCode(lot.getName());
+        dto.setProductId(product.getId());
+        dto.setProductName(product.getProductName());
+        dto.setZones_id(lot.getZones_id() != null ? List.of(lot.getZones_id().split(",")) : null);
+        dto.setRemain(lot.getRemainQuantity());
+        dto.setReal(base.getReal());
+        dto.setDiff(base.getReal() != null && lot.getRemainQuantity() != null ? base.getReal() - lot.getRemainQuantity() : null);
+        dto.setNote(base.getNote());
+        dto.setZoneReal(base.getZoneReal());
+        dto.setExpireDate(lot.getExpireDate() != null ? lot.getExpireDate().toString() : null);
+        dto.setIsCheck(lot.getIsCheck());
+        return dto;
+    }
 
     @Override
     public StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId) {
-        ObjectMapper mapper = new ObjectMapper();
-        // Lấy rawDetail từ request (frontend gửi vào trường detail)
-        List<StocktakeDetail> rawDetails;
-        try {
-            rawDetails = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {});
-        } catch (Exception e) {
-            throw new ValidationException("detail is not valid JSON: " + e.getMessage());
-        }
-        StocktakeValidator.validateRequest(requestDto, rawDetails);
-        // Tính remain và diff cho từng dòng
-        for (StocktakeDetail d : rawDetails) {
-            List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemain(d.getProductId());
-            int totalRemain = 0;
+        List<StocktakeDetailDto> details = requestDto.getDetail();
+        if (details == null || details.isEmpty()) throw new ValidationException("detail is required");
+        List<StocktakeDetailDto> enriched = new ArrayList<>();
+        for (StocktakeDetailDto d : details) {
+            Product product = productRepository.findById(d.getProductId()).orElse(null);
+            List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemainQuantityGreaterThan(d.getProductId(), 0);
             for (ImportTransactionDetail lot : lots) {
-                totalRemain += (lot.getRemainQuantity() != null ? lot.getRemainQuantity() : 0);
+                enriched.add(enrichDetail(lot, product, d));
             }
-            d.setRemain(totalRemain);
-            d.setDiff(d.getReal() != null ? d.getReal() - totalRemain : null);
-        }
-        // Serialize lại rawDetail để lưu vào DB
-        String rawDetailJson;
-        try {
-            rawDetailJson = mapper.writeValueAsString(rawDetails);
-        } catch (Exception e) {
-            throw new ValidationException("Failed to serialize rawDetail: " + e.getMessage());
         }
         Stocktake stocktake = new Stocktake();
         stocktake.setStocktakeDate(Instant.now());
-        stocktake.setDetail(rawDetailJson); // Lưu rawDetail vào trường detail
+        stocktake.setDetail(new ObjectMapper().writeValueAsString(enriched));
         stocktake.setStocktakeNote(requestDto.getStocktakeNote());
         stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
         Store store = storeRepository.findById(requestDto.getStoreId()).orElseThrow();
@@ -73,15 +92,8 @@ public class StocktakeServiceImpl implements StocktakeService {
         StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
         dto.setStoreName(stocktake.getStore().getStoreName());
         userRepository.findById(userId).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
-        // Khi trả về, group lại để trả về detail (dạng gộp), còn rawDetail là dữ liệu gốc
-        try {
-            List<StocktakeDetailDto> detailsDto = mapper.readValue(rawDetailJson, new TypeReference<List<StocktakeDetailDto>>() {});
-            List<StocktakeDetailDto> grouped = groupDetailsByProduct(detailsDto);
-            dto.setDetail(mapper.writeValueAsString(grouped));
-            dto.setRawDetail(mapper.writeValueAsString(detailsDto));
-        } catch (Exception e) {
-            throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
-        }
+        dto.setDetail(enriched);
+        dto.setRawDetail(enriched);
         return dto;
     }
 
@@ -120,46 +132,33 @@ public class StocktakeServiceImpl implements StocktakeService {
         StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
         dto.setStoreName(stocktake.getStore().getStoreName());
         userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
-        ObjectMapper mapper = new ObjectMapper();
-        List<StocktakeDetailDto> details;
-        try {
-            details = mapper.readValue(dto.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {});
-        } catch (Exception e) {
-            throw new ValidationException("detail is not valid JSON: " + e.getMessage());
-        }
-        // Group lại detail trước khi trả về
-        List<StocktakeDetailDto> grouped = groupDetailsByProduct(details);
-        try {
-            dto.setDetail(mapper.writeValueAsString(grouped)); // dữ liệu đã gộp
-            dto.setRawDetail(mapper.writeValueAsString(details)); // dữ liệu chi tiết gốc
-        } catch (Exception e) {
-            throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
-        }
+        List<StocktakeDetailDto> details = new ObjectMapper().readValue(stocktake.getDetail(), new TypeReference<List<StocktakeDetailDto>>(){});
+        dto.setDetail(details);
+        dto.setRawDetail(details);
         return dto;
     }
 
     @Override
-    public List<StocktakeResponseDto> getAllStocktakes() {
+    public List<StocktakeResponseDto> getAllStocktakes(String storeId, String status, String note, String fromDate, String toDate) {
+        // Filter nâng cao
+        Specification<Stocktake> spec = (root, query, cb) -> {
+            List<javax.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (storeId != null) predicates.add(cb.equal(root.get("store").get("id"), Long.valueOf(storeId)));
+            if (status != null) predicates.add(cb.equal(root.get("status"), StocktakeStatus.valueOf(status)));
+            if (note != null) predicates.add(cb.like(root.get("stocktakeNote"), "%" + note + "%"));
+            if (fromDate != null) predicates.add(cb.greaterThanOrEqualTo(root.get("stocktakeDate"), Instant.parse(fromDate)));
+            if (toDate != null) predicates.add(cb.lessThanOrEqualTo(root.get("stocktakeDate"), Instant.parse(toDate)));
+            return cb.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
+        };
+        List<Stocktake> stocktakes = stocktakeRepository.findAll(spec);
         List<StocktakeResponseDto> result = new ArrayList<>();
-        for (Stocktake stocktake : stocktakeRepository.findAll()) {
-            System.out.println("=== [LOG] Đọc detail từ DB (id=" + stocktake.getId() + "): " + stocktake.getDetail());
+        for (Stocktake stocktake : stocktakes) {
             StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
             dto.setStoreName(stocktake.getStore().getStoreName());
             userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
-            ObjectMapper mapper = new ObjectMapper();
-            List<StocktakeDetailDto> details;
-            try {
-                details = mapper.readValue(dto.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {
-                });
-            } catch (Exception e) {
-                throw new ValidationException("detail is not valid JSON: " + e.getMessage());
-            }
-            List<StocktakeDetailDto> grouped = groupDetailsByProduct(details);
-            try {
-                dto.setDetail(mapper.writeValueAsString(grouped));
-            } catch (Exception e) {
-                throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
-            }
+            List<StocktakeDetailDto> details = new ObjectMapper().readValue(stocktake.getDetail(), new TypeReference<List<StocktakeDetailDto>>(){});
+            dto.setDetail(details);
+            dto.setRawDetail(details);
             result.add(dto);
         }
         return result;
@@ -203,10 +202,32 @@ public class StocktakeServiceImpl implements StocktakeService {
         } else {
             throw new ValidationException("Bạn không có quyền thực hiện thao tác này!");
         }
+        // ENRICH: Nếu chuyển sang COMPLETED thì cập nhật remainQuantity và isCheck cho ImportTransactionDetail
+        if (newStatus == StocktakeStatus.COMPLETED) {
+            try {
+                List<StocktakeDetailDto> details = new ObjectMapper().readValue(stocktake.getDetail(), new com.fasterxml.jackson.core.type.TypeReference<List<StocktakeDetailDto>>(){});
+                for (StocktakeDetailDto d : details) {
+                    // Giả sử batchCode là name của ImportTransactionDetail
+                    List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemainQuantityGreaterThan(d.getProductId(), 0);
+                    for (ImportTransactionDetail lot : lots) {
+                        if (lot.getName().equals(d.getBatchCode())) {
+                            // Cập nhật remainQuantity và isCheck
+                            if (d.getReal() != null) importTransactionDetailService.updateRemainQuantity(lot.getId(), d.getReal());
+                            importTransactionDetailService.updateIsCheck(lot.getId(), true);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new ValidationException("Lỗi khi cập nhật tồn kho lô khi hoàn thành kiểm kê: " + e.getMessage());
+            }
+        }
         stocktake = stocktakeRepository.save(stocktake);
         StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
         dto.setStoreName(stocktake.getStore().getStoreName());
         userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
+        List<StocktakeDetailDto> details = new ObjectMapper().readValue(stocktake.getDetail(), new com.fasterxml.jackson.core.type.TypeReference<List<StocktakeDetailDto>>(){});
+        dto.setDetail(details);
+        dto.setRawDetail(details);
         return dto;
     }
 
@@ -260,5 +281,43 @@ public class StocktakeServiceImpl implements StocktakeService {
             throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
         }
         return dto;
+    }
+
+    public ResponseEntity<ByteArrayResource> exportStocktakeToExcel(Long stocktakeId) throws Exception {
+        Stocktake stocktake = stocktakeRepository.findById(stocktakeId).orElseThrow();
+        List<StocktakeDetailDto> details = new ObjectMapper().readValue(stocktake.getDetail(), new TypeReference<List<StocktakeDetailDto>>(){});
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Stocktake");
+        Row header = sheet.createRow(0);
+        String[] columns = {"Mã Lô", "Tên hàng", "Khu vực hệ thống", "Tồn kho", "Thực tế", "Khu vực thực tế", "Chênh lệch", "Hạn dùng", "Đã kiểm"};
+        for (int i = 0; i < columns.length; i++) header.createCell(i).setCellValue(columns[i]);
+        int rowIdx = 1;
+        CellStyle redStyle = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setColor(IndexedColors.RED.getIndex());
+        redStyle.setFont(font);
+        for (StocktakeDetailDto d : details) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(d.getBatchCode());
+            row.createCell(1).setCellValue(d.getProductName());
+            row.createCell(2).setCellValue(String.join(",", d.getZones_id() != null ? d.getZones_id() : List.of()));
+            row.createCell(3).setCellValue(d.getRemain() != null ? d.getRemain() : 0);
+            row.createCell(4).setCellValue(d.getReal() != null ? d.getReal() : 0);
+            row.createCell(5).setCellValue(d.getZoneReal() != null ? d.getZoneReal() : "");
+            Cell diffCell = row.createCell(6);
+            diffCell.setCellValue(d.getDiff() != null ? d.getDiff() : 0);
+            if (d.getDiff() != null && d.getDiff() != 0) diffCell.setCellStyle(redStyle);
+            row.createCell(7).setCellValue(d.getExpireDate() != null ? d.getExpireDate() : "");
+            row.createCell(8).setCellValue(d.getIsCheck() != null && d.getIsCheck() ? "Đã kiểm" : "Chưa kiểm");
+        }
+        for (int i = 0; i < columns.length; i++) sheet.autoSizeColumn(i);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        workbook.close();
+        ByteArrayResource resource = new ByteArrayResource(out.toByteArray());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=stocktake_" + stocktakeId + ".xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(resource);
     }
 } 

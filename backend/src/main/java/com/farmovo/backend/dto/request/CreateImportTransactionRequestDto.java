@@ -32,6 +32,7 @@ public class CreateImportTransactionRequestDto {
     @AllArgsConstructor
     public static class DetailDto {
         private Long productId;
+        private String name;
         private String productName;
         private Integer importQuantity;
         private Integer remainQuantity;

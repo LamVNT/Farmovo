@@ -19,6 +19,7 @@ public class ProductDto {
     private String storeName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String productCode;
 }
 
 

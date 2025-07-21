@@ -1,350 +1,348 @@
-import React, {useState, useEffect, useRef} from "react";
+import React, { useState, useEffect } from "react";
 import {
-    Button, TextField, FormControl, InputLabel, Select, MenuItem,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box, Typography, IconButton
+    Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box, Typography, IconButton, Checkbox, Tooltip, CircularProgress
 } from "@mui/material";
 import DeleteIcon from '@mui/icons-material/Delete';
-import {productService} from "../../services/productService";
-import {getZones} from "../../services/zoneService";
-import {getStocktakeById, updateStocktake, checkMissingZones} from "../../services/stocktakeService";
-import {useNavigate, useParams} from "react-router-dom";
+import { getZones } from "../../services/zoneService";
+import { getStocktakeById, updateStocktake } from "../../services/stocktakeService";
+import { getAllStores } from "../../services/storeService";
 import axios from '../../services/axiosClient';
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
+import { useNavigate, useParams } from "react-router-dom";
 
 const UpdateStocktakePage = () => {
-    const {id} = useParams();
-    const LOCAL_STORAGE_KEY = `stocktake_update_draft_${id}`;
-    const [rows, setRows] = useState([]);
+    const { id } = useParams();
+    const LOCAL_STORAGE_KEY = `stocktake_update_selected_lots_${id}`;
     const [zones, setZones] = useState([]);
-    const [selectedZone, setSelectedZone] = useState("");
-    const [zoneData, setZoneData] = useState({});
+    const [stores, setStores] = useState([]);
+    const [filter, setFilter] = useState({ store: '', zone: '', product: '', batchCode: '', search: '' });
+    const [loadingLots, setLoadingLots] = useState(false);
+    const [lots, setLots] = useState([]); // Danh sách lô tìm được
+    const [selectedLots, setSelectedLots] = useState([]); // Danh sách lô đã chọn để kiểm kê
     const [note, setNote] = useState("");
     const [status, setStatus] = useState("DRAFT");
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const prevZoneRef = useRef("");
-    const [lotMap, setLotMap] = useState({}); // { productId: [importDetailId, ...] }
-    const [confirmDialog, setConfirmDialog] = useState({isOpen: false, title: "", content: "", onConfirm: null});
-    const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
+    const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: "", content: "", onConfirm: null });
+    const [snackbar, setSnackbar] = useState({ isOpen: false, message: "", severity: "success" });
+    const navigate = useNavigate();
 
-    // Load zone và phiếu kiểm kê, ưu tiên bản nháp nếu có
+    // Load zone, store, phiếu kiểm kê, ưu tiên bản nháp nếu có
     useEffect(() => {
         async function fetchData() {
             setLoading(true);
             const zones = await getZones();
             setZones(zones);
-
+            getAllStores().then(setStores);
             let res;
             try {
                 res = await getStocktakeById(id);
             } catch {}
             setNote(res?.data?.stocktakeNote || "");
             setStatus(res?.data?.status || "DRAFT");
-
-            // Ưu tiên lấy rawDetail từ localStorage nếu có
-            let rawDetail = [];
+            // Ưu tiên lấy selectedLots từ localStorage nếu có
+            let selected = [];
             try {
-                rawDetail = JSON.parse(localStorage.getItem(`stocktake_raw_${id}`) || '[]');
+                selected = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
             } catch {}
-
-            let zoneDataInit = {};
-            if (rawDetail.length > 0) {
-                rawDetail.forEach(d => {
-                    if (d.zoneId) {
-                        if (!zoneDataInit[d.zoneId]) zoneDataInit[d.zoneId] = [];
-                        zoneDataInit[d.zoneId].push({
-                            zoneId: d.zoneId,
-                            productId: d.productId,
-                            real: d.real,
-                            note: d.note
-                        });
-                    }
-                });
-            } else if (res?.data?.rawDetail) {
-                const details = JSON.parse(res.data.rawDetail);
-                details.forEach(d => {
-                    if (d.zoneId) {
-                        if (!zoneDataInit[d.zoneId]) zoneDataInit[d.zoneId] = [];
-                        zoneDataInit[d.zoneId].push({
-                            zoneId: d.zoneId,
-                            productId: d.productId,
-                            real: d.real,
-                            note: d.note
-                        });
-                    }
-                });
+            if (selected.length > 0) {
+                setSelectedLots(selected);
+            } else if (res?.data?.detail) {
+                let details = Array.isArray(res.data.detail) ? res.data.detail : JSON.parse(res.data.detail);
+                setSelectedLots(details.map(lot => ({
+                    ...lot,
+                    real: lot.real,
+                    note: lot.note || '',
+                    isCheck: lot.isCheck || false,
+                    diff: lot.real - (Number(lot.remain) || 0)
+                })));
             }
-            setZoneData(zoneDataInit);
-            setSelectedZone(""); // Không chọn zone mặc định
-            setRows([]); // Bảng trống
             setLoading(false);
         }
         fetchData();
     }, [id]);
 
-    // Lưu bản nháp mỗi khi zoneData, selectedZone, note, status thay đổi
+    // Lưu bản nháp mỗi khi selectedLots thay đổi
     useEffect(() => {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ zoneData, selectedZone, note, status }));
-    }, [zoneData, selectedZone, note, status]);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(selectedLots));
+    }, [selectedLots]);
 
-    // Khi chọn lại zone, lưu lại dữ liệu zone cũ, load lại dữ liệu zone mới nếu đã nhập, nếu chưa thì lấy từ backend
-    const handleZoneChange = async (zoneId) => {
-        setSelectedZone(zoneId);
-        prevZoneRef.current = zoneId;
-        setRows([]);
-        setLotMap({});
-        if (!zoneId) return;
-
-        // Lấy lại danh sách lô và tên sản phẩm từ backend
-        let details = [];
-        try {
-            const res = await axios.get(`/import-details/details-by-zone?zoneId=${zoneId}`);
-            details = res.data;
-        } catch {
-            details = [];
-        }
-        // Group lại: mỗi sản phẩm 1 dòng, lô là chuỗi
-        const productMap = {};
-        details.forEach(d => {
-            if (d.zonesId && d.zonesId.includes(Number(zoneId))) {
-                if (!productMap[d.productId]) {
-                    productMap[d.productId] = {
-                        zoneId,
-                        productId: d.productId,
-                        productName: d.productName,
-                        lots: [],
-                        real: '', // lấy từ zoneData nếu có
-                        note: ''
-                    };
-                }
-                productMap[d.productId].lots.push(d.importDetailId);
+    // Lấy danh sách lô khi filter thay đổi
+    useEffect(() => {
+        const fetchLots = async () => {
+            setLoadingLots(true);
+            try {
+                const params = new URLSearchParams();
+                if (filter.store) params.append('store', filter.store);
+                if (filter.zone) params.append('zone', filter.zone);
+                if (filter.product) params.append('product', filter.product);
+                if (filter.batchCode) params.append('batchCode', filter.batchCode);
+                if (filter.search) params.append('search', filter.search);
+                const res = await axios.get(`/import-transaction-details/stocktake-lot?${params.toString()}`);
+                setLots(res.data || []);
+            } catch {
+                setLots([]);
+            } finally {
+                setLoadingLots(false);
             }
-        });
-        let rowsWithNames = Object.values(productMap).map(row => ({
-            ...row,
-            lotString: row.lots.join(', ')
-        }));
-        // Nếu đã có dữ liệu kiểm kê cũ cho zone này thì giữ lại real/note
-        if (zoneData[zoneId] && zoneData[zoneId].length > 0) {
-            rowsWithNames = rowsWithNames.map(row => {
-                const old = zoneData[zoneId].find(x => x.productId === row.productId);
-                return old ? { ...row, real: old.real, note: old.note } : row;
-            });
-        }
-        setRows(rowsWithNames);
-    };
-
-    // Khi nhập liệu, lưu lại dữ liệu cho zone hiện tại vào zoneData và localStorage
-    const handleRowChange = (idx, field, value) => {
-        setRows(prev => {
-            const newRows = prev.map((row, i) => i === idx ? {...row, [field]: value} : row);
-            setZoneData(zData => {
-                const updated = {...zData, [selectedZone]: newRows};
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ zoneData: updated, selectedZone, note, status }));
-                return updated;
-            });
-            return newRows;
-        });
-    };
-
-    const handleRemoveRow = (idx) => {
-        setRows(prev => {
-            const newRows = prev.filter((_, i) => i !== idx);
-            setZoneData(zData => {
-                const updated = {...zData, [selectedZone]: newRows};
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ zoneData: updated, selectedZone, note, status }));
-                return updated;
-            });
-            return newRows;
-        });
-    };
-
-    const handleSubmit = async () => {
-        // Lưu lại dữ liệu zone hiện tại
-        const allZoneData = {
-            ...zoneData,
-            [selectedZone]: rows
         };
-        // Gộp tất cả dòng lại
-        const allRows = Object.values(allZoneData).flat();
-        if (allRows.length === 0 || allRows.some(row => !row.zoneId || !row.productId || !row.real)) {
-            setSnackbar({ isOpen: true, message: "Vui lòng nhập đầy đủ thông tin cho từng dòng!", severity: "warning" });
+        fetchLots();
+    }, [filter]);
+
+    // Thêm lô vào danh sách kiểm kê tạm
+    const handleSelectLot = (lot) => {
+        if (selectedLots.some(l => l.id === lot.id)) return;
+        setSelectedLots(prev => [
+            ...prev,
+            {
+                ...lot,
+                real: '',
+                note: '',
+                isCheck: false,
+                diff: 0
+            }
+        ]);
+    };
+
+    // Xóa lô khỏi danh sách kiểm kê tạm
+    const handleRemoveLot = (id) => {
+        setSelectedLots(prev => prev.filter(l => l.id !== id));
+    };
+
+    // Nhập số thực tế, ghi chú, tick isCheck
+    const handleLotChange = (idx, field, value) => {
+        setSelectedLots(prev => prev.map((lot, i) => {
+            if (i !== idx) return lot;
+            let newLot = { ...lot, [field]: value };
+            if (field === 'real') {
+                const realVal = Number(value);
+                newLot.diff = realVal - (Number(lot.remainQuantity) || 0);
+            }
+            return newLot;
+        }));
+    };
+
+    // Validate và submit
+    const handleSubmit = async () => {
+        if (selectedLots.length === 0) {
+            setSnackbar({ isOpen: true, message: "Vui lòng chọn ít nhất một lô để kiểm kê!", severity: "error" });
             return;
         }
-        // Group lại theo productId, gộp đủ các zone đã kiểm kê cho từng sản phẩm
-        const grouped = {};
-        allRows.forEach(row => {
-            if (!grouped[row.productId]) {
-                grouped[row.productId] = {
-                    productId: row.productId,
-                    zones_id: [],
-                    real: 0,
-                    note: ''
-                };
-            }
-            grouped[row.productId].zones_id.push(Number(row.zoneId));
-            grouped[row.productId].real += Number(row.real || 0);
-            grouped[row.productId].note += (row.note ? row.note + '; ' : '');
-        });
-        // Loại bỏ trùng lặp zone
-        const detail = Object.values(grouped).map(item => ({
-            ...item,
-            zones_id: Array.from(new Set(item.zones_id))
-        }));
-
-        // Gọi API kiểm tra thiếu zone
-        try {
-            const res = await checkMissingZones(detail);
-            if (res.data && res.data.length > 0) {
-                const msg = res.data.map(item =>
-                    `Sản phẩm: ${item.productName}\nThiếu khu vực: ${item.missingZones.map(z => z.zoneName).join(', ')}`
-                ).join('\n\n');
-                setConfirmDialog({
-                    isOpen: true,
-                    title: "Cảnh báo thiếu khu vực kiểm kê",
-                    content: `Cảnh báo thiếu khu vực kiểm kê:\n${msg}\n\nBạn vẫn muốn lưu phiếu?`,
-                    onConfirm: async () => {
-                        setConfirmDialog(prev => ({...prev, isOpen: false}));
-                        await doUpdateStocktake(detail, allRows);
-                    }
-                });
+        for (const lot of selectedLots) {
+            if (lot.real === '' || isNaN(Number(lot.real))) {
+                setSnackbar({ isOpen: true, message: `Vui lòng nhập số thực tế cho lô ${lot.batchCode || lot.id}!`, severity: "error" });
                 return;
             }
-        } catch (e) {
-            setSnackbar({ isOpen: true, message: "Lỗi kiểm tra thiếu khu vực!", severity: "error" });
-            return;
         }
-
-        await doUpdateStocktake(detail, allRows);
-    };
-
-    const doUpdateStocktake = async (detail, allRows) => {
+        // Chuẩn hóa dữ liệu gửi backend
+        const detail = selectedLots.map(lot => ({
+            productId: lot.productId,
+            batchCode: lot.batchCode || lot.name,
+            zoneId: lot.zoneId,
+            remain: lot.remainQuantity,
+            real: Number(lot.real),
+            diff: lot.diff,
+            isCheck: lot.isCheck,
+            note: lot.note,
+            expireDate: lot.expireDate
+        }));
         try {
             await updateStocktake(id, {
-                detail: JSON.stringify(detail),
+                detail,
                 stocktakeNote: note,
-                storeId: 1,
+                storeId: filter.store,
                 status: status,
                 stocktakeDate: new Date().toISOString()
             });
-            const rawDetail = allRows.map(row => ({
-                productId: row.productId,
-                zoneId: row.zoneId,
-                real: Number(row.real || 0),
-                note: row.note || ''
-            }));
-            localStorage.setItem(`stocktake_raw_${id}`, JSON.stringify(rawDetail));
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
             setSnackbar({ isOpen: true, message: "Cập nhật phiếu kiểm kê thành công!", severity: "success" });
+            setSelectedLots([]);
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
             navigate("/stocktake");
         } catch {
             setSnackbar({ isOpen: true, message: "Cập nhật phiếu kiểm kê thất bại!", severity: "error" });
         }
     };
 
-    const handleCancel = () => {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        navigate("/stocktake");
-    };
-
     if (loading) return (
-        <Box sx={{textAlign: "center", mt: 8}}>
+        <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">Đang tải dữ liệu...</Typography>
         </Box>
     );
 
     return (
-        <Box sx={{maxWidth: 900, margin: "40px auto", background: "#fff", p: 4, borderRadius: 3, boxShadow: 2}}>
+        <Box sx={{ maxWidth: 1200, margin: "40px auto", background: "#fff", p: 4, borderRadius: 3, boxShadow: 2 }}>
             <Typography variant="h5" fontWeight={700} mb={2}>Cập nhật phiếu kiểm kê</Typography>
-            <FormControl fullWidth size="small" sx={{mb: 2, maxWidth: 300}}>
-                <InputLabel>Khu vực</InputLabel>
-                <Select
-                    value={selectedZone}
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <TextField
+                    size="small"
+                    label="Tìm kiếm nhanh (mã lô, tên sản phẩm, ...)"
+                    value={filter.search}
+                    onChange={e => setFilter(f => ({ ...f, search: e.target.value }))}
+                    sx={{ minWidth: 220 }}
+                />
+                <TextField
+                    size="small"
+                    label="Kho"
+                    value={filter.store}
+                    onChange={e => setFilter(f => ({ ...f, store: e.target.value }))}
+                    sx={{ minWidth: 150 }}
+                />
+                <TextField
+                    size="small"
                     label="Khu vực"
-                    onChange={e => handleZoneChange(e.target.value)}
-                >
-                    <MenuItem value="">Chọn khu vực</MenuItem>
-                    {zones.map(z => (
-                        <MenuItem key={z.id} value={z.id}>{z.zoneName}</MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
-            <TableContainer component={Paper} elevation={1} sx={{mb: 2, borderRadius: 2}}>
-                <Table>
+                    value={filter.zone}
+                    onChange={e => setFilter(f => ({ ...f, zone: e.target.value }))}
+                    sx={{ minWidth: 150 }}
+                />
+                <TextField
+                    size="small"
+                    label="Sản phẩm"
+                    value={filter.product}
+                    onChange={e => setFilter(f => ({ ...f, product: e.target.value }))}
+                    sx={{ minWidth: 150 }}
+                />
+                <TextField
+                    size="small"
+                    label="Mã lô"
+                    value={filter.batchCode}
+                    onChange={e => setFilter(f => ({ ...f, batchCode: e.target.value }))}
+                    sx={{ minWidth: 120 }}
+                />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={600} mb={1}>Danh sách lô phù hợp</Typography>
+            <TableContainer component={Paper} elevation={1} sx={{ mb: 2, borderRadius: 2 }}>
+                <Table size="small">
                     <TableHead>
-                        <TableRow sx={{background: "#f5f5f5"}}>
+                        <TableRow sx={{ background: "#f5f5f5" }}>
                             <TableCell><b>Khu vực</b></TableCell>
                             <TableCell><b>Sản phẩm</b></TableCell>
-                            <TableCell><b>Lô</b></TableCell>
+                            <TableCell><b>Mã lô</b></TableCell>
+                            <TableCell><b>Tồn kho</b></TableCell>
+                            <TableCell><b>Hạn dùng</b></TableCell>
+                            <TableCell><b>Đã kiểm</b></TableCell>
+                            <TableCell align="center"></TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {loadingLots ? (
+                            <TableRow><TableCell colSpan={7} align="center"><CircularProgress size={24} /></TableCell></TableRow>
+                        ) : lots.length === 0 ? (
+                            <TableRow><TableCell colSpan={7} align="center">Không có lô phù hợp</TableCell></TableRow>
+                        ) : lots.map((lot, idx) => (
+                            <TableRow key={lot.id} hover>
+                                <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
+                                <TableCell>{lot.productName || lot.productId}</TableCell>
+                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.remainQuantity}</TableCell>
+                                <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
+                                <TableCell>{lot.isCheck ? "Đã kiểm" : "Chưa kiểm"}</TableCell>
+                                <TableCell align="center">
+                                    <Tooltip title="Chọn lô này để kiểm kê">
+                                        <span>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={() => handleSelectLot(lot)}
+                                                disabled={selectedLots.some(l => l.id === lot.id)}
+                                            >
+                                                Chọn
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <Typography variant="subtitle1" fontWeight={600} mb={1}>Các lô đã chọn để kiểm kê</Typography>
+            <TableContainer component={Paper} elevation={1} sx={{ mb: 2, borderRadius: 2 }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow sx={{ background: "#f5f5f5" }}>
+                            <TableCell><b>Khu vực</b></TableCell>
+                            <TableCell><b>Sản phẩm</b></TableCell>
+                            <TableCell><b>Mã lô</b></TableCell>
+                            <TableCell><b>Tồn kho</b></TableCell>
+                            <TableCell><b>Hạn dùng</b></TableCell>
                             <TableCell><b>Thực tế</b></TableCell>
+                            <TableCell><b>Chênh lệch</b></TableCell>
+                            <TableCell><b>Đã kiểm</b></TableCell>
                             <TableCell><b>Ghi chú</b></TableCell>
                             <TableCell align="center"></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {selectedZone && rows.length > 0 ? (
-                            rows.map((row, idx) => (
-                                <TableRow key={idx} hover>
-                                    <TableCell sx={{minWidth: 160}}>
-                                        {zones.find(z => String(z.id) === String(row.zoneId))?.zoneName || ""}
-                                    </TableCell>
-                                    <TableCell sx={{minWidth: 180}}>
-                                        {row.productName}
-                                    </TableCell>
-                                    <TableCell sx={{minWidth: 100}}>
-                                        {row.lotString}
-                                    </TableCell>
-                                    <TableCell sx={{minWidth: 100}}>
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            value={row.real}
-                                            onChange={e => handleRowChange(idx, "real", e.target.value)}
-                                            inputProps={{min: 0}}
-                                            fullWidth
-                                        />
-                                    </TableCell>
-                                    <TableCell sx={{minWidth: 220, maxWidth: 350}}>
-                                        <TextField
-                                            size="small"
-                                            value={row.note}
-                                            onChange={e => handleRowChange(idx, "note", e.target.value)}
-                                            fullWidth
-                                            multiline
-                                            minRows={1}
-                                            maxRows={4}
-                                            inputProps={{maxLength: 255}}
-                                        />
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <IconButton onClick={() => handleRemoveRow(idx)}><DeleteIcon/></IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">Vui lòng chọn khu vực để xem chi tiết</TableCell>
+                        {selectedLots.length === 0 ? (
+                            <TableRow><TableCell colSpan={10} align="center">Chưa có lô nào được chọn</TableCell></TableRow>
+                        ) : selectedLots.map((lot, idx) => (
+                            <TableRow key={lot.id} hover>
+                                <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
+                                <TableCell>{lot.productName || lot.productId}</TableCell>
+                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.remainQuantity}</TableCell>
+                                <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
+                                <TableCell>
+                                    <TextField
+                                        type="number"
+                                        size="small"
+                                        value={lot.real}
+                                        onChange={e => handleLotChange(idx, 'real', e.target.value)}
+                                        inputProps={{ min: 0 }}
+                                        fullWidth
+                                    />
+                                </TableCell>
+                                <TableCell sx={lot.diff !== 0 ? { background: '#ffeaea' } : {}}>{lot.diff}</TableCell>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={!!lot.isCheck}
+                                        onChange={e => handleLotChange(idx, 'isCheck', e.target.checked)}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <TextField
+                                        size="small"
+                                        value={lot.note}
+                                        onChange={e => handleLotChange(idx, 'note', e.target.value)}
+                                        fullWidth
+                                        multiline
+                                        minRows={1}
+                                        maxRows={4}
+                                        inputProps={{ maxLength: 255 }}
+                                    />
+                                </TableCell>
+                                <TableCell align="center">
+                                    <Tooltip title="Xóa lô này khỏi phiếu kiểm kê">
+                                        <span>
+                                            <IconButton color="error" onClick={() => handleRemoveLot(lot.id)}>
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                </TableCell>
                             </TableRow>
-                        )}
+                        ))}
                     </TableBody>
                 </Table>
             </TableContainer>
-            <Box sx={{mt: 3, display: "flex", justifyContent: "flex-end", gap: 2}}>
-                <Button onClick={handleCancel}>Hủy</Button>
-                <Button variant="contained" onClick={handleSubmit} sx={{fontWeight: 600, borderRadius: 2}}>Cập
-                    nhật</Button>
+            <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 2 }}>
+                <Button onClick={() => {
+                    setSelectedLots([]);
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                    navigate("/stocktake");
+                }}>Hủy</Button>
+                <Button variant="contained" onClick={handleSubmit} sx={{ fontWeight: 600, borderRadius: 2 }}>Cập nhật phiếu kiểm kê</Button>
             </Box>
             <ConfirmDialog
                 open={confirmDialog.isOpen}
-                onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
                 onConfirm={confirmDialog.onConfirm}
                 title={confirmDialog.title}
                 content={confirmDialog.content}
             />
             <SnackbarAlert
                 open={snackbar.isOpen}
-                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                onClose={() => setSnackbar(prev => ({ ...prev, isOpen: false }))}
                 message={snackbar.message}
                 severity={snackbar.severity}
             />
