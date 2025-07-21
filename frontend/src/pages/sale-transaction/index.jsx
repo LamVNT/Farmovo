@@ -221,6 +221,12 @@ const SaleTransactionPage = () => {
 
         return true;
     });
+    // Sắp xếp theo saleDate mới nhất lên trên
+    filteredTransactions.sort((a, b) => {
+        const dateA = a.saleDate ? new Date(a.saleDate).getTime() : 0;
+        const dateB = b.saleDate ? new Date(b.saleDate).getTime() : 0;
+        return dateB - dateA;
+    });
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -381,7 +387,8 @@ const SaleTransactionPage = () => {
             renderCell: (params) => {
                 const statusMap = {
                     'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' },
-                    'DRAFT': { label: 'Nháp', color: '#6b7280' }
+                    'DRAFT': { label: 'Nháp', color: '#6b7280' },
+                    'CANCEL': { label: 'Đã hủy', color: '#ef4444' }
                 };
                 const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
                 return (

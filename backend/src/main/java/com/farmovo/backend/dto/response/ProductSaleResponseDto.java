@@ -20,4 +20,5 @@ public class ProductSaleResponseDto {
     private String categoryName;
     private String storeName;
     private java.time.LocalDateTime createAt;
+    private java.time.LocalDateTime expireDate;
 }

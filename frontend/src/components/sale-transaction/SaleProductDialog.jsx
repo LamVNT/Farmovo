@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -22,6 +22,19 @@ const SaleProductDialog = ({
     formatCurrency 
 }) => {
     const [selectedBatches, setSelectedBatches] = useState(selectedBatchesForDialog);
+    const [productSearch, setProductSearch] = useState('');
+    const [filteredProducts, setFilteredProducts] = useState(products);
+
+    useEffect(() => {
+        if (productSearch.trim() === '') {
+            setFilteredProducts(products);
+        } else {
+            setFilteredProducts(products.filter(p =>
+                p.productName.toLowerCase().includes(productSearch.toLowerCase()) ||
+                (p.productCode && p.productCode.toLowerCase().includes(productSearch.toLowerCase()))
+            ));
+        }
+    }, [productSearch, products]);
 
     const handleBatchSelection = (batch) => {
         const isSelected = selectedBatches.some(b => b.batchId === batch.id);
@@ -50,51 +63,69 @@ const SaleProductDialog = ({
     };
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-            <DialogTitle className="flex justify-between items-center">
+        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth
+            PaperProps={{
+                className: 'rounded-xl shadow-lg',
+                style: { border: '1px solid #e5e7eb', padding: 0 }
+            }}
+        >
+            <DialogTitle className="flex justify-between items-center font-bold text-blue-800 text-lg border-b border-gray-200 rounded-t-xl bg-blue-50" style={{padding: '18px 24px'}}>
                 <span>Thêm sản phẩm</span>
                 <IconButton onClick={handleClose} size="small">
                     <span>×</span>
                 </IconButton>
             </DialogTitle>
-            <DialogContent>
-                <div className="flex gap-6">
-                    {/* Danh sách sản phẩm bên trái */}
-                    <div className="w-1/2 border rounded-lg p-2 max-h-96 overflow-y-auto">
-                        {products.map(product => (
-                            <div
-                                key={product.proId}
-                                className={`p-3 cursor-pointer border-b hover:bg-gray-50 ${selectedProduct?.proId === product.proId ? 'bg-blue-50 border-blue-200' : ''}`}
-                                onClick={() => onSelectProduct(product)}
-                            >
-                                <div className="font-medium">{product.productName}</div>
-                                <div className="text-sm text-gray-500">Mã: {product.productCode}</div>
-                            </div>
-                        ))}
+            <DialogContent style={{padding: 0}}>
+                <div className="flex flex-col gap-4 p-6">
+                    {/* Phần trên: Danh sách sản phẩm với filter */}
+                    <div className="mb-2">
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Tìm sản phẩm theo tên hoặc mã"
+                            value={productSearch}
+                            onChange={e => setProductSearch(e.target.value)}
+                            sx={{ mb: 2, background: '#f9fafb', borderRadius: 2 }}
+                        />
+                        <div className="border border-gray-200 rounded-xl max-h-48 overflow-y-auto bg-white">
+                            {filteredProducts.length > 0 ? filteredProducts.map((product, idx) => (
+                                <div
+                                    key={product.proId}
+                                    className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-all font-medium ${selectedProduct?.proId === product.proId ? 'bg-blue-50 border-blue-400' : ''} ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === filteredProducts.length-1 ? 'rounded-b-xl' : ''}`}
+                                    style={{ borderBottom: idx === filteredProducts.length-1 ? 'none' : '1px solid #f1f1f1' }}
+                                    onClick={() => onSelectProduct(product)}
+                                >
+                                    <span className="font-bold text-gray-900">{product.productName}</span>
+                                    <span className="text-gray-500 text-xs ml-2">Mã: {product.productCode}</span>
+                                </div>
+                            )) : (
+                                <div className="p-4 text-center text-gray-500">Không có sản phẩm nào</div>
+                            )}
+                        </div>
                     </div>
-                    
-                    {/* Danh sách batch bên phải */}
-                    <div className="w-1/2 border rounded-lg p-2 max-h-96 overflow-y-auto flex flex-col gap-3">
+                    {/* Phần dưới: Danh sách batch của sản phẩm đã chọn */}
+                    <div className="border border-gray-200 rounded-xl p-2 max-h-64 overflow-y-auto flex flex-col gap-3 bg-white">
                         {selectedProduct ? (
                             availableBatches.length > 0 ? (
                                 <>
-                                    {availableBatches.map(batch => {
+                                    {availableBatches.map((batch, idx) => {
                                         const isSelected = selectedBatches.some(b => b.batchId === batch.id);
                                         const selectedBatchData = selectedBatches.find(b => b.batchId === batch.id);
                                         const quantity = selectedBatchData ? selectedBatchData.quantity : 1;
-                                        
                                         return (
                                             <div
                                                 key={batch.id}
-                                                className={`flex items-center gap-3 p-3 rounded-lg border shadow-sm transition hover:border-blue-400 cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}
-                                                style={{ minHeight: 64 }}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition hover:bg-blue-50 cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} ${idx === 0 ? 'mt-1' : ''}`}
+                                                style={{ minHeight: 56, borderBottom: idx === availableBatches.length-1 ? 'none' : '1px solid #f1f1f1' }}
                                                 onClick={() => handleBatchSelection(batch)}
                                             >
                                                 <div className="flex-1">
-                                                    <div className="font-medium text-gray-800">Batch ID: {batch.id}</div>
-                                                    <div className="text-xs text-gray-500">
-                                                        📦 {batch.remainQuantity} | 💰 {formatCurrency(batch.unitSalePrice)}<br/>
-                                                        📅 Ngày nhập: {batch.createAt ? new Date(batch.createAt).toLocaleDateString('vi-VN') : 'N/A'}
+                                                    <div className="font-bold text-blue-800">Lô #{batch.id}</div>
+                                                    <div className="grid grid-cols-4 gap-1 text-xs text-gray-600 mt-1 w-full" style={{ alignItems: 'center', paddingTop: 2, paddingBottom: 2 }}>
+                                                        <span className="col-span-1">Số lượng còn: <span className="font-bold text-gray-900">{batch.remainQuantity}</span></span>
+                                                        <span className="col-span-1">Giá: <span className="font-bold text-green-700">{formatCurrency(batch.unitSalePrice)}</span></span>
+                                                        <span className="col-span-1">Ngày nhập: <span className="font-bold text-indigo-700">{batch.createAt ? new Date(batch.createAt).toLocaleDateString('vi-VN') : 'N/A'}</span></span>
+                                                        <span className="col-span-1">Hạn: <span className="font-bold text-red-700">{batch.expireDate ? new Date(batch.expireDate).toLocaleDateString('vi-VN') : 'N/A'}</span></span>
                                                     </div>
                                                 </div>
                                                 <TextField
@@ -125,14 +156,14 @@ const SaleProductDialog = ({
                     </div>
                 </div>
             </DialogContent>
-            <DialogActions>
+            <DialogActions className="px-6 pb-4">
                 <Button onClick={handleClose} color="primary">
                     Đóng
                 </Button>
                 <Button
                     variant="contained"
                     color="primary"
-                    className="!bg-blue-600 hover:!bg-blue-700"
+                    className="!bg-blue-600 hover:!bg-blue-700 rounded-lg px-6"
                     disabled={selectedBatches.length === 0 || selectedBatches.some(b => b.quantity <= 0 || b.quantity > b.batch.remainQuantity)}
                     onClick={handleAdd}
                 >

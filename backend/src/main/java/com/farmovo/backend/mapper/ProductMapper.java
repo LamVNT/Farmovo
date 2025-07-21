@@ -56,6 +56,7 @@ public interface ProductMapper {
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
     @Mapping(source = "createdAt", target = "createAt")
+    @Mapping(source = "expireDate", target = "expireDate") // Thêm dòng này
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
 
 
