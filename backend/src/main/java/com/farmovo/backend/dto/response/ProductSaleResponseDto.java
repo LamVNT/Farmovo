@@ -19,6 +19,7 @@ public class ProductSaleResponseDto {
     private BigDecimal unitSalePrice;
     private String categoryName;
     private String storeName;
+    private String name; // mã lô hàng LH000000
     private java.time.LocalDateTime createAt;
     private java.time.LocalDateTime expireDate;
 }

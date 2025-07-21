@@ -78,6 +78,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
         transaction.setCreatedBy(userId);
 
+        // Sinh mã name tự động
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        String newName = String.format("PB%06d", lastId + 1); // hoặc PX%06d nếu bạn muốn
+        transaction.setName(newName);
+        log.debug("Generated sale transaction code: {}", newName);
+
         // Lưu chi tiết dưới dạng JSON string
         try {
             String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());

@@ -42,6 +42,9 @@ public class ImportTransactionDetail extends Base {
     @Column(name = "is_check")
     private Boolean isCheck;
 
+    @Column(name = "name", length = 20, unique = true)
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "import_transaction_id")
     private ImportTransaction importTransaction;

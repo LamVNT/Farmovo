@@ -81,6 +81,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             detailValidator.validate(d);
             ImportTransactionDetail detail = buildDetail(transaction, product, d);
 
+            // Lưu lần đầu để lấy id
+            ImportTransactionDetail savedDetail = detail;
+            if (detail.getId() == null) {
+                savedDetail = transaction.getDetails() == null ? null : detail;
+            }
+            // Sẽ lưu sau khi set vào transaction
             BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
             totalAmount = totalAmount.add(lineTotal);
             detailList.add(detail);
@@ -96,8 +102,14 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Import transaction created successfully. ID: {}, Code: {}, Total: {}, Paid: {}",
                 savedTransaction.getId(), savedTransaction.getName(), totalAmount, transaction.getPaidAmount());
 
-        // Lưu
-        importTransactionRepository.save(transaction);
+        // Sau khi transaction và details đã được lưu, sinh mã LH000000 cho từng detail
+        for (ImportTransactionDetail detail : savedTransaction.getDetails()) {
+            if (detail.getName() == null || detail.getName().isEmpty()) {
+                String code = String.format("LH%06d", detail.getId());
+                detail.setName(code);
+            }
+        }
+        importTransactionRepository.save(savedTransaction);
         log.info("Import transaction created. Total: {}, Paid: {}", totalAmount, transaction.getPaidAmount());
 
 //        if(dto.getStatus() == ImportTransactionStatus.COMPLETE){

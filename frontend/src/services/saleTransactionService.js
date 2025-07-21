@@ -85,6 +85,16 @@ const saleTransactionService = {
             console.error('Error in complete:', error);
             throw error;
         }
+    },
+
+    async getNextCode() {
+        try {
+            const res = await api.get('/sale-transactions/next-code');
+            return res.data;
+        } catch (error) {
+            console.error('Error in getNextCode:', error);
+            throw error;
+        }
     }
 };
 
