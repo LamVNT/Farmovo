@@ -24,7 +24,6 @@ public class ZoneController {
 
     @PostMapping
     public ResponseEntity<ZoneResponseDto> createZone(@Valid @RequestBody ZoneRequestDto request) {
-
         return ResponseEntity.ok(zoneService.createZone(request));
     }
 
@@ -34,7 +33,7 @@ public class ZoneController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteZone(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteZone(@Valid @PathVariable Long id) {
         zoneService.deleteZone(id);
         return ResponseEntity.noContent().build();
     }

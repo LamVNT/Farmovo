@@ -21,7 +21,7 @@ const UserManagement = () => {
         createAt: '',
         updateAt: '',
         storeName: '',
-        roles: [], // Thêm trường roles
+        roles: [],
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);

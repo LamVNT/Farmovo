@@ -15,6 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateImportTransactionRequestDto {
     private Long id;
+    private String name;
     private Long supplierId;
     private ImportTransactionStatus status;
     private Long storeId;
@@ -37,7 +38,7 @@ public class CreateImportTransactionRequestDto {
         private LocalDateTime expireDate;
         private BigDecimal unitImportPrice;
         private BigDecimal unitSalePrice;
-        private String zones_id;
+        private List<String> zones_id;
     }
 }
 

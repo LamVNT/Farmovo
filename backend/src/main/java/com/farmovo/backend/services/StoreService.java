@@ -1,5 +1,6 @@
 package com.farmovo.backend.services;
 
+import com.farmovo.backend.dto.request.ProductDto;
 import com.farmovo.backend.dto.request.StoreRequestDto;
 import com.farmovo.backend.models.Store;
 
@@ -18,4 +19,5 @@ public interface StoreService {
     boolean deleteStore(Long id);
 
     Store convertToEntity(StoreRequestDto dto);
+    List<StoreRequestDto> getAllStoreDto();
 }

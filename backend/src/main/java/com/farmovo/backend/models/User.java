@@ -35,9 +35,15 @@ public class User extends Base implements UserDetails {
     @Column(name = "status", nullable = false)
     private Boolean status;
 
+    @Column(name = "email")
+    private String email;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ForgotPassword forgotPassword;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

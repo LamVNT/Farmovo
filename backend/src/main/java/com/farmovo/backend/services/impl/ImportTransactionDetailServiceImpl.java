@@ -1,5 +1,7 @@
 package com.farmovo.backend.services.impl;
 
+import com.farmovo.backend.dto.response.ProductSaleResponseDto;
+import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ZoneProductDetailDto;
@@ -12,6 +14,9 @@ import com.farmovo.backend.models.Zone;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.services.ImportTransactionDetailService;
+import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.farmovo.backend.services.ZoneService;
 import com.farmovo.backend.services.ProductService;
 import com.farmovo.backend.mapper.ImportTransactionDetailLotMapper;
@@ -24,14 +29,18 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ImportTransactionDetailServiceImpl implements ImportTransactionDetailService {
 
-    @Autowired
-    private ImportTransactionDetailRepository detailRepository;
+    private static final Logger log = LogManager.getLogger(ImportTransactionDetailServiceImpl.class);
+
+    private final ImportTransactionDetailRepository detailRepository;
+    private final ProductMapper productMapper;
 
     @Autowired
     private ZoneService zoneService;
@@ -44,7 +53,12 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     @Override
     public List<ImportTransactionDetail> findByProductId(Long productId) {
-        return detailRepository.findByProductId(productId);
+        log.info("Finding import transaction details by productId: {}", productId);
+
+        List<ImportTransactionDetail> result = detailRepository.findByProductId(productId);
+        log.info("Found {} import transaction details for productId: {}", result.size(), productId);
+
+        return result;
     }
 
     // === IMPLEMENTATION CÁC METHOD MỚI ===

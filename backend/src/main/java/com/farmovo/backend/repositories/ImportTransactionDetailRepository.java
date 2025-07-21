@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -21,6 +23,14 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
 
     List<ImportTransactionDetail> findByProductId(Long productId);
 
+    @Query("SELECT d FROM ImportTransactionDetail d " +
+            "JOIN d.importTransaction t " +
+            "WHERE d.product.id = :productId " +
+            "AND t.status = 'COMPLETE' " +
+            "AND d.remainQuantity > 0")
+    List<ImportTransactionDetail> findCompletedDetailsWithQuantityByProductId(@Param("productId") Long productId);
+
+
     // Lấy tất cả ImportTransactionDetail có remainQuantity > 0
     List<ImportTransactionDetail> findByRemainQuantityGreaterThan(Integer remainQuantity);
 
@@ -28,7 +38,7 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
     List<ImportTransactionDetail> findByProductIdAndRemainQuantityGreaterThan(Long productId, Integer remainQuantity);
 
     // === CÁC QUERY MỚI CHO STOCKTAKE ===
-    
+
     // Lấy tất cả zones_id có sản phẩm còn tồn kho (remainQuantity > 0)
     @Query("SELECT DISTINCT i.zones_id FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id IS NOT NULL AND i.zones_id != ''")
     List<String> findAllZoneIdsWithProducts();

@@ -1,604 +1,600 @@
-import React, {useState, useEffect} from "react";
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-    TextField, Button, FormControl, InputLabel, Select, MenuItem,
-    Dialog, DialogTitle, DialogContent, DialogActions, Table,
-    TableHead, TableRow, TableCell, TableBody, IconButton,
-    Alert, CircularProgress, Typography, Box, Grid, Card, CardContent,
-    Divider, Chip
-} from "@mui/material";
-import {useNavigate} from "react-router-dom";
-import {FaPlus, FaTrash, FaSearch} from "react-icons/fa";
-import saleTransactionService from "../../services/saleTransactionService";
-import {DateTimePicker} from "@mui/x-date-pickers/DateTimePicker";
-import {LocalizationProvider} from "@mui/x-date-pickers/LocalizationProvider";
-import {AdapterDateFns} from "@mui/x-date-pickers/AdapterDateFns";
+    TextField,
+    Button,
+    Checkbox,
+    FormControlLabel,
+    MenuItem,
+    Select,
+    InputAdornment,
+    IconButton,
+    Tooltip,
+    Menu,
+    FormControlLabel as MuiFormControlLabel,
+    Alert,
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+} from '@mui/material';
+import { FaLock, FaCheck, FaSearch, FaEye } from 'react-icons/fa';
+import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
+import { FiPlus } from 'react-icons/fi';
+import { DataGrid } from '@mui/x-data-grid';
+import { FaRegTrashCan } from "react-icons/fa6";
+import { format } from 'date-fns';
+
+// Components
+import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
+import SaleSidebar from '../../components/sale-transaction/SaleSidebar';
+import SaleSummaryDialog from '../../components/sale-transaction/SaleSummaryDialog';
+
+// Hooks
+import { useSaleTransaction } from '../../hooks/useSaleTransaction';
+
+// Utils
+import { formatCurrency, isValidValue } from '../../utils/formatters';
+import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = () => {
-    const navigate = useNavigate();
-    const [formData, setFormData] = useState({
-        customerId: "",
-        storeId: "",
-        totalAmount: 0,
-        paidAmount: 0,
-        saleTransactionNote: "",
-        status: "DRAFT",
-        saleDate: new Date(),
-        detail: []
+    const searchRef = useRef(null);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [batches, setBatches] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredBatches, setFilteredBatches] = useState([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [categoryProducts, setCategoryProducts] = useState([]);
+    const [dataGridKey, setDataGridKey] = useState(0);
+    
+    // Column visibility state - moved up before useMemo
+    const [columnVisibility, setColumnVisibility] = useState({
+        STT: true,
+        'Tên hàng': true,
+        'ĐVT': true,
+        'Số lượng': true,
+        'Đơn giá': true,
+        'Thành tiền': true,
     });
 
-    const [createFormData, setCreateFormData] = useState({
-        customers: [],
-        stores: [],
-        products: []
-    });
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [quantity, setQuantity] = useState(1);
-    const [selectedBatch, setSelectedBatch] = useState(null);
-    const [availableBatches, setAvailableBatches] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingFormData, setLoadingFormData] = useState(true);
-    const [error, setError] = useState(null);
-    const [searchProduct, setSearchProduct] = useState("");
+    // Custom hook for sale transaction logic
+    const {
+        // States
+        currentUser,
+        products,
+        customers,
+        stores,
+        categories,
+        zones,
+        selectedProducts,
+        loading,
+        error,
+        success,
+        
+        // Form states
+        selectedCustomer,
+        selectedStore,
+        saleDate,
+        note,
+        status,
+        paidAmount,
+        totalAmount,
+        
+        // Dialog states
+        showProductDialog,
+        selectedProduct,
+        availableBatches,
+        
+        // Summary dialog states
+        showSummaryDialog,
+        summaryData,
+        pendingAction,
+        
+        // Setters
+        setSelectedCustomer,
+        setSelectedStore,
+        setSaleDate,
+        setNote,
+        setStatus,
+        setPaidAmount,
+        setShowProductDialog,
+        setError,
+        setSuccess,
+        setShowSummaryDialog,
+        setSummaryData,
+        setPendingAction,
+        
+        // Handlers
+        handleSelectProduct,
+        handleAddProductsFromDialog,
+        handleQuantityChange,
+        handleQuantityInputChange,
+        handlePriceChange,
+        handleDeleteProduct,
+        handleSaveDraft,
+        handleComplete,
+        handleCancel,
+        handleConfirmSummary,
+        handleCloseSummary,
+    } = useSaleTransaction();
 
-    // Lọc sản phẩm theo search và chỉ hiển thị những sản phẩm có remainQuantity > 0
-    const filteredProducts = createFormData.products?.filter(product => {
-        const matchesSearch = product.productName?.toLowerCase().includes(searchProduct.toLowerCase()) ||
-            product.productCode?.toLowerCase().includes(searchProduct.toLowerCase());
-        const hasStock = product.remainQuantity > 0;
-        return matchesSearch && hasStock;
-    }) || [];
-
-    // Lọc để chỉ hiển thị các sản phẩm duy nhất (không trùng lặp proId)
-    const uniqueProducts = filteredProducts.reduce((acc, product) => {
-        const existingProduct = acc.find(p => p.proId === product.proId);
-        if (!existingProduct) {
-            acc.push(product);
-        }
-        return acc;
-    }, []);
-
+    // Handle click outside search dropdown
     useEffect(() => {
-        loadCreateFormData();
-    }, []);
-
-    // Debug logging khi createFormData thay đổi
-    useEffect(() => {
-        console.log("=== DEBUG CREATE FORM DATA CHANGED ===");
-        console.log("createFormData:", createFormData);
-        console.log("Customers:", createFormData.customers);
-        console.log("Stores:", createFormData.stores);
-        console.log("Products:", createFormData.products);
-        console.log("Filtered Products:", filteredProducts);
-        console.log("Unique Products:", uniqueProducts);
-    }, [createFormData, filteredProducts, uniqueProducts]);
-
-    const loadCreateFormData = async () => {
-        setLoadingFormData(true);
-        try {
-            const data = await saleTransactionService.getCreateFormData();
-            console.log("=== DEBUG FRONTEND CREATE FORM DATA ===");
-            console.log("Full data:", data);
-            console.log("Customers:", data.customers);
-            console.log("Stores:", data.stores);
-            console.log("Products:", data.products);
-            setCreateFormData(data);
-        } catch (err) {
-            console.error("Error loading form data:", err);
-            setError("Không thể tải dữ liệu form");
-        } finally {
-            setLoadingFormData(false);
-        }
-    };
-
-    const handleAddProduct = () => {
-        if (!selectedBatch || quantity <= 0) return;
-
-        // Kiểm tra số lượng tồn kho
-        if (quantity > selectedBatch.remainQuantity) {
-            setError(`Số lượng vượt quá tồn kho. Còn lại: ${selectedBatch.remainQuantity}`);
-            return;
-        }
-
-        const existingIndex = formData.detail.findIndex(item => item.id === selectedBatch.id);
-        if (existingIndex >= 0) {
-            const updatedDetail = [...formData.detail];
-            const newQuantity = updatedDetail[existingIndex].quantity + quantity;
-
-            // Kiểm tra tổng số lượng không vượt quá tồn kho
-            if (newQuantity > selectedBatch.remainQuantity) {
-                setError(`Tổng số lượng vượt quá tồn kho. Còn lại: ${selectedBatch.remainQuantity}`);
-                return;
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setFilteredBatches([]);
             }
+        };
 
-            updatedDetail[existingIndex].quantity = newQuantity;
-            setFormData({...formData, detail: updatedDetail});
-        } else {
-            const newItem = {
-                ...selectedBatch,
-                quantity: quantity
-            };
-            setFormData({
-                ...formData,
-                detail: [...formData.detail, newItem]
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // Force re-render DataGrid when selectedProducts changes
+    useEffect(() => {
+        setDataGridKey(prev => prev + 1);
+    }, [selectedProducts]);
+
+    useEffect(() => {
+        // Lấy danh sách batch (import transaction detail) còn hàng
+        const fetchBatches = async () => {
+            try {
+                const data = await saleTransactionService.getCreateFormData();
+                setBatches(data.products || []);
+            } catch (error) {
+                // Có thể setError nếu muốn
+            }
+        };
+        fetchBatches();
+    }, []);
+
+    // Gợi ý batch mới nhất khi focus hoặc search
+    useEffect(() => {
+        if (searchTerm.trim() !== '') {
+            const results = batches.filter(
+                (b) =>
+                    (b.batchCode && b.batchCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (b.productName && b.productName.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+            // Sắp xếp batch mới nhất lên đầu (theo importDate hoặc id giảm dần)
+            results.sort((a, b) => {
+                const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+                const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+                return dateB - dateA;
             });
+            setFilteredBatches(results.slice(0, 10));
+        } else if (isSearchFocused) {
+            // Gợi ý 10 batch mới nhất khi chưa nhập gì
+            const sorted = [...batches].sort((a, b) => {
+                const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+                const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+                return dateB - dateA;
+            });
+            setFilteredBatches(sorted.slice(0, 10));
+        } else {
+            setFilteredBatches([]);
         }
+    }, [batches, searchTerm, isSearchFocused]);
 
-        setSelectedBatch(null);
-        setQuantity(1);
-        setError(null);
+    const toggleColumn = (col) => {
+        setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
     };
 
-    const handleRemoveProduct = (index) => {
-        const updatedDetail = formData.detail.filter((_, i) => i !== index);
-        setFormData({...formData, detail: updatedDetail});
-    };
-
-    const calculateTotal = () => {
-        return formData.detail.reduce((total, item) => {
-            return total + (item.unitSalePrice * item.quantity);
-        }, 0);
-    };
-
-    const handleSubmit = async () => {
-        if (formData.detail.length === 0) {
-            setError("Vui lòng thêm ít nhất một sản phẩm");
-            return;
-        }
-
-        if (!formData.customerId) {
-            setError("Vui lòng chọn khách hàng");
-            return;
-        }
-
-        if (!formData.storeId) {
-            setError("Vui lòng chọn cửa hàng");
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const submitData = {
-                ...formData,
-                totalAmount: calculateTotal()
-            };
-            await saleTransactionService.create(submitData);
-            navigate("/sale");
-        } catch (err) {
-            setError("Không thể tạo phiếu bán hàng");
-        } finally {
-            setLoading(false);
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        if (value.trim() === '') {
+            setFilteredBatches([]);
+        } else {
+            const results = batches.filter(
+                (b) =>
+                    (b.batchCode && b.batchCode.toLowerCase().includes(value.toLowerCase())) ||
+                    (b.productName && b.productName.toLowerCase().includes(value.toLowerCase()))
+            );
+            setFilteredBatches(results);
         }
     };
 
-    return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <Typography variant="h4" className="font-bold text-gray-800 mb-2">
-                        Tạo phiếu bán hàng
-                    </Typography>
-                    <Typography variant="body2" className="text-gray-600">
-                        Tạo phiếu bán hàng mới với thông tin khách hàng và sản phẩm
-                    </Typography>
-                </div>
+    const handleSelectBatch = (batch) => {
+        // Thêm sản phẩm từ batch vào bảng
+        handleSelectProduct({
+            id: batch.productId,
+            name: batch.productName,
+            unit: batch.unit || 'quả',
+            price: batch.unitSalePrice,
+            quantity: 1,
+            batchCode: batch.batchCode,
+            remainQuantity: batch.remainQuantity,
+            // ... các trường khác nếu cần
+        });
+        setSearchTerm('');
+        setFilteredBatches([]);
+        setIsSearchFocused(false);
+    };
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 mb-6">
-                    <Button
-                        variant="outlined"
-                        onClick={loadCreateFormData}
-                        disabled={loadingFormData}
-                        startIcon={loadingFormData ? <CircularProgress size={16}/> : null}
-                        className="border-blue-500 text-blue-600 hover:bg-blue-50"
+    const handleOpenCategoryDialog = () => {
+        setShowCategoryDialog(true);
+        setSelectedCategory(null);
+        setCategoryProducts([]);
+    };
+
+    const handleCloseCategoryDialog = () => {
+        setShowCategoryDialog(false);
+        setSelectedCategory(null);
+        setCategoryProducts([]);
+    };
+
+    const handleSelectCategory = (category) => {
+        setSelectedCategory(category);
+        const filteredProducts = products.filter(product => 
+            product.categoryId === category.id || product.category?.id === category.id
+        );
+        setCategoryProducts(filteredProducts);
+    };
+
+    const handleSelectCategoryProduct = (product) => {
+        handleSelectProduct(product);
+    };
+
+    // Memoized columns for DataGrid
+    const columns = useMemo(() => [
+        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
+        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
+        columnVisibility['Số lượng'] && {
+            field: 'quantity',
+            headerName: 'Số lượng',
+            width: 150,
+            renderCell: (params) => (
+                <div className="flex items-center justify-center h-full gap-1">
+                    <button 
+                        onClick={() => handleQuantityChange(params.row.id, -1)} 
+                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
-                        {loadingFormData ? "Đang tải..." : "Tải lại dữ liệu"}
-                    </Button>
-
-                    <Button
-                        variant="outlined"
-                        onClick={async () => {
-                            try {
-                                const response = await fetch(`${import.meta.env.VITE_API_URL}/sale-transactions/test-data`);
-                                const text = await response.text();
-                                console.log('Test API response:', text);
-                                alert('Test API response: ' + text);
-                            } catch (error) {
-                                console.error('Test API error:', error);
-                                alert('Test API error: ' + error.message);
+                        –
+                    </button>
+                    <TextField
+                        size="small"
+                        type="number"
+                        variant="standard"
+                        value={params.row.quantity || 1}
+                        onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
+                        sx={{
+                            width: '60px',
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                display: 'none',
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
                             }
                         }}
-                        className="border-green-500 text-green-600 hover:bg-green-50"
+                    />
+                    <button 
+                        onClick={() => handleQuantityChange(params.row.id, 1)} 
+                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
-                        Test API
-                    </Button>
+                        +
+                    </button>
+                </div>
+            )
+        },
+        columnVisibility['Đơn giá'] && {
+            field: 'price',
+            headerName: 'Đơn giá',
+            width: 150,
+            renderCell: (params) => (
+                <div className="flex items-center justify-center h-full">
+                    <TextField
+                        size="small"
+                        type="number"
+                        variant="standard"
+                        value={params.row.price || 0}
+                        onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)}
+                        InputProps={{
+                            endAdornment: <span className="text-gray-500">VND</span>,
+                        }}
+                        sx={{
+                            width: '100px',
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                display: 'none',
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
+                            }
+                        }}
+                    />
+                </div>
+            ),
+        },
+        columnVisibility['Thành tiền'] && {
+            field: 'total',
+            headerName: 'Thành tiền',
+            width: 150,
+            valueGetter: (params) => {
+                const row = params?.row ?? {};
+                const price = parseFloat(row.price) || 0;
+                const quantity = parseInt(row.quantity) || 0;
+                return price * quantity;
+            },
+            valueFormatter: (params) => formatCurrency(params.value || 0),
+            renderCell: (params) => {
+                const price = parseFloat(params.row.price) || 0;
+                const quantity = parseInt(params.row.quantity) || 0;
+                const total = price * quantity;
+                return (
+                    <div className="text-right w-full">
+                        {formatCurrency(total)}
+                    </div>
+                );
+            },
+        },
+        {
+            field: 'actions',
+            headerName: '',
+            width: 60,
+            renderCell: (params) => (
+                <Tooltip title="Xóa">
+                    <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
+                        <FaRegTrashCan />
+                    </IconButton>
+                </Tooltip>
+            ),
+        },
+    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct]);
+
+    return (
+        <div className="flex w-full h-screen bg-gray-100">
+            {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{error}</Alert>}
+            {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{success}</Alert>}
+
+            <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
+                <div className="flex justify-between items-center mb-2">
+                    <div ref={searchRef} className="relative w-full max-w-2xl flex items-center gap-2">
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Tìm lô hàng theo mã hoặc tên sản phẩm"
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <FaSearch className="text-gray-500" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ borderRadius: 2, background: '#f9fafb' }}
+                        />
+                        {/* Đã xóa icon Thêm từ danh mục */}
+                        <Tooltip title="Thêm sản phẩm">
+                            <IconButton onClick={() => setShowProductDialog(true)}>
+                                <FiPlus />
+                            </IconButton>
+                        </Tooltip>
+                        {filteredBatches.length > 0 && isSearchFocused && (
+                            <div className="absolute top-full mt-1 left-0 z-10 bg-white shadow-lg rounded-xl w-full max-h-96 overflow-y-auto text-sm" style={{boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)'}}>
+                                {filteredBatches.map((batch, index) => {
+                                    const importDate = batch.createAt ? format(new Date(batch.createAt), 'dd/MM/yyyy') : 'N/A';
+                                    const expireDate = batch.expireDate ? format(new Date(batch.expireDate), 'dd/MM/yyyy') : 'N/A';
+                                    return (
+                                        <div
+                                            key={batch.id || index}
+                                            onClick={() => handleSelectBatch(batch)}
+                                            className={`px-4 py-3 cursor-pointer flex flex-col transition-all duration-150 hover:bg-blue-50 ${index === filteredBatches.length - 1 ? 'rounded-b-xl' : ''} ${index === 0 ? 'rounded-t-xl' : ''}`}
+                                            style={{ borderBottom: index === filteredBatches.length - 1 ? 'none' : '1px solid #f1f1f1' }}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-blue-800">Lô #{batch.id}</span>
+                                                <span className="font-bold text-gray-900">{batch.productName}</span>
+                                            </div>
+                                            <div
+                                                className="grid grid-cols-4 gap-px text-[12px] text-gray-600 mt-1 w-full"
+                                                style={{ alignItems: 'center', paddingTop: 2, paddingBottom: 2 }}
+                                            >
+                                                <span className="col-span-1">
+                                                    Số lượng còn: <span className="font-bold text-gray-900">{batch.remainQuantity}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Giá: <span className="font-bold text-green-700">{formatCurrency(batch.unitSalePrice)}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Ngày nhập: <span className="font-bold text-indigo-700">{importDate}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Hạn: <span className="font-bold text-red-700">{expireDate}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="ml-auto">
+                        <Tooltip title="Ẩn/hiện cột hiển thị">
+                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
+                                <FaEye />
+                            </IconButton>
+                        </Tooltip>
+                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                            {Object.entries(columnVisibility).map(([col, visible]) => (
+                                <MenuItem key={col} dense>
+                                    <MuiFormControlLabel 
+                                        control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} 
+                                        label={col} 
+                                    />
+                                                    </MenuItem>
+                            ))}
+                        </Menu>
+                    </div>
                 </div>
 
-                {/* Status Alerts */}
-                {error && (
-                    <Alert severity="error" className="mb-6 shadow-sm">
-                        <Typography variant="body2" className="font-medium">
-                            {error}
-                        </Typography>
-                    </Alert>
-                )}
-
-                {!loadingFormData && !error && (
-                    <Alert severity="success" className="mb-6 shadow-sm">
-                        <Typography variant="body2" className="font-medium">
-                            ✅ Đã tải: {createFormData.customers?.length || 0} khách
-                            hàng, {createFormData.stores?.length || 0} cửa
-                            hàng, {createFormData.products?.length || 0} sản phẩm
-                        </Typography>
-                    </Alert>
-                )}
-
-                {/* Main Content - Three Columns */}
-                <Grid container spacing={4} alignItems="flex-start">
-                    {/* Left Column - Basic Information */}
-                    <Grid item xs={12} md={4}>
-                        <Card className="shadow-lg border-0 bg-white">
-                            <CardContent className="p-4">
-                                <div className="flex items-center mb-4">
-                                    <div
-                                        className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                                        <span className="text-blue-600 font-bold text-sm">ℹ️</span>
-                                    </div>
-                                    <Typography variant="h6" className="font-bold text-gray-800 text-sm">
-                                        Thông tin cơ bản
-                                    </Typography>
-                                </div>
-                                <div className="space-y-3 pl-2">
-                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
-                                        <InputLabel className="text-gray-600 text-sm">Khách hàng</InputLabel>
-                                        <Select
-                                            value={formData.customerId || ""}
-                                            onChange={(e) => setFormData({...formData, customerId: e.target.value})}
-                                            disabled={loadingFormData}
-                                        >
-                                            {loadingFormData ? (
-                                                <MenuItem disabled>Đang tải...</MenuItem>
-                                            ) : createFormData.customers?.length > 0 ? (
-                                                createFormData.customers.map((customer) => (
-                                                    <MenuItem key={customer.id} value={customer.id}>
-                                                        {customer.name || customer.customerName || 'Không có tên'}
-                                                    </MenuItem>
-                                                ))
-                                            ) : (
-                                                <MenuItem disabled>Không có dữ liệu khách hàng</MenuItem>
-                                            )}
-                                        </Select>
-                                    </FormControl>
-
-                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
-                                        <InputLabel className="text-gray-600 text-sm">Cửa hàng</InputLabel>
-                                        <Select
-                                            value={formData.storeId || ""}
-                                            onChange={(e) => setFormData({...formData, storeId: e.target.value})}
-                                            disabled={loadingFormData}
-                                        >
-                                            {loadingFormData ? (
-                                                <MenuItem disabled>Đang tải...</MenuItem>
-                                            ) : createFormData.stores?.length > 0 ? (
-                                                createFormData.stores.map((store) => (
-                                                    <MenuItem key={store.id} value={store.id}>
-                                                        {store.name || store.storeName || 'Không có tên'}
-                                                    </MenuItem>
-                                                ))
-                                            ) : (
-                                                <MenuItem disabled>Không có dữ liệu cửa hàng</MenuItem>
-                                            )}
-                                        </Select>
-                                    </FormControl>
-
-                                    <FormControl variant="standard" size="small" style={{width: '80%'}}>
-                                        <InputLabel className="text-gray-600 text-sm">Trạng thái</InputLabel>
-                                        <Select
-                                            value={formData.status}
-                                            onChange={(e) => setFormData({...formData, status: e.target.value})}
-                                        >
-                                            <MenuItem value="DRAFT">📝 Nháp</MenuItem>
-                                            <MenuItem value="COMPLETE">✅ Hoàn thành</MenuItem>
-                                        </Select>
-                                    </FormControl>
-
-                                    <Box display="flex" gap={2} alignItems="flex-end" mt={2}>
-                                        <TextField
-                                            label="Ghi chú"
-                                            multiline
-                                            rows={2}
-                                            value={formData.saleTransactionNote}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                saleTransactionNote: e.target.value
-                                            })}
-                                            variant="standard"
-                                            size="small"
-                                            style={{width: '48%'}}
-                                        />
-                                        <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                            <DateTimePicker
-                                                label="Thời gian bán"
-                                                value={formData.saleDate}
-                                                onChange={(newValue) => setFormData({...formData, saleDate: newValue})}
-                                                renderInput={(params) => (
-                                                    <TextField {...params} variant="standard" size="small"
-                                                               style={{width: '48%'}}/>
-                                                )}
-                                            />
-                                        </LocalizationProvider>
-                                    </Box>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    {/* Middle Column - Add Products */}
-                    <Grid item xs={12} md={4}>
-                        <Card className="shadow-lg border-0 bg-white">
-                            <CardContent className="p-6">
-                                <div className="flex items-center mb-6">
-                                    <div
-                                        className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                        <span className="text-green-600 font-bold text-lg">🛍️</span>
-                                    </div>
-                                    <Typography variant="h6" className="font-bold text-gray-800">
-                                        Thêm sản phẩm
-                                    </Typography>
-                                </div>
-                                {/* Thêm sản phẩm - 2 hàng */}
-                                <Box>
-                                    <Box display="flex" gap={2} alignItems="flex-end" mb={2}>
-                                        <FormControl variant="standard" size="small"
-                                                     style={{minWidth: 120, flex: '1 1 140px'}}>
-                                            <InputLabel className="text-gray-600">Chọn sản phẩm</InputLabel>
-                                            <Select
-                                                value={selectedProduct?.proId || ""}
-                                                onChange={async (e) => {
-                                                    const product = uniqueProducts.find(p => p.proId === e.target.value);
-                                                    setSelectedProduct(product);
-                                                    setSelectedBatch(null);
-                                                    if (product) {
-                                                        const batches = await saleTransactionService.getBatchesByProductId(product.proId);
-                                                        setAvailableBatches(batches);
-                                                    } else {
-                                                        setAvailableBatches([]);
-                                                    }
-                                                }}
-                                                disabled={loadingFormData}
-                                            >
-                                                {loadingFormData ? (
-                                                    <MenuItem disabled>Đang tải...</MenuItem>
-                                                ) : uniqueProducts.length > 0 ? (
-                                                    uniqueProducts.map((product) => (
-                                                        <MenuItem key={product.proId} value={product.proId}>
-                                                            <div className="flex flex-col">
-                                                                <span
-                                                                    className="font-medium text-gray-800">{product.productName || 'Không có tên'}</span>
-                                                                <span className="text-sm text-gray-500">
-                                                                    Mã: {product.productCode || product.proId}
-                                                                </span>
-                                                            </div>
-                                                        </MenuItem>
-                                                    ))
-                                                ) : (
-                                                    <MenuItem disabled>
-                                                        {searchProduct ? 'Không tìm thấy sản phẩm phù hợp' : 'Không có sản phẩm có sẵn'}
-                                                    </MenuItem>
-                                                )}
-                                            </Select>
-                                        </FormControl>
-
-                                        <FormControl variant="standard" size="small"
-                                                     style={{minWidth: 120, flex: '1 1 140px'}}>
-                                            <InputLabel className="text-gray-600">Chọn batch</InputLabel>
-                                            <Select
-                                                value={selectedBatch?.id || ""}
-                                                onChange={(e) => {
-                                                    const batch = availableBatches.find(b => b.id === e.target.value);
-                                                    setSelectedBatch(batch);
-                                                }}
-                                                disabled={!selectedProduct}
-                                            >
-                                                {!selectedProduct ? (
-                                                    <MenuItem disabled>Vui lòng chọn sản phẩm trước</MenuItem>
-                                                ) : availableBatches.length > 0 ? (
-                                                    availableBatches.map((batch) => (
-                                                        <MenuItem key={batch.id} value={batch.id}>
-                                                            <div className="flex flex-col">
-                                                                <span
-                                                                    className="font-medium text-gray-800">Batch ID: {batch.id}</span>
-                                                                <span className="text-sm text-gray-500">
-                                                                    📦 Tồn: {batch.remainQuantity || 0} | 
-                                                                    💰 Giá: {(batch.unitSalePrice || 0)?.toLocaleString('vi-VN')} VNĐ |
-                                                                    📅 HSD: {batch.expireDate ? new Date(batch.expireDate).toLocaleDateString('vi-VN') : 'N/A'}
-                                                                </span>
-                                                            </div>
-                                                        </MenuItem>
-                                                    ))
-                                                ) : (
-                                                    <MenuItem disabled>Không có batch nào cho sản phẩm này</MenuItem>
-                                                )}
-                                            </Select>
-                                        </FormControl>
-                                    </Box>
-                                    <Box display="flex" gap={2} alignItems="flex-end">
-                                        <TextField
-                                            type="number"
-                                            label="Số lượng"
-                                            value={quantity}
-                                            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                                            inputProps={{min: 1}}
-                                            variant="standard"
-                                            size="small"
-                                            style={{minWidth: 80, flex: '0 1 80px'}}
-                                        />
-
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<FaPlus/>}
-                                            onClick={handleAddProduct}
-                                            disabled={!selectedBatch || quantity <= 0}
-                                            style={{minWidth: 120, flex: '0 1 120px', height: 40}}
-                                            className="bg-blue-600 hover:bg-blue-700 shadow-md"
-                                        >
-                                            Thêm
-                                        </Button>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    {/* Right Column - Batch Info */}
-                    <Grid item xs={12} md={2}>
-                        {selectedBatch && (
-                            <Box
-                                minWidth={220}
-                                maxWidth={300}
-                                flex="0 0 auto"
-                                sx={{
-                                    background: '#e3f0ff',
-                                    borderRadius: 2,
-                                    border: '1px solid #b6d4fe',
-                                    p: 2,
-                                    ml: 2,
-                                }}
-                            >
-                                <Typography variant="subtitle2" className="font-bold text-blue-800 mb-2">
-                                    Thông tin batch đã chọn:
-                                </Typography>
-                                <div className="space-y-1 text-sm text-blue-700">
-                                    <div>📦 Tồn kho: {selectedBatch.remainQuantity || 0}</div>
-                                    <div>💰 Giá bán: {(selectedBatch.unitSalePrice || 0)?.toLocaleString('vi-VN')} VNĐ
-                                    </div>
-                                    <div>📅 Ngày
-                                        nhập: {selectedBatch.createAt ? new Date(selectedBatch.createAt).toLocaleDateString('vi-VN') : 'N/A'}</div>
-                                    {selectedBatch.remainQuantity < quantity && (
-                                        <div className="text-red-600 font-medium">
-                                            ⚠️ Số lượng vượt quá tồn kho!
-                                        </div>
-                                    )}
-                                </div>
-                            </Box>
-                        )}
-                    </Grid>
-                </Grid>
-
-                {/* Selected Products Section - Full Width Below */}
-                {formData.detail.length > 0 && (
-                    <Card className="shadow-lg border-0 bg-white mt-6">
-                        <CardContent className="p-6">
-                            <div className="flex items-center mb-6">
-                                <div
-                                    className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                                    <span className="text-purple-600 font-bold text-lg">📋</span>
-                                </div>
-                                <Typography variant="h6" className="font-bold text-gray-800">
-                                    Sản phẩm đã chọn ({formData.detail.length})
-                                </Typography>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <Table className="bg-gray-50 rounded-lg">
-                                    <TableHead>
-                                        <TableRow className="bg-gray-100">
-                                            <TableCell className="font-bold text-gray-700">Sản phẩm</TableCell>
-                                            <TableCell align="center" className="font-bold text-gray-700">Số
-                                                lượng</TableCell>
-                                            <TableCell align="right" className="font-bold text-gray-700">Đơn
-                                                giá</TableCell>
-                                            <TableCell align="right" className="font-bold text-gray-700">Thành
-                                                tiền</TableCell>
-                                            <TableCell align="center" className="font-bold text-gray-700">Hành
-                                                động</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {formData.detail.map((item, index) => (
-                                            <TableRow key={index} className="hover:bg-gray-100 transition-colors">
-                                                <TableCell>
-                                                    <div>
-                                                        <div
-                                                            className="font-medium text-gray-800">{item.productName}</div>
-                                                        <div className="text-sm text-gray-500">
-                                                            Mã: {item.productCode} | Batch: {item.id}
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Chip
-                                                        label={item.quantity}
-                                                        color="primary"
-                                                        size="small"
-                                                        className="bg-blue-500"
-                                                    />
-                                                </TableCell>
-                                                <TableCell align="right" className="font-medium">
-                                                    {item.unitSalePrice?.toLocaleString('vi-VN')} VNĐ
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <strong className="text-green-600">
-                                                        {(item.unitSalePrice * item.quantity)?.toLocaleString('vi-VN')} VNĐ
-                                                    </strong>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <IconButton
-                                                        color="error"
-                                                        onClick={() => handleRemoveProduct(index)}
-                                                        size="small"
-                                                        className="hover:bg-red-50"
-                                                    >
-                                                        <FaTrash/>
-                                                    </IconButton>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-
-                            {/* Total Amount */}
-                            <Box
-                                className="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
-                                <div className="flex justify-between items-center">
-                                    <Typography variant="h6" className="font-bold text-gray-700">
-                                        Tổng tiền:
-                                    </Typography>
-                                    <Typography variant="h4" className="font-bold text-green-600">
-                                        {calculateTotal().toLocaleString('vi-VN')} VNĐ
-                                    </Typography>
-                                </div>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-4 mt-8">
-                    <Button
-                        variant="outlined"
-                        onClick={() => navigate("/sale")}
-                        size="large"
-                        className="border-gray-400 text-gray-600 hover:bg-gray-50 px-8"
-                    >
-                        Hủy
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleSubmit}
-                        disabled={loading || formData.detail.length === 0 || !formData.customerId || !formData.storeId}
-                        startIcon={loading ? <CircularProgress size={20}/> : null}
-                        size="large"
-                        className="bg-blue-600 hover:bg-blue-700 shadow-lg px-8"
-                        style={{minWidth: 200}}
-                    >
-                        {loading ? "Đang lưu..." : "Lưu phiếu bán hàng"}
-                    </Button>
+                <div style={{ height: 400, width: '100%' }}>
+                    <DataGrid
+                        key={dataGridKey}
+                        rows={selectedProducts}
+                        columns={columns}
+                        pageSize={5}
+                        rowsPerPageOptions={[5]}
+                        disableSelectionOnClick
+                        getRowId={(row) => row.id}
+                    />
                 </div>
             </div>
+
+            {/* Sidebar */}
+            <SaleSidebar
+                currentUser={currentUser}
+                customers={customers}
+                stores={stores}
+                selectedCustomer={selectedCustomer}
+                selectedStore={selectedStore}
+                saleDate={saleDate}
+                note={note}
+                paidAmount={paidAmount}
+                totalAmount={totalAmount}
+                loading={loading}
+                onCustomerChange={(e) => setSelectedCustomer(e.target.value)}
+                onStoreChange={(e) => setSelectedStore(e.target.value)}
+                onDateChange={(newValue) => setSaleDate(newValue)}
+                onNoteChange={(e) => setNote(e.target.value)}
+                onPaidAmountChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    setPaidAmount(Math.max(0, value)); // chỉ giới hạn >= 0, không giới hạn max
+                }}
+                onSaveDraft={handleSaveDraft}
+                onComplete={handleComplete}
+                onCancel={handleCancel}
+                formatCurrency={formatCurrency}
+                isValidValue={isValidValue}
+            />
+
+            {/* Product Selection Dialog */}
+            <SaleProductDialog
+                open={showProductDialog}
+                onClose={() => setShowProductDialog(false)}
+                products={products}
+                selectedProduct={selectedProduct}
+                availableBatches={availableBatches}
+                selectedBatchesForDialog={[]}
+                onSelectProduct={handleSelectProduct}
+                onSelectBatches={() => {}}
+                onAddProducts={handleAddProductsFromDialog}
+                formatCurrency={formatCurrency}
+            />
+
+            {/* Summary Dialog */}
+            <SaleSummaryDialog
+                open={showSummaryDialog}
+                onClose={handleCloseSummary}
+                onConfirm={handleConfirmSummary}
+                saleData={summaryData}
+                formatCurrency={formatCurrency}
+                loading={loading}
+                currentUser={currentUser}
+            />
+
+            {/* Category Dialog */}
+            <Dialog 
+                open={showCategoryDialog} 
+                onClose={handleCloseCategoryDialog}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle className="flex justify-between items-center">
+                    <span>Thêm từ danh mục</span>
+                    <IconButton onClick={handleCloseCategoryDialog} size="small">
+                        <span>×</span>
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Danh sách Category */}
+                        <div>
+                            <h3 className="font-semibold mb-3 text-gray-700">Danh mục sản phẩm</h3>
+                            <div className="border rounded-lg max-h-80 overflow-y-auto">
+                                {categories.map((category) => (
+                                    <div
+                                        key={category.id}
+                                        onClick={() => handleSelectCategory(category)}
+                                        className={`p-3 cursor-pointer border-b hover:bg-gray-50 ${
+                                            selectedCategory?.id === category.id ? 'bg-blue-50 border-blue-200' : ''
+                                        }`}
+                                    >
+                                        <div className="font-medium">{category.name}</div>
+                                        <div className="text-sm text-gray-500">
+                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                </div>
+                                    </div>
+                                ))}
+                                </div>
+                                                            </div>
+                        
+                        {/* Danh sách sản phẩm theo category */}
+                        <div>
+                            <h3 className="font-semibold mb-3 text-gray-700">
+                                {selectedCategory ? `Sản phẩm - ${selectedCategory.name}` : 'Chọn danh mục để xem sản phẩm'}
+                            </h3>
+                            <div className="border rounded-lg max-h-80 overflow-y-auto">
+                                {selectedCategory ? (
+                                    categoryProducts.length > 0 ? (
+                                        categoryProducts.map((product) => (
+                                            <div
+                                                key={product.id}
+                                                onClick={() => handleSelectCategoryProduct(product)}
+                                                className="p-3 cursor-pointer border-b hover:bg-gray-50"
+                                            >
+                                                <div className="font-medium">{product.productName}</div>
+                                                <div className="text-sm text-gray-500">
+                                                    Mã: {product.productCode} | Tồn: {product.remainQuantity} | Giá: {formatCurrency(product.unitSalePrice)}
+                                                </div>
+                                                            </div>
+                                                    ))
+                                                ) : (
+                                        <div className="p-4 text-center text-gray-500">
+                                            Không có sản phẩm nào trong danh mục này
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="p-4 text-center text-gray-500">
+                                        Vui lòng chọn một danh mục
+                                </div>
+                                )}
+                            </div>
+                                                        </div>
+                                                    </div>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseCategoryDialog} color="primary">
+                        Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

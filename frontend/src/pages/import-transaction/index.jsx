@@ -1,15 +1,25 @@
-import React, {useState, useEffect} from "react";
-import {DataGrid} from "@mui/x-data-grid";
+import React, { useState, useEffect } from "react";
+import { DataGrid } from "@mui/x-data-grid";
 import {
     TextField, Button, Checkbox, FormControlLabel,
     FormControl, FormLabel, Accordion, AccordionSummary,
     AccordionDetails, Popover, Dialog, DialogTitle, DialogContent,
     Table, TableHead, TableRow, TableCell, TableBody,
-    Alert, CircularProgress
+    Alert, CircularProgress, Menu, MenuItem, ListItemIcon, ListItemText, Chip
 } from "@mui/material";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import {FaPlus, FaFileExport} from "react-icons/fa";
-import {DateRange} from "react-date-range";
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+// Không cần import FaPlus nữa vì đã dùng Material-UI icons
+import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import {
@@ -18,43 +28,43 @@ import {
     startOfYear, endOfYear
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
+import { getCustomerById } from "../../services/customerService";
+import { userService } from "../../services/userService";
+import { getStoreById } from "../../services/storeService";
 import ReplyIcon from '@mui/icons-material/Reply';
 import SaveIcon from '@mui/icons-material/Save';
 import ReplyAllIcon from '@mui/icons-material/ReplyAll';
 import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
+import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
+import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
+import { getZones } from '../../services/zoneService';
 
 const getRange = (key) => {
     const today = new Date();
     switch (key) {
-        case "today":
-            return [{startDate: today, endDate: today, key: 'selection'}];
+        case "today": return [{ startDate: today, endDate: today, key: 'selection' }];
         case "yesterday": {
             const y = subDays(today, 1);
-            return [{startDate: y, endDate: y, key: 'selection'}];
+            return [{ startDate: y, endDate: y, key: 'selection' }];
         }
-        case "this_week":
-            return [{startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection'}];
+        case "this_week": return [{ startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection' }];
         case "last_week": {
             const lastWeekStart = startOfWeek(subDays(today, 7));
             const lastWeekEnd = endOfWeek(subDays(today, 7));
-            return [{startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection'}];
+            return [{ startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection' }];
         }
-        case "this_month":
-            return [{startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection'}];
+        case "this_month": return [{ startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection' }];
         case "last_month": {
             const lastMonth = subDays(startOfMonth(today), 1);
-            return [{startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection'}];
+            return [{ startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection' }];
         }
-        case "this_quarter":
-            return [{startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection'}];
-        case "this_year":
-            return [{startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection'}];
-        default:
-            return [{startDate: today, endDate: today, key: 'selection'}];
+        case "this_quarter": return [{ startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection' }];
+        case "this_year": return [{ startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection' }];
+        default: return [{ startDate: today, endDate: today, key: 'selection' }];
     }
 };
 
@@ -92,15 +102,35 @@ const ImportTransactionPage = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [zones, setZones] = useState([]);
 
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [selectedDetails, setSelectedDetails] = useState([]);
+    const [actionAnchorEl, setActionAnchorEl] = useState(null);
+    const [actionRow, setActionRow] = useState(null);
+    const [supplierDetails, setSupplierDetails] = useState(null);
+    const [userDetails, setUserDetails] = useState(null);
+    const [storeDetails, setStoreDetails] = useState(null);
 
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
     // Thêm state cho thông báo lỗi khi mở phiếu
     const [openError, setOpenError] = useState(null);
+
+    // Auto-dismiss error/success messages
+    useEffect(() => {
+        if (error || success || openError || cancelError) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+                setOpenError(null);
+                setCancelError(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success, openError, cancelError]);
 
     // Load transactions from API
     const loadTransactions = async () => {
@@ -109,8 +139,11 @@ const ImportTransactionPage = () => {
         try {
             const data = await importTransactionService.listAll();
             setTransactions(data);
+            
+            // Load zones data
+            const zonesData = await getZones();
+            setZones(zonesData);
         } catch (err) {
-            console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu nhập hàng');
         } finally {
             setLoading(false);
@@ -143,7 +176,7 @@ const ImportTransactionPage = () => {
             const end = customDate[0].endDate;
             const importDate = t.importDate ? new Date(t.importDate) : null;
             if (importDate) {
-                if (importDate < new Date(start.setHours(0, 0, 0, 0)) || importDate > new Date(end.setHours(23, 59, 59, 999))) {
+                if (importDate < new Date(start.setHours(0,0,0,0)) || importDate > new Date(end.setHours(23,59,59,999))) {
                     return false;
                 }
             }
@@ -161,6 +194,12 @@ const ImportTransactionPage = () => {
         }
 
         return true;
+    });
+    // Sort by newest importDate first
+    filteredTransactions.sort((a, b) => {
+        const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+        const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+        return dateB - dateA;
     });
 
     const handlePresetChange = (key) => {
@@ -182,8 +221,39 @@ const ImportTransactionPage = () => {
     const handleViewDetail = async (row) => {
         try {
             const transaction = await importTransactionService.getWithDetails(row.id);
-            setSelectedTransaction(transaction); // Lưu toàn bộ object, bao gồm status
+            setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
+            
+            // Fetch thông tin supplier
+            if (transaction.supplierId) {
+                try {
+                    const supplier = await getCustomerById(transaction.supplierId);
+                    setSupplierDetails(supplier);
+                } catch (error) {
+                    setSupplierDetails(null);
+                }
+            }
+            
+            // Fetch thông tin user (người tạo)
+            if (transaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(transaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    setUserDetails(null);
+                }
+            }
+
+            // Fetch thông tin store
+            if (transaction.storeId) {
+                try {
+                    const store = await getStoreById(transaction.storeId);
+                    setStoreDetails(store);
+                } catch (error) {
+                    setStoreDetails(null);
+                }
+            }
+            
             setOpenDetailDialog(true);
         } catch (error) {
             console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
@@ -207,22 +277,218 @@ const ImportTransactionPage = () => {
     const handleOpenTransaction = async () => {
         if (!selectedTransaction?.id) return;
         setOpenError(null);
+        setLoading(true);
         try {
             await importTransactionService.openTransaction(selectedTransaction.id);
             setOpenDetailDialog(false);
             loadTransactions();
+            // Thêm thông báo thành công
+            setSuccess('Mở phiếu thành công!');
         } catch (err) {
             setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý đóng phiếu (quay về DRAFT)
+    const handleCloseTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.closeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Đóng phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hoàn thành phiếu
+    const handleCompleteTransaction = async () => {
+        if (!selectedTransaction?.id) return;
+        setOpenError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.completeTransaction(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hoàn thành phiếu thành công!');
+        } catch (err) {
+            setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý hủy phiếu từ dialog
+    const handleCancelTransactionFromDialog = async () => {
+        if (!selectedTransaction?.id) return;
+        setCancelError(null);
+        setLoading(true);
+        try {
+            await importTransactionService.updateStatus(selectedTransaction.id);
+            setOpenDetailDialog(false);
+            loadTransactions();
+            setSuccess('Hủy phiếu thành công!');
+        } catch (err) {
+            setCancelError('Không thể hủy phiếu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Hàm xử lý action menu
+    const handleActionClick = (event, row) => {
+        setActionAnchorEl(event.currentTarget);
+        setActionRow(row);
+    };
+
+    const handleActionClose = () => {
+        setActionAnchorEl(null);
+        setActionRow(null);
+    };
+
+    const handleViewDetailMenu = () => {
+        handleViewDetail(actionRow);
+        handleActionClose();
+    };
+
+    const handleOpenTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.openTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Mở phiếu thành công!');
+            } catch (err) {
+                setError('Không thể mở phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCloseTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.closeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Đóng phiếu thành công!');
+            } catch (err) {
+                setError('Không thể đóng phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.completeTransaction(actionRow.id);
+                loadTransactions();
+                setSuccess('Hoàn thành phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleCancelTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            try {
+                await importTransactionService.updateStatus(actionRow.id);
+                loadTransactions();
+                setSuccess('Hủy phiếu thành công!');
+            } catch (err) {
+                setError('Không thể hủy phiếu. Vui lòng thử lại!');
+            }
+        }
+        handleActionClose();
+    };
+
+    const handleEdit = () => {
+        // TODO: Thêm logic sửa
+        handleActionClose();
+    };
+
+    const handleDelete = () => {
+        // TODO: Thêm logic xóa
+        handleActionClose();
+    };
+
+    // Hàm xuất file tổng
+    const handleExportAll = () => {
+        try {
+            exportImportTransactions(filteredTransactions);
+        } catch (error) {
+            alert('Không thể xuất file. Vui lòng thử lại!');
+        }
+    };
+
+    // Hàm xuất file chi tiết
+    const handleExportDetail = () => {
+        try {
+            if (selectedTransaction && selectedDetails) {
+                exportImportTransactionDetail(selectedTransaction, selectedDetails, supplierDetails, userDetails);
+            }
+        } catch (error) {
+            alert('Không thể xuất file chi tiết. Vui lòng thử lại!');
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'WAITING_FOR_APPROVE': return '#f59e0b'; // Vàng
+            case 'COMPLETE': return '#10b981'; // Xanh lá
+            case 'CANCEL': return '#ef4444'; // Đỏ
+            case 'DRAFT': return '#6b7280'; // Đỏ
+            default: return '#6b7280'; // Mặc định
+        }
+    };
+
+    const getStatusLabel = (status) => {
+        switch (status) {
+            case 'WAITING_FOR_APPROVE': return 'Chờ xử lý';
+            case 'COMPLETE': return 'Đã hoàn thành';
+            case 'CANCEL': return 'Đã hủy';
+            case 'DRAFT': return 'Nháp';
+            default: return status;
         }
     };
 
 
     const columns = [
-        {field: 'id', headerName: 'ID', flex: 0.5},
-        {field: 'name', headerName: 'Tên phiếu nhập', flex: 1},
         {
-            field: 'importDate',
-            headerName: 'Thời gian',
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => {
+                // Try to use params.rowIndex (for newer DataGrid), fallback to indexOf in visibleRows
+                if (typeof params.rowIndex === 'number') {
+                    return params.rowIndex + 1;
+                }
+                // fallback: try to find index in filteredTransactions
+                if (params.id) {
+                    const idx = filteredTransactions.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            },
+        },
+        { field: 'name', headerName: 'Tên phiếu nhập', flex: 1 },
+        { 
+            field: 'importDate', 
+            headerName: 'Thời gian', 
             flex: 1,
             renderCell: (params) => {
                 if (params.value) {
@@ -231,10 +497,10 @@ const ImportTransactionPage = () => {
                 return '';
             }
         },
-        {field: 'supplierName', headerName: 'Nhà cung cấp', flex: 1},
+        { field: 'supplierName', headerName: 'Nhà cung cấp', flex: 1 },
         {
-            field: 'totalAmount',
-            headerName: 'Tổng tiền',
+            field: 'totalAmount', 
+            headerName: 'Tổng tiền', 
             flex: 1,
             renderCell: (params) => {
                 if (params.value) {
@@ -244,17 +510,40 @@ const ImportTransactionPage = () => {
             }
         },
         {
+            field: 'paidAmount',
+            headerName: 'Đã thanh toán',
+            flex: 1,
+            renderCell: (params) => {
+                const paid = params.value || 0;
+                const total = params.row.totalAmount || 0;
+                let color = '#6b7280'; // default gray
+                let label = paid.toLocaleString('vi-VN') + ' VNĐ';
+                
+                if (paid < total) {
+                    color = '#ef4444'; // đỏ nếu trả thiếu hoặc chưa trả
+                } else if (paid === total) {
+                    color = '#10b981'; // xanh nếu trả đủ
+                } else if (paid > total) {
+                    color = '#f59e42'; // cam nếu trả dư
+                }
+                
+                return (
+                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                );
+            }
+        },
+        {
             field: 'status',
             headerName: 'Trạng thái',
             flex: 1,
             renderCell: (params) => {
                 const statusMap = {
-                    'WAITING_FOR_APPROVE': {label: 'Chờ xử lý', color: '#f59e0b'},       // Vàng
-                    'COMPLETE': {label: 'Đã hoàn thành', color: '#10b981'}, // Xanh lá
-                    'CANCEL': {label: 'Đã hủy', color: '#ef4444'},   // Đỏ
-                    'DRAFT': {label: 'Nháp', color: '#6b7280'}   // Đỏ
+                    'WAITING_FOR_APPROVE': { label: 'Chờ xử lý', color: '#f59e0b' },       // Vàng
+                    'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' }, // Xanh lá
+                    'CANCEL': { label: 'Đã hủy', color: '#ef4444' },   // Đỏ
+                    'DRAFT': { label: 'Nháp', color: '#6b7280' }   // Đỏ
                 };
-                const status = statusMap[params.value] || {label: params.value, color: '#6b7280'};
+                const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
 
                 return (
                     <span
@@ -275,34 +564,47 @@ const ImportTransactionPage = () => {
         {
             field: 'actions',
             headerName: 'Hành động',
-            width: 130,
+            width: 80,
             renderCell: (params) => (
-                <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={(event) => {
-                        event.stopPropagation(); // ngăn click lan ra ngoài
-                        handleViewDetail(params.row);
-                    }}
-                >
-                    Chi tiết
-                </Button>
-
+                <>
+                    <Button
+                        size="small"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleActionClick(event, params.row);
+                        }}
+                        sx={{ minWidth: 0, p: 1 }}
+                    >
+                        <MoreHorizIcon />
+                    </Button>
+                </>
             )
         }
     ];
 
     return (
         <div className="w-full relative">
+            {error && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {error}
+                </Alert>
+            )}
+            {success && (
+                <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {success}
+                </Alert>
+            )}
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/import/new">
-                        <Button variant="contained" startIcon={<FaPlus/>} className="!bg-green-600 hover:!bg-green-700">
+                        <Button variant="contained" startIcon={<AddIcon />} className="!bg-green-600 hover:!bg-green-700">
                             Nhập hàng
                         </Button>
                     </Link>
-                    <Button variant="outlined" startIcon={<FaFileExport/>}>Xuất file</Button>
+                    <Button variant="outlined" startIcon={<TableChartIcon />} onClick={handleExportAll}>
+                        Xuất file
+                    </Button>
                 </div>
             </div>
 
@@ -336,24 +638,12 @@ const ImportTransactionPage = () => {
                                     </div>
                                 }
                             />
-                            <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => {
-                                setSelectedMode("custom");
-                                setAnchorEl(null);
-                                setShowDatePicker(true);
-                            }}/>} label={<div className="flex items-center justify-between w-full">
-                                <span>{customLabel}</span><Button size="small" onClick={() => {
-                                setSelectedMode("custom");
-                                setAnchorEl(null);
-                                setShowDatePicker(!showDatePicker);
-                            }}>📅</Button></div>}/>
+                            <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(true); }} />} label={<div className="flex items-center justify-between w-full"><span>{customLabel}</span><Button size="small" onClick={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(!showDatePicker); }}>📅</Button></div>} />
                         </div>
-                        <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)}
-                                 anchorOrigin={{vertical: "bottom", horizontal: "left"}}
-                                 transformOrigin={{vertical: "top", horizontal: "left"}}>
+                        <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
                             <div className="p-4 grid grid-cols-2 gap-2">
                                 {Object.entries(labelMap).map(([key, label]) => (
-                                    <Button key={key} size="small" variant="outlined"
-                                            onClick={() => handlePresetChange(key)}>{label}</Button>
+                                    <Button key={key} size="small" variant="outlined" onClick={() => handlePresetChange(key)}>{label}</Button>
                                 ))}
                             </div>
                         </Popover>
@@ -366,19 +656,13 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.draft}
-                                        onChange={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, draft: !prev.status.draft}
-                                        }))}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, draft: !prev.status.draft}
-                                        }))}
-                                        style={{cursor: 'pointer'}}
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         Nháp
                                     </span>
@@ -388,19 +672,13 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.waiting}
-                                        onChange={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, waiting: !prev.status.waiting}
-                                        }))}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, waiting: !prev.status.waiting}
-                                        }))}
-                                        style={{cursor: 'pointer'}}
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         Chờ xử lý
                                     </span>
@@ -410,19 +688,13 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.complete}
-                                        onChange={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, complete: !prev.status.complete}
-                                        }))}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, complete: !prev.status.complete}
-                                        }))}
-                                        style={{cursor: 'pointer'}}
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         Đã hoàn thành
                                     </span>
@@ -432,19 +704,13 @@ const ImportTransactionPage = () => {
                                 control={
                                     <Checkbox
                                         checked={filter.status.cancel}
-                                        onChange={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, cancel: !prev.status.cancel}
-                                        }))}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
                                     />
                                 }
                                 label={
                                     <span
-                                        onClick={() => setFilter(prev => ({
-                                            ...prev,
-                                            status: {...prev.status, cancel: !prev.status.cancel}
-                                        }))}
-                                        style={{cursor: 'pointer'}}
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         Đã huỷ
                                     </span>
@@ -454,34 +720,20 @@ const ImportTransactionPage = () => {
                     </div>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}><span
-                            className="font-semibold">Người tạo</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo"
-                                                     value={filter.creator}
-                                                     onChange={(e) => setFilter({...filter, creator: e.target.value})}/></AccordionDetails>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người tạo</span></AccordionSummary>
+                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo" value={filter.creator} onChange={(e) => setFilter({ ...filter, creator: e.target.value })} /></AccordionDetails>
                     </Accordion>
 
                     <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon/>}><span
-                            className="font-semibold">Người nhập</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập"
-                                                     value={filter.importer} onChange={(e) => setFilter({
-                            ...filter,
-                            importer: e.target.value
-                        })}/></AccordionDetails>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người nhập</span></AccordionSummary>
+                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập" value={filter.importer} onChange={(e) => setFilter({ ...filter, importer: e.target.value })} /></AccordionDetails>
                     </Accordion>
 
                     {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
-                            <div
-                                className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
-                                <DateRange editableDateInputs={true}
-                                           onChange={(item) => handleCustomChange(item.selection)}
-                                           moveRangeOnFirstSelection={false} ranges={customDate}
-                                           direction="horizontal"/>
-                                <div className="mt-2 text-right"><Button variant="contained" size="small"
-                                                                         onClick={() => setShowDatePicker(false)}>Áp
-                                    dụng</Button></div>
+                            <div className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
+                                <DateRange editableDateInputs={true} onChange={(item) => handleCustomChange(item.selection)} moveRangeOnFirstSelection={false} ranges={customDate} direction="horizontal" />
+                                <div className="mt-2 text-right"><Button variant="contained" size="small" onClick={() => setShowDatePicker(false)}>Áp dụng</Button></div>
                             </div>
                         </ClickAwayListener>
                     )}
@@ -489,30 +741,29 @@ const ImportTransactionPage = () => {
 
                 <div className="w-full lg:w-4/5">
                     <div className="mb-4 w-1/2">
-                        <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth
-                                   value={filter.search}
-                                   onChange={(e) => setFilter({...filter, search: e.target.value})}/>
+                        <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
                     </div>
-
+                    
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
                         </Alert>
                     )}
-
-                    <div style={{height: 500}} className="bg-white rounded shadow">
+                    
+                    <div style={{ height: 500 }} className="bg-white rounded shadow">
                         {loading ? (
                             <div className="flex justify-center items-center h-full">
-                                <CircularProgress/>
+                                <CircularProgress />
                             </div>
                         ) : (
                             <DataGrid
                                 rows={filteredTransactions}
                                 columns={columns}
-                                pageSize={10}
-                                rowsPerPageOptions={[10]}
+                                rowsPerPageOptions={[25, 50, 100]}
+                                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
                                 checkboxSelection
                                 disableSelectionOnClick
+                                getRowId={row => row.id}
                             />
                         )}
                     </div>
@@ -520,112 +771,116 @@ const ImportTransactionPage = () => {
             </div>
 
             {/* Chi tiết phiếu nhập */}
-            <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Chi tiết phiếu nhập: {selectedTransaction?.name}</DialogTitle>
-                <DialogContent>
-                    {selectedDetails.length > 0 ? (
-                        <>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Sản phẩm</TableCell>
-                                        <TableCell>SL nhập</TableCell>
-                                        <TableCell>SL còn</TableCell>
-                                        <TableCell>Giá nhập</TableCell>
-                                        <TableCell>Giá bán</TableCell>
-                                        <TableCell>HSD</TableCell>
-                                        <TableCell>Khu vực</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {selectedDetails.map((detail, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{detail.productName}</TableCell>
-                                            <TableCell>{detail.importQuantity}</TableCell>
-                                            <TableCell>{detail.remainQuantity}</TableCell>
-                                            <TableCell>{detail.unitImportPrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                            <TableCell>{detail.unitSalePrice?.toLocaleString("vi-VN")}₫</TableCell>
-                                            <TableCell>{new Date(detail.expireDate).toLocaleDateString("vi-VN")}</TableCell>
-                                            <TableCell>{detail.zones_id}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            {/* Tổng kết ngoài bảng */}
-                            <div style={{width: '100%', marginTop: 16, maxWidth: 250, marginLeft: 'auto'}}>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
-                                    <span style={{fontWeight: 700}}>Tổng số lượng:</span>
-                                    <span style={{
-                                        fontWeight: 700,
-                                        color: '#1976d2'
-                                    }}>{selectedDetails.reduce((sum, d) => sum + (d.importQuantity || 0), 0)}</span>
-                                </div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
-                                    <span style={{fontWeight: 700}}>Tổng số mặt hàng:</span>
-                                    <span style={{fontWeight: 700, color: '#1976d2'}}>{selectedDetails.length}</span>
-                                </div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
-                                    <span style={{fontWeight: 700}}>Tổng tiền hàng:</span>
-                                    <span style={{
-                                        fontWeight: 700,
-                                        color: '#1976d2'
-                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
-                                </div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
-                                    <span style={{fontWeight: 700}}>Tổng cộng:</span>
-                                    <span style={{
-                                        fontWeight: 700,
-                                        color: '#1976d2'
-                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
-                                </div>
-                                <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                                    <span style={{fontWeight: 700}}>Tiền đã trả NCC:</span>
-                                    <span style={{
-                                        fontWeight: 700,
-                                        color: '#1976d2'
-                                    }}>{selectedDetails.reduce((sum, d) => sum + ((d.unitImportPrice || 0) * (d.importQuantity || 0)), 0).toLocaleString('vi-VN')}</span>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <p>Không có dữ liệu chi tiết.</p>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    {selectedTransaction?.status === 'DRAFT' && (
-                        <Button
-                            variant="contained"
-                            color="success"
-                            startIcon={<ReplyIcon/>}
-                            onClick={handleOpenTransaction}
-                        >
-                            Mở phiếu
-                        </Button>
-                    )}
-                    <Button
-                        variant="contained"
-                        style={{background: '#6b7280', color: '#fff'}}
-                        startIcon={<PrintIcon/>}
-                        onClick={() => alert('In tem mã')}
-                    >
-                        In tem mã
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<CloseIcon/>}
-                        onClick={handleCancelTransaction}
-                    >
-                        Huỷ bỏ
-                    </Button>
-                </DialogActions>
-                {cancelError && (
-                    <Alert severity="error" className="mt-2">{cancelError}</Alert>
+            <ImportDetailDialog
+                open={openDetailDialog}
+                onClose={() => {
+                    setOpenDetailDialog(false);
+                    setSupplierDetails(null);
+                    setUserDetails(null);
+                    setStoreDetails(null);
+                    setCancelError(null);
+                    setOpenError(null);
+                }}
+                transaction={selectedTransaction}
+                details={selectedDetails}
+                formatCurrency={(v) => (v || 0).toLocaleString('vi-VN') + ' VNĐ'}
+                supplierDetails={supplierDetails}
+                userDetails={userDetails}
+                storeDetails={storeDetails}
+                onExport={handleExportDetail}
+                onOpenTransaction={handleOpenTransaction}
+                onCloseTransaction={handleCloseTransaction}
+                onCompleteTransaction={handleCompleteTransaction}
+                onCancelTransaction={handleCancelTransactionFromDialog}
+                loading={loading}
+                zones={zones}
+            />
+
+            {/* Hiển thị thông báo lỗi cho dialog */}
+            {cancelError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {cancelError}
+                </Alert>
+            )}
+            {openError && (
+                <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">
+                    {openError}
+                </Alert>
+            )}
+
+            {/* Action Menu */}
+            <Menu
+                anchorEl={actionAnchorEl}
+                open={Boolean(actionAnchorEl)}
+                onClose={handleActionClose}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <MenuItem onClick={handleViewDetailMenu}>
+                    <ListItemIcon>
+                        <VisibilityIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Xem chi tiết</ListItemText>
+                </MenuItem>
+                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleOpenTransactionMenu}>
+                        <ListItemIcon>
+                            <LockOpenIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Mở phiếu</ListItemText>
+                    </MenuItem>
                 )}
-                {openError && (
-                    <Alert severity="error" className="mt-2">{openError}</Alert>
+                
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCloseTransactionMenu}>
+                        <ListItemIcon>
+                            <SaveIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Đóng phiếu</ListItemText>
+                    </MenuItem>
                 )}
-            </Dialog>
+                
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCompleteTransactionMenu}>
+                        <ListItemIcon>
+                            <CheckIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hoàn thành</ListItemText>
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hủy phiếu" cho các trạng thái DRAFT và WAITING_FOR_APPROVE */}
+                {(actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') && (
+                    <MenuItem onClick={handleCancelTransactionMenu}>
+                        <ListItemIcon>
+                            <CancelIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Hủy phiếu</ListItemText>
+                    </MenuItem>
+                )}
+                
+                <MenuItem onClick={handleEdit}>
+                    <ListItemIcon>
+                        <EditIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Sửa</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleDelete}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Xóa</ListItemText>
+                </MenuItem>
+            </Menu>
 
         </div>
     );

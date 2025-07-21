@@ -1,13 +1,12 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.ProductDto;
+import com.farmovo.backend.dto.request.ProductRequestDto;
 import com.farmovo.backend.services.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -27,5 +26,21 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductNameById(id));
     }
 
-    // TODO: Implement create, update, delete product APIs
+    @PostMapping
+    public ResponseEntity<ProductDto> createProduct(@RequestBody ProductRequestDto productRequestDto) {
+        ProductDto createdProduct = productService.createProduct(productRequestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductDto> updateProduct(@PathVariable Long id, @RequestBody ProductRequestDto productRequestDto) {
+        ProductDto updatedProduct = productService.updateProduct(id, productRequestDto);
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
 }

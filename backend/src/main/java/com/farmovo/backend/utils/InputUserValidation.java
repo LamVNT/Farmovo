@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 public class InputUserValidation {
 
     // Validation cho tạo mới (tất cả trường bắt buộc)
-    public void validateUserFieldsForCreate(String fullName, String username, String password) {
+    public void validateUserFieldsForCreate(String fullName, String  username, String password) {
         if (fullName == null || fullName.trim().isEmpty() || fullName.length() > 50) {
             throw new IllegalArgumentException("Full name must be non-empty and not exceed 50 characters");
         }

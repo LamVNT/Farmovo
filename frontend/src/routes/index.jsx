@@ -31,6 +31,9 @@ import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import StockTakeDetailLinePage from "../pages/stocktake/DetailLine.jsx";
 import StocktakeLot from '../pages/import-detail/StocktakeLot';
+import CustomerManagementPage from "../pages/customer";
+import ForgotPassword from "../pages/ForgotPassword";
+import Store from "../pages/store/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -56,6 +59,14 @@ const router = createBrowserRouter([
         element: (
             <GuestRoute>
                 <Signup/>
+            </GuestRoute>
+        ),
+    },
+    {
+        path: "/forgot-password",
+        element: (
+            <GuestRoute>
+                <ForgotPassword />
             </GuestRoute>
         ),
     },
@@ -225,7 +236,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
-                    <UpdateStocktakePage/>
+                    <UpdateStocktakePage />
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -251,6 +262,26 @@ const router = createBrowserRouter([
     {
         path: "/reports/expiring-lots",
         element: <ExpiringLotsReport/>,
+    },
+    {
+        path: "/customers",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <CustomerManagementPage />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/store",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <Store />
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
 ]);
 

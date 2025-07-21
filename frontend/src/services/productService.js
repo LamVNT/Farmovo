@@ -8,8 +8,10 @@ export const productService = {
             const response = await axios.get(`${API_URL}`, {
                 withCredentials: true,
             });
+            console.log('ProductService - API response:', response.data);
             return response.data;
         } catch (error) {
+            console.error('ProductService - Error:', error);
             throw new Error(error.response?.data?.message || 'Không thể lấy danh sách sản phẩm');
         }
     },

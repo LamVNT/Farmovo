@@ -20,6 +20,8 @@ public interface ProductMapper {
     @Mapping(source = "category.categoryName", target = "categoryName")
     @Mapping(source = "store.id", target = "storeId")
     @Mapping(source = "store.storeName", target = "storeName")
+    @Mapping(source = "createdAt", target = "createdAt")
+    @Mapping(source = "updatedAt", target = "updatedAt")
     ProductDto toDto(Product product);
 
     List<ProductDto> toDtoList(List<Product> products);
@@ -32,9 +34,11 @@ public interface ProductMapper {
     @Mapping(source = "productQuantity", target = "remainQuantity")
     @Mapping(target = "unitSalePrice", constant = "0")
     @Mapping(target = "quantity", constant = "0")
+    @Mapping(target = "id", constant = "0L")
     ProductSaleResponseDto toDtoProSale(Product product);
 
     List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
+
 
     @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "proId")
@@ -42,6 +46,8 @@ public interface ProductMapper {
     @Mapping(source = "product.store.storeName", target = "storeName")
     ProductResponseDto toDto(ImportTransactionDetail detail);
 
+
+    @Mapping(source = "id", target = "id")
     @Mapping(source = "product.productName", target = "productName") // Lấy tên từ Product
     @Mapping(source = "product.id", target = "productCode") // Sử dụng productId làm productCode
     @Mapping(source = "product.id", target = "proId")
@@ -49,6 +55,10 @@ public interface ProductMapper {
     @Mapping(source = "product.store.storeName", target = "storeName")
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
+    @Mapping(source = "createdAt", target = "createAt")
+    @Mapping(source = "expireDate", target = "expireDate") // Thêm dòng này
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
+
+
 }
 

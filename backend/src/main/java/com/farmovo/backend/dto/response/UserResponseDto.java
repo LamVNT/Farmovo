@@ -18,6 +18,7 @@ public class UserResponseDto {
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
+    private Long storeId;
     private String storeName;
     private List<String> roles; // Thêm danh sách role
 }

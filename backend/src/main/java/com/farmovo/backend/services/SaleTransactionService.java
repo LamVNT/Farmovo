@@ -11,11 +11,20 @@ public interface SaleTransactionService {
 
     List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long id);
 
-    void save(CreateSaleTransactionRequestDto dto);
+    void save(CreateSaleTransactionRequestDto dto, Long userId);
 
     @Transactional
     void updateSaleTransaction(Long id, CreateSaleTransactionRequestDto dto);
 
     List<SaleTransactionResponseDto> getAll();
 
+    void cancel(Long id);
+
+    String getNextSaleTransactionCode();
+
+    void softDeleteSaleTransaction(Long id, Long userId);
+
+    SaleTransactionResponseDto getById(Long id);
+
+    void complete(Long id);
 }

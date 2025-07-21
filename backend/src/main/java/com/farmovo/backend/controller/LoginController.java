@@ -1,8 +1,9 @@
 package com.farmovo.backend.controller;
 
+import com.farmovo.backend.exceptions.ResourceNotFoundException;
+import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.dto.request.LoginRequest;
 import com.farmovo.backend.dto.response.LoginResponse;
-import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +26,14 @@ public class LoginController {
 
 
     @Autowired
+    private UserRepository userRepository;
+
+
+    @Autowired
     AuthenticationManager authenticationManager;
+
     @Autowired
     JwtUtils jwtUtils;
-    @Autowired
-    private UserRepository userRepository;
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticationUser(@RequestBody LoginRequest loginRequest) {
@@ -41,17 +45,24 @@ public class LoginController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+
+        ////////////////
+        User user = userRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
         String jwtToken = jwtUtils.generateTokenWithUserId(userDetails, user.getId());
+        ////////////////
+
+//        String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        // ✅ Xử lý thời gian sống của cookie
+        //Xử lý thời gian sống của cookie
         int expireTime = loginRequest.isRememberMe() ? 7 * 24 * 60 * 60 : -1; // 7 ngày hoặc session
 
-        // ✅ Tạo HttpOnly cookie
+        //Tạo HttpOnly cookie
         ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
                 .httpOnly(true)
                 .secure(false) // true nếu dùng HTTPS
@@ -61,7 +72,7 @@ public class LoginController {
                 .build();
 
         LoginResponse loginResponse = new LoginResponse(jwtToken, userDetails.getUsername(), roles);
-        // ✅ Trả về cookie + body JSON
+        // Trả về cookie + body JSON
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(loginResponse);
@@ -82,8 +93,8 @@ public class LoginController {
                 .body("Logged out successfully");
     }
 
-    @GetMapping("/admin/listuser")
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
-    }
+//    @GetMapping("/admin/listuser")
+//    public List<User> getAllUsers() {
+//        return userRepository.findAll();
+//    }
 }

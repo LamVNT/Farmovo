@@ -5,7 +5,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}`;
 export const userService = {
     getAllUsers: async () => {
         try {
-            const response = await axios.get(`${API_URL}/admin/userList`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/userList`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -16,7 +16,7 @@ export const userService = {
 
     getUserById: async (id) => {
         try {
-            const response = await axios.get(`${API_URL}/admin/${id}`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -27,7 +27,7 @@ export const userService = {
 
     getCurrentUser: async () => {
         try {
-            const response = await axios.get(`${API_URL}/staff/me`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/staff/me`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -38,7 +38,7 @@ export const userService = {
 
     createUser: async (userData) => {
         try {
-            const response = await axios.post(`${API_URL}/admin/createUser`, userData, {
+            const response = await axios.post(`${import.meta.env.VITE_API_URL}/admin/createUser`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -49,7 +49,7 @@ export const userService = {
 
     updateUser: async (id, userData) => {
         try {
-            const response = await axios.put(`${API_URL}/admin/${id}`, userData, {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/admin/${id}`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -60,7 +60,7 @@ export const userService = {
 
     updateCurrentUser: async (userData) => {
         try {
-            const response = await axios.put(`${API_URL}/staff/me`, userData, {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/staff/me`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -71,7 +71,7 @@ export const userService = {
 
     deleteUser: async (id) => {
         try {
-            await axios.delete(`${API_URL}/admin/${id}`, {
+            await axios.delete(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return true;
@@ -82,7 +82,7 @@ export const userService = {
 
     toggleUserStatus: async (id) => {
         try {
-            const response = await axios.patch(`${API_URL}/admin/${id}/toggle-status`, null, {
+            const response = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/${id}/toggle-status`, null, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -93,7 +93,7 @@ export const userService = {
 
     updateUserStatus: async (id, status) => {
         try {
-            const response = await axios.patch(`${API_URL}/admin/${id}/status`, {status}, {
+            const response = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/${id}/status`, { status }, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;

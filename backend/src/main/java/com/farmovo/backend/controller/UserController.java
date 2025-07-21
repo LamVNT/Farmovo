@@ -117,6 +117,7 @@ public class UserController {
                 .status(user.getStatus())
                 .createAt(user.getCreatedAt())
                 .updateAt(user.getUpdatedAt())
+                .storeId(user.getStore() != null ? user.getStore().getId() : null) // Thêm dòng này
                 .storeName(user.getStore() != null ? user.getStore().getStoreName() : null)
                 .roles(user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
                 .build();

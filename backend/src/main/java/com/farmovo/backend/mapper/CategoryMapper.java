@@ -10,7 +10,6 @@ import org.mapstruct.factory.Mappers;
 @Mapper
 public interface CategoryMapper {
     CategoryMapper INSTANCE = Mappers.getMapper(CategoryMapper.class);
-
     @Mapping(target = "categoryName", source = "name")
     @Mapping(target = "categoryDescription", source = "description")
     @Mapping(target = "createdAt", ignore = true)

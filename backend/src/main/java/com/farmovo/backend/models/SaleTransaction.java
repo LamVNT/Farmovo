@@ -21,6 +21,9 @@ public class SaleTransaction extends Base {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "name", unique = true, length = 20)
+    private String name;
+
     @Column(name = "total_amount")
     private BigDecimal totalAmount;
 

@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "zones")
 @Data
@@ -18,7 +20,7 @@ public class Zone extends Base {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "zone_name", length = 100, unique = true)
+    @Column(name = "zone_name", length = 100, unique = true, nullable = false)
     private String zoneName;
 
     @Column(name = "zone_description", length = 1000)

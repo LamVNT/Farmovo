@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     TextField,
     Button,
@@ -17,30 +17,40 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Chip,
+    TextField as MuiTextField,
+    Popover,
 } from '@mui/material';
-import {FaLock, FaCheck, FaSearch, FaEye} from 'react-icons/fa';
-import {MdKeyboardArrowDown, MdCategory} from 'react-icons/md';
-import {FiPlus} from 'react-icons/fi';
-import {DataGrid} from '@mui/x-data-grid';
-import {FaRegTrashCan} from "react-icons/fa6";
+import { FaSearch } from 'react-icons/fa';
+import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
+// Không cần import FiPlus nữa vì đã dùng Material-UI icons
+import AddIcon from '@mui/icons-material/Add';
+import { DataGrid } from '@mui/x-data-grid';
+import { FaRegTrashCan } from "react-icons/fa6";
+import LockIcon from '@mui/icons-material/Lock';
+import CheckIcon from '@mui/icons-material/Check';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import AddProductDialog from './AddProductDialog';
-import {DatePicker, LocalizationProvider} from '@mui/x-date-pickers';
-import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFns';
-import {vi} from 'date-fns/locale';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { vi } from 'date-fns/locale';
 
 import importTransactionService from '../../services/importTransactionService';
-import {productService} from '../../services/productService';
-import {customerService} from '../../services/customerService';
-import {userService} from '../../services/userService';
-import {getCategories} from '../../services/categoryService';
-import {getZones} from '../../services/zoneService';
-
+import { productService } from '../../services/productService';
+import { customerService } from '../../services/customerService';
+import { userService } from '../../services/userService';
+import { getCategories } from '../../services/categoryService';
+import { getZones } from '../../services/zoneService';
+import { getAllStores } from '../../services/storeService';
+import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
 const ImportPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false); // Thêm state này
+    const [activeIndex, setActiveIndex] = useState(-1); // Thêm state highlight dòng hover
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -64,9 +74,49 @@ const ImportPage = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [zones, setZones] = useState([]);
+    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+    const [summaryData, setSummaryData] = useState(null);
+    const [supplierDetails, setSupplierDetails] = useState(null);
+    const [storeDetails, setStoreDetails] = useState(null);
+    const [stores, setStores] = useState([]);
+    const [selectedStore, setSelectedStore] = useState('');
 
     const [nextImportCode, setNextImportCode] = useState('');
     const [note, setNote] = useState('');
+    const [paidAmount, setPaidAmount] = useState(0);
+    const [paidAmountInput, setPaidAmountInput] = useState('0');
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [highlightSupplier, setHighlightSupplier] = useState(false);
+    const [highlightStore, setHighlightStore] = useState(false);
+    const [highlightProducts, setHighlightProducts] = useState(false);
+    const [selectedCategoryProducts, setSelectedCategoryProducts] = useState([]); // Sản phẩm đã chọn trong dialog
+
+    const [supplierSearch, setSupplierSearch] = useState('');
+    const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
+    const [filteredSuppliers, setFilteredSuppliers] = useState([]);
+    const [storeSearch, setStoreSearch] = useState('');
+    const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+    const [filteredStores, setFilteredStores] = useState([]);
+    const [zoneSearch, setZoneSearch] = useState('');
+
+    const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
+    const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
+
+    const zoneSearchInputRef = useRef();
+
+    // Auto-dismiss error/success after 5s
+    useEffect(() => {
+        if (error || success) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+                setHighlightSupplier(false);
+                setHighlightStore(false);
+                setHighlightProducts(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -96,11 +146,14 @@ const ImportPage = () => {
                 const zonesData = await getZones();
                 setZones(zonesData);
 
+                // Load stores
+                const storesData = await getAllStores();
+                setStores(storesData);
+
                 // Lấy mã phiếu nhập tiếp theo
                 const code = await importTransactionService.getNextCode();
                 setNextImportCode(code);
             } catch (error) {
-                console.error('Failed to load data:', error);
                 setError('Không thể tải dữ liệu: ' + error.message);
             }
         };
@@ -108,28 +161,118 @@ const ImportPage = () => {
         loadData();
     }, []);
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Function để refresh products sau khi tạo mới
+    const refreshProducts = async () => {
+        try {
+            const productsData = await productService.getAllProducts();
+            setProducts(productsData);
+        } catch (error) {
+            console.error('Failed to refresh products:', error);
+        }
+    };
+
+    // Function để thêm product mới vào bảng
+    const handleAddNewProduct = (newProduct) => {
+        // Kiểm tra xem product đã có trong bảng chưa
+        if (!selectedProducts.find((p) => p.id === newProduct.id)) {
+            const price = 0; // Để user nhập vào
+            const quantity = 1;
+            const total = price * quantity;
+            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
+
+            setSelectedProducts((prev) => [
+                ...prev,
+                {
+                    id: newProduct.id,
+                    name: newProduct.name || newProduct.productName,
+                    unit: 'quả',
+                    price,
+                    quantity,
+                    total,
+                    productId: newProduct.id,
+                    salePrice: 0,
+                    zoneId: '',
+                    expireDate: defaultExpireDate,
+                },
+            ]);
+        }
+    };
+
+    // Cập nhật category products khi products thay đổi
+    useEffect(() => {
+        if (selectedCategory) {
+            const filteredProducts = products.filter(product => 
+                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
+            );
+            setCategoryProducts(filteredProducts);
+        }
+    }, [products, selectedCategory]);
+
+    // Cập nhật search results khi products hoặc searchTerm hoặc isSearchFocused thay đổi
+    useEffect(() => {
+        if (searchTerm.trim() !== '') {
+            // Ưu tiên lọc searchTerm nếu có nhập
+            const results = products.filter(
+                (p) => {
+                    const name = p.name || p.productName || '';
+                    const code = p.code || '';
+                    return (
+                        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        code.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                }
+            );
+            setFilteredProducts(results);
+        } else if (isSearchFocused) {
+            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên
+            setFilteredProducts(products.slice(0, 5));
+        } else {
+            // Không focus và không nhập thì không gợi ý gì
+            setFilteredProducts([]);
+        }
+    }, [products, searchTerm, isSearchFocused]);
+
+    // Cập nhật filteredSuppliers khi search hoặc focus
+    useEffect(() => {
+        if (supplierSearch.trim() !== '') {
+            setFilteredSuppliers(suppliers.filter(s => s.name?.toLowerCase().includes(supplierSearch.toLowerCase())));
+        } else if (supplierDropdownOpen) {
+            setFilteredSuppliers(suppliers.slice(0, 5));
+        } else {
+            setFilteredSuppliers([]);
+        }
+    }, [suppliers, supplierSearch, supplierDropdownOpen]);
+    // Cập nhật filteredStores khi search hoặc focus
+    useEffect(() => {
+        if (storeSearch.trim() !== '') {
+            setFilteredStores(stores.filter(s => s.name?.toLowerCase().includes(storeSearch.toLowerCase())));
+        } else if (storeDropdownOpen) {
+            setFilteredStores(stores.slice(0, 5));
+        } else {
+            setFilteredStores([]);
+        }
+    }, [stores, storeSearch, storeDropdownOpen]);
+
     const formatCurrency = (value) => {
         const number = Number(value);
         return !isNaN(number) ? number.toLocaleString('vi-VN') + ' VND' : '0 VND';
     };
 
     const toggleColumn = (col) => {
-        setColumnVisibility((prev) => ({...prev, [col]: !prev[col]}));
+        setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
     };
 
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
-        if (value.trim() === '') {
-            setFilteredProducts([]);
-        } else {
-            const results = products.filter(
-                (p) =>
-                    p.name?.toLowerCase().includes(value.toLowerCase()) ||
-                    p.code?.toLowerCase().includes(value.toLowerCase())
-            );
-            setFilteredProducts(results);
-        }
+        // Không cần setFilteredProducts ở đây nữa, đã xử lý trong useEffect
     };
 
     // Hàm xử lý thay đổi ngày hết hạn
@@ -143,7 +286,7 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) =>
                 p.id === id
-                    ? {...p, expireDate: formatted}
+                    ? { ...p, expireDate: formatted }
                     : p
             )
         );
@@ -156,8 +299,7 @@ const ImportPage = () => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
             const price = 0; // Để user nhập vào
             const quantity = 1;
-            const discount = 0;
-            const total = price * quantity - discount;
+            const total = price * quantity;
             const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
 
             setSelectedProducts((prev) => [
@@ -168,8 +310,6 @@ const ImportPage = () => {
                     unit: 'quả',
                     price,
                     quantity,
-                    discount: 0,
-                    discountType: 'amount',
                     total,
                     productId: product.id,
                     salePrice: 0,
@@ -180,6 +320,7 @@ const ImportPage = () => {
         }
         setSearchTerm('');
         setFilteredProducts([]);
+        setIsSearchFocused(false); // Ẩn gợi ý khi chọn
     };
 
     const handleQuantityChange = (id, delta) => {
@@ -189,6 +330,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, p.quantity + delta),
+                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
                     }
                     : p
             )
@@ -202,6 +344,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, newQuantity),
+                        total: (p.price || 0) * Math.max(1, newQuantity),
                     }
                     : p
             )
@@ -215,6 +358,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         price: newPrice,
+                        total: newPrice * (p.quantity || 0),
                     }
                     : p
             )
@@ -254,7 +398,7 @@ const ImportPage = () => {
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
         // Lọc sản phẩm theo category
-        const filteredProducts = products.filter(product =>
+        const filteredProducts = products.filter(product => 
             product.categoryId === category.id || product.category?.id === category.id
         );
         setCategoryProducts(filteredProducts);
@@ -265,14 +409,44 @@ const ImportPage = () => {
         // Không đóng dialog để có thể chọn thêm sản phẩm khác
     };
 
-    const handleZoneChange = (id, zoneId) => {
+    const handleToggleCategoryProduct = (productId) => {
+        setSelectedCategoryProducts((prev) =>
+            prev.includes(productId)
+                ? prev.filter((id) => id !== productId)
+                : [...prev, productId]
+        );
+    };
+
+    const handleAddSelectedProducts = () => {
+        const productsToAdd = categoryProducts.filter((p) => selectedCategoryProducts.includes(p.id));
+        productsToAdd.forEach((product) => handleSelectCategoryProduct(product));
+        setShowCategoryDialog(false);
+        setSelectedCategoryProducts([]);
+        setSelectedCategory(null);
+        setCategoryProducts([]);
+    };
+
+    // Sửa handleZoneChange để nhận mảng zoneIds
+    const handleZoneChange = (id, zoneIds) => {
         setSelectedProducts((prev) =>
             prev.map((p) =>
                 p.id === id
                     ? {
                         ...p,
-                        zoneId,
+                        zoneIds,
                     }
+                    : p
+            )
+        );
+        setZoneSearch(''); // reset search sau khi chọn
+    };
+
+    // Hàm bỏ chọn zone khỏi sản phẩm
+    const handleRemoveZone = (productId, zoneId) => {
+        setSelectedProducts((prev) =>
+            prev.map((p) =>
+                p.id === productId
+                    ? { ...p, zoneIds: (p.zoneIds || []).filter((zid) => zid !== zoneId) }
                     : p
             )
         );
@@ -304,10 +478,11 @@ const ImportPage = () => {
             const importData = {
                 name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: 1,
+                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
                 staffId: currentUser?.id || 1,
-                createdBy: currentUser?.id || 1,
                 importTransactionNote: note,
+                paidAmount: paidAmount,
+                createdBy: currentUser?.id, // Thêm dòng này
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -315,7 +490,7 @@ const ImportPage = () => {
                     expireDate: formatExpireDateForBackend(product.expireDate),
                     unitImportPrice: product.price,
                     unitSalePrice: product.salePrice,
-                    zones_id: product.zoneId || '',
+                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
                 })),
                 status: 'DRAFT',
             };
@@ -323,9 +498,10 @@ const ImportPage = () => {
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
             // setImportCode('');
         } catch (err) {
-            console.error('Error creating import transaction:', err);
             setError('Không thể tạo phiếu nhập hàng');
         } finally {
             setLoading(false);
@@ -351,10 +527,11 @@ const ImportPage = () => {
             const importData = {
                 name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: 1,
+                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
                 staffId: currentUser?.id || 1,
-                createdBy: currentUser?.id || 1,
                 importTransactionNote: note,
+                paidAmount: paidAmount,
+                createdBy: currentUser?.id, // Thêm dòng này
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -362,7 +539,7 @@ const ImportPage = () => {
                     expireDate: formatExpireDateForBackend(product.expireDate),
                     unitImportPrice: product.price,
                     unitSalePrice: product.salePrice,
-                    zones_id: product.zoneId || '',
+                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
                 })),
                 status: 'WAITING_FOR_APPROVE',
             };
@@ -370,9 +547,10 @@ const ImportPage = () => {
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
             // setImportCode('');
         } catch (err) {
-            console.error('Error creating import transaction:', err);
             setError('Không thể tạo phiếu nhập hàng');
         } finally {
             setLoading(false);
@@ -383,17 +561,17 @@ const ImportPage = () => {
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
     const columns = [
-        columnVisibility['STT'] && {field: 'id', headerName: 'STT', width: 80},
-        columnVisibility['Tên hàng'] && {field: 'name', headerName: 'Tên hàng', flex: 1},
-        columnVisibility['ĐVT'] && {field: 'unit', headerName: 'ĐVT', width: 80},
+        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
+        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
         columnVisibility['Số lượng'] && {
             field: 'quantity',
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full gap-1">
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, -1)}
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, -1); }} 
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         –
@@ -404,6 +582,7 @@ const ImportPage = () => {
                         variant="standard"
                         value={params.row.quantity || 1}
                         onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
+                        onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
                             '& .MuiInput-underline:before': {
@@ -423,8 +602,8 @@ const ImportPage = () => {
                             }
                         }}
                     />
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, 1)}
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, 1); }} 
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         +
@@ -436,14 +615,19 @@ const ImportPage = () => {
             field: 'price',
             headerName: 'Đơn giá',
             width: 150,
+            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
                     <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         variant="standard"
-                        value={params.row.price || 0}
-                        onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)}
+                        value={(params.row.price || 0).toLocaleString('vi-VN')}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '');
+                            handlePriceChange(params.row.id, Number(value) || 0);
+                        }}
+                        onClick={e => e.stopPropagation()}
                         InputProps={{
                             endAdornment: <span className="text-gray-500">VND</span>,
                         }}
@@ -458,12 +642,6 @@ const ImportPage = () => {
                             '& .MuiInput-underline:hover:before': {
                                 borderBottomColor: 'transparent',
                             },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
                         }}
                     />
                 </div>
@@ -473,14 +651,19 @@ const ImportPage = () => {
             field: 'salePrice',
             headerName: 'Giá bán',
             width: 150,
+            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
                     <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         variant="standard"
-                        value={params.row.salePrice || 0}
-                        onChange={(e) => handleSalePriceChange(params.row.id, Number(e.target.value) || 0)}
+                        value={(params.row.salePrice || 0).toLocaleString('vi-VN')}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '');
+                            handleSalePriceChange(params.row.id, Number(value) || 0);
+                        }}
+                        onClick={e => e.stopPropagation()}
                         InputProps={{
                             endAdornment: <span className="text-gray-500">VND</span>,
                         }}
@@ -495,12 +678,6 @@ const ImportPage = () => {
                             '& .MuiInput-underline:hover:before': {
                                 borderBottomColor: 'transparent',
                             },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
                         }}
                     />
                 </div>
@@ -510,61 +687,139 @@ const ImportPage = () => {
             field: 'total',
             headerName: 'Thành tiền',
             width: 150,
-            valueGetter: (params) => {
-                const row = params?.row ?? {};
-                return (row.price || 0) * (row.quantity || 0);
+            valueFormatter: (params) => formatCurrency(params.value || 0),
+            renderCell: (params) => {
+                const total = params.value || 0;
+                return (
+                    <div className="text-right w-full">
+                        {formatCurrency(total)}
+                    </div>
+                );
             },
-            valueFormatter: (params) => formatCurrency(params.value),
         },
         columnVisibility['Zone'] && {
-            field: 'zoneId',
+            field: 'zoneIds',
             headerName: 'Vị trí',
-            width: 120,
-            renderCell: (params) => (
-                <Select
-                    size="small"
-                    variant="standard"
-                    value={isValidValue(params.row.zoneId, zones) ? params.row.zoneId : ''}
-                    onChange={(e) => handleZoneChange(params.row.id, e.target.value)}
-                    displayEmpty
-                    sx={{
-                        width: '100%',
-                        minWidth: '80px',
-                        fontSize: '0.95rem',
-                        background: 'transparent',
-                        boxShadow: 'none',
-                        '& .MuiSelect-select': {
-                            padding: '4px 0 2px 0',
-                        },
-                        '& .MuiInput-underline:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                        '& .MuiInput-underline:after': {
-                            borderBottomColor: '#1976d2',
-                        },
-                        '& .MuiInput-underline:hover:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                    }}
-                >
-                    <MenuItem value=""><em>Chọn vị trí</em></MenuItem>
-                    {zones.map((zone) => (
-                        <MenuItem key={zone.id} value={zone.id}>{zone.name || zone.zoneName}</MenuItem>
-                    ))}
-                </Select>
-            ),
+            width: 260,
+            renderCell: (params) => {
+                const selectedZoneIds = Array.isArray(params.row.zoneIds) ? params.row.zoneIds : [];
+                return (
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', position: 'relative' }}>
+                        {/* Vùng chip */}
+                        <div style={{ display: 'flex', flex: 1, alignItems: 'center', minHeight: 36, gap: 4, position: 'relative' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', minHeight: 36, cursor: 'pointer', width: '100%' }}>
+                                {selectedZoneIds.length === 0 ? (
+                                    <em className="text-gray-400">Chọn vị trí</em>
+                                ) : (
+                                    <>
+                                        {selectedZoneIds.slice(0, 2).map((zoneId) => {
+                                            const zone = zones.find(z => z.id === zoneId);
+                                            return zone ? (
+                                                <Chip
+                                                    key={zoneId}
+                                                    label={zone.name || zone.zoneName}
+                                                    size="small"
+                                                    sx={{
+                                                        background: '#e3f0ff',
+                                                        color: '#1976d2',
+                                                        fontWeight: 600,
+                                                        borderRadius: 1.5,
+                                                        height: 24,
+                                                    }}
+                                                />
+                                            ) : null;
+                                        })}
+                                        {selectedZoneIds.length > 2 && (
+                                            <Chip
+                                                key={`more-${selectedZoneIds.length}`}
+                                                label={`+${selectedZoneIds.length - 2}`}
+                                                size="small"
+                                                sx={{ background: '#e3f0ff', color: '#1976d2', fontWeight: 600, borderRadius: 1.5, height: 24 }}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                            {/* Select chỉ phủ lên vùng chip */}
+                            <Select
+                                size="small"
+                                variant="standard"
+                                multiple
+                                value={selectedZoneIds}
+                                onChange={(e) => handleZoneChange(params.row.id, typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                displayEmpty
+                                renderValue={() => null}
+                                sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    minWidth: 180,
+                                    padding: 0,
+                                    background: 'transparent',
+                                    '& .MuiSelect-select': { padding: 0, height: '100%' },
+                                    '& .MuiInput-underline:before': { borderBottomColor: '#bcd0ee', borderBottomWidth: 2 },
+                                    '& .MuiInput-underline:after': { borderBottomColor: '#1976d2', borderBottomWidth: 2 },
+                                    '& .MuiInput-underline:hover:before': { borderBottomColor: '#1976d2' },
+                                    '& .MuiSelect-icon': {
+                                        right: 8,
+                                        position: 'absolute',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        pointerEvents: 'auto',
+                                    },
+                                    zIndex: 1,
+                                    cursor: 'pointer',
+                                }}
+                                MenuProps={{
+                                    PaperProps: {
+                                        style: {
+                                            maxHeight: 320,
+                                            minWidth: 220,
+                                            borderRadius: 12,
+                                            boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)',
+                                            padding: 12,
+                                        },
+                                        sx: {
+                                            '& .MuiMenu-list': {
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                                gap: 1,
+                                            },
+                                        },
+                                    },
+                                }}
+                            >
+                                {zones.map((zone) => (
+                                    <MenuItem key={zone.id} value={zone.id} style={{ borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px' }}>
+                                        <Checkbox checked={selectedZoneIds.includes(zone.id)} color="primary" size="small" style={{ padding: 2 }} onClick={e => e.stopPropagation()} />
+                                        <span className="font-medium text-xs truncate">{zone.name || zone.zoneName}</span>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </div>
+                        {/* Icon con mắt nằm ngoài vùng Select, luôn bấm được */}
+                        <IconButton size="small" style={{ marginLeft: 8, color: '#1976d2', zIndex: 2 }} onClick={e => { e.stopPropagation(); setZonePopoverAnchor(e.currentTarget); setZonePopoverProductId(params.row.id); }}>
+                            <VisibilityIcon />
+                        </IconButton>
+                    </div>
+                );
+            },
         },
         {
             field: 'expireDate',
             headerName: 'Ngày hết hạn',
             width: 170,
             renderCell: (params) => (
-                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%'}}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
                         <DatePicker
                             format="dd/MM/yyyy"
                             value={params.row.expireDate ? new Date(params.row.expireDate) : null}
                             onChange={(date) => handleExpireDateChange(params.row.id, date)}
+                            onClick={e => e.stopPropagation()}
                             slotProps={{
                                 textField: {
                                     variant: 'standard',
@@ -586,7 +841,7 @@ const ImportPage = () => {
                                             borderBottomColor: 'transparent',
                                         },
                                     },
-                                    inputProps: {style: {textAlign: 'center'}},
+                                    inputProps: { style: { textAlign: 'center' } },
                                 }
                             }}
                         />
@@ -600,22 +855,116 @@ const ImportPage = () => {
             width: 60,
             renderCell: (params) => (
                 <Tooltip title="Xóa">
-                    <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
-                        <FaRegTrashCan/>
+                    <IconButton size="small" onClick={e => { e.stopPropagation(); handleDeleteProduct(params.row.id); }}>
+                        <FaRegTrashCan />
                     </IconButton>
                 </Tooltip>
             ),
         },
     ].filter(Boolean);
 
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0);
+    // Hàm lấy chi tiết nhà cung cấp
+    const fetchSupplierDetails = async (supplierId) => {
+        if (!supplierId) return null;
+        try {
+            const supplier = await customerService.getCustomerById(supplierId);
+            setSupplierDetails(supplier);
+        } catch (error) {
+            setSupplierDetails(null);
+        }
+    };
+    // Hàm lấy chi tiết cửa hàng (nếu cần)
+    const fetchStoreDetails = async (storeId) => {
+        // Nếu có nhiều store, implement lấy chi tiết ở đây
+        setStoreDetails(null); // placeholder
+    };
 
+    // Tổng tiền hàng
+    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+
+    // Xử lý mở dialog tổng kết
+    const handleShowSummary = async (status) => {
+        let missing = false;
+        if (!selectedSupplier) {
+            setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            missing = true;
+        } else {
+            setHighlightSupplier(false);
+        }
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
+            missing = true;
+        } else {
+            setHighlightStore(false);
+        }
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
+            missing = true;
+        } else {
+            setHighlightProducts(false);
+        }
+        if (missing) return;
+        await fetchSupplierDetails(selectedSupplier);
+        setSummaryData({
+            importCode: nextImportCode, // Thêm mã phiếu nhập vào summary
+            supplier: suppliers.find(s => s.id === selectedSupplier) || {},
+            store: stores.find(s => s.id === selectedStore) || {}, // Use selectedStore
+            products: selectedProducts,
+            totalAmount,
+            paidAmount,
+            note,
+            importDate: new Date(),
+            status,
+        });
+        setShowSummaryDialog(true);
+    };
+
+    // Xác nhận lưu phiếu nhập
+    const handleConfirmSummary = async () => {
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const importData = {
+                name: nextImportCode,
+                supplierId: selectedSupplier,
+                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
+                staffId: currentUser?.id || 1,
+                importTransactionNote: note,
+                paidAmount: paidAmount,
+                createdBy: currentUser?.id, // Thêm dòng này
+                details: selectedProducts.map(product => ({
+                    productId: product.productId,
+                    importQuantity: product.quantity,
+                    remainQuantity: product.quantity,
+                    expireDate: formatExpireDateForBackend(product.expireDate),
+                    unitImportPrice: product.price,
+                    unitSalePrice: product.salePrice,
+                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
+                })),
+                status: summaryData.status,
+            };
+            await importTransactionService.create(importData);
+            setSuccess('Tạo phiếu nhập hàng thành công!');
+            setSelectedProducts([]);
+            setPaidAmount(0);
+            setNote('');
+            setShowSummaryDialog(false);
+            setSummaryData(null);
+        } catch (err) {
+            setError('Không thể tạo phiếu nhập hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
     return (
         <div className="flex w-full h-screen bg-gray-100">
-            {error && <Alert severity="error"
-                             className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{error}</Alert>}
-            {success && <Alert severity="success"
-                               className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{success}</Alert>}
+            {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
+            {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
                 <div className="flex justify-between items-center mb-2">
@@ -626,51 +975,87 @@ const ImportPage = () => {
                             placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
                             value={searchTerm}
                             onChange={handleSearchChange}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
+                            variant="outlined"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500"/>
+                                        <FaSearch className="text-gray-500" />
                                     </InputAdornment>
                                 ),
                             }}
+                            sx={{
+                                background: '#fff',
+                                borderRadius: 2,
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    boxShadow: 'none',
+                                    '& fieldset': {
+                                        borderColor: '#bcd0ee',
+                                        borderWidth: 2,
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: '#1976d2',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#1976d2',
+                                        boxShadow: '0 0 0 2px #e3f0ff',
+                                    },
+                                },
+                                '& input': {
+                                    fontWeight: 500,
+                                    fontSize: '1rem',
+                                },
+                            }}
                         />
-                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory/></IconButton></Tooltip>
-                        <Tooltip title="Tạo mới hàng hóa"><IconButton
-                            onClick={() => setOpenDialog(true)}><FiPlus/></IconButton></Tooltip>
-                        {searchTerm.trim() !== '' && filteredProducts.length > 0 && (
-                            <div
-                                className="absolute top-full mt-1 left-0 z-10 bg-white border shadow-md rounded w-full max-h-60 overflow-y-auto text-sm">
-                                {filteredProducts.map((product, index) => (
-                                    <div
-                                        key={index}
-                                        onClick={() => handleSelectProduct(product)}
-                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                    >
-                                        <div className="font-medium">{product.name || product.productName}</div>
-                                        <div className="text-xs text-gray-500">quả</div>
-                                    </div>
-                                ))}
+                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
+                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
+                        {(isSearchFocused || searchTerm.trim() !== '') && (
+                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
+                                {filteredProducts.length > 0 ? (
+                                    filteredProducts.map((product, index) => (
+                                        <div
+                                            key={product.id || index}
+                                            onClick={() => handleSelectProduct(product)}
+                                            onMouseEnter={() => setActiveIndex(index)}
+                                            onMouseLeave={() => setActiveIndex(-1)}
+                                            className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
+                                                ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
+                                            `}
+                                        >
+                                            <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                            {product.code && (
+                                                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">#{product.code}</span>
+                                            )}
+                                            <span className="ml-2 text-xs text-gray-500">quả</span>
+                                            {product.price && (
+                                                <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
-                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><FaEye/></IconButton>
+                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><VisibilityIcon /></IconButton>
                         </Tooltip>
                         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                             {Object.entries(columnVisibility).map(([col, visible]) => (
                                 <MenuItem key={col} dense>
-                                    <MuiFormControlLabel
-                                        control={<Checkbox checked={visible} onChange={() => toggleColumn(col)}/>}
-                                        label={col}/>
+                                    <MuiFormControlLabel control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} label={col} />
                                 </MenuItem>
                             ))}
                         </Menu>
                     </div>
                 </div>
 
-                <div style={{height: 400, width: '100%'}}>
+                <div style={{ height: 400, width: '100%' }}>
                     <DataGrid
                         rows={selectedProducts}
                         columns={columns}
@@ -678,6 +1063,7 @@ const ImportPage = () => {
                         rowsPerPageOptions={[5]}
                         disableSelectionOnClick
                         getRowId={(row) => row.id}
+                        sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
                     />
                 </div>
             </div>
@@ -685,163 +1071,265 @@ const ImportPage = () => {
             <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <span
-                            className="text-sm font-medium">👤 {currentUser?.name || currentUser?.username || 'Đang tải...'}</span>
+                        <span className="text-sm font-medium">👤 {currentUser?.name || currentUser?.username || 'Đang tải...'}</span>
                     </div>
-                    <span className="text-xs text-gray-500">{new Date().toLocaleString('vi-VN')}</span>
+                    <span className="text-xs text-gray-500">{currentTime.toLocaleString('vi-VN')}</span>
                 </div>
 
-                <div>
-                    <div className="font-semibold mb-1">Nhà cung cấp</div>
-                    <Select
-                        size="small"
-                        fullWidth
-                        displayEmpty
-                        value={isValidValue(selectedSupplier, suppliers) ? selectedSupplier : ''}
-                        onChange={(e) => setSelectedSupplier(e.target.value)}
-                        renderValue={(selected) =>
-                            selected && suppliers.find((s) => String(s.id) === String(selected))
-                                ? suppliers.find((s) => String(s.id) === String(selected)).name
-                                : 'Chọn nhà cung cấp'
-                        }
-                    >
-                        {suppliers.map((supplier) => (
-                            <MenuItem key={supplier.id} value={supplier.id}>🏬 {supplier.name}</MenuItem>
-                        ))}
-                    </Select>
-                </div>
-
+                {/* Mã phiếu nhập lên trên cùng */}
                 <div>
                     <div className="font-semibold mb-1">Mã phiếu nhập</div>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="Nhập mã phiếu"
-                        value={nextImportCode}
-                        InputProps={{readOnly: true}}
-                        variant="standard"
-                        sx={{
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            }
-                        }}
-                    />
-
+                    <span className="text-base font-medium">{nextImportCode}</span>
                 </div>
 
-                <div className="font-semibold">Trạng thái</div>
-                <FormControlLabel control={<Checkbox checked/>} label="Phiếu tạm"/>
+                {/* Nhà cung cấp */}
+                <div>
+                    <div className="font-semibold mb-1">Nhà cung cấp</div>
+                    <div className="relative">
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Tìm nhà cung cấp..."
+                            value={supplierSearch || (suppliers.find(s => String(s.id) === String(selectedSupplier))?.name || '')}
+                            onChange={e => {
+                                setSupplierSearch(e.target.value);
+                                setSelectedSupplier('');
+                            }}
+                            onFocus={() => setSupplierDropdownOpen(true)}
+                            onBlur={() => setTimeout(() => setSupplierDropdownOpen(false), 150)}
+                            variant="outlined"
+                            error={highlightSupplier}
+                            sx={highlightSupplier ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        />
+                        {(supplierDropdownOpen || supplierSearch.trim() !== '') && filteredSuppliers.length > 0 && (
+                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">
+                                {filteredSuppliers.map((supplier) => (
+                                    <div
+                                        key={supplier.id}
+                                        onClick={() => {
+                                            setSelectedSupplier(supplier.id);
+                                            setSupplierSearch(''); // reset search để input lấy tên từ selectedSupplier
+                                            setSupplierDropdownOpen(false);
+                                        }}
+                                        className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedSupplier) === String(supplier.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
+                                    >
+                                        <span className="font-medium truncate max-w-[180px]">{supplier.name}</span>
+                                        {supplier.address && (
+                                            <span className="text-xs text-gray-400 truncate max-w-[260px]">{supplier.address}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* Cửa hàng */}
+                <div>
+                    <div className="font-semibold mb-1">Cửa hàng</div>
+                    <div className="relative">
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Tìm cửa hàng..."
+                            value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || '')}
+                            onChange={e => {
+                                setStoreSearch(e.target.value);
+                                setSelectedStore('');
+                            }}
+                            onFocus={() => setStoreDropdownOpen(true)}
+                            onBlur={() => setTimeout(() => setStoreDropdownOpen(false), 150)}
+                            variant="outlined"
+                            error={highlightStore}
+                            sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        />
+                        {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
+                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">
+                                {filteredStores.map((store) => (
+                                    <div
+                                        key={store.id}
+                                        onClick={() => {
+                                            setSelectedStore(store.id);
+                                            setStoreSearch(''); // reset search để input lấy tên từ selectedStore
+                                            setStoreDropdownOpen(false);
+                                        }}
+                                        className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedStore) === String(store.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
+                                    >
+                                        <span className="font-medium truncate max-w-[180px]">{store.name}</span>
+                                        {store.address && (
+                                            <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.address}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="font-semibold mb-1">Ghi chú</div>
+                    <TextField
+                        multiline
+                        rows={2}
+                        placeholder="Nhập ghi chú"
+                        fullWidth
+                        variant="outlined"
+                        size="small"
+                        value={note}
+                        onChange={e => setNote(e.target.value)}
+                    />
+                </div>
 
                 <div className="flex justify-between items-center">
                     <div className="font-semibold">Tổng tiền hàng</div>
                     <div className="text-right w-32">{formatCurrency(totalAmount)}</div>
                 </div>
 
-                <TextField
-                    multiline
-                    rows={2}
-                    placeholder="Ghi chú"
-                    fullWidth
-                    variant="standard"
-                    size="small"
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    sx={{
-                        '& .MuiInput-underline:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                        '& .MuiInput-underline:after': {
-                            borderBottomColor: '#1976d2',
-                        },
-                        '& .MuiInput-underline:hover:before': {
-                            borderBottomColor: 'transparent',
-                        }
-                    }}
-                />
+                <div>
+                    <div className="font-semibold mb-1">Số tiền đã trả</div>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        type="number"
+                        placeholder="Nhập số tiền đã trả"
+                        value={paidAmountInput}
+                        onFocus={e => {
+                            if (paidAmountInput === '0') setPaidAmountInput('');
+                        }}
+                        onBlur={e => {
+                            if (paidAmountInput === '' || isNaN(Number(paidAmountInput))) {
+                                setPaidAmountInput('0');
+                                setPaidAmount(0);
+                            } else {
+                                setPaidAmount(Number(paidAmountInput));
+                            }
+                        }}
+                        onChange={e => {
+                            const val = e.target.value;
+                            // Allow empty string for controlled input
+                            if (/^\d*$/.test(val)) {
+                                setPaidAmountInput(val);
+                            }
+                        }}
+                        InputProps={{
+                            endAdornment: <span className="text-gray-500">VND</span>,
+                        }}
+                        variant="outlined"
+                    />
+                </div>
 
+                {paidAmount > 0 && (
+                    <div className="flex justify-between items-center">
+                        <div className="font-semibold">Còn lại</div>
+                        <div className={`text-right w-32 ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatCurrency(totalAmount - paidAmount)}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-2">
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => setPaidAmount(0)}
+                        disabled={paidAmount === 0}
+                    >
+                        Chưa trả
+                    </Button>
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => setPaidAmount(totalAmount)}
+                        disabled={paidAmount === totalAmount}
+                    >
+                        Trả đủ
+                    </Button>
+                </div>
 
                 <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white"
-                            startIcon={loading ? <CircularProgress size={16} color="inherit"/> : <FaLock/>}
-                            onClick={handleSaveDraft} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white"
-                            startIcon={loading ? <CircularProgress size={16} color="inherit"/> : <FaCheck/>}
-                            onClick={handleComplete} disabled={loading}>Hoàn thành</Button>
+                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} onClick={() => handleShowSummary('DRAFT')} disabled={loading}>Lưu tạm</Button>
+                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} onClick={() => handleShowSummary('WAITING_FOR_APPROVE')} disabled={loading}>Hoàn thành</Button>
                 </div>
             </div>
 
-            <AddProductDialog open={openDialog} onClose={() => setOpenDialog(false)}/>
+            <AddProductDialog 
+                open={openDialog} 
+                onClose={() => setOpenDialog(false)} 
+                onProductCreated={refreshProducts}
+                onProductAdded={handleAddNewProduct}
+            />
 
             {/* Category Dialog */}
-            <Dialog
-                open={showCategoryDialog}
+            <Dialog 
+                open={showCategoryDialog} 
                 onClose={handleCloseCategoryDialog}
                 maxWidth="md"
                 fullWidth
             >
-                <DialogTitle className="flex justify-between items-center">
+                <DialogTitle className="flex justify-between items-center text-xl font-bold text-blue-700 border-b border-blue-100 pb-2">
                     <span>Thêm từ nhóm hàng</span>
                     <IconButton onClick={handleCloseCategoryDialog} size="small">
                         <span>×</span>
                     </IconButton>
                 </DialogTitle>
                 <DialogContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-6">
                         {/* Danh sách Category */}
                         <div>
-                            <h3 className="font-semibold mb-3 text-gray-700">Danh mục sản phẩm</h3>
-                            <div className="border rounded-lg max-h-80 overflow-y-auto">
-                                {categories.map((category) => (
-                                    <div
-                                        key={category.id}
-                                        onClick={() => handleSelectCategory(category)}
-                                        className={`p-3 cursor-pointer border-b hover:bg-gray-50 ${
-                                            selectedCategory?.id === category.id ? 'bg-blue-50 border-blue-200' : ''
-                                        }`}
-                                    >
-                                        <div className="font-medium">{category.name}</div>
-                                        <div className="text-sm text-gray-500">
-                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản
-                                            phẩm
+                            <h3 className="font-semibold mb-3 text-blue-600 text-lg">Danh mục sản phẩm</h3>
+                            <div className="border border-blue-100 rounded-2xl shadow-sm max-h-60 overflow-y-auto bg-white divide-y divide-blue-50">
+                                {categories.length > 0 ? (
+                                    categories.map((category) => (
+                                        <div
+                                            key={category.id}
+                                            onClick={() => {
+                                                handleSelectCategory(category);
+                                                setSelectedCategoryProducts([]);
+                                            }}
+                                            className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-150 rounded-xl m-2
+                                                ${selectedCategory?.id === category.id ? 'bg-blue-50 border border-blue-400 font-bold text-blue-800 shadow' : 'hover:bg-blue-50'}
+                                            `}
+                                        >
+                                            <div className="font-medium text-base">{category.name}</div>
+                                            <div className="text-sm text-gray-500 font-semibold bg-blue-100 rounded-full px-3 py-1 ml-2">
+                                                {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                ) : (
+                                    <div className="p-6 text-center text-gray-400">Không có danh mục nào</div>
+                                )}
                             </div>
                         </div>
 
                         {/* Danh sách sản phẩm theo category */}
                         <div>
-                            <h3 className="font-semibold mb-3 text-gray-700">
+                            <h3 className="font-semibold mb-3 text-green-700 text-lg">
                                 {selectedCategory ? `Sản phẩm - ${selectedCategory.name}` : 'Chọn danh mục để xem sản phẩm'}
                             </h3>
-                            <div className="border rounded-lg max-h-80 overflow-y-auto">
+                            <div className="border border-green-100 rounded-2xl shadow-sm max-h-60 overflow-y-auto bg-white divide-y divide-green-50">
                                 {selectedCategory ? (
                                     categoryProducts.length > 0 ? (
                                         categoryProducts.map((product) => (
                                             <div
                                                 key={product.id}
-                                                onClick={() => handleSelectCategoryProduct(product)}
-                                                className="p-3 cursor-pointer border-b hover:bg-gray-50"
+                                                onClick={() => handleToggleCategoryProduct(product.id)}
+                                                className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-150 rounded-xl m-2 font-semibold
+                                                    hover:bg-green-50
+                                                    ${selectedCategoryProducts.includes(product.id) ? 'bg-green-100/60 border border-green-400 text-green-900 font-bold shadow' : ''}
+                                                `}
                                             >
-                                                <div className="font-medium">{product.name || product.productName}</div>
-                                                <div className="text-sm text-gray-500">quả</div>
+                                                <span className="font-medium text-base">{product.name || product.productName}</span>
+                                                <div className="text-xs text-gray-400 ml-2">quả</div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-4 text-center text-gray-500">
-                                            Không có sản phẩm nào trong danh mục này
+                                        <div className="p-6 text-center text-gray-400 flex flex-col items-center gap-2">
+                                            <span className="text-3xl">😕</span>
+                                            <span>Không có sản phẩm nào trong danh mục này</span>
                                         </div>
                                     )
                                 ) : (
-                                    <div className="p-4 text-center text-gray-500">
-                                        Vui lòng chọn một danh mục
-                                    </div>
+                                    <div className="p-6 text-center text-gray-400">Vui lòng chọn một danh mục</div>
                                 )}
                             </div>
                         </div>
@@ -851,8 +1339,61 @@ const ImportPage = () => {
                     <Button onClick={handleCloseCategoryDialog} color="primary">
                         Đóng
                     </Button>
+                    <Button onClick={handleAddSelectedProducts} color="success" variant="contained" disabled={selectedCategoryProducts.length === 0}>
+                        Thêm ({selectedCategoryProducts.length})
+                    </Button>
                 </DialogActions>
             </Dialog>
+
+            <ImportSummaryDialog
+                open={showSummaryDialog}
+                onClose={() => setShowSummaryDialog(false)}
+                onConfirm={handleConfirmSummary}
+                importData={summaryData}
+                formatCurrency={formatCurrency}
+                loading={loading}
+                currentUser={currentUser}
+                supplierDetails={supplierDetails}
+                storeDetails={storeDetails}
+            />
+
+            {/* Popup xem tất cả zone đã chọn */}
+            <Popover
+                open={Boolean(zonePopoverAnchor)}
+                anchorEl={zonePopoverAnchor}
+                onClose={() => { setZonePopoverAnchor(null); setZonePopoverProductId(null); }}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{ sx: { p: 2, minWidth: 260, maxWidth: 400, maxHeight: 300, overflowY: 'auto', borderRadius: 3 } }}
+            >
+                <div className="font-semibold mb-2 text-blue-700">Vị trí đã chọn</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {(() => {
+                        const product = selectedProducts.find(p => p.id === zonePopoverProductId);
+                        if (!product || !Array.isArray(product.zoneIds) || product.zoneIds.length === 0) {
+                            return <span className="text-gray-400">Chưa chọn vị trí nào</span>;
+                        }
+                        return product.zoneIds.map(zoneId => {
+                            const zone = zones.find(z => z.id === zoneId);
+                            return zone ? (
+                                <Chip
+                                    key={zoneId}
+                                    label={zone.name || zone.zoneName}
+                                    size="small"
+                                    onDelete={() => handleRemoveZone(product.id, zoneId)}
+                                    sx={{
+                                        background: '#e3f0ff',
+                                        color: '#1976d2',
+                                        fontWeight: 600,
+                                        borderRadius: 1.5,
+                                        height: 24,
+                                    }}
+                                />
+                            ) : null;
+                        });
+                    })()}
+                </div>
+            </Popover>
         </div>
     );
 };
