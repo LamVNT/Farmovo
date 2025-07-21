@@ -1,5 +1,6 @@
 package com.farmovo.backend.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,6 +10,8 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true) // 👈 Thêm dòng này
+
 public class ProductSaleResponseDto {
     private Long id; // importtransactiondetailID
     private Long proId;
