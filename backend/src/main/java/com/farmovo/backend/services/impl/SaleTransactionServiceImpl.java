@@ -241,8 +241,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setStatus(com.farmovo.backend.models.SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
 
-
-
         BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
         BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
@@ -259,9 +257,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             );
             log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
         }
-
-
-
     }
 
     @Transactional(rollbackFor = Exception.class)

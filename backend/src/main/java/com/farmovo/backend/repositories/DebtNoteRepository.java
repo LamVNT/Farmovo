@@ -12,18 +12,24 @@ import java.math.BigDecimal;
 
 @Repository
 public interface DebtNoteRepository extends JpaRepository<DebtNote, Long> {
+
+    // Query riêng cho import (debtType = '+', tính tăng nợ)
     @Query("""
-        SELECT COALESCE(SUM(
-            CASE
-                WHEN d.debtType = '+' THEN COALESCE(d.debtAmount, 0.0)
-                WHEN d.debtType = '-' THEN -COALESCE(d.debtAmount, 0.0)
-                ELSE 0.0
-            END
-        ), 0.0)
+        SELECT COALESCE(SUM(COALESCE(d.debtAmount, 0.0)), 0.0)
         FROM DebtNote d
-        WHERE d.customer.id = :customerId AND d.deletedAt IS NULL
+        WHERE d.customer.id = :customerId AND d.debtType = '+' AND d.deletedAt IS NULL
     """)
-    BigDecimal calculateTotalDebtByCustomerId(@Param("customerId") Long customerId);
+    BigDecimal getTotalImportDebtByCustomerId(@Param("customerId") Long customerId);
+
+    // Query riêng cho sale (debtType = '-', tính giảm nợ, dùng dấu trừ nếu cần)
+    @Query("""
+        SELECT COALESCE(SUM(COALESCE(d.debtAmount, 0.0)), 0.0)
+        FROM DebtNote d
+        WHERE d.customer.id = :customerId AND d.debtType = '-' AND d.deletedAt IS NULL
+    """)
+    BigDecimal getTotalSaleDebtByCustomerId(@Param("customerId") Long customerId);
+
+    // Nếu cần tổng hợp, tính ở service: total = import + sale
 
     Page<DebtNote> findByCustomerIdAndDeletedAtIsNull(Long customerId, Pageable pageable);
 }
