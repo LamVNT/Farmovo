@@ -1,12 +1,10 @@
-package com.farmovo.backend;
+package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
-import com.farmovo.backend.exceptions.ZoneNotFoundException;
 import com.farmovo.backend.mapper.ZoneMapper;
 import com.farmovo.backend.models.Zone;
 import com.farmovo.backend.repositories.ZoneRepository;
-import com.farmovo.backend.services.impl.ZoneServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
