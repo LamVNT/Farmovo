@@ -245,14 +245,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     private ImportTransactionDetail buildDetail(ImportTransaction transaction, Product product,
                                                 CreateImportTransactionRequestDto.DetailDto dto) {
         ImportTransactionDetail detail = new ImportTransactionDetail();
-
-        Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
-                .map(ImportTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("ML%06d", lastId + 1);
-        detail.setName(newName);
-        log.debug("Generated transaction code: {}", newName);
-
         detail.setImportTransaction(transaction);
         detail.setProduct(product);
         detail.setImportQuantity(dto.getImportQuantity());

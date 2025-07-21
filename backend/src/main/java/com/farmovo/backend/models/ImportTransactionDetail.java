@@ -21,9 +21,6 @@ public class ImportTransactionDetail extends Base {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", unique = true, length = 20)
-    private String name;
-
     @Column(name = "import_quantity")
     private Integer importQuantity;
 
