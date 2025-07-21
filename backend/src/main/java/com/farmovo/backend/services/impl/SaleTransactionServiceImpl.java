@@ -4,9 +4,8 @@ import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
-import com.farmovo.backend.exceptions.InvalidStatusException;
 import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
-import com.farmovo.backend.exceptions.InsufficientStockException;
+import java.io.FileOutputStream;
 import com.farmovo.backend.exceptions.TransactionStatusException;
 import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
@@ -15,21 +14,37 @@ import com.farmovo.backend.mapper.SaleTransactionMapper;
 import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
-import com.farmovo.backend.services.ImportTransactionService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.farmovo.backend.validator.SaleTransactionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +63,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final ImportTransactionDetailRepository importTransactionDetailRepository;
     private final DebtNoteService debtNoteService;
     private final SaleTransactionValidator saleTransactionValidator;
+    private final UserRepository userRepository;
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
@@ -309,5 +325,210 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         SaleTransactionResponseDto result = saleTransactionMapper.toResponseDto(entity, objectMapper);
         log.debug("Retrieved sale transaction with ID: {}", id);
         return result;
+    }
+
+
+
+    @Override
+    public byte[] exportPdf(Long id) {
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4);
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            // Load font Roboto từ file tạm (bắt buộc để dùng IDENTITY_H)
+            ClassPathResource fontResource = new ClassPathResource("fonts/Roboto-Regular.ttf");
+            File tempFontFile = File.createTempFile("roboto", ".ttf");
+            tempFontFile.deleteOnExit();
+            try (InputStream in = fontResource.getInputStream(); OutputStream os = new FileOutputStream(tempFontFile)) {
+                in.transferTo(os);
+            }
+
+            BaseFont baseFont = BaseFont.createFont(
+                    tempFontFile.getAbsolutePath(),
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED
+            );
+
+            Font normalFont = new Font(baseFont, 12);
+            Font boldFont = new Font(baseFont, 12, Font.BOLD);
+            Font redFont = new Font(baseFont, 12, Font.BOLD);
+            Font blueFont = new Font(baseFont, 12, Font.BOLD);
+
+            // ===== Tiêu đề =====
+            LocalDateTime createdAt = transaction.getCreatedAt();
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            String formattedTime = createdAt.format(timeFormatter);
+            String formattedDate = createdAt.format(dateFormatter);
+
+            PdfPTable headerTable = new PdfPTable(2);
+            headerTable.setWidthPercentage(100);
+            headerTable.setWidths(new float[]{2f, 1f});
+            headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU BÁN HÀNG " + transaction.getName(), new Font(baseFont, 14, Font.BOLD)));
+            titleCell.setBorder(Rectangle.NO_BORDER);
+            titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+
+            PdfPCell dateCell = new PdfPCell();
+            dateCell.setBorder(Rectangle.NO_BORDER);
+            dateCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            dateCell.addElement(new Paragraph("Ngày lập: " + formattedDate, normalFont));
+            dateCell.addElement(new Paragraph("Giờ lập: " + formattedTime, normalFont));
+
+            headerTable.addCell(titleCell);
+            headerTable.addCell(dateCell);
+
+            document.add(headerTable);
+
+
+            // ===== Trạng thái =====
+            if (transaction.getStatus() == SaleTransactionStatus.COMPLETE) {
+                document.add(new Paragraph("✔ Phiếu hoàn thành", normalFont));
+            }
+
+            // ===== Thông tin cửa hàng & khách hàng =====
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            infoTable.setSpacingBefore(10f);
+            infoTable.setSpacingAfter(10f);
+            infoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+
+            PdfPCell storeCell = new PdfPCell();
+            storeCell.setBorder(Rectangle.NO_BORDER);
+            storeCell.addElement(new Paragraph("Thông tin cửa hàng", boldFont));
+            storeCell.addElement(new Paragraph("Tên cửa hàng: " + safe(transaction.getStore().getStoreName()), normalFont));
+            storeCell.addElement(new Paragraph("Người tạo: " + safe(getStaff(transaction.getId()).getFullName()), normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getStore().getStoreAddress()), normalFont));
+
+            PdfPCell customerCell = new PdfPCell();
+            customerCell.setBorder(Rectangle.NO_BORDER);
+            customerCell.addElement(new Paragraph("Thông tin khách hàng", boldFont));
+            customerCell.addElement(new Paragraph("Tên khách hàng: " + safe(transaction.getCustomer().getName()), normalFont));
+            customerCell.addElement(new Paragraph("Số điện thoại: " + safe(transaction.getCustomer().getPhone()), normalFont));
+            customerCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getCustomer().getAddress()), normalFont));
+
+            infoTable.addCell(storeCell);
+            infoTable.addCell(customerCell);
+
+            document.add(infoTable);
+
+            // ===== Danh sách sản phẩm =====
+            PdfPTable productTable = new PdfPTable(6);
+            productTable.setWidthPercentage(100);
+            productTable.setSpacingBefore(10);
+            productTable.setWidths(new float[]{0.8f, 3f, 1.5f, 2f, 1.2f, 2.5f});
+
+            productTable.addCell(getCell("STT", boldFont));
+            productTable.addCell(getCell("Tên sản phẩm", boldFont));
+            productTable.addCell(getCell("Mã", boldFont));
+            productTable.addCell(getCell("Đơn giá", boldFont));
+            productTable.addCell(getCell("Số lượng", boldFont));
+            productTable.addCell(getCell("Thành tiền", boldFont));
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
+            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            List<ProductSaleResponseDto> detailList = objectMapper.readValue(
+                    transaction.getDetail(),
+                    new TypeReference<List<ProductSaleResponseDto>>() {}
+            );
+
+            int index = 1;
+            for (ProductSaleResponseDto d : detailList) {
+                BigDecimal lineTotal = d.getUnitSalePrice().multiply(BigDecimal.valueOf(d.getQuantity()));
+                productTable.addCell(getCell(String.valueOf(index++), normalFont));
+                productTable.addCell(getCell(safe(d.getProductName()), normalFont));
+                productTable.addCell(getCell(safe(d.getProductCode()), normalFont));
+                productTable.addCell(getCell(formatCurrency(d.getUnitSalePrice()), normalFont));
+                productTable.addCell(getCell(String.valueOf(d.getQuantity()), normalFont));
+                productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
+            }
+
+            document.add(productTable);
+
+            // ===== Tổng tiền + Ghi chú =====
+            PdfPTable summaryTable = new PdfPTable(2);
+            summaryTable.setWidthPercentage(100);
+            summaryTable.setSpacingBefore(10);
+            summaryTable.setWidths(new float[]{1f, 1f});
+
+            // ===== Cột trái: Tổng tiền =====
+            PdfPCell totalCell = new PdfPCell();
+            totalCell.setBorder(Rectangle.NO_BORDER);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(transaction.getTotalAmount()), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(transaction.getPaidAmount()), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(transaction.getTotalAmount().subtract(transaction.getPaidAmount())), redFont));
+
+            // ===== Cột phải: Ghi chú =====
+            PdfPCell noteCell = new PdfPCell();
+            noteCell.setBorder(Rectangle.NO_BORDER);
+            if (transaction.getSaleTransactionNote() != null && !transaction.getSaleTransactionNote().isEmpty()) {
+                noteCell.addElement(new Paragraph("Ghi chú:", boldFont));
+                noteCell.addElement(new Paragraph(transaction.getSaleTransactionNote(), normalFont));
+            }
+
+            summaryTable.addCell(totalCell);
+            summaryTable.addCell(noteCell);
+            document.add(summaryTable);
+
+
+            // ===== Chữ ký =====
+            document.add(new Paragraph(" ")); // khoảng trắng
+            PdfPTable signTable = new PdfPTable(2);
+            signTable.setWidthPercentage(100);
+            signTable.setWidths(new float[]{1f, 1f});
+            signTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            // Cột trống bên trái
+            PdfPCell leftEmptyCell = new PdfPCell(new Phrase(""));
+            leftEmptyCell.setBorder(Rectangle.NO_BORDER);
+
+            // Cột bên phải là phần chữ ký
+            PdfPCell rightSignCell = new PdfPCell();
+            rightSignCell.setBorder(Rectangle.NO_BORDER);
+            rightSignCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            rightSignCell.addElement(new Paragraph("Người lập phiếu", boldFont));
+            rightSignCell.addElement(new Paragraph("(Ký, ghi rõ họ tên)", normalFont));
+
+            signTable.addCell(leftEmptyCell);
+            signTable.addCell(rightSignCell);
+
+            document.add(signTable);
+
+            document.close();
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi tạo PDF: " + e.getMessage(), e);
+        }
+    }
+
+    private PdfPCell getCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setPadding(5);
+        return cell;
+    }
+
+    private String formatCurrency(BigDecimal amount) {
+        NumberFormat format = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        return format.format(amount).replace("₫", "VND");
+    }
+
+    private String safe(String input) {
+        return input == null ? "Chưa có" : input;
+    }
+
+    private User getStaff(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Staff not found with ID: {}", id);
+                    return new com.farmovo.backend.exceptions.ResourceNotFoundException("Staff not found with ID: " + id);
+                });
     }
 }
