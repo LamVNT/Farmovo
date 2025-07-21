@@ -61,7 +61,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <RxDashboard className="text-[20px]"/> <span>Dashboard</span>
+                                <RxDashboard className="text-[20px]"/> <span>Bảng điều khiển</span>
                             </Button>
                         </Link>
                     </li>
@@ -70,7 +70,7 @@ const Sidebar = () => {
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(1)}>
-                            <GrTransaction className="text-[20px]"/> <span>Transaction</span>
+                            <GrTransaction className="text-[20px]"/> <span>Giao dịch</span>
                             <span className="ml-auto w-[30px] h-[30px] flex items-center justify-center">
                                 <FaAngleDown className={`transition-all ${submenuIndex === 1 ? 'rotate-180' : ''}`}/>
                             </span>
@@ -82,7 +82,7 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                                          !w-full !text-[13px] !font-[600] !pl-9 flex gap-3"><
                                             span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Import transaction
+                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" " } Phiếu nhập hàng
                                         </Button>
                                     </Link>
                                 </li>
@@ -91,7 +91,7 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
                                          !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                             <span
-                                                className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Sale transaction
+                                                className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" " } Phiếu bán hàng
                                         </Button>
                                     </Link>
                                 </li>
@@ -104,7 +104,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                  !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FiUsers className="text-[20px]"/> <span>Users</span>
+                                <FiUsers className="text-[20px]"/> <span>Người dùng</span>
                             </Button>
                         </Link>
                     </li>
@@ -113,7 +113,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                  !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FiUsers className="text-[20px]"/> <span>Customers</span>
+                                <FiUsers className="text-[20px]"/> <span>Khách hàng</span>
                             </Button>
                         </Link>
                     </li>
@@ -122,7 +122,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                  !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <TbPigMoney  className="text-[20px]"/> <span>Debt Note</span>
+                                <TbPigMoney  className="text-[20px]"/> <span>Ghi chú công nợ</span>
                             </Button>
                         </Link>
                     </li>
@@ -132,7 +132,7 @@ const Sidebar = () => {
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(3)}
                         >
-                            <RiProductHuntLine className="text-[20px]"/> <span>Products</span>
+                            <RiProductHuntLine className="text-[20px]"/> <span>Sản phẩm</span>
                             <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
             <FaAngleDown className={`transition-all ${submenuIndex === 3 ? 'rotate-180' : ''}`}/>
         </span>
@@ -144,8 +144,7 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
                                             !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Products
-                                            List
+                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" " } Danh sách sản phẩm
                                         </Button>
                                     </Link>
                                 </li>
@@ -154,8 +153,7 @@ const Sidebar = () => {
                                         <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
                                          !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
                                         <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Add
-                                            Product
+                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" " } Thêm sản phẩm
                                         </Button>
                                     </Link>
                                 </li>
@@ -167,7 +165,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <TbCategory className="text-[20px]"/> <span>Category</span>
+                                <TbCategory className="text-[20px]"/> <span>Danh mục</span>
                             </Button>
                         </Link>
                     </li>
@@ -176,7 +174,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FaStore className="text-[20px]"/> <span>Store</span>
+                                <FaStore className="text-[20px]"/> <span>Cửa hàng</span>
                             </Button>
                         </Link>
                     </li>
@@ -186,7 +184,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                              !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <IoBagCheckOutline className="text-[20px]"/> <span>Orders</span>
+                                <IoBagCheckOutline className="text-[20px]"/> <span>Đơn hàng</span>
                             </Button>
                         </Link>
                     </li>
@@ -195,7 +193,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                  !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FaRegSquareCheck className="text-[20px]"/> <span>StockTake</span>
+                                <FaRegSquareCheck className="text-[20px]"/> <span>Kiểm kho</span>
                             </Button>
                         </Link>
                     </li>
@@ -204,7 +202,7 @@ const Sidebar = () => {
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdMap className="text-[20px]" /> <span>Zone</span>
+                                <MdMap className="text-[20px]" /> <span>Khu vực</span>
                             </Button>
                         </Link>
                     </li>
@@ -214,7 +212,7 @@ const Sidebar = () => {
                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
                             onClick={() => isOpenSubMenu(5)}
                         >
-                            <HiOutlineDocumentReport className="text-[20px]" /> <span>Reports</span>
+                            <HiOutlineDocumentReport className="text-[20px]" /> <span>Báo cáo</span>
                             <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
                                 <FaAngleDown className={`transition-all ${submenuIndex === 5 ? 'rotate-180' : ''}`}/>
                             </span>
@@ -250,7 +248,7 @@ const Sidebar = () => {
                             onClick={handleLogout} 
                             className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                            <IoMdLogOut className="text-[20px]"/> <span>Logout</span>
+                            <IoMdLogOut className="text-[20px]"/> <span>Đăng xuất</span>
                         </Button>
                     </li>
 

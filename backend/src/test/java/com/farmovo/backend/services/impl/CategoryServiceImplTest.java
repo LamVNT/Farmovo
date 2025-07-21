@@ -1,12 +1,10 @@
-package com.farmovo.backend;
+package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.CategoryRequestDto;
 import com.farmovo.backend.dto.response.CategoryResponseDto;
-import com.farmovo.backend.exceptions.CategoryNotFoundException;
 import com.farmovo.backend.mapper.CategoryMapper;
 import com.farmovo.backend.models.Category;
 import com.farmovo.backend.repositories.CategoryRepository;
-import com.farmovo.backend.services.impl.CategoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

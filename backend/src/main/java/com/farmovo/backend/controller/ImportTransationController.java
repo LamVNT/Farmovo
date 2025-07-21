@@ -13,8 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -211,5 +210,19 @@ public class ImportTransationController {
             throw new BadRequestException("Không thể cập nhật phiếu nhập hàng: " + e.getMessage());
         }
     }
+
+    @GetMapping("/{id}/export")
+    public ResponseEntity<byte[]> exportImportTransactionPdf(@PathVariable Long id) {
+        byte[] pdfBytes = importTransactionService.exportImportPdf(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.builder("attachment")
+                .filename("phieu_nhap_" + id + ".pdf")
+                .build());
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
 
 }

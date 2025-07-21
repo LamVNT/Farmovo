@@ -24,5 +24,6 @@ public class CreateSaleTransactionRequestDto {
     private String saleTransactionNote;
     private SaleTransactionStatus status;
     private LocalDateTime saleDate;
+    private String name;
 }
 

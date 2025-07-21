@@ -22,6 +22,7 @@ public interface ProductMapper {
     @Mapping(source = "store.storeName", target = "storeName")
     @Mapping(source = "createdAt", target = "createdAt")
     @Mapping(source = "updatedAt", target = "updatedAt")
+    @Mapping(source = "productCode", target = "productCode")
     ProductDto toDto(Product product);
 
     List<ProductDto> toDtoList(List<Product> products);
@@ -56,6 +57,8 @@ public interface ProductMapper {
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
     @Mapping(source = "createdAt", target = "createAt")
+    @Mapping(source = "expireDate", target = "expireDate") // Thêm dòng này
+    @Mapping(source = "name", target = "name") // mapping mã lô hàng LH000000
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
 
 

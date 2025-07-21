@@ -23,6 +23,7 @@ import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
 import { FiPlus } from 'react-icons/fi';
 import { DataGrid } from '@mui/x-data-grid';
 import { FaRegTrashCan } from "react-icons/fa6";
+import { format } from 'date-fns';
 
 // Components
 import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
@@ -34,12 +35,15 @@ import { useSaleTransaction } from '../../hooks/useSaleTransaction';
 
 // Utils
 import { formatCurrency, isValidValue } from '../../utils/formatters';
+import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = () => {
     const searchRef = useRef(null);
     const [anchorEl, setAnchorEl] = useState(null);
+    const [batches, setBatches] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [filteredBatches, setFilteredBatches] = useState([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [showCategoryDialog, setShowCategoryDialog] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
@@ -120,7 +124,7 @@ const AddSalePage = () => {
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (searchRef.current && !searchRef.current.contains(event.target)) {
-                setFilteredProducts([]);
+                setFilteredBatches([]);
             }
         };
 
@@ -135,6 +139,47 @@ const AddSalePage = () => {
         setDataGridKey(prev => prev + 1);
     }, [selectedProducts]);
 
+    useEffect(() => {
+        // Lấy danh sách batch (import transaction detail) còn hàng
+        const fetchBatches = async () => {
+            try {
+                const data = await saleTransactionService.getCreateFormData();
+                setBatches(data.products || []);
+            } catch (error) {
+                // Có thể setError nếu muốn
+            }
+        };
+        fetchBatches();
+    }, []);
+
+    // Gợi ý batch mới nhất khi focus hoặc search
+    useEffect(() => {
+        if (searchTerm.trim() !== '') {
+            const results = batches.filter(
+                (b) =>
+                    (b.batchCode && b.batchCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (b.productName && b.productName.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+            // Sắp xếp batch mới nhất lên đầu (theo importDate hoặc id giảm dần)
+            results.sort((a, b) => {
+                const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+                const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+                return dateB - dateA;
+            });
+            setFilteredBatches(results.slice(0, 10));
+        } else if (isSearchFocused) {
+            // Gợi ý 10 batch mới nhất khi chưa nhập gì
+            const sorted = [...batches].sort((a, b) => {
+                const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
+                const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
+                return dateB - dateA;
+            });
+            setFilteredBatches(sorted.slice(0, 10));
+        } else {
+            setFilteredBatches([]);
+        }
+    }, [batches, searchTerm, isSearchFocused]);
+
     const toggleColumn = (col) => {
         setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
     };
@@ -143,15 +188,32 @@ const AddSalePage = () => {
         const value = e.target.value;
         setSearchTerm(value);
         if (value.trim() === '') {
-            setFilteredProducts([]);
+            setFilteredBatches([]);
         } else {
-            const results = products.filter(
-                (p) =>
-                    p.productName?.toLowerCase().includes(value.toLowerCase()) ||
-                    p.productCode?.toLowerCase().includes(value.toLowerCase())
+            const results = batches.filter(
+                (b) =>
+                    (b.batchCode && b.batchCode.toLowerCase().includes(value.toLowerCase())) ||
+                    (b.productName && b.productName.toLowerCase().includes(value.toLowerCase()))
             );
-            setFilteredProducts(results);
+            setFilteredBatches(results);
         }
+    };
+
+    const handleSelectBatch = (batch) => {
+        // Thêm sản phẩm từ batch vào bảng
+        handleSelectProduct({
+            id: batch.productId,
+            name: batch.productName,
+            unit: batch.unit || 'quả',
+            price: batch.unitSalePrice,
+            quantity: 1,
+            batchCode: batch.batchCode,
+            remainQuantity: batch.remainQuantity,
+            // ... các trường khác nếu cần
+        });
+        setSearchTerm('');
+        setFilteredBatches([]);
+        setIsSearchFocused(false);
     };
 
     const handleOpenCategoryDialog = () => {
@@ -313,9 +375,11 @@ const AddSalePage = () => {
                         <TextField
                             size="small"
                             fullWidth
-                            placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
+                            placeholder="Tìm lô hàng theo mã hoặc tên sản phẩm"
                             value={searchTerm}
                             onChange={handleSearchChange}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -323,32 +387,51 @@ const AddSalePage = () => {
                                     </InputAdornment>
                                 ),
                             }}
+                            sx={{ borderRadius: 2, background: '#f9fafb' }}
                         />
-                        <Tooltip title="Thêm từ danh mục">
-                            <IconButton onClick={handleOpenCategoryDialog}>
-                                <MdCategory />
-                            </IconButton>
-                        </Tooltip>
+                        {/* Đã xóa icon Thêm từ danh mục */}
                         <Tooltip title="Thêm sản phẩm">
                             <IconButton onClick={() => setShowProductDialog(true)}>
                                 <FiPlus />
                             </IconButton>
                         </Tooltip>
-                        {searchTerm.trim() !== '' && filteredProducts.length > 0 && (
-                            <div className="absolute top-full mt-1 left-0 z-10 bg-white border shadow-md rounded w-full max-h-60 overflow-y-auto text-sm">
-                                {filteredProducts.map((product, index) => (
-                                    <div
-                                        key={index}
-                                        onClick={() => handleSelectProduct(product)}
-                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                    >
-                                        <div className="font-medium">{product.productName}</div>
-                                        <div className="text-xs text-gray-500">
-                                            Mã: {product.productCode} | Tồn: {product.remainQuantity} | Giá: {formatCurrency(product.unitSalePrice)}
+                        {filteredBatches.length > 0 && isSearchFocused && (
+                            <div className="absolute top-full mt-1 left-0 z-10 bg-white shadow-lg rounded-xl w-full max-h-96 overflow-y-auto text-sm" style={{boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)'}}>
+                                {filteredBatches.map((batch, index) => {
+                                    const importDate = batch.createAt ? format(new Date(batch.createAt), 'dd/MM/yyyy') : 'N/A';
+                                    const expireDate = batch.expireDate ? format(new Date(batch.expireDate), 'dd/MM/yyyy') : 'N/A';
+                                    return (
+                                        <div
+                                            key={batch.id || index}
+                                            onClick={() => handleSelectBatch(batch)}
+                                            className={`px-4 py-3 cursor-pointer flex flex-col transition-all duration-150 hover:bg-blue-50 ${index === filteredBatches.length - 1 ? 'rounded-b-xl' : ''} ${index === 0 ? 'rounded-t-xl' : ''}`}
+                                            style={{ borderBottom: index === filteredBatches.length - 1 ? 'none' : '1px solid #f1f1f1' }}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-blue-800">Lô #{batch.id}</span>
+                                                <span className="font-bold text-gray-900">{batch.productName}</span>
+                                            </div>
+                                            <div
+                                                className="grid grid-cols-4 gap-px text-[12px] text-gray-600 mt-1 w-full"
+                                                style={{ alignItems: 'center', paddingTop: 2, paddingBottom: 2 }}
+                                            >
+                                                <span className="col-span-1">
+                                                    Số lượng còn: <span className="font-bold text-gray-900">{batch.remainQuantity}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Giá: <span className="font-bold text-green-700">{formatCurrency(batch.unitSalePrice)}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Ngày nhập: <span className="font-bold text-indigo-700">{importDate}</span>
+                                                </span>
+                                                <span className="col-span-1">
+                                                    Hạn: <span className="font-bold text-red-700">{expireDate}</span>
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                </div>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
 
