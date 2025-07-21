@@ -2,8 +2,13 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.StocktakeRequestDto;
 import com.farmovo.backend.dto.response.StocktakeResponseDto;
+import com.farmovo.backend.dto.response.ZoneResponseDto;
+import com.farmovo.backend.dto.response.ProductResponseDto;
+import com.farmovo.backend.dto.response.MissingZoneDto;
+import com.farmovo.backend.dto.response.StocktakeDetailDto;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.StocktakeService;
+import com.farmovo.backend.services.ImportTransactionDetailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +21,9 @@ import java.util.List;
 public class StocktakeController {
     @Autowired
     private StocktakeService stocktakeService;
+
+    @Autowired
+    private ImportTransactionDetailService importTransactionDetailService;
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -54,5 +62,28 @@ public class StocktakeController {
     @PutMapping("/{id}")
     public ResponseEntity<StocktakeResponseDto> updateStocktake(@PathVariable Long id, @RequestBody StocktakeRequestDto requestDto) {
         return ResponseEntity.ok(stocktakeService.updateStocktake(id, requestDto));
+    }
+
+    // === CÁC API HỖ TRỢ CHO STOCKTAKE ===
+
+    // API lấy danh sách Zone có sản phẩm tồn kho
+    @GetMapping("/zones-with-products")
+    public ResponseEntity<List<ZoneResponseDto>> getZonesWithProducts() {
+        List<ZoneResponseDto> zones = importTransactionDetailService.getZonesWithProducts();
+        return ResponseEntity.ok(zones);
+    }
+
+    // API lấy danh sách sản phẩm theo Zone
+    @GetMapping("/products-by-zone")
+    public ResponseEntity<List<ProductResponseDto>> getProductsByZone(@RequestParam String zoneId) {
+        List<ProductResponseDto> products = importTransactionDetailService.getProductsByZone(zoneId);
+        return ResponseEntity.ok(products);
+    }
+
+    // API kiểm tra thiếu Zone khi kiểm kê
+    @PostMapping("/check-missing-zones")
+    public ResponseEntity<List<MissingZoneDto>> checkMissingZones(@RequestBody List<StocktakeDetailDto> stocktakeDetails) {
+        List<MissingZoneDto> missingZones = importTransactionDetailService.checkMissingZones(stocktakeDetails);
+        return ResponseEntity.ok(missingZones);
     }
 } 

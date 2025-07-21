@@ -1,4 +1,3 @@
-// pages/Category/index.jsx
 import React, {useState, useEffect, useMemo} from "react";
 import {Button, TextField} from "@mui/material";
 import {FaPlus} from "react-icons/fa6";
@@ -6,6 +5,8 @@ import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
 import {getCategories, createCategory, updateCategory, deleteCategory} from "../../services/categoryService";
 import TablePagination from '@mui/material/TablePagination';
+import ConfirmDialog from "../../components/ConfirmDialog";
+import SnackbarAlert from "../../components/SnackbarAlert";
 
 const Category = () => {
     const [categories, setCategories] = useState([]);
@@ -15,13 +16,8 @@ const Category = () => {
     const [form, setForm] = useState({id: null, name: "", description: ""});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    // Xoá các state và logic phân trang ở ngoài
-    // const [page, setPage] = useState(0);
-    // const [rowsPerPage, setRowsPerPage] = useState(5);
-    // const paginatedCategories = useMemo(() =>
-    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    //     [filteredCategories, page, rowsPerPage]
-    // );
+    const [confirmDialog, setConfirmDialog] = useState({isOpen: false, title: "", content: "", onConfirm: null});
+    const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
 
     useEffect(() => {
         const fetch = async () => {
@@ -42,12 +38,6 @@ const Category = () => {
             cat.name.toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, categories]);
 
-    // Xoá các state và logic phân trang ở ngoài
-    // const paginatedCategories = useMemo(() =>
-    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    //     [filteredCategories, page, rowsPerPage]
-    // );
-
     const handleOpenCreate = () => {
         setForm({id: null, name: "", description: ""});
         setEditMode(false);
@@ -60,20 +50,26 @@ const Category = () => {
         setOpenDialog(true);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this category?")) {
-            try {
-                await deleteCategory(id);
-                setCategories(prev => prev.filter(cat => cat.id !== id));
-            } catch {
-                setError("Failed to delete category");
+    const handleDelete = (id) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Xác nhận xóa danh mục",
+            content: "Bạn có chắc chắn muốn xóa danh mục này? Hành động này không thể hoàn tác.",
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({...prev, isOpen: false}));
+                try {
+                    await deleteCategory(id);
+                    setCategories(prev => prev.filter(cat => cat.id !== id));
+                    setSnackbar({isOpen: true, message: "Xóa danh mục thành công!", severity: "success"});
+                } catch {
+                    setSnackbar({isOpen: true, message: "Xóa danh mục thất bại!", severity: "error"});
+                }
             }
-        }
+        });
     };
 
     const handleSubmit = async () => {
         if (!form.name.trim()) return;
-
         try {
             if (editMode) {
                 const updated = await updateCategory(form.id, form);
@@ -83,8 +79,9 @@ const Category = () => {
                 setCategories(prev => [...prev, created]);
             }
             setOpenDialog(false);
+            setSnackbar({isOpen: true, message: `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thành công!`, severity: "success"});
         } catch {
-            setError(`Failed to ${editMode ? "update" : "create"} category`);
+            setSnackbar({isOpen: true, message: `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thất bại!`, severity: "error"});
         }
     };
 
@@ -114,8 +111,6 @@ const Category = () => {
                 onDelete={handleDelete}
             />
 
-            {/* Xoá TablePagination ở ngoài */}
-
             <CategoryFormDialog
                 open={openDialog}
                 onClose={() => setOpenDialog(false)}
@@ -123,6 +118,21 @@ const Category = () => {
                 setForm={setForm}
                 onSubmit={handleSubmit}
                 editMode={editMode}
+            />
+
+            <ConfirmDialog
+                open={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                content={confirmDialog.content}
+            />
+
+            <SnackbarAlert
+                open={snackbar.isOpen}
+                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                message={snackbar.message}
+                severity={snackbar.severity}
             />
         </div>
     );

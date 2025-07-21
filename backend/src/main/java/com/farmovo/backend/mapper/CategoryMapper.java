@@ -11,6 +11,8 @@ import org.mapstruct.factory.Mappers;
 public interface CategoryMapper {
     CategoryMapper INSTANCE = Mappers.getMapper(CategoryMapper.class);
 
+    @Mapping(target = "categoryName", source = "name")
+    @Mapping(target = "categoryDescription", source = "description")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "products", ignore = true)

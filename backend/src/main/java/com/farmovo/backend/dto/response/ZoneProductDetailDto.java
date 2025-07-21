@@ -10,11 +10,12 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImportDetailStocktakeDto {
-    private Long id;
+public class ZoneProductDetailDto {
+    private Long importDetailId;
+    private Long productId;
     private String productName;
     private Integer remainQuantity;
-    private List<Long> zones_id;
-    private Boolean isCheck;
     private LocalDateTime expireDate;
+    private List<Long> zonesId;
+    private String zonesIdJson; // Giữ nguyên JSON string để debug
 } 

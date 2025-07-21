@@ -38,6 +38,11 @@ public class ZoneServiceImpl implements ZoneService {
     }
 
     @Override
+    public List<Zone> getAllZoneEntities() {
+        return zoneRepository.findAll();
+    }
+
+    @Override
     public ZoneResponseDto createZone(ZoneRequestDto request) {
         Zone zone = zoneMapper.toEntity(request);
         String zoneName = zone.getZoneName();

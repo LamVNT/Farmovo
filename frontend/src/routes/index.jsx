@@ -29,6 +29,8 @@ import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
+import StockTakeDetailLinePage from "../pages/stocktake/DetailLine.jsx";
+import StocktakeLot from '../pages/import-detail/StocktakeLot';
 
 const router = createBrowserRouter([
     {
@@ -133,6 +135,16 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    {
+        path: "/import-detail-stocktake",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StocktakeLot/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
 
     {
         path: "/unauthorized",
@@ -214,6 +226,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <UpdateStocktakePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/stocktake/detail-line/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StockTakeDetailLinePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),

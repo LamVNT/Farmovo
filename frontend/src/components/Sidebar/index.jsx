@@ -182,6 +182,15 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
+                        <Link to="/import-detail-stocktake">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <FaBoxOpen className="text-[20px]"/> <span>Kiểm kê lô</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
                         <Link to="/zone">
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]

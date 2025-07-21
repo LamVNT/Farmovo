@@ -23,3 +23,8 @@ export const updateStocktake = (id, data) => {
 export const deleteStocktake = (id) => {
     return axios.delete(`/stocktakes/${id}`);
 };
+
+// Thêm hàm kiểm tra thiếu zone
+export const checkMissingZones = (details) => {
+    return axios.post('/stocktakes/check-missing-zones', details);
+};

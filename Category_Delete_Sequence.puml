@@ -1,0 +1,60 @@
+@startuml Category_Delete_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Delete Category - Sequence Diagram
+
+actor User as U
+participant "CategoryController" as CC
+participant "CategoryService" as CS
+participant "CategoryRepository" as CR
+database "Database" as DB
+
+== Request Phase ==
+U -> CC: DELETE /api/categories/{id}
+activate CC
+
+CC -> CS: deleteCategory(id)
+activate CS
+
+CS -> CR: findById(id)
+activate CR
+CR -> DB: SELECT * FROM categories WHERE id = ?
+DB --> CR: Category or null
+CR --> CS: Optional<Category>
+deactivate CR
+
+alt Category Not Found
+    CS -> CS: throw new CategoryNotFoundException(...)
+    CS --> CC: CategoryNotFoundException
+    CC --> U: 404 Not Found\n{error message}
+else Category Found
+    note right of CS: Check if category has products
+    CS -> CS: check if products list is empty
+
+    alt Category has Products
+        CS --> CC: Cannot delete category with products
+        CC --> U: 400 Bad Request\n"Cannot delete category with existing products"
+    else Category has no Products
+        CS -> CR: delete(category)
+        activate CR
+        CR -> DB: DELETE FROM categories WHERE id = ?
+        DB --> CR: deletion result
+        CR --> CS: void
+        deactivate CR
+
+        CS --> CC: void
+        CC --> U: 204 No Content
+    end
+end
+
+deactivate CS
+deactivate CC
+
+@enduml 

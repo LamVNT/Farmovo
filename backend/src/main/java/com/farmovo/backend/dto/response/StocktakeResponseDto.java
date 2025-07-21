@@ -13,4 +13,6 @@ public class StocktakeResponseDto {
     private String stocktakeNote;
     private String status;
     private Long storeId;
+    private String storeName; // tên kho
+    private String createdByName; // tên người kiểm kê
 }

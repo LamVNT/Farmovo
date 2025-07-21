@@ -13,6 +13,8 @@ const StockTakeDetailPage = () => {
     const [products, setProducts] = useState([]);
     const [zones, setZones] = useState([]);
     const navigate = useNavigate();
+    const user = JSON.parse(localStorage.getItem("user"));
+    const userRole = user?.roles?.[0];
 
     useEffect(() => {
         axios.get(`/stocktakes/${id}`)
@@ -35,6 +37,32 @@ const StockTakeDetailPage = () => {
     let details = [];
     try {
         details = JSON.parse(detail.detail);
+        // Nếu là mảng từng dòng (rawDetail), cần group lại
+        if (details.length > 0 && details[0].zoneId) {
+            // Group lại theo productId
+            const grouped = {};
+            details.forEach(d => {
+                if (!grouped[d.productId]) {
+                    grouped[d.productId] = {
+                        productId: d.productId,
+                        zones_id: [],
+                        real: 0,
+                        remain: d.remain,
+                        diff: 0,
+                        note: ''
+                    };
+                }
+                grouped[d.productId].zones_id.push(Number(d.zoneId));
+                grouped[d.productId].real += Number(d.real || 0);
+                grouped[d.productId].note += d.note ? d.note + '; ' : '';
+                grouped[d.productId].remain = d.remain;
+            });
+            details = Object.values(grouped).map(item => ({
+                ...item,
+                zones_id: Array.from(new Set(item.zones_id)),
+                diff: item.real - (item.remain || 0)
+            }));
+        }
     } catch {
     }
 
@@ -54,19 +82,36 @@ const StockTakeDetailPage = () => {
                     <b>Trạng thái:</b>{" "}
                     <Chip
                         label={detail.status}
-                        color={detail.status === "DRAFT" ? "warning" : "success"}
+                        color={
+                            detail.status === "DRAFT" ? "warning" :
+                            detail.status === "INPROGRESS" ? "info" :
+                            detail.status === "COMPLETED" ? "success" :
+                            detail.status === "CANCELLED" ? "error" :
+                            "default"
+                        }
                         size="small"
                         sx={{fontWeight: 600}}
                     />
                 </Typography>
             </Box>
+            {((userRole === "OWNER" && (detail.status === "DRAFT" || detail.status === "INPROGRESS")) ||
+              (userRole === "STAFF" && detail.status === "DRAFT")) && (
+                <Button
+                    variant="outlined"
+                    sx={{mb: 3, borderRadius: 2, fontWeight: 600, mr: 2}}
+                    onClick={() => navigate(`/stocktake/edit/${detail.id}`)}
+                    color="primary"
+                >
+                    Chỉnh sửa
+                </Button>
+            )}
             <Button
                 variant="outlined"
                 sx={{mb: 3, borderRadius: 2, fontWeight: 600, mr: 2}}
-                onClick={() => navigate(`/stocktake/edit/${detail.id}`)}
-                color="primary"
+                onClick={() => navigate(`/stocktake/detail-line/${detail.id}`)}
+                color="secondary"
             >
-                Chỉnh sửa
+                Xem DetailLine
             </Button>
             <Button
                 variant="outlined"
@@ -94,7 +139,7 @@ const StockTakeDetailPage = () => {
                             </TableRow>
                         ) : (
                             details.map((d, idx) => (
-                                <TableRow key={idx} hover>
+                                <TableRow key={idx} hover sx={d.real !== d.remain ? {background: '#ffeaea'} : {}}>
                                     <TableCell>
                                         {products.find(p => p.id === d.productId)?.productName || d.productId}
                                     </TableCell>

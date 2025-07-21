@@ -1,0 +1,208 @@
+@startuml Stocktake_Class_Diagram_Optimized
+scale 0.5
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classFontName Arial
+skinparam backgroundColor white
+skinparam classBackgroundColor #F8F9FA
+skinparam classBorderColor #6C757D
+skinparam arrowColor #495057
+
+' Base Class
+' abstract class Base: Lớp cha trừu tượng, chứa các trường audit chung cho entity
+abstract class Base {
+    - createdAt : LocalDateTime
+    - createdBy : Long
+    - updatedAt : LocalDateTime
+    - deletedAt : LocalDateTime
+    - deletedBy : Long
+}
+
+' Entity Classes
+' Stocktake: Entity chính cho phiếu kiểm kê
+class Stocktake {
+    - id : Long
+    - stocktakeDate : Instant
+    - detail : String ' JSON StocktakeDetail
+    - stocktakeNote : String
+    - status : StocktakeStatus
+    - store : Store
+}
+
+' Store: Entity cửa hàng
+class Store {
+    - id : Long
+    - storeName : String
+    - storeDescription : String
+    - storeAddress : String
+    - products : List<Product>
+    - stocktakes : List<Stocktake>
+}
+
+' Product: Entity sản phẩm
+class Product {
+    - id : Long
+    - productName : String
+    - productDescription : String
+}
+
+' Zone: Entity khu vực
+class Zone {
+    - id : Long
+    - zoneName : String
+    - zoneDescription : String
+}
+
+' POJO (not entity)
+' StocktakeDetail: POJO để parse từng dòng kiểm kê từ JSON
+class StocktakeDetail {
+    - productId : Long
+    - zones_id : List<Long>
+    - remain : Integer
+    - real : Integer
+    - diff : Integer
+    - note : String
+}
+
+' DTO cho StocktakeDetail
+class StocktakeDetailDto {
+    - productId : Long
+    - zones_id : List<Long>
+    - remain : Integer
+    - real : Integer
+    - diff : Integer
+    - note : String
+}
+
+' Enum
+' StocktakeStatus: Trạng thái phiếu kiểm kê
+enum StocktakeStatus {
+    DRAFT
+    INPROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+' DTO Classes
+' StocktakeRequestDto: DTO nhận dữ liệu tạo/cập nhật phiếu kiểm kê
+class StocktakeRequestDto {
+    - stocktakeDate : Instant
+    - detail : String
+    - stocktakeNote : String
+    - storeId : Long
+}
+
+' StocktakeResponseDto: DTO trả về thông tin phiếu kiểm kê
+class StocktakeResponseDto {
+    - id : Long
+    - stocktakeDate : Instant
+    - detail : String
+    - stocktakeNote : String
+    - status : StocktakeStatus
+    - store : Store
+}
+
+' Service Interface
+' StocktakeService: Interface định nghĩa các chức năng chính
+interface StocktakeService {
+    + getAllStocktakes() : List<StocktakeResponseDto>
+    + createStocktake(requestDto : StocktakeRequestDto) : StocktakeResponseDto
+    + updateStocktake(id : Long, requestDto : StocktakeRequestDto) : StocktakeResponseDto
+    + getStocktakeDetails(id : Long) : List<StocktakeDetailDto>
+}
+
+' Service Implementation
+' StocktakeServiceImpl: Triển khai logic nghiệp vụ kiểm kê
+class StocktakeServiceImpl {
+    - stocktakeRepository : StocktakeRepository
+    - stocktakeMapper : StocktakeMapper
+    + getAllStocktakes() : List<StocktakeResponseDto>
+    + createStocktake(requestDto : StocktakeRequestDto) : StocktakeResponseDto
+    + updateStocktake(id : Long, requestDto : StocktakeRequestDto) : StocktakeResponseDto
+    + getStocktakeDetails(id : Long) : List<StocktakeDetailDto>
+}
+
+' Repository
+' StocktakeRepository: Repository thao tác với DB
+interface StocktakeRepository {
+    + findById(id : Long) : Optional<Stocktake>
+    + save(stocktake : Stocktake) : Stocktake
+}
+
+' Mapper
+' StocktakeMapper: Chuyển đổi giữa Entity và DTO
+interface StocktakeMapper {
+    + toEntity(requestDto : StocktakeRequestDto) : Stocktake
+    + toResponseDto(stocktake : Stocktake) : StocktakeResponseDto
+    + toDetailDto(detail : String) : List<StocktakeDetailDto>
+}
+
+' ValidationResult: Kết quả trả về của Validator
+class ValidationResult {
+    - success : boolean
+    - message : String
+    + isSuccess() : boolean
+    + getMessage() : String
+}
+
+' Validator
+' StocktakeValidator: Kiểm tra hợp lệ dữ liệu đầu vào
+class StocktakeValidator {
+    + validate(requestDto : StocktakeRequestDto, details : List<StocktakeDetail>) : ValidationResult
+}
+
+' Controller
+' StocktakeController: Định nghĩa các API endpoint cho kiểm kê
+class StocktakeController {
+    - stocktakeService : StocktakeService
+    + getAllStocktakes() : ResponseEntity<List<StocktakeResponseDto>>
+    + createStocktake(requestDto : StocktakeRequestDto) : ResponseEntity<StocktakeResponseDto>
+    + updateStocktake(id : Long, requestDto : StocktakeRequestDto) : ResponseEntity<StocktakeResponseDto>
+    + getStocktakeDetails(id : Long) : ResponseEntity<List<StocktakeDetailDto>>
+}
+
+' Inheritance Relationships
+' Kế thừa giữa các entity
+Base <|-- Stocktake : extends
+Base <|-- Store : extends
+Base <|-- Product : extends
+Base <|-- Zone : extends
+
+' Association Relationships
+' Liên kết giữa các class
+Stocktake o-- Store : store
+Stocktake *-- StocktakeDetail : detail (JSON)
+Store o-- Product : products
+Store o-- Stocktake : stocktakes
+StocktakeDetail -up- Product : productId
+StocktakeDetail o-- Zone : zones_id
+
+' Enum Relationship
+' Trường trạng thái của Stocktake
+Stocktake --> StocktakeStatus : status
+
+' Service Implementation
+' Quan hệ implement và dependency
+StocktakeService <|.. StocktakeServiceImpl : implements
+StocktakeServiceImpl --> StocktakeRepository : uses
+StocktakeServiceImpl --> StocktakeMapper : uses
+StocktakeServiceImpl --> StocktakeValidator : uses
+
+' Mapper Mapping
+' Mapper chỉ ánh xạ dữ liệu, không sở hữu entity
+StocktakeMapper ..> Stocktake : maps to/from
+StocktakeMapper ..> StocktakeRequestDto : maps from
+StocktakeMapper ..> StocktakeResponseDto : maps to
+StocktakeMapper ..> StocktakeDetailDto : maps to
+StocktakeMapper ..> StocktakeDetail : maps from
+
+' Controller Dependency
+' Controller sử dụng Service
+StocktakeController --> StocktakeService : uses
+
+' Validator Dependency
+' Validator sử dụng DTO và trả về ValidationResult
+StocktakeValidator ..> StocktakeRequestDto : validates
+StocktakeValidator ..> ValidationResult : returns
+
+@enduml 

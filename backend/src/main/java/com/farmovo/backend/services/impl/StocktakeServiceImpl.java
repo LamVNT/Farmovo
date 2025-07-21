@@ -36,17 +36,16 @@ public class StocktakeServiceImpl implements StocktakeService {
     @Override
     public StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId) {
         ObjectMapper mapper = new ObjectMapper();
-        List<StocktakeDetail> details;
+        // Lấy rawDetail từ request (frontend gửi vào trường detail)
+        List<StocktakeDetail> rawDetails;
         try {
-            details = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {
-            });
+            rawDetails = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {});
         } catch (Exception e) {
             throw new ValidationException("detail is not valid JSON: " + e.getMessage());
         }
-        StocktakeValidator.validateRequest(requestDto, details);
-        // Tính remain và diff chỉ theo productId (không lặp qua từng zone)
-        for (StocktakeDetail d : details) {
-            // Đã import ImportTransactionDetail ở đầu file, không cần ghi rõ package nữa
+        StocktakeValidator.validateRequest(requestDto, rawDetails);
+        // Tính remain và diff cho từng dòng
+        for (StocktakeDetail d : rawDetails) {
             List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemain(d.getProductId());
             int totalRemain = 0;
             for (ImportTransactionDetail lot : lots) {
@@ -55,24 +54,35 @@ public class StocktakeServiceImpl implements StocktakeService {
             d.setRemain(totalRemain);
             d.setDiff(d.getReal() != null ? d.getReal() - totalRemain : null);
         }
-        // Serialize lại detail
-        String updatedDetailJson;
+        // Serialize lại rawDetail để lưu vào DB
+        String rawDetailJson;
         try {
-            updatedDetailJson = mapper.writeValueAsString(details);
+            rawDetailJson = mapper.writeValueAsString(rawDetails);
         } catch (Exception e) {
-            throw new ValidationException("Failed to serialize detail: " + e.getMessage());
+            throw new ValidationException("Failed to serialize rawDetail: " + e.getMessage());
         }
         Stocktake stocktake = new Stocktake();
-        // Luôn set stocktakeDate là ngày hiện tại
         stocktake.setStocktakeDate(Instant.now());
-        stocktake.setDetail(updatedDetailJson);
+        stocktake.setDetail(rawDetailJson); // Lưu rawDetail vào trường detail
         stocktake.setStocktakeNote(requestDto.getStocktakeNote());
         stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
         Store store = storeRepository.findById(requestDto.getStoreId()).orElseThrow();
         stocktake.setStore(store);
-        stocktake.setCreatedBy(userId); // Gán userId vào createdBy
+        stocktake.setCreatedBy(userId);
         stocktake = stocktakeRepository.save(stocktake);
-        return stocktakeMapper.toResponseDto(stocktake);
+        StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
+        dto.setStoreName(stocktake.getStore().getStoreName());
+        userRepository.findById(userId).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
+        // Khi trả về, group lại để trả về detail (dạng gộp), còn rawDetail là dữ liệu gốc
+        try {
+            List<StocktakeDetailDto> detailsDto = mapper.readValue(rawDetailJson, new TypeReference<List<StocktakeDetailDto>>() {});
+            List<StocktakeDetailDto> grouped = groupDetailsByProduct(detailsDto);
+            dto.setDetail(mapper.writeValueAsString(grouped));
+            dto.setRawDetail(mapper.writeValueAsString(detailsDto));
+        } catch (Exception e) {
+            throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
+        }
+        return dto;
     }
 
     private List<StocktakeDetailDto> groupDetailsByProduct(List<StocktakeDetailDto> details) {
@@ -108,18 +118,17 @@ public class StocktakeServiceImpl implements StocktakeService {
     public StocktakeResponseDto getStocktakeById(Long id) {
         Stocktake stocktake = stocktakeRepository.findById(id).orElseThrow();
         StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
-        // Parse detail JSON thành list detailDto
+        dto.setStoreName(stocktake.getStore().getStoreName());
+        userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
         ObjectMapper mapper = new ObjectMapper();
         List<StocktakeDetailDto> details;
         try {
-            details = mapper.readValue(dto.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {
-            });
+            details = mapper.readValue(dto.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {});
         } catch (Exception e) {
             throw new ValidationException("detail is not valid JSON: " + e.getMessage());
         }
         // Group lại detail trước khi trả về
         List<StocktakeDetailDto> grouped = groupDetailsByProduct(details);
-        // Serialize lại detail tổng hợp và rawDetail
         try {
             dto.setDetail(mapper.writeValueAsString(grouped)); // dữ liệu đã gộp
             dto.setRawDetail(mapper.writeValueAsString(details)); // dữ liệu chi tiết gốc
@@ -133,7 +142,10 @@ public class StocktakeServiceImpl implements StocktakeService {
     public List<StocktakeResponseDto> getAllStocktakes() {
         List<StocktakeResponseDto> result = new ArrayList<>();
         for (Stocktake stocktake : stocktakeRepository.findAll()) {
+            System.out.println("=== [LOG] Đọc detail từ DB (id=" + stocktake.getId() + "): " + stocktake.getDetail());
             StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
+            dto.setStoreName(stocktake.getStore().getStoreName());
+            userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
             ObjectMapper mapper = new ObjectMapper();
             List<StocktakeDetailDto> details;
             try {
@@ -192,23 +204,29 @@ public class StocktakeServiceImpl implements StocktakeService {
             throw new ValidationException("Bạn không có quyền thực hiện thao tác này!");
         }
         stocktake = stocktakeRepository.save(stocktake);
-        return stocktakeMapper.toResponseDto(stocktake);
+        StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
+        dto.setStoreName(stocktake.getStore().getStoreName());
+        userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
+        return dto;
     }
 
     @Override
     public StocktakeResponseDto updateStocktake(Long id, StocktakeRequestDto requestDto) {
         Stocktake stocktake = stocktakeRepository.findById(id).orElseThrow();
+        if (stocktake.getStatus() == StocktakeStatus.COMPLETED || stocktake.getStatus() == StocktakeStatus.CANCELLED) {
+            throw new ValidationException("Không thể chỉnh sửa phiếu đã hoàn thành hoặc đã hủy!");
+        }
         ObjectMapper mapper = new ObjectMapper();
-        List<StocktakeDetail> details;
+        // Lấy rawDetail từ request (frontend gửi vào trường detail)
+        List<StocktakeDetail> rawDetails;
         try {
-            details = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {
-            });
+            rawDetails = mapper.readValue(requestDto.getDetail(), new TypeReference<List<StocktakeDetail>>() {});
         } catch (Exception e) {
             throw new ValidationException("detail is not valid JSON: " + e.getMessage());
         }
-        StocktakeValidator.validateRequest(requestDto, details);
-        // Tính remain và diff lại
-        for (StocktakeDetail d : details) {
+        StocktakeValidator.validateRequest(requestDto, rawDetails);
+        // Tính remain và diff lại cho từng dòng
+        for (StocktakeDetail d : rawDetails) {
             List<ImportTransactionDetail> lots = importTransactionDetailRepository.findByProductIdAndRemain(d.getProductId());
             int totalRemain = 0;
             for (ImportTransactionDetail lot : lots) {
@@ -217,18 +235,30 @@ public class StocktakeServiceImpl implements StocktakeService {
             d.setRemain(totalRemain);
             d.setDiff(d.getReal() != null ? d.getReal() - totalRemain : null);
         }
-        String updatedDetailJson;
+        String rawDetailJson;
         try {
-            updatedDetailJson = mapper.writeValueAsString(details);
+            rawDetailJson = mapper.writeValueAsString(rawDetails);
         } catch (Exception e) {
-            throw new ValidationException("Failed to serialize detail: " + e.getMessage());
+            throw new ValidationException("Failed to serialize rawDetail: " + e.getMessage());
         }
-        stocktake.setDetail(updatedDetailJson);
+        stocktake.setDetail(rawDetailJson); // Lưu rawDetail vào trường detail
         stocktake.setStocktakeNote(requestDto.getStocktakeNote());
         stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
         Store store = storeRepository.findById(requestDto.getStoreId()).orElseThrow();
         stocktake.setStore(store);
         stocktake = stocktakeRepository.save(stocktake);
-        return stocktakeMapper.toResponseDto(stocktake);
+        StocktakeResponseDto dto = stocktakeMapper.toResponseDto(stocktake);
+        dto.setStoreName(stocktake.getStore().getStoreName());
+        userRepository.findById(stocktake.getCreatedBy()).ifPresent(u -> dto.setCreatedByName(u.getFullName() != null ? u.getFullName() : u.getUsername()));
+        // Khi trả về, group lại để trả về detail (dạng gộp), còn rawDetail là dữ liệu gốc
+        try {
+            List<StocktakeDetailDto> detailsDto = mapper.readValue(rawDetailJson, new TypeReference<List<StocktakeDetailDto>>() {});
+            List<StocktakeDetailDto> grouped = groupDetailsByProduct(detailsDto);
+            dto.setDetail(mapper.writeValueAsString(grouped));
+            dto.setRawDetail(mapper.writeValueAsString(detailsDto));
+        } catch (Exception e) {
+            throw new ValidationException("Failed to serialize grouped detail: " + e.getMessage());
+        }
+        return dto;
     }
 } 
