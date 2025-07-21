@@ -33,6 +33,7 @@ public interface ImportTransactionService {
 
     void softDeleteImportTransaction(Long id, Long userId);
 
+    byte[] exportImportPdf(Long id);
 
 
 //    List<ImportTransactionResponseDto> filterImportTransactions(String search, String status, String startDate, String endDate);
