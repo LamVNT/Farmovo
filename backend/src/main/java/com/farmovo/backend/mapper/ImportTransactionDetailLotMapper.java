@@ -17,7 +17,8 @@ import org.mapstruct.Context;
 public interface ImportTransactionDetailLotMapper {
     @Mapping(source = "product.productName", target = "productName")
     @Mapping(source = "importTransaction.store.storeName", target = "storeName")
-    @Mapping(source = "importTransaction.importDate", target = "importDate")
+    @Mapping(source = "name", target = "name") // mã lô
+    @Mapping(source = "expireDate", target = "expireDate") // hạn dùng
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "isCheck", target = "isCheck")
     @Mapping(target = "zonesId", source = "zones_id", qualifiedByName = "parseZonesId")
@@ -27,7 +28,8 @@ public interface ImportTransactionDetailLotMapper {
     // Nếu không truyền allZones, chỉ map zonesId
     @Mapping(source = "product.productName", target = "productName")
     @Mapping(source = "importTransaction.store.storeName", target = "storeName")
-    @Mapping(source = "importTransaction.importDate", target = "importDate")
+    @Mapping(source = "name", target = "name")
+    @Mapping(source = "expireDate", target = "expireDate")
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "isCheck", target = "isCheck")
     @Mapping(target = "zonesId", source = "zones_id", qualifiedByName = "parseZonesId")
@@ -57,4 +59,4 @@ public interface ImportTransactionDetailLotMapper {
                 .map(Zone::getZoneName)
                 .collect(Collectors.joining(", "));
     }
-} 
+}

@@ -4,11 +4,14 @@ import com.farmovo.backend.dto.response.StocktakeResponseDto;
 import com.farmovo.backend.models.Stocktake;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface StocktakeMapper {
     StocktakeMapper INSTANCE = Mappers.getMapper(StocktakeMapper.class);
 
-    // Chỉ map các trường cơ bản, detail sẽ xử lý enrich ở Service
+    // Bỏ mapping trường detail, để service tự set
+    @Mapping(target = "detail", ignore = true)
+    @Mapping(target = "rawDetail", ignore = true)
     StocktakeResponseDto toResponseDto(Stocktake stocktake);
 } 

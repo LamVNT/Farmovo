@@ -78,7 +78,7 @@ const UpdateStocktakePage = () => {
                 if (filter.product) params.append('product', filter.product);
                 if (filter.batchCode) params.append('batchCode', filter.batchCode);
                 if (filter.search) params.append('search', filter.search);
-                const res = await axios.get(`/import-transaction-details/stocktake-lot?${params.toString()}`);
+                const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
                 setLots(res.data || []);
             } catch {
                 setLots([]);
@@ -130,14 +130,14 @@ const UpdateStocktakePage = () => {
         }
         for (const lot of selectedLots) {
             if (lot.real === '' || isNaN(Number(lot.real))) {
-                setSnackbar({ isOpen: true, message: `Vui lòng nhập số thực tế cho lô ${lot.batchCode || lot.id}!`, severity: "error" });
+                setSnackbar({ isOpen: true, message: `Vui lòng nhập số thực tế cho lô ${lot.name}!`, severity: "error" });
                 return;
             }
         }
         // Chuẩn hóa dữ liệu gửi backend
         const detail = selectedLots.map(lot => ({
             productId: lot.productId,
-            batchCode: lot.batchCode || lot.name,
+            batchCode: lot.name, // chỉ dùng lot.name
             zoneId: lot.zoneId,
             remain: lot.remainQuantity,
             real: Number(lot.real),
@@ -232,7 +232,7 @@ const UpdateStocktakePage = () => {
                             <TableRow key={lot.id} hover>
                                 <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
                                 <TableCell>{lot.productName || lot.productId}</TableCell>
-                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.name}</TableCell>
                                 <TableCell>{lot.remainQuantity}</TableCell>
                                 <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
                                 <TableCell>{lot.isCheck ? "Đã kiểm" : "Chưa kiểm"}</TableCell>
@@ -279,7 +279,7 @@ const UpdateStocktakePage = () => {
                             <TableRow key={lot.id} hover>
                                 <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
                                 <TableCell>{lot.productName || lot.productId}</TableCell>
-                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.name}</TableCell>
                                 <TableCell>{lot.remainQuantity}</TableCell>
                                 <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
                                 <TableCell>
@@ -350,4 +350,4 @@ const UpdateStocktakePage = () => {
     );
 };
 
-export default UpdateStocktakePage; 
+export default UpdateStocktakePage;

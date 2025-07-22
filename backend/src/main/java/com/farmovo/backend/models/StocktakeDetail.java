@@ -11,7 +11,7 @@ import java.util.List;
 public class StocktakeDetail {
     private Long productId;
     @JsonProperty("zones_id")
-    private List<Long> zones_id;
+    private List<String> zones_id;
     private Integer remain;
     private Integer real;
     private Integer diff;

@@ -16,7 +16,9 @@ const CreateStocktakePage = () => {
     const [zones, setZones] = useState([]);
     const [stores, setStores] = useState([]);
     const [products, setProducts] = useState([]);
-    const [filter, setFilter] = useState({ store: '', zone: '', product: '', batchCode: '', search: '' });
+    // Lấy id kho staff phụ trách từ localStorage hoặc context (ví dụ: localStorage.getItem('staff_store_id'))
+    const staffStoreId = localStorage.getItem('staff_store_id') || '';
+    const [filter, setFilter] = useState({ store: staffStoreId, zone: '', product: '', batchCode: '', search: '' });
     const [loadingLots, setLoadingLots] = useState(false);
     const [lots, setLots] = useState([]); // Danh sách lô tìm được
     const [selectedLots, setSelectedLots] = useState([]); // Danh sách lô đã chọn để kiểm kê
@@ -27,11 +29,15 @@ const CreateStocktakePage = () => {
     useEffect(() => {
         getZones().then(setZones);
         getAllStores().then(setStores);
-        // Lấy danh sách sản phẩm nếu cần (hoặc lấy từ API lô)
+        // Gọi API lấy danh sách sản phẩm
+        axios.get('/products').then(res => setProducts(res.data || []));
+        // Nếu staffStoreId có giá trị thì set filter.store luôn
+        if (staffStoreId) setFilter(f => ({ ...f, store: staffStoreId }));
     }, []);
 
-    // Lấy danh sách lô khi filter thay đổi
+    // Lấy danh sách lô khi filter hoặc products thay đổi
     useEffect(() => {
+        if (products.length === 0) return; // Chỉ fetch lots khi đã có products
         const fetchLots = async () => {
             setLoadingLots(true);
             try {
@@ -41,16 +47,47 @@ const CreateStocktakePage = () => {
                 if (filter.product) params.append('product', filter.product);
                 if (filter.batchCode) params.append('batchCode', filter.batchCode);
                 if (filter.search) params.append('search', filter.search);
-                const res = await axios.get(`/import-transaction-details/stocktake-lot?${params.toString()}`);
-                setLots(res.data || []);
-            } catch {
+                const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
+                // Chuẩn hóa lại lots: đảm bảo có productId và zoneIds (có thể là mảng)
+                const lotsData = (res.data || []).map(lot => {
+                    let zoneIds = lot.zoneIds || lot.zones_id || lot.zoneId || lot.zone_id || [];
+                    if (typeof zoneIds === 'string') {
+                        zoneIds = zoneIds.split(',').map(z => z.trim()).filter(Boolean);
+                    }
+                    if (!Array.isArray(zoneIds)) {
+                        zoneIds = zoneIds ? [zoneIds] : [];
+                    }
+                    // Map productId từ products dựa vào productName (so sánh trim, không phân biệt hoa thường)
+                    let productId = lot.productId || lot.product?.id || lot.product_id || '';
+                    if (!productId && lot.productName && products.length > 0) {
+                        const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
+                        if (found) productId = found.id;
+                    }
+                    if (!productId) {
+                        console.warn('[DEBUG] Không tìm thấy productId cho lô:', lot);
+                    }
+                    return {
+                        ...lot,
+                        productId,
+                        zoneIds,
+                        zoneId: zoneIds[0] || '',
+                    };
+                });
+                // Log tất cả các lô bị thiếu productId
+                const missingProductIdLots = lotsData.filter(lot => !lot.productId);
+                if (missingProductIdLots.length > 0) {
+                    console.warn('[DEBUG] Các lô bị thiếu productId:', missingProductIdLots);
+                }
+                setLots(lotsData);
+            } catch (err) {
                 setLots([]);
+                console.error('[DEBUG] Lỗi khi fetch lots:', err);
             } finally {
                 setLoadingLots(false);
             }
         };
         fetchLots();
-    }, [filter]);
+    }, [filter, products]);
 
     useEffect(() => {
         localStorage.setItem('stocktake_create_selected_lots', JSON.stringify(selectedLots));
@@ -59,10 +96,16 @@ const CreateStocktakePage = () => {
     // Thêm lô vào danh sách kiểm kê tạm
     const handleSelectLot = (lot) => {
         if (selectedLots.some(l => l.id === lot.id)) return;
+        if (!lot.productId) {
+            setSnackbar({ isOpen: true, message: `Không thể chọn lô thiếu productId: ${lot.name || lot.id}`, severity: "error" });
+            return;
+        }
         setSelectedLots(prev => [
             ...prev,
             {
                 ...lot,
+                productId: lot.productId || lot.product?.id || '',
+                zoneId: (lot.zoneIds && lot.zoneIds[0]) || lot.zoneId || lot.zone?.id || '',
                 real: '',
                 note: '',
                 isCheck: false,
@@ -95,17 +138,27 @@ const CreateStocktakePage = () => {
             setSnackbar({ isOpen: true, message: "Vui lòng chọn ít nhất một lô để kiểm kê!", severity: "error" });
             return;
         }
+        const missingProductIdLots = selectedLots.filter(lot => !lot.productId);
+        if (missingProductIdLots.length > 0) {
+            setSnackbar({ isOpen: true, message: `Không thể tạo phiếu! Có ${missingProductIdLots.length} lô bị thiếu productId.`, severity: "error" });
+            console.warn('[DEBUG] Không thể submit, các lô thiếu productId:', missingProductIdLots);
+            return;
+        }
         for (const lot of selectedLots) {
             if (lot.real === '' || isNaN(Number(lot.real))) {
-                setSnackbar({ isOpen: true, message: `Vui lòng nhập số thực tế cho lô ${lot.batchCode || lot.id}!`, severity: "error" });
+                setSnackbar({ isOpen: true, message: `Vui lòng nhập số thực tế cho lô ${lot.name || lot.id}!`, severity: "error" });
+                return;
+            }
+            if (!lot.zonesId || !Array.isArray(lot.zonesId) || lot.zonesId.length === 0) {
+                setSnackbar({ isOpen: true, message: `Thiếu khu vực (zonesId) cho lô ${lot.name || lot.id}!`, severity: "error" });
                 return;
             }
         }
-        // Chuẩn hóa dữ liệu gửi backend
+        // Chuẩn hóa dữ liệu gửi backend: cần cả productId
         const detail = selectedLots.map(lot => ({
+            batchCode: lot.name,
+            zones_id: lot.zonesId,
             productId: lot.productId,
-            batchCode: lot.batchCode || lot.name,
-            zoneId: lot.zoneId,
             remain: lot.remainQuantity,
             real: Number(lot.real),
             diff: lot.diff,
@@ -113,11 +166,12 @@ const CreateStocktakePage = () => {
             note: lot.note,
             expireDate: lot.expireDate
         }));
+        // Log dữ liệu gửi backend để debug
+        console.log("[DEBUG] Dữ liệu gửi backend:", detail);
         try {
             await createStocktake({
                 detail,
                 stocktakeNote: "Phiếu kiểm kê mới",
-                storeId: filter.store,
                 status: "DRAFT",
                 stocktakeDate: new Date().toISOString()
             });
@@ -141,17 +195,14 @@ const CreateStocktakePage = () => {
                     onChange={e => setFilter(f => ({ ...f, search: e.target.value }))}
                     sx={{ minWidth: 220 }}
                 />
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Kho</InputLabel>
-                    <Select
-                        value={filter.store}
-                        label="Kho"
-                        onChange={e => setFilter(f => ({ ...f, store: e.target.value }))}
-                    >
-                        <MenuItem value="">Tất cả</MenuItem>
-                        {stores.map(s => <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>)}
-                    </Select>
-                </FormControl>
+                {/* Bỏ trường lọc kho, chỉ hiển thị tên kho staff đang phụ trách */}
+                <TextField
+                    size="small"
+                    label="Kho"
+                    value={stores.find(s => s.id === filter.store)?.name || ''}
+                    InputProps={{ readOnly: true }}
+                    sx={{ minWidth: 150 }}
+                />
                 <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>Khu vực</InputLabel>
                     <Select
@@ -201,7 +252,7 @@ const CreateStocktakePage = () => {
                             <TableRow key={lot.id} hover>
                                 <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
                                 <TableCell>{lot.productName || lot.productId}</TableCell>
-                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.name}</TableCell>
                                 <TableCell>{lot.remainQuantity}</TableCell>
                                 <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
                                 <TableCell>{lot.isCheck ? "Đã kiểm" : "Chưa kiểm"}</TableCell>
@@ -248,7 +299,7 @@ const CreateStocktakePage = () => {
                             <TableRow key={lot.id} hover>
                                 <TableCell>{lot.zoneName || lot.zoneId}</TableCell>
                                 <TableCell>{lot.productName || lot.productId}</TableCell>
-                                <TableCell>{lot.batchCode || lot.name}</TableCell>
+                                <TableCell>{lot.name}</TableCell>
                                 <TableCell>{lot.remainQuantity}</TableCell>
                                 <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>
                                 <TableCell>
@@ -319,4 +370,4 @@ const CreateStocktakePage = () => {
     );
 };
 
-export default CreateStocktakePage; 
+export default CreateStocktakePage;

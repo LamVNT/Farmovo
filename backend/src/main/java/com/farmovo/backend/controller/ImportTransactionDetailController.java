@@ -66,11 +66,11 @@ public class ImportTransactionDetailController {
         @RequestParam(required = false) String store,
         @RequestParam(required = false) String zone,
         @RequestParam(required = false) String product,
-        @RequestParam(required = false) String importDate,
         @RequestParam(required = false) Boolean isCheck,
-        @RequestParam(required = false) String batchCode
+        @RequestParam(required = false) String batchCode,
+        @RequestParam(required = false) String search
     ) {
-        List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, importDate, isCheck, batchCode);
+        List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, isCheck, batchCode, search);
         return ResponseEntity.ok(result);
     }
 
@@ -92,4 +92,4 @@ public class ImportTransactionDetailController {
         importTransactionDetailService.completeImportDetail(id);
         return ResponseEntity.ok().build();
     }
-} 
+}

@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -15,8 +15,9 @@ public class ImportDetailLotDto {
     private String productName;
     private String zoneName;
     private String storeName;
-    private LocalDate importDate;
+    private String name; // mã lô
+    private LocalDateTime expireDate; // hạn dùng
     private Integer remainQuantity;
     private Boolean isCheck;
     private List<Long> zonesId;
-} 
+}

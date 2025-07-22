@@ -77,7 +77,6 @@ const StockTakePage = () => {
     useEffect(() => {
         setLoading(true);
         getStocktakeList({
-            storeId: storeFilter,
             status: statusFilter,
             note: noteFilter,
             fromDate: dateFilter,
@@ -93,13 +92,12 @@ const StockTakePage = () => {
         productService.getAllProducts().then(setProducts);
         getZones().then(setZones);
         getAllStores().then(setStores);
-    }, [storeFilter, statusFilter, noteFilter, dateFilter]);
+    }, [statusFilter, noteFilter, dateFilter]);
 
     const handleCreate = (rows) => {
         createStocktake({
             detail: JSON.stringify(rows),
             stocktakeNote: "Phiếu kiểm kê mới",
-            storeId: 1, // hoặc lấy từ context
             status: "DRAFT",
             stocktakeDate: new Date().toISOString()
         }).then(() => {

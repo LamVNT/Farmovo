@@ -32,7 +32,7 @@ public interface ImportTransactionDetailService {
     // Kiểm tra thiếu Zone khi kiểm kê
     List<MissingZoneDto> checkMissingZones(List<StocktakeDetailDto> stocktakeDetails);
 
-    List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, String importDate, Boolean isCheck, String batchCode);
+    List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, Boolean isCheck, String batchCode, String search);
 
     void updateIsCheck(Long id, boolean isCheck);
 

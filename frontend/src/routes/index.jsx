@@ -29,7 +29,6 @@ import UpdateStocktakePage from "../pages/stocktake/Update.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
-import StockTakeDetailLinePage from "../pages/stocktake/DetailLine.jsx";
 import StocktakeLot from '../pages/import-detail/StocktakeLot';
 import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
@@ -66,7 +65,7 @@ const router = createBrowserRouter([
         path: "/forgot-password",
         element: (
             <GuestRoute>
-                <ForgotPassword />
+                <ForgotPassword/>
             </GuestRoute>
         ),
     },
@@ -236,17 +235,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
-                    <UpdateStocktakePage />
-                </MainLayout>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: "/stocktake/detail-line/:id",
-        element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
-                <MainLayout>
-                    <StockTakeDetailLinePage/>
+                    <UpdateStocktakePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -268,7 +257,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
-                    <CustomerManagementPage />
+                    <CustomerManagementPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -278,7 +267,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
-                    <Store />
+                    <Store/>
                 </MainLayout>
             </ProtectedRoute>
         ),

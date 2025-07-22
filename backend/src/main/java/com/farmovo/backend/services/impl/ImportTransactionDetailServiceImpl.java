@@ -1,63 +1,43 @@
 package com.farmovo.backend.services.impl;
 
-import com.farmovo.backend.dto.response.ProductSaleResponseDto;
+import com.farmovo.backend.dto.response.*;
+import com.farmovo.backend.mapper.ImportTransactionDetailLotMapper;
 import com.farmovo.backend.mapper.ProductMapper;
-import com.farmovo.backend.dto.response.ZoneResponseDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
-import com.farmovo.backend.dto.response.ZoneProductDetailDto;
-import com.farmovo.backend.dto.response.MissingZoneDto;
-import com.farmovo.backend.dto.response.StocktakeDetailDto;
-import com.farmovo.backend.dto.response.ImportDetailLotDto;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.Product;
-import com.farmovo.backend.models.Zone;
 import com.farmovo.backend.models.Store;
+import com.farmovo.backend.models.Zone;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.services.ImportTransactionDetailService;
-import lombok.RequiredArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import com.farmovo.backend.services.ZoneService;
 import com.farmovo.backend.services.ProductService;
-import com.farmovo.backend.mapper.ImportTransactionDetailLotMapper;
+import com.farmovo.backend.services.ZoneService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ImportTransactionDetailServiceImpl implements ImportTransactionDetailService {
-
-    private static final Logger log = LogManager.getLogger(ImportTransactionDetailServiceImpl.class);
 
     private final ImportTransactionDetailRepository detailRepository;
     private final ProductMapper productMapper;
-
-    @Autowired
-    private ZoneService zoneService;
-
-    @Autowired
-    private ProductService productService;
-
-    @Autowired
-    private ImportTransactionDetailLotMapper importDetailLotMapper;
+    private final ZoneService zoneService;
+    private final ProductService productService;
+    private final ImportTransactionDetailLotMapper importDetailLotMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     public List<ImportTransactionDetail> findByProductId(Long productId) {
         log.info("Finding import transaction details by productId: {}", productId);
-
         List<ImportTransactionDetail> result = detailRepository.findByProductId(productId);
         log.info("Found {} import transaction details for productId: {}", result.size(), productId);
-
         return result;
     }
 
@@ -65,268 +45,133 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     @Override
     public List<ZoneResponseDto> getZonesWithProducts() {
-        List<String> zoneIdStrings = detailRepository.findAllZoneIdsWithProducts();
-        Set<Long> zoneIds = new HashSet<>();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        // Parse tất cả zones_id JSON strings và thu thập zoneId
-        for (String zoneIdStr : zoneIdStrings) {
-            if (zoneIdStr != null && !zoneIdStr.isEmpty()) {
-                zoneIds.addAll(parseZonesId(zoneIdStr, objectMapper));
-            }
-        }
-
+        log.debug("Fetching zones with products");
+        Set<Long> zoneIds = detailRepository.findAllZoneIdsWithProducts().stream()
+                .filter(Objects::nonNull)
+                .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
+                .collect(Collectors.toSet());
         // Lấy thông tin Zone từ ZoneService
-        List<ZoneResponseDto> allZones = zoneService.getAllZones();
-        return allZones.stream()
+        return zoneService.getAllZones().stream()
                 .filter(zone -> zoneIds.contains(zone.getId()))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ProductResponseDto> getProductsByZone(String zoneId) {
+        log.debug("Fetching products for zoneId: {}", zoneId);
         List<Long> productIds = detailRepository.findProductIdsByZoneId(zoneId);
         List<ProductResponseDto> allProducts = productService.getAllProducts();
-
-        // Lọc sản phẩm theo productIds và cập nhật thông tin từ ImportTransactionDetail
+        // Lọc sản phẩm theo productIds và enrich thông tin từ ImportTransactionDetail
         return allProducts.stream()
                 .filter(product -> productIds.contains(product.getProId()))
-                .map(product -> {
-                    // Lấy thông tin chi tiết từ ImportTransactionDetail
-                    List<ImportTransactionDetail> details = detailRepository.findByZoneId(zoneId);
-                    ImportTransactionDetail detail = details.stream()
-                            .filter(d -> d.getProduct().getId().equals(product.getProId()))
-                            .findFirst()
-                            .orElse(null);
-
-                    if (detail != null) {
-                        product.setId(detail.getId());
-                        product.setRemainQuantity(detail.getRemainQuantity());
-                        product.setUnitImportPrice(detail.getUnitImportPrice());
-                        product.setUnitSalePrice(detail.getUnitSalePrice());
-                    }
-
-                    return product;
-                })
+                .map(product -> enrichProductWithDetails(product, zoneId))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ZoneResponseDto> getZonesByProduct(Long productId) {
-        List<String> zoneIdStrings = detailRepository.findZoneIdsByProductId(productId);
-        Set<Long> zoneIds = new HashSet<>();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        // Parse tất cả zones_id JSON strings và thu thập zoneId
-        for (String zoneIdStr : zoneIdStrings) {
-            if (zoneIdStr != null && !zoneIdStr.isEmpty()) {
-                zoneIds.addAll(parseZonesId(zoneIdStr, objectMapper));
-            }
-        }
-
+        log.debug("Fetching zones for productId: {}", productId);
+        Set<Long> zoneIds = detailRepository.findZoneIdsByProductId(productId).stream()
+                .filter(Objects::nonNull)
+                .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
+                .collect(Collectors.toSet());
         // Lấy thông tin Zone từ ZoneService
-        List<ZoneResponseDto> allZones = zoneService.getAllZones();
-        return allZones.stream()
+        return zoneService.getAllZones().stream()
                 .filter(zone -> zoneIds.contains(zone.getId()))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ZoneProductDetailDto> getDetailsByZone(String zoneId) {
-        List<Object[]> rawDetails = detailRepository.findDetailsByZoneId(zoneId);
-        List<ZoneProductDetailDto> result = new ArrayList<>();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        for (Object[] row : rawDetails) {
-            Long importDetailId = (Long) row[0];
-            Long productId = (Long) row[1];
-            String productName = (String) row[2];
-            Integer remainQuantity = (Integer) row[3];
-            String zonesIdStr = (String) row[4];
-            java.time.LocalDateTime expireDate = (java.time.LocalDateTime) row[5];
-
-            List<Long> zonesId = new ArrayList<>();
-            if (zonesIdStr != null && !zonesIdStr.isEmpty()) {
-                zonesId = parseZonesId(zonesIdStr, objectMapper);
-            }
-
-            result.add(new ZoneProductDetailDto(
-                    importDetailId, productId, productName, remainQuantity,
-                    expireDate, zonesId, zonesIdStr
-            ));
-        }
-
-        return result;
+        log.debug("Fetching details for zoneId: {}", zoneId);
+        // Parse từng dòng kết quả từ repository
+        return detailRepository.findDetailsByZoneId(zoneId).stream()
+                .map(row -> new ZoneProductDetailDto(
+                        (Long) row[0],          // importDetailId
+                        (Long) row[1],          // productId
+                        (String) row[2],        // productName
+                        (Integer) row[3],       // remainQuantity
+                        (java.time.LocalDateTime) row[5], // expireDate
+                        parseZonesId((String) row[4]),   // zonesId
+                        (String) row[4]         // zonesIdStr
+                ))
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<MissingZoneDto> checkMissingZones(List<StocktakeDetailDto> stocktakeDetails) {
+        log.debug("Checking missing zones for {} stocktake details", stocktakeDetails.size());
         List<MissingZoneDto> missingZones = new ArrayList<>();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        for (StocktakeDetailDto stocktakeDetail : stocktakeDetails) {
-            Long productId = stocktakeDetail.getProductId();
-            List<Long> checkedZoneIds = stocktakeDetail.getZones_id();
-
+        for (StocktakeDetailDto detail : stocktakeDetails) {
+            Long productId = detail.getProductId();
+            Set<Long> checkedZoneIds = Optional.ofNullable(detail.getZones_id())
+                    .map(zones -> zones.stream().map(Long::parseLong).collect(Collectors.toSet()))
+                    .orElse(new HashSet<>());
             // Lấy tất cả zoneId thực tế của sản phẩm từ ImportTransactionDetail
-            List<String> zoneIdStrings = detailRepository.findZoneIdsByProductId(productId);
-            Set<Long> actualZoneIds = new HashSet<>();
-
-            // Parse tất cả zones_id JSON strings
-            for (String zoneIdStr : zoneIdStrings) {
-                if (zoneIdStr != null && !zoneIdStr.isEmpty()) {
-                    actualZoneIds.addAll(parseZonesId(zoneIdStr, objectMapper));
-                }
-            }
-
+            Set<Long> actualZoneIds = detailRepository.findZoneIdsByProductId(productId).stream()
+                    .filter(Objects::nonNull)
+                    .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
+                    .collect(Collectors.toSet());
             // Tìm zones còn thiếu
             Set<Long> missingZoneIds = new HashSet<>(actualZoneIds);
             missingZoneIds.removeAll(checkedZoneIds);
-
-            // Tìm zones đã kiểm kê
-            Set<Long> checkedZoneIdSet = new HashSet<>(checkedZoneIds);
-
             if (!missingZoneIds.isEmpty()) {
                 // Lấy thông tin Zone từ ZoneService
                 List<ZoneResponseDto> allZones = zoneService.getAllZones();
-
                 List<ZoneResponseDto> missingZonesList = allZones.stream()
                         .filter(zone -> missingZoneIds.contains(zone.getId()))
                         .collect(Collectors.toList());
-
                 List<ZoneResponseDto> checkedZonesList = allZones.stream()
-                        .filter(zone -> checkedZoneIdSet.contains(zone.getId()))
+                        .filter(zone -> checkedZoneIds.contains(zone.getId()))
                         .collect(Collectors.toList());
-
                 // Tính tổng số lượng còn lại
                 List<ImportTransactionDetail> productDetails = detailRepository.findByProductIdAndRemain(productId);
                 Integer totalRemainQuantity = productDetails.stream()
                         .mapToInt(ImportTransactionDetail::getRemainQuantity)
                         .sum();
-
                 // Lấy tên sản phẩm
-                String productName = "";
-                if (!productDetails.isEmpty()) {
-                    productName = productDetails.get(0).getProduct().getProductName();
-                }
-
+                String productName = productDetails.isEmpty() ? ""
+                        : productDetails.get(0).getProduct().getProductName();
                 missingZones.add(new MissingZoneDto(
                         productId, productName, missingZonesList, checkedZonesList, totalRemainQuantity
                 ));
             }
         }
-
         return missingZones;
     }
 
-    private List<Long> parseZonesId(String zonesIdStr, ObjectMapper objectMapper) {
-        if (zonesIdStr == null || zonesIdStr.isEmpty()) return new ArrayList<>();
-        try {
-            return objectMapper.readValue(zonesIdStr, new com.fasterxml.jackson.core.type.TypeReference<List<Long>>() {});
-        } catch (Exception e) {
-            // Thử tách chuỗi theo dấu phẩy
-            try {
-                return java.util.Arrays.stream(zonesIdStr.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(Long::valueOf)
-                    .collect(java.util.stream.Collectors.toList());
-            } catch (Exception ignore) {
-                return new ArrayList<>();
-            }
-        }
-    }
-
     @Override
-    public List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, String importDate, Boolean isCheck, String batchCode) {
-        List<ImportTransactionDetail> all = detailRepository.findAll();
-        ObjectMapper objectMapper = new ObjectMapper();
-        return all.stream().filter(row -> {
-            boolean match = true;
-            // Bổ sung: loại các lô Remain=0 & IsCheck=true
-            if ((row.getRemainQuantity() != null && row.getRemainQuantity() == 0)
-                && (row.getIsCheck() != null && row.getIsCheck())) {
-                return false;
-            }
-            if (store != null && !store.isEmpty()) {
-                Store s = row.getProduct() != null ? row.getProduct().getStore() : null;
-                if (s == null || !s.getStoreName().equalsIgnoreCase(store)) match = false;
-            }
-            if (zone != null && !zone.isEmpty()) {
-                List<Long> zones = parseZonesId(row.getZones_id(), objectMapper);
-                if (zones == null || zones.isEmpty()) match = false;
-                else {
-                    Long zoneId = null;
-                    try {
-                        zoneId = Long.valueOf(zone);
-                    } catch (Exception ignore) {}
-                    if (zoneId == null || !zones.contains(zoneId)) match = false;
-                }
-            }
-            if (product != null && !product.isEmpty()) {
-                if (row.getProduct() == null || !row.getProduct().getProductName().equalsIgnoreCase(product))
-                    match = false;
-            }
-            if (importDate != null && !importDate.isEmpty()) {
-                java.time.LocalDateTime dateTime = row.getImportTransaction() != null ? row.getImportTransaction().getImportDate() : null;
-                LocalDate d = dateTime != null ? dateTime.toLocalDate() : null;
-                if (d == null || !d.toString().equals(importDate)) match = false;
-            }
-            if (isCheck != null) {
-                if (row.getIsCheck() == null || !row.getIsCheck().equals(isCheck)) match = false;
-            }
-            // Bổ sung: filter theo batchCode
-            if (batchCode != null && !batchCode.isEmpty()) {
-                if (row.getName() == null || !row.getName().equalsIgnoreCase(batchCode)) match = false;
-            }
-            return match;
-        }).map(row -> {
-            String productName = row.getProduct() != null ? row.getProduct().getProductName() : null;
-            String zoneName = null;
-            List<Long> zones = parseZonesId(row.getZones_id(), objectMapper);
-            if (zones != null && !zones.isEmpty()) {
-                List<Zone> allZones = zoneService.getAllZoneEntities();
-                List<String> zoneNames = allZones.stream()
-                        .filter(z -> zones.contains(z.getId()))
-                        .map(Zone::getZoneName)
-                        .collect(Collectors.toList());
-                zoneName = String.join(", ", zoneNames);
-            }
-            String storeName = row.getProduct() != null && row.getProduct().getStore() != null ? row.getProduct().getStore().getStoreName() : null;
-            java.time.LocalDateTime dateTime = row.getImportTransaction() != null ? row.getImportTransaction().getImportDate() : null;
-            LocalDate importDateVal = dateTime != null ? dateTime.toLocalDate() : null;
-            return new ImportDetailLotDto(
-                    row.getId(),
-                    productName,
-                    zoneName,
-                    storeName,
-                    importDateVal,
-                    row.getRemainQuantity(),
-                    row.getIsCheck(),
-                    zones
-            );
-        }).toList();
+    public List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, Boolean isCheck, String batchCode, String search) {
+        log.debug("Finding stocktake lots with filters: store={}, zone={}, product={}, search={}", store, zone, product, search);
+        return detailRepository.findByRemainQuantityGreaterThan(0).stream()
+                .filter(row -> filterStocktakeLot(row, store, zone, product, isCheck, batchCode, search))
+                .map(this::mapToImportDetailLotDto)
+                .collect(Collectors.toList());
     }
 
     @Override
     public void updateIsCheck(Long id, boolean isCheck) {
-        ImportTransactionDetail detail = detailRepository.findById(id).orElseThrow();
+        log.debug("Updating isCheck for ImportTransactionDetail id: {}", id);
+        ImportTransactionDetail detail = detailRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setIsCheck(isCheck);
         detailRepository.save(detail);
     }
 
     @Override
     public void updateRemainQuantity(Long id, Integer remainQuantity) {
+        log.debug("Updating remainQuantity for ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("ImportTransactionDetail not found"));
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setRemainQuantity(remainQuantity);
         detailRepository.save(detail);
     }
 
     @Override
     public ImportDetailLotDto updateRemainQuantityAndReturnDto(Long id, Integer remainQuantity) {
+        log.debug("Updating remainQuantity and returning DTO for id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("ImportTransactionDetail not found"));
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setRemainQuantity(remainQuantity);
         detailRepository.save(detail);
         return importDetailLotMapper.toDto(detail);
@@ -334,9 +179,132 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     @Override
     public void completeImportDetail(Long id) {
+        log.debug("Completing ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("ImportTransactionDetail not found"));
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setRemainQuantity(-1); // Đánh dấu đã complete, ẩn khỏi bảng
         detailRepository.save(detail);
+    }
+
+    // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
+    private ProductResponseDto enrichProductWithDetails(ProductResponseDto product, String zoneId) {
+        List<ImportTransactionDetail> details = detailRepository.findByZoneId(zoneId);
+        ImportTransactionDetail detail = details.stream()
+                .filter(d -> d.getProduct().getId().equals(product.getProId()))
+                .findFirst()
+                .orElse(null);
+        if (detail != null) {
+            product.setId(detail.getId());
+            product.setRemainQuantity(detail.getRemainQuantity());
+            product.setUnitImportPrice(detail.getUnitImportPrice());
+            product.setUnitSalePrice(detail.getUnitSalePrice());
+        }
+        return product;
+    }
+
+    // Hàm parse zones_id từ String (ưu tiên JSON, fallback split chuỗi)
+    private List<Long> parseZonesId(String zonesIdStr) {
+        if (zonesIdStr == null || zonesIdStr.isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(zonesIdStr, new TypeReference<List<Long>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse JSON zonesId: {}, falling back to comma-separated parsing", zonesIdStr);
+            return Arrays.stream(zonesIdStr.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::valueOf)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    // Hàm filter logic cho stocktake lot
+    private boolean filterStocktakeLot(ImportTransactionDetail row, String store, String zone, String product,
+                                      Boolean isCheck, String batchCode, String search) {
+        if (row.getRemainQuantity() != null && row.getRemainQuantity() == 0 && row.getIsCheck() != null && row.getIsCheck()) {
+            return false;
+        }
+        if (store != null && !store.isEmpty()) {
+            Store s = Optional.ofNullable(row.getProduct()).map(Product::getStore).orElse(null);
+            if (s == null || !s.getStoreName().equalsIgnoreCase(store)) {
+                return false;
+            }
+        }
+        if (zone != null && !zone.isEmpty()) {
+            List<Long> zones = parseZonesId(row.getZones_id());
+            if (zones.isEmpty()) {
+                return false;
+            }
+            try {
+                Long zoneId = Long.valueOf(zone);
+                if (!zones.contains(zoneId)) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        if (product != null && !product.isEmpty()) {
+            String productName = Optional.ofNullable(row.getProduct()).map(Product::getProductName).orElse("");
+            if (!productName.toLowerCase().contains(product.toLowerCase())) {
+                return false;
+            }
+        }
+        if (isCheck != null && (row.getIsCheck() == null || !row.getIsCheck().equals(isCheck))) {
+            return false;
+        }
+        if (batchCode != null && !batchCode.isEmpty()) {
+            if (row.getName() == null || !row.getName().toLowerCase().contains(batchCode.toLowerCase())) {
+                return false;
+            }
+        }
+        // Tìm kiếm tự do trên nhiều trường
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            String productName = Optional.ofNullable(row.getProduct()).map(Product::getProductName).orElse("");
+            String lotName = row.getName() != null ? row.getName() : "";
+            String zoneName = zoneService.getAllZoneEntities().stream()
+                .filter(z -> parseZonesId(row.getZones_id()).contains(z.getId()))
+                .map(Zone::getZoneName)
+                .reduce("", (a, b) -> a + ", " + b);
+            if (!productName.toLowerCase().contains(searchLower)
+                && !lotName.toLowerCase().contains(searchLower)
+                && !zoneName.toLowerCase().contains(searchLower)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Hàm mapping ImportTransactionDetail sang ImportDetailLotDto
+    private ImportDetailLotDto mapToImportDetailLotDto(ImportTransactionDetail row) {
+        String productName = Optional.ofNullable(row.getProduct())
+                .map(Product::getProductName)
+                .orElse(null);
+        List<Long> zones = parseZonesId(row.getZones_id());
+        String zoneName = zones.isEmpty() ? null :
+                zoneService.getAllZoneEntities().stream()
+                        .filter(z -> zones.contains(z.getId()))
+                        .map(Zone::getZoneName)
+                        .collect(Collectors.joining(", "));
+        String storeName = Optional.ofNullable(row.getProduct())
+                .map(Product::getStore)
+                .map(Store::getStoreName)
+                .orElse(null);
+        // Lấy name (mã lô) và hạn dùng (expireDate)
+        String name = row.getName();
+        java.time.LocalDateTime expireDate = row.getExpireDate();
+        return new ImportDetailLotDto(
+                row.getId(),
+                productName,
+                zoneName,
+                storeName,
+                name,
+                expireDate,
+                row.getRemainQuantity(),
+                row.getIsCheck(),
+                zones
+        );
     }
 }
