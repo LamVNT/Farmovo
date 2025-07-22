@@ -26,6 +26,7 @@ public class SaleTransactionResponseDto {
     private String storeName;
     private String storeAddress;
     private Long createdBy;
+    private String name; // mã phiếu bán
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
 }
 

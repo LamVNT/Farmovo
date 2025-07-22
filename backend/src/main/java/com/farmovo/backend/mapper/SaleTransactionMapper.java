@@ -39,6 +39,7 @@ public interface SaleTransactionMapper {
     @Mapping(target = "storeName", source = "store.storeName")
     @Mapping(target = "storeAddress", source = "store.storeAddress")
     @Mapping(target = "createdBy", source = "createdBy")
+    @Mapping(target = "name", source = "name")
     @Mapping(target = "detail", expression = "java(fromJson(entity.getDetail(), objectMapper))")
     @Mapping(target = "name", source = "name")
     SaleTransactionResponseDto toResponseDto(SaleTransaction entity, @Context ObjectMapper objectMapper);
