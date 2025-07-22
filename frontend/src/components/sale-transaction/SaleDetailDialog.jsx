@@ -60,7 +60,7 @@ const SaleDetailDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        CHI TIẾT PHIẾU BÁN HÀNG
+                        CHI TIẾT PHIẾU BÁN HÀNG{transaction.name ? `: ${transaction.name}` : ''}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
@@ -88,13 +88,7 @@ const SaleDetailDialog = ({
                             <strong>Tên cửa hàng:</strong> {storeName || transaction.storeName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> 
-                            {transaction.storeAddress 
-                                || transaction.store?.storeAddress 
-                                || transaction.store?.address 
-                                || userDetails?.storeAddress 
-                                || userDetails?.address 
-                                || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {transaction.storeAddress || transaction.store?.storeAddress || transaction.store?.address || userDetails?.storeAddress || userDetails?.address || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
                             <strong>Người tạo:</strong> {userDetails?.fullName || userDetails?.name || 'Chưa có'}
@@ -109,10 +103,10 @@ const SaleDetailDialog = ({
                             <strong>Tên khách hàng:</strong> {customerDetails?.name || customerName || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Số điện thoại:</strong> {customerDetails?.phone || customerDetails?.customerPhone || 'Chưa có'}
+                            <strong>Số điện thoại:</strong> {transaction.customerPhone || customerDetails?.phone || customerDetails?.customerPhone || 'Chưa có'}
                         </Typography>
                         <Typography variant="body2" className="mb-1">
-                            <strong>Địa chỉ:</strong> {customerDetails?.address || customerDetails?.customerAddress || 'Chưa có'}
+                            <strong>Địa chỉ:</strong> {transaction.customerAddress || customerDetails?.address || customerDetails?.customerAddress || 'Chưa có'}
                         </Typography>
                     </div>
                 </div>
@@ -144,7 +138,7 @@ const SaleDetailDialog = ({
                                         <div>
                                             <div className="font-medium">{product.productName || product.name}</div>
                                             <div className="text-xs text-gray-500">
-                                                Mã: {product.productCode || product.code || 'N/A'}
+                                                Mã: {product.code || product.productCode || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>

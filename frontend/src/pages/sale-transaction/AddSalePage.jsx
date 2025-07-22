@@ -48,6 +48,7 @@ const AddSalePage = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [dataGridKey, setDataGridKey] = useState(0);
+    const [nextCode, setNextCode] = useState(''); // Thêm state mã phiếu
     
     // Column visibility state - moved up before useMemo
     const [columnVisibility, setColumnVisibility] = useState({
@@ -152,6 +153,11 @@ const AddSalePage = () => {
         fetchBatches();
     }, []);
 
+    useEffect(() => {
+        // Lấy mã phiếu tiếp theo
+        saleTransactionService.getNextCode && saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
+    }, []);
+
     // Gợi ý batch mới nhất khi focus hoặc search
     useEffect(() => {
         if (searchTerm.trim() !== '') {
@@ -200,17 +206,21 @@ const AddSalePage = () => {
     };
 
     const handleSelectBatch = (batch) => {
-        // Thêm sản phẩm từ batch vào bảng
+        // Thêm sản phẩm từ batch vào bảng, không bật dialog
         handleSelectProduct({
-            id: batch.productId,
+            id: batch.id, // id của importtransactiondetail (batch)
+            proId: batch.proId,
             name: batch.productName,
             unit: batch.unit || 'quả',
             price: batch.unitSalePrice,
             quantity: 1,
             batchCode: batch.batchCode,
             remainQuantity: batch.remainQuantity,
-            // ... các trường khác nếu cần
-        });
+            productCode: batch.productCode,
+            categoryName: batch.categoryName,
+            storeName: batch.storeName,
+            createAt: batch.createAt,
+        }, { directAdd: true });
         setSearchTerm('');
         setFilteredBatches([]);
         setIsSearchFocused(false);
@@ -408,7 +418,7 @@ const AddSalePage = () => {
                                             style={{ borderBottom: index === filteredBatches.length - 1 ? 'none' : '1px solid #f1f1f1' }}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-blue-800">Lô #{batch.id}</span>
+                                                <span className="font-bold text-blue-800">Lô {batch.name}</span>
                                                 <span className="font-bold text-gray-900">{batch.productName}</span>
                                             </div>
                                             <div
@@ -517,6 +527,7 @@ const AddSalePage = () => {
                 formatCurrency={formatCurrency}
                 loading={loading}
                 currentUser={currentUser}
+                nextCode={nextCode} // Truyền mã phiếu vào summary
             />
 
             {/* Category Dialog */}

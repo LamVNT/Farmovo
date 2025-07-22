@@ -50,7 +50,7 @@ public interface ProductMapper {
 
     @Mapping(source = "id", target = "id")
     @Mapping(source = "product.productName", target = "productName") // Lấy tên từ Product
-    @Mapping(source = "product.id", target = "productCode") // Sử dụng productId làm productCode
+    @Mapping(source = "product.productCode", target = "productCode") // Lấy mã tự sinh thực sự
     @Mapping(source = "product.id", target = "proId")
     @Mapping(source = "product.category.categoryName", target = "categoryName")
     @Mapping(source = "product.store.storeName", target = "storeName")

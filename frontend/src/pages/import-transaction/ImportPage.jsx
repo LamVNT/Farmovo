@@ -30,7 +30,7 @@ import { FaRegTrashCan } from "react-icons/fa6";
 import LockIcon from '@mui/icons-material/Lock';
 import CheckIcon from '@mui/icons-material/Check';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import AddProductDialog from './AddProductDialog';
+import AddProductDialog from '../../components/import-transaction/AddProductDialog.jsx';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
@@ -193,6 +193,8 @@ const ImportPage = () => {
                 {
                     id: newProduct.id,
                     name: newProduct.name || newProduct.productName,
+                    productCode: newProduct.code || newProduct.productCode,
+                    productDescription: newProduct.productDescription,
                     unit: 'quả',
                     price,
                     quantity,
@@ -308,6 +310,8 @@ const ImportPage = () => {
                 {
                     id: product.id,
                     name: product.name || product.productName,
+                    productCode: product.code || product.productCode,
+                    productDescription: product.productDescription,
                     unit: 'quả',
                     price,
                     quantity,
@@ -562,7 +566,20 @@ const ImportPage = () => {
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
     const columns = [
-        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['STT'] && {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            renderCell: (params) => {
+                // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
+                if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
+                if (params.id) {
+                    const idx = selectedProducts.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            }
+        },
         columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
         columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
         columnVisibility['Số lượng'] && {
@@ -1025,11 +1042,10 @@ const ImportPage = () => {
                                                 ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
                                             `}
                                         >
-                                            <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                            {product.code && (
-                                                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">#{product.code}</span>
-                                            )}
-                                            <span className="ml-2 text-xs text-gray-500">quả</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                            </div>
                                             {product.price && (
                                                 <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
                                             )}
@@ -1170,7 +1186,15 @@ const ImportPage = () => {
                                                     ${selectedCategoryProducts.includes(product.id) ? 'bg-green-100/60 border border-green-400 text-green-900 font-bold shadow' : ''}
                                                 `}
                                             >
-                                                <span className="font-medium text-base">{product.name || product.productName}</span>
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <span className="font-bold text-base text-gray-900 truncate">{product.name || product.productName}</span>
+                                                    <span className="flex items-center gap-1 text-xs font-semibold text-blue-700">
+                                                        <span className="truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                    </span>
+                                                    {product.productDescription && (
+                                                        <span className="text-xs text-gray-500 italic truncate">{product.productDescription}</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-gray-400 ml-2">quả</div>
                                             </div>
                                         ))

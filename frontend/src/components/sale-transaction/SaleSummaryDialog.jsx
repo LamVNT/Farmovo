@@ -25,11 +25,12 @@ const SaleSummaryDialog = ({
     saleData,
     formatCurrency,
     loading,
-    currentUser
+    currentUser,
+    nextCode
 }) => {
     if (!saleData) return null;
 
-    const { customer, store, products, totalAmount, paidAmount, note, saleDate, status } = saleData;
+    const { customer, store, products, totalAmount, paidAmount, note, saleDate, status, name } = saleData;
 
     return (
         <Dialog 
@@ -39,9 +40,9 @@ const SaleSummaryDialog = ({
             fullWidth
         >
             <DialogTitle className="flex justify-between items-center bg-gray-50">
-                <div>
-                    <Typography variant="h6" className="font-bold text-gray-800">
-                        PHIẾU BÁN HÀNG
+                <div className="flex flex-col items-start">
+                    <Typography variant="h6" className="font-bold text-gray-800" style={{display: 'inline', fontWeight: 700}}>
+                        PHIẾU BÁN HÀNG: {name || nextCode || '---'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
