@@ -2,43 +2,63 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
 import com.farmovo.backend.dto.response.*;
+import com.farmovo.backend.jwt.AuthTokenFilter;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.*;
+import com.farmovo.backend.services.impl.JwtAuthenticationService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Collections;
 import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(SaleTransactionController.class)
+@WebMvcTest(controllers = SaleTransactionController.class, excludeAutoConfiguration = {SecurityAutoConfiguration.class})
+@AutoConfigureMockMvc(addFilters = false)
 class SaleTransactionControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
     private ImportTransactionDetailRepository detailRepository;
+
     @MockBean
     private ProductMapper productMapper;
+
     @MockBean
     private SaleTransactionService saleTransactionService;
+
     @MockBean
     private CustomerService customerService;
+
     @MockBean
     private ProductService productService;
+
     @MockBean
     private StoreService storeService;
+
     @MockBean
     private ProductRepository productRepository;
+
+    @MockBean
+    private AuthTokenFilter authTokenFilter;
+
     @MockBean
     private JwtUtils jwtUtils;
 
@@ -51,6 +71,7 @@ class SaleTransactionControllerTest {
         mockMvc.perform(get("/api/sale-transactions/create-form-data"))
                 .andExpect(status().isOk());
     }
+
 
     @Test
     void testListAllProductResponseDtoByIdPro() throws Exception {
