@@ -6,13 +6,22 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 const StoreTable = ({ rows, onEdit, onDelete }) => {
     const columns = [
-        { field: "name", headerName: "Tên cửa hàng", flex: 1, headerAlign: 'center', align: 'left' },
-        { field: "address", headerName: "Địa chỉ", flex: 2, headerAlign: 'center', align: 'left' },
+        {
+            field: 'stt',
+            headerName: 'STT',
+            width: 70,
+            headerAlign: 'left',
+            align: 'left',
+            sortable: false,
+        },
+        { field: "name", headerName: "Tên cửa hàng", flex: 1, headerAlign: 'left', align: 'left' },
+        { field: "address", headerName: "Địa chỉ", flex: 2, headerAlign: 'left', align: 'left' },
+        { field: "description", headerName: "Mô tả", flex: 2, headerAlign: 'left', align: 'left' },
         {
             field: "actions",
             headerName: "Hành động",
             flex: 1,
-            headerAlign: 'center',
+            headerAlign: 'left',
             align: 'center',
             sortable: false,
             renderCell: (params) => (
