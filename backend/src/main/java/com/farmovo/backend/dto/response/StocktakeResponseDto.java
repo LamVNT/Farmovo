@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class StocktakeResponseDto {
     private Long id;
+    private String name; // mã kiểm kê
     private Instant stocktakeDate;
     private List<StocktakeDetailDto> detail;    // dữ liệu đã gộp (grouped)
     private List<StocktakeDetailDto> rawDetail; // dữ liệu chi tiết từng dòng (gốc)
@@ -15,4 +16,5 @@ public class StocktakeResponseDto {
     private Long storeId;
     private String storeName; // tên kho
     private String createdByName; // tên người kiểm kê
+    private java.time.LocalDateTime updatedAt; // ngày cân bằng (lấy từ entity Base)
 }

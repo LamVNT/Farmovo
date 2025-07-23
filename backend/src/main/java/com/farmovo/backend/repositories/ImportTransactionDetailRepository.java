@@ -8,7 +8,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ImportTransactionDetailRepository extends JpaRepository<ImportTransactionDetail, Long> {
@@ -36,6 +38,12 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
 
     // Lấy ImportTransactionDetail theo productId và có remainQuantity > 0
     List<ImportTransactionDetail> findByProductIdAndRemainQuantityGreaterThan(Long productId, Integer remainQuantity);
+    
+    // Tìm lô theo tên chính xác
+    ImportTransactionDetail findByName(String name);
+    
+    // Tìm nhiều lô theo danh sách tên
+    List<ImportTransactionDetail> findByNameIn(List<String> names);
 
     // === CÁC QUERY MỚI CHO STOCKTAKE ===
 

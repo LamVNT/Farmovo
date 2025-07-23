@@ -5,6 +5,7 @@ import java.util.List;
 
 @Data
 public class StocktakeDetailDto {
+    private Long id;              // ID của ImportTransactionDetail
     private String batchCode;      // Mã lô
     private Long productId;
     private String productName;    // Tên hàng

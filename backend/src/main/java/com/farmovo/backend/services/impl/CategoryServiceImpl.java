@@ -32,6 +32,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto createCategory(CategoryRequestDto request) {
+        // Kiểm tra trùng tên
+        if (categoryRepository.findByCategoryName(request.getName()).isPresent()) {
+            throw new com.farmovo.backend.exceptions.ValidationException("Tên danh mục đã tồn tại!");
+        }
         Category category = categoryMapper.toEntity(request);
         category.setCreatedAt(LocalDateTime.now());
         return categoryMapper.toResponseDto(categoryRepository.save(category));
@@ -41,6 +45,12 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponseDto updateCategory(Long id, CategoryRequestDto request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
+        // Nếu tên mới khác tên cũ, kiểm tra trùng tên
+        if (!category.getCategoryName().equals(request.getName())) {
+            if (categoryRepository.findByCategoryName(request.getName()).isPresent()) {
+                throw new com.farmovo.backend.exceptions.ValidationException("Tên danh mục đã tồn tại!");
+            }
+        }
         category.setCategoryName(request.getName());
         category.setCategoryDescription(request.getDescription());
         category.setUpdatedAt(LocalDateTime.now());

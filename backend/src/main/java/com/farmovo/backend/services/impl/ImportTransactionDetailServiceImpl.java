@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -150,40 +151,78 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateIsCheck(Long id, boolean isCheck) {
         log.debug("Updating isCheck for ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setIsCheck(isCheck);
         detailRepository.save(detail);
+        log.info("Updated isCheck={} for ImportTransactionDetail id={}", isCheck, id);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateRemainQuantity(Long id, Integer remainQuantity) {
         log.debug("Updating remainQuantity for ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
+        
+        // Log giá trị trước khi thay đổi
+        log.info("Changing remainQuantity for id={}: {} -> {}", id, detail.getRemainQuantity(), remainQuantity);
+        
         detail.setRemainQuantity(remainQuantity);
-        detailRepository.save(detail);
+        ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
+        
+        // Log xác nhận sau khi lưu
+        log.info("Confirmed update remainQuantity for id={}: new value={}", saved.getId(), saved.getRemainQuantity());
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ImportDetailLotDto updateRemainQuantityAndReturnDto(Long id, Integer remainQuantity) {
         log.debug("Updating remainQuantity and returning DTO for id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
+        
+        // Log giá trị trước khi thay đổi
+        log.info("Changing remainQuantity for id={}: {} -> {}", id, detail.getRemainQuantity(), remainQuantity);
+        
         detail.setRemainQuantity(remainQuantity);
-        detailRepository.save(detail);
-        return importDetailLotMapper.toDto(detail);
+        ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
+        
+        // Log xác nhận sau khi lưu
+        log.info("Confirmed update remainQuantity for id={}: new value={}", saved.getId(), saved.getRemainQuantity());
+        
+        return importDetailLotMapper.toDto(saved);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void completeImportDetail(Long id) {
         log.debug("Completing ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
         detail.setRemainQuantity(-1); // Đánh dấu đã complete, ẩn khỏi bảng
-        detailRepository.save(detail);
+        detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
+        log.info("Completed ImportTransactionDetail id={}", id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateZonesId(Long id, String zonesId) {
+        log.debug("Updating zonesId for ImportTransactionDetail id: {}", id);
+        ImportTransactionDetail detail = detailRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
+        
+        // Log giá trị trước khi thay đổi
+        log.info("Changing zonesId for id={}: {} -> {}", id, detail.getZones_id(), zonesId);
+        
+        detail.setZones_id(zonesId);
+        ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
+        
+        // Log xác nhận sau khi lưu
+        log.info("Confirmed update zonesId for id={}: new value={}", saved.getId(), saved.getZones_id());
     }
 
     // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
@@ -208,7 +247,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             return new ArrayList<>();
         }
         try {
-            return objectMapper.readValue(zonesIdStr, new TypeReference<List<Long>>() {});
+            return objectMapper.readValue(zonesIdStr, new TypeReference<List<Long>>() {
+            });
         } catch (Exception e) {
             log.warn("Failed to parse JSON zonesId: {}, falling back to comma-separated parsing", zonesIdStr);
             return Arrays.stream(zonesIdStr.split(","))
@@ -221,7 +261,7 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     // Hàm filter logic cho stocktake lot
     private boolean filterStocktakeLot(ImportTransactionDetail row, String store, String zone, String product,
-                                      Boolean isCheck, String batchCode, String search) {
+                                       Boolean isCheck, String batchCode, String search) {
         if (row.getRemainQuantity() != null && row.getRemainQuantity() == 0 && row.getIsCheck() != null && row.getIsCheck()) {
             return false;
         }
@@ -265,12 +305,12 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             String productName = Optional.ofNullable(row.getProduct()).map(Product::getProductName).orElse("");
             String lotName = row.getName() != null ? row.getName() : "";
             String zoneName = zoneService.getAllZoneEntities().stream()
-                .filter(z -> parseZonesId(row.getZones_id()).contains(z.getId()))
-                .map(Zone::getZoneName)
-                .reduce("", (a, b) -> a + ", " + b);
+                    .filter(z -> parseZonesId(row.getZones_id()).contains(z.getId()))
+                    .map(Zone::getZoneName)
+                    .reduce("", (a, b) -> a + ", " + b);
             if (!productName.toLowerCase().contains(searchLower)
-                && !lotName.toLowerCase().contains(searchLower)
-                && !zoneName.toLowerCase().contains(searchLower)) {
+                    && !lotName.toLowerCase().contains(searchLower)
+                    && !zoneName.toLowerCase().contains(searchLower)) {
                 return false;
             }
         }

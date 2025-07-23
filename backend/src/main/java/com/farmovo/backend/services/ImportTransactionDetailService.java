@@ -41,4 +41,6 @@ public interface ImportTransactionDetailService {
     ImportDetailLotDto updateRemainQuantityAndReturnDto(Long id, Integer remainQuantity);
 
     void completeImportDetail(Long id);
+
+    void updateZonesId(Long id, String zonesId);
 }

@@ -41,8 +41,10 @@ public class StocktakeController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String note,
             @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate) {
-        return ResponseEntity.ok(stocktakeService.getAllStocktakes(storeId, status, note, fromDate, toDate));
+            @RequestParam(required = false) String toDate,
+            HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        return ResponseEntity.ok(stocktakeService.getAllStocktakes(storeId, status, note, fromDate, toDate, userId));
     }
 
     @GetMapping("/{id}")
@@ -69,6 +71,12 @@ public class StocktakeController {
             @PathVariable Long id,
             @RequestBody StocktakeRequestDto requestDto) {
         return ResponseEntity.ok(stocktakeService.updateStocktake(id, requestDto));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStocktake(@PathVariable Long id) {
+        stocktakeService.deleteStocktakeById(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/zones-with-products")

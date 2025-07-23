@@ -10,7 +10,7 @@ import java.util.List;
 public interface StocktakeService {
     StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId);
 
-    List<StocktakeResponseDto> getAllStocktakes(String storeId, String status, String note, String fromDate, String toDate);
+    List<StocktakeResponseDto> getAllStocktakes(String storeId, String status, String note, String fromDate, String toDate, Long userId);
 
     StocktakeResponseDto getStocktakeById(Long id);
 
@@ -19,4 +19,6 @@ public interface StocktakeService {
     StocktakeResponseDto updateStocktake(Long id, StocktakeRequestDto requestDto);
 
     ResponseEntity<ByteArrayResource> exportStocktakeToExcel(Long id) throws Exception;
+
+    void deleteStocktakeById(Long id);
 }

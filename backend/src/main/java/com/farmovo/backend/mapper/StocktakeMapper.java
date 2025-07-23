@@ -13,5 +13,7 @@ public interface StocktakeMapper {
     // Bỏ mapping trường detail, để service tự set
     @Mapping(target = "detail", ignore = true)
     @Mapping(target = "rawDetail", ignore = true)
+    @Mapping(target = "updatedAt", source = "updatedAt")
+    // Không ignore trường name, để MapStruct tự map
     StocktakeResponseDto toResponseDto(Stocktake stocktake);
 } 

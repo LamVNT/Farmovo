@@ -61,27 +61,35 @@ const Category = () => {
                     await deleteCategory(id);
                     setCategories(prev => prev.filter(cat => cat.id !== id));
                     setSnackbar({isOpen: true, message: "Xóa danh mục thành công!", severity: "success"});
-                } catch {
-                    setSnackbar({isOpen: true, message: "Xóa danh mục thất bại!", severity: "error"});
+                } catch (err) {
+                    setSnackbar({isOpen: true, message: err.message || "Xóa danh mục thất bại!", severity: "error"});
                 }
             }
         });
     };
 
     const handleSubmit = async () => {
-        if (!form.name.trim()) return;
+        if (!form.name.trim()) {
+            setSnackbar({isOpen: true, message: "Tên danh mục không được để trống!", severity: "error"});
+            return;
+        }
         try {
             if (editMode) {
                 const updated = await updateCategory(form.id, form);
                 setCategories(prev => prev.map(cat => (cat.id === form.id ? updated : cat)));
+                setSnackbar({isOpen: true, message: "Cập nhật danh mục thành công!", severity: "success"});
             } else {
                 const created = await createCategory(form);
                 setCategories(prev => [...prev, created]);
+                setSnackbar({isOpen: true, message: "Tạo mới danh mục thành công!", severity: "success"});
             }
             setOpenDialog(false);
-            setSnackbar({isOpen: true, message: `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thành công!`, severity: "success"});
-        } catch {
-            setSnackbar({isOpen: true, message: `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thất bại!`, severity: "error"});
+        } catch (err) {
+            let msg = err.message || `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thất bại!`;
+            if (msg.includes("Tên danh mục đã tồn tại")) {
+                msg = "Tên danh mục đã tồn tại!";
+            }
+            setSnackbar({isOpen: true, message: msg, severity: "error"});
         }
     };
 
