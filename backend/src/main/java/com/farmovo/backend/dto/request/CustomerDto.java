@@ -12,5 +12,8 @@ public class CustomerDto {
     private Long id;
     private String name;
     private String role;
+    private String address;
+    private String phone;
+    private String email;
 }
 

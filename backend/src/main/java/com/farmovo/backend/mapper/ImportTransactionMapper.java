@@ -55,6 +55,7 @@ public interface ImportTransactionMapper {
 
     @Mapping(source = "product.productName", target = "productName")
     @Mapping(source = "product.id", target = "productId")
+    @Mapping(source = "product.productCode", target = "productCode")
     @Mapping(source = "zones_id", target = "zones_id", qualifiedByName = "stringToList")
     CreateImportTransactionRequestDto.DetailDto toDetailDto(ImportTransactionDetail detail);
 

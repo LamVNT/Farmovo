@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true) // 👈 Thêm dòng này
+@JsonIgnoreProperties(ignoreUnknown = true) // Thêm dòng này
 
 public class ProductSaleResponseDto {
     private Long id; // importtransactiondetailID
