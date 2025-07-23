@@ -206,6 +206,5 @@ public class SaleTransactionController {
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
-
 }
 

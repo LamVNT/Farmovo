@@ -40,3 +40,21 @@ export const deleteZone = async (id) => {
         throw new Error(error.response?.data?.message || 'Failed to delete zone');
     }
 };
+
+// API mới lấy zone có sản phẩm tồn kho
+export const getZonesWithProducts = async () => {
+    const response = await api.get('/stocktakes/zones-with-products');
+    return response.data;
+};
+
+// API mới lấy zone theo sản phẩm
+export const getZonesByProduct = async (productId) => {
+    const response = await api.get(`/stocktakes/zones-by-product?productId=${productId}`);
+    return response.data;
+};
+
+// API mới lấy sản phẩm theo zone
+export const getProductsByZone = async (zoneId) => {
+    const response = await api.get(`/stocktakes/products-by-zone?zoneId=${zoneId}`);
+    return response.data;
+};

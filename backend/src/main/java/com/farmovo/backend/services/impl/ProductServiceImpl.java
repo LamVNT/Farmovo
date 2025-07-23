@@ -4,6 +4,7 @@ package com.farmovo.backend.services.impl;
 import com.farmovo.backend.dto.request.ProductDto;
 import com.farmovo.backend.dto.request.ProductRequestDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
+import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.exceptions.ResourceNotFoundException;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.Category;
@@ -30,7 +31,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
 
-    public ProductServiceImpl(ProductRepository productRepository, ProductMapper productMapper, 
+    public ProductServiceImpl(ProductRepository productRepository, ProductMapper productMapper,
                            CategoryRepository categoryRepository, StoreRepository storeRepository) {
         this.productRepository = productRepository;
         this.productMapper = productMapper;
@@ -43,26 +44,26 @@ public class ProductServiceImpl implements ProductService {
         logger.info("Retrieving all products");
         List<Product> products = productRepository.findAllWithCategoryAndStore();
         logger.info("Found {} products", products.size());
-        
+
         // Kiểm tra products không có category hoặc store
         List<Product> invalidProducts = productRepository.findProductsWithoutCategoryOrStore();
         if (!invalidProducts.isEmpty()) {
-            logger.warn("Found {} products without category or store: {}", 
-                invalidProducts.size(), 
+            logger.warn("Found {} products without category or store: {}",
+                invalidProducts.size(),
                 invalidProducts.stream().map(p -> p.getId() + ":" + p.getProductName()).collect(Collectors.joining(", "))
             );
         }
-        
+
         // Debug: kiểm tra từng product có category và store không
         for (Product product : products) {
-            logger.debug("Product: id={}, name={}, category={}, store={}", 
-                product.getId(), 
+            logger.debug("Product: id={}, name={}, category={}, store={}",
+                product.getId(),
                 product.getProductName(),
                 product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL",
                 product.getStore() != null ? product.getStore().getStoreName() : "NULL"
             );
         }
-        
+
         return productMapper.toDtoList(products);
     }
 
@@ -175,5 +176,24 @@ public class ProductServiceImpl implements ProductService {
             logger.error("Unexpected error deleting product: {}", e.getMessage(), e);
             throw new RuntimeException("Lỗi xóa sản phẩm: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<ProductResponseDto> getAllProducts() {
+        List<Product> products = productRepository.findAll();
+        return products.stream()
+                .map(product -> {
+                    ProductResponseDto dto = new ProductResponseDto();
+                    dto.setId(null); // ImportTransactionDetail ID sẽ được set riêng
+                    dto.setProId(product.getId());
+                    dto.setName(product.getProductName());
+                    dto.setRemainQuantity(0); // Sẽ được tính từ ImportTransactionDetail
+                    dto.setUnitImportPrice(null); // Sẽ được set từ ImportTransactionDetail
+                    dto.setUnitSalePrice(null); // Sẽ được set từ ImportTransactionDetail
+                    dto.setCategoryName(product.getCategory() != null ? product.getCategory().getCategoryName() : null);
+                    dto.setStoreName(product.getStore() != null ? product.getStore().getStoreName() : null);
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

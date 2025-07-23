@@ -334,7 +334,26 @@ const SaleTransactionPage = () => {
     };
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
+        { 
+            field: 'stt', 
+            headerName: 'STT', 
+            width: 80, 
+            sortable: false, 
+            filterable: false, 
+            renderCell: (params) => {
+                // Try to use params.rowIndex (for newer DataGrid), fallback to indexOf in visibleRows
+                if (typeof params.rowIndex === 'number') {
+                    return params.rowIndex + 1;
+                }
+                // fallback: try to find index in filteredTransactions
+                if (params.id) {
+                    const idx = filteredTransactions.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            },
+        },
+        { field: 'name', headerName: 'Mã phiếu bán', flex: 1 },
         { field: 'customerName', headerName: 'Khách hàng', flex: 1 },
         { field: 'storeName', headerName: 'Cửa hàng', flex: 1 },
         {

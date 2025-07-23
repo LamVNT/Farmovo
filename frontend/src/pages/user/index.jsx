@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { TextField, Button } from '@mui/material';
-import { FaPlus } from 'react-icons/fa6';
+import {useState, useEffect, useMemo} from 'react';
+import {TextField, Button} from '@mui/material';
+import {FaPlus} from 'react-icons/fa6';
 import UserTable from '../../components/user/UserTable';
 import UserFormDialog from '../../components/user/UserFormDialog';
-import { userService } from '../../services/userService';
+import {userService} from '../../services/userService';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -169,13 +169,13 @@ const UserManagement = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Thêm
                     </Button>
                 </div>
             </div>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{color: 'red'}}>{error}</p>}
             {loading ? (
                 <p>Đang tải...</p>
             ) : (

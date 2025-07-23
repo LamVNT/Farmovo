@@ -32,6 +32,15 @@ const SaleSummaryDialog = ({
 
     const { customer, store, products, totalAmount, paidAmount, note, saleDate, status, name } = saleData;
 
+    const [currentTime, setCurrentTime] = React.useState(new Date());
+    React.useEffect(() => {
+        if (!open) return;
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [open]);
+
     return (
         <Dialog 
             open={open} 
@@ -50,10 +59,10 @@ const SaleSummaryDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
+                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : currentTime.toLocaleDateString('vi-VN')}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {new Date().toLocaleTimeString('vi-VN')}
+                        Giờ: {currentTime.toLocaleTimeString('vi-VN')}
                     </Typography>
                 </div>
             </DialogTitle>

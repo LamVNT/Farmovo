@@ -1,13 +1,13 @@
 import React from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import { IconButton } from "@mui/material";
+import {DataGrid} from "@mui/x-data-grid";
+import {IconButton} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-const CategoryTable = ({ rows, onEdit, onDelete }) => {
+const CategoryTable = ({rows, onEdit, onDelete}) => {
     const columns = [
-        { field: "name", headerName: "Category Name", flex: 1, headerAlign: 'center', align: 'left' },
-        { field: "description", headerName: "Description", flex: 2, headerAlign: 'center', align: 'left' },
+        {field: "name", headerName: "Category Name", flex: 1, headerAlign: 'center', align: 'left'},
+        {field: "description", headerName: "Description", flex: 2, headerAlign: 'center', align: 'left'},
         {
             field: "actions",
             headerName: "Actions",
@@ -16,12 +16,12 @@ const CategoryTable = ({ rows, onEdit, onDelete }) => {
             align: 'center',
             sortable: false,
             renderCell: (params) => (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, width: '100%' }}>
-                    <IconButton onClick={() => onEdit(params.row)} size="small" sx={{ color: '#1976d2' }}>
-                        <EditIcon />
+                <div style={{display: 'flex', justifyContent: 'center', gap: 8, width: '100%'}}>
+                    <IconButton onClick={() => onEdit(params.row)} size="small" sx={{color: '#1976d2'}}>
+                        <EditIcon/>
                     </IconButton>
-                    <IconButton onClick={() => onDelete(params.id)} size="small" sx={{ color: '#d32f2f' }}>
-                        <DeleteIcon />
+                    <IconButton onClick={() => onDelete(params.id)} size="small" sx={{color: '#d32f2f'}}>
+                        <DeleteIcon/>
                     </IconButton>
                 </div>
             ),
@@ -29,7 +29,7 @@ const CategoryTable = ({ rows, onEdit, onDelete }) => {
     ];
 
     return (
-        <div style={{ height: 480, width: '100%' }}>
+        <div style={{height: 480, width: '100%'}}>
             <DataGrid
                 rows={rows}
                 columns={columns}

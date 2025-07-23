@@ -40,7 +40,7 @@ class CustomerServiceImplTest {
         Customer customer = new Customer();
         customer.setId(1L);
         customer.setName("John Doe");
-        CustomerDto customerDto = new CustomerDto(1L, "John Doe", null);
+        CustomerDto customerDto = new CustomerDto(1L, "John Doe", null,null,null,null);
         when(customerRepository.findAll()).thenReturn(Collections.singletonList(customer));
         when(customerMapper.toDto(customer)).thenReturn(customerDto);
         List<CustomerDto> result = customerService.getAllCustomerDto();
