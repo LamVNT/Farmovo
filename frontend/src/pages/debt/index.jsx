@@ -13,7 +13,9 @@ import {
     TextField,
     InputAdornment,
     IconButton,
-    Stack
+    Stack,
+    ToggleButton,
+    ToggleButtonGroup
 } from "@mui/material";
 import SearchIcon from '@mui/icons-material/Search';
 import DebtTable from "../../components/debt/DebtTable";
@@ -41,6 +43,7 @@ const DebtManagement = () => {
     const [customerSearch, setCustomerSearch] = useState("");
     const [customerPage, setCustomerPage] = useState(0);
     const [customerRowsPerPage, setCustomerRowsPerPage] = useState(5);
+    const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -107,14 +110,14 @@ const DebtManagement = () => {
     };
 
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0";
+        if (totalDebt == null || totalDebt === 0) return "0 VND";
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)}</span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
             );
         } else {
             return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt}</span>
+                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
             );
         }
     };
@@ -131,8 +134,15 @@ const DebtManagement = () => {
         setCustomerPage(0);
     };
     // Lọc chỉ lấy khách hàng có tổng nợ khác 0
-    const nonZeroDebtCustomers = customers.filter(cust => cust.totalDebt !== 0 && cust.totalDebt !== null && cust.totalDebt !== undefined);
-    const filteredCustomers = nonZeroDebtCustomers.filter(cust => {
+    let nonZeroDebtCustomers = customers.filter(cust => cust.totalDebt !== 0 && cust.totalDebt !== null && cust.totalDebt !== undefined);
+    // Lọc theo loại khách hàng
+    let filteredByType = nonZeroDebtCustomers;
+    if (customerTypeFilter === 'supplier') {
+        filteredByType = filteredByType.filter(cust => cust.isSupplier);
+    } else if (customerTypeFilter === 'buyer') {
+        filteredByType = filteredByType.filter(cust => !cust.isSupplier);
+    }
+    const filteredCustomers = filteredByType.filter(cust => {
         const name = cust.name?.toLowerCase() || "";
         const phone = cust.phone?.toLowerCase() || "";
         const address = cust.address?.toLowerCase() || "";
@@ -182,6 +192,17 @@ const DebtManagement = () => {
                         ),
                     }}
                 />
+                <ToggleButtonGroup
+                    value={customerTypeFilter}
+                    exclusive
+                    onChange={(e, newValue) => { if (newValue) setCustomerTypeFilter(newValue); }}
+                    size="small"
+                    sx={{ ml: 2 }}
+                >
+                    <ToggleButton value="all">Tất cả</ToggleButton>
+                    <ToggleButton value="buyer">Khách mua</ToggleButton>
+                    <ToggleButton value="supplier">Nhà cung cấp</ToggleButton>
+                </ToggleButtonGroup>
             </Stack>
             <div style={{ width: '100%', overflowX: 'auto' }}>
                 <Table>
@@ -226,6 +247,11 @@ const DebtManagement = () => {
                     rowsPerPageOptions={[5, 10, 25]}
                 />
             </div>
+
+            {/* Chú thích ký hiệu tổng nợ */}
+            <Typography variant="body2" color="text.secondary" align="right" sx={{ mt: 2 }}>
+                "-": khách đang nợ, "+": cửa hàng nợ
+            </Typography>
 
             {/* Chi tiết khách hàng và giao dịch nợ */}
             {customer && selectedCustomerId && (

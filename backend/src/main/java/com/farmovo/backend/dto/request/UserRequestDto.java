@@ -34,4 +34,5 @@ public class UserRequestDto {
 
     private List<String> roles; // Thêm danh sách role
     private String email;
+    private String phone;
 }
