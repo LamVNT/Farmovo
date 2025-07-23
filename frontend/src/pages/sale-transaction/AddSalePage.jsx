@@ -49,6 +49,8 @@ const AddSalePage = () => {
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [dataGridKey, setDataGridKey] = useState(0);
     const [nextCode, setNextCode] = useState(''); // Thêm state mã phiếu
+    // Thêm state cho đơn vị tính
+    const [unit, setUnit] = useState('quả'); // Đơn vị tính mặc định
     
     // Column visibility state - moved up before useMemo
     const [columnVisibility, setColumnVisibility] = useState({
@@ -73,6 +75,7 @@ const AddSalePage = () => {
         loading,
         error,
         success,
+        setSelectedProducts, // <-- thêm dòng này để sửa lỗi và cho phép cập nhật
         
         // Form states
         selectedCustomer,
@@ -120,6 +123,18 @@ const AddSalePage = () => {
         handleConfirmSummary,
         handleCloseSummary,
     } = useSaleTransaction();
+
+    // Highlight states
+    const [highlightCustomer, setHighlightCustomer] = useState(false);
+    const [highlightStore, setHighlightStore] = useState(false);
+    const [highlightProducts, setHighlightProducts] = useState(false);
+
+    // Khi đổi đơn vị, cập nhật toàn bộ selectedProducts sang đơn vị mới
+    useEffect(() => {
+        if (selectedProducts.length > 0) {
+            setSelectedProducts(prev => prev.map(p => ({ ...p, unit })));
+        }
+    }, [unit]);
 
     // Handle click outside search dropdown
     useEffect(() => {
@@ -186,6 +201,48 @@ const AddSalePage = () => {
         }
     }, [batches, searchTerm, isSearchFocused]);
 
+    // Auto-dismiss error/success after 5s
+    useEffect(() => {
+        if (error || success) {
+            const timer = setTimeout(() => {
+                setError(null);
+                setSuccess(null);
+                setHighlightCustomer(false);
+                setHighlightStore(false);
+                setHighlightProducts(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, success]);
+
+    // Validate before show summary (save draft or complete)
+    const handleShowSummary = async (status) => {
+        let missing = false;
+        if (!selectedCustomer) {
+            setError('Vui lòng chọn khách hàng');
+            setHighlightCustomer(true);
+            missing = true;
+        } else {
+            setHighlightCustomer(false);
+        }
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
+            missing = true;
+        } else {
+            setHighlightStore(false);
+        }
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
+            missing = true;
+        } else {
+            setHighlightProducts(false);
+        }
+        if (missing) return;
+        // ... existing logic to show summary ...
+    };
+
     const toggleColumn = (col) => {
         setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
     };
@@ -205,22 +262,41 @@ const AddSalePage = () => {
         }
     };
 
+    // Khi thêm sản phẩm từ batch hoặc từ danh mục, truyền unit hiện tại
     const handleSelectBatch = (batch) => {
-        // Thêm sản phẩm từ batch vào bảng, không bật dialog
-        handleSelectProduct({
-            id: batch.id, // id của importtransactiondetail (batch)
-            proId: batch.proId,
-            name: batch.productName,
-            unit: batch.unit || 'quả',
-            price: batch.unitSalePrice,
-            quantity: 1,
-            batchCode: batch.batchCode,
-            remainQuantity: batch.remainQuantity,
-            productCode: batch.productCode,
-            categoryName: batch.categoryName,
-            storeName: batch.storeName,
-            createAt: batch.createAt,
-        }, { directAdd: true });
+        if (unit === 'khay') {
+            const remainKhay = Math.floor(batch.remainQuantity / 25);
+            if (remainKhay < 1) return; // Không cho thêm nếu không đủ 1 khay
+            handleSelectProduct({
+                id: batch.id,
+                proId: batch.proId,
+                name: batch.productName,
+                unit: 'khay',
+                price: (batch.unitSalePrice || 0) * 25,
+                quantity: 1,
+                remainQuantity: remainKhay,
+                batchCode: batch.batchCode,
+                productCode: batch.productCode,
+                categoryName: batch.categoryName,
+                storeName: batch.storeName,
+                createAt: batch.createAt,
+            }, { directAdd: true });
+        } else {
+            handleSelectProduct({
+                id: batch.id,
+                proId: batch.proId,
+                name: batch.productName,
+                unit: 'quả',
+                price: batch.unitSalePrice,
+                quantity: 1,
+                remainQuantity: batch.remainQuantity,
+                batchCode: batch.batchCode,
+                productCode: batch.productCode,
+                categoryName: batch.categoryName,
+                storeName: batch.storeName,
+                createAt: batch.createAt,
+            }, { directAdd: true });
+        }
         setSearchTerm('');
         setFilteredBatches([]);
         setIsSearchFocused(false);
@@ -246,15 +322,16 @@ const AddSalePage = () => {
         setCategoryProducts(filteredProducts);
     };
 
+    // Khi chọn sản phẩm từ danh mục
     const handleSelectCategoryProduct = (product) => {
-        handleSelectProduct(product);
+        handleSelectProduct({ ...product, unit }, { directAdd: true });
     };
 
     // Memoized columns for DataGrid
     const columns = useMemo(() => [
         columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
         columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
-        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
+        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
         columnVisibility['Số lượng'] && {
             field: 'quantity',
             headerName: 'Số lượng',
@@ -372,12 +449,12 @@ const AddSalePage = () => {
                 </Tooltip>
             ),
         },
-    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct]);
+    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, unit]);
 
     return (
         <div className="flex w-full h-screen bg-gray-100">
-            {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{error}</Alert>}
-            {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">{success}</Alert>}
+            {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
+            {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
                 <div className="flex justify-between items-center mb-2">
@@ -399,7 +476,41 @@ const AddSalePage = () => {
                             }}
                             sx={{ borderRadius: 2, background: '#f9fafb' }}
                         />
-                        {/* Đã xóa icon Thêm từ danh mục */}
+                        {/* Thêm Select đơn vị tính */}
+                        <Select
+                            size="small"
+                            value={unit}
+                            onChange={e => {
+                                const newUnit = e.target.value;
+                                setUnit(newUnit);
+                                setSelectedProducts(prev => prev.map(p => {
+                                    if (newUnit === 'khay' && p.unit !== 'khay') {
+                                        // Đổi từ quả sang khay
+                                        return {
+                                            ...p,
+                                            unit: 'khay',
+                                            quantity: Math.ceil((p.quantity || 1) / 25),
+                                            price: (p.price || 0) * 25,
+                                            total: ((p.price || 0) * 25) * Math.ceil((p.quantity || 1) / 25)
+                                        };
+                                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
+                                        // Đổi từ khay sang quả
+                                        return {
+                                            ...p,
+                                            unit: 'quả',
+                                            quantity: (p.quantity || 1) * 25,
+                                            price: (p.price || 0) / 25,
+                                            total: ((p.price || 0) / 25) * ((p.quantity || 1) * 25)
+                                        };
+                                    }
+                                    return p;
+                                }));
+                            }}
+                            sx={{ minWidth: 80, marginLeft: 1, background: '#fff' }}
+                        >
+                            <MenuItem value="quả">quả</MenuItem>
+                            <MenuItem value="khay">khay</MenuItem>
+                        </Select>
                         <Tooltip title="Thêm sản phẩm">
                             <IconButton onClick={() => setShowProductDialog(true)}>
                                 <FiPlus />
@@ -408,6 +519,11 @@ const AddSalePage = () => {
                         {filteredBatches.length > 0 && isSearchFocused && (
                             <div className="absolute top-full mt-1 left-0 z-10 bg-white shadow-lg rounded-xl w-full max-h-96 overflow-y-auto text-sm" style={{boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)'}}>
                                 {filteredBatches.map((batch, index) => {
+                                    // Quy đổi tồn kho và giá nếu là khay
+                                    const remainKhay = unit === 'khay' ? Math.floor(batch.remainQuantity / 25) : batch.remainQuantity;
+                                    const price = unit === 'khay' ? (batch.unitSalePrice || 0) * 25 : batch.unitSalePrice;
+                                    // Nếu là khay mà tồn kho < 1 khay thì không hiển thị
+                                    if (unit === 'khay' && remainKhay < 1) return null;
                                     const importDate = batch.createAt ? format(new Date(batch.createAt), 'dd/MM/yyyy') : 'N/A';
                                     const expireDate = batch.expireDate ? format(new Date(batch.expireDate), 'dd/MM/yyyy') : 'N/A';
                                     return (
@@ -426,10 +542,10 @@ const AddSalePage = () => {
                                                 style={{ alignItems: 'center', paddingTop: 2, paddingBottom: 2 }}
                                             >
                                                 <span className="col-span-1">
-                                                    Số lượng còn: <span className="font-bold text-gray-900">{batch.remainQuantity}</span>
+                                                    Số lượng còn: <span className="font-bold text-gray-900">{remainKhay}</span> {unit}
                                                 </span>
                                                 <span className="col-span-1">
-                                                    Giá: <span className="font-bold text-green-700">{formatCurrency(batch.unitSalePrice)}</span>
+                                                    Giá: <span className="font-bold text-green-700">{formatCurrency(price)}</span>
                                                 </span>
                                                 <span className="col-span-1">
                                                     Ngày nhập: <span className="font-bold text-indigo-700">{importDate}</span>
@@ -473,6 +589,7 @@ const AddSalePage = () => {
                         rowsPerPageOptions={[5]}
                         disableSelectionOnClick
                         getRowId={(row) => row.id}
+                        sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
                     />
                 </div>
             </div>
@@ -489,19 +606,22 @@ const AddSalePage = () => {
                 paidAmount={paidAmount}
                 totalAmount={totalAmount}
                 loading={loading}
-                onCustomerChange={(e) => setSelectedCustomer(e.target.value)}
-                onStoreChange={(e) => setSelectedStore(e.target.value)}
+                onCustomerChange={(e) => { setSelectedCustomer(e.target.value); setHighlightCustomer(false); }}
+                onStoreChange={(e) => { setSelectedStore(e.target.value); setHighlightStore(false); }}
                 onDateChange={(newValue) => setSaleDate(newValue)}
                 onNoteChange={(e) => setNote(e.target.value)}
                 onPaidAmountChange={(e) => {
                     const value = parseFloat(e.target.value) || 0;
-                    setPaidAmount(Math.max(0, value)); // chỉ giới hạn >= 0, không giới hạn max
+                    setPaidAmount(Math.max(0, value));
                 }}
-                onSaveDraft={handleSaveDraft}
-                onComplete={handleComplete}
+                onSaveDraft={() => handleShowSummary('DRAFT')}
+                onComplete={() => handleShowSummary('COMPLETE')}
                 onCancel={handleCancel}
                 formatCurrency={formatCurrency}
                 isValidValue={isValidValue}
+                highlightCustomer={highlightCustomer}
+                highlightStore={highlightStore}
+                highlightProducts={highlightProducts}
             />
 
             {/* Product Selection Dialog */}

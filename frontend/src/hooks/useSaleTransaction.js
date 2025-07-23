@@ -456,6 +456,7 @@ export const useSaleTransaction = () => {
         setShowSummaryDialog,
         setSummaryData,
         setPendingAction,
+        setSelectedProducts, // thêm dòng này để export
         
         // Handlers
         handleSelectProduct,
