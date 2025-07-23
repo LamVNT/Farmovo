@@ -150,7 +150,7 @@ public class UserServiceImpl implements UserService {
         logger.info("Toggling status for user with id: {}", id);
         return userRepository.findByIdAndDeletedAtIsNull(id).map(user -> {
             Boolean currentStatus = user.getStatus();
-            Boolean newStatus = currentStatus == null ? true : !currentStatus;
+            Boolean newStatus = currentStatus == null || !currentStatus;
             user.setStatus(newStatus);
             logger.info("Status toggled to {} for user id: {}", newStatus, id);
             return userRepository.save(user);

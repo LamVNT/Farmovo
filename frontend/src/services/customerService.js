@@ -43,7 +43,7 @@ export const customerService = {
 
     deleteCustomer: async (id, deletedBy) => {
         const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}`, {
-            data: { deletedBy },
+            data: {deletedBy},
             withCredentials: true,
         });
         return response.data;

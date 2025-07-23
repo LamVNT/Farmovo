@@ -28,7 +28,7 @@ public class ReportServiceImpl implements ReportService {
         List<Object[]> result = importTransactionDetailRepository.getRemainByProduct();
         List<ProductRemainDto> dtos = new ArrayList<>();
         for (Object[] row : result) {
-            dtos.add(new ProductRemainDto((Long)row[0], ((Number)row[1]).intValue()));
+            dtos.add(new ProductRemainDto((Long) row[0], ((Number) row[1]).intValue()));
         }
         return dtos;
     }
@@ -40,13 +40,15 @@ public class ReportServiceImpl implements ReportService {
         ObjectMapper mapper = new ObjectMapper();
         for (Stocktake s : stocktakes) {
             try {
-                List<StocktakeDetailDto> details = mapper.readValue(s.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {});
+                List<StocktakeDetailDto> details = mapper.readValue(s.getDetail(), new TypeReference<List<StocktakeDetailDto>>() {
+                });
                 for (StocktakeDetailDto d : details) {
                     if (d.getDiff() != null && d.getDiff() != 0) {
                         diffList.add(d);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         return diffList;
     }

@@ -1,7 +1,6 @@
 package com.farmovo.backend.mapper;
 
 import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.models.SaleTransaction;
@@ -49,7 +48,8 @@ public interface SaleTransactionMapper {
     // Parse từ JSON sang List<ProductSaleResponseDto>
     default List<ProductSaleResponseDto> fromJson(String json, @Context ObjectMapper objectMapper) {
         try {
-            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<ProductSaleResponseDto>>() {});
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<ProductSaleResponseDto>>() {
+            });
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             return Collections.emptyList(); // hoặc throw nếu muốn bắt buộc phải đúng định dạng
         }

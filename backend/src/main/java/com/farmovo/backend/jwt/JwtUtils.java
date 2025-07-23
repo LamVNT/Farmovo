@@ -24,6 +24,7 @@ public class JwtUtils {
     @Value("${spring.app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
+    // Lấy JWT từ header Authorization
     public String getJwtFromHeader(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         logger.debug("Authorization header: {}", bearerToken);
@@ -33,6 +34,7 @@ public class JwtUtils {
         return null;
     }
 
+    // Lấy JWT từ cookie tên "jwt"
     public String getJwtFromCookies(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -44,37 +46,7 @@ public class JwtUtils {
         return null;
     }
 
-//    public String generateTokenFromUsername(UserDetails userDetails) {
-//        String username = userDetails.getUsername();
-//        return Jwts.builder()
-//                .subject(username)
-//                .issuedAt(new Date())
-//                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
-//                .signWith(key())
-//                .compact();
-//
-//    }
-
-    public Long getUserIdFromJwtToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(key())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return claims.get("userId", Long.class); // hoặc Integer.class tùy kiểu dữ liệu
-    }
-
-
-    public String generateTokenWithUserId(UserDetails userDetails, Long userId) {
-        return Jwts.builder()
-                .subject(userDetails.getUsername())
-                .claim("userId", userId)
-                .issuedAt(new Date())
-                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key())
-                .compact();
-    }
-
+    // Lấy username từ token
     public String getUsernameFromJwtToken(String token) {
         return Jwts.parser().verifyWith(key())
                 .build()
@@ -83,10 +55,41 @@ public class JwtUtils {
                 .getSubject();
     }
 
+    // ✅ Chỉ giữ 1 method getUserIdFromJwtToken
+    public Long getUserIdFromJwtToken(String token) {
+        Object userIdObj = Jwts.parser().verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("userId");
+        if (userIdObj != null) {
+            try {
+                return Long.valueOf(userIdObj.toString());
+            } catch (NumberFormatException e) {
+                logger.warn("userId in JWT is not a valid Long: {}", userIdObj);
+            }
+        }
+        return null;
+    }
+
+    // ✅ Chỉ giữ 1 method generateTokenWithUserId
+    public String generateTokenWithUserId(UserDetails userDetails, Long userId) {
+        String username = userDetails.getUsername();
+        return Jwts.builder()
+                .subject(username)
+                .claim("userId", userId)
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key())
+                .compact();
+    }
+
+    // Tạo key từ jwtSecret
     private SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
+    // Kiểm tra token hợp lệ
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parser().verifyWith(key()).build().parseSignedClaims(authToken);
@@ -101,5 +104,19 @@ public class JwtUtils {
             logger.error("Empty JWT claims string: {}", e.getMessage());
         }
         return false;
+    }
+
+    // Ưu tiên lấy token từ header, nếu không có thì lấy từ cookie
+    public String getJwtFromRequest(HttpServletRequest request) {
+        String token = getJwtFromHeader(request);
+        if (token == null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        return token;
     }
 }

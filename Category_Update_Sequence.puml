@@ -1,0 +1,78 @@
+@startuml Category_Update_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Update Category - Sequence Diagram
+
+actor User as U
+participant "CategoryController" as CC
+participant "CategoryService" as CS
+participant "CategoryMapper" as CM
+participant "CategoryValidator" as CV
+participant "CategoryRepository" as CR
+database "Database" as DB
+
+== Request Phase ==
+U -> CC: PUT /api/categories/{id}\n{name, description}
+activate CC
+
+CC -> CV: validate(requestDto)
+activate CV
+CV -> CV: validate name not empty
+CV -> CV: validate description length
+CV --> CC: validation result
+deactivate CV
+
+alt Validation Failed
+    CC --> U: 400 Bad Request\n{error message}
+else Validation Passed
+    CC -> CS: updateCategory(id, requestDto)
+    activate CS
+    
+    CS -> CR: findById(id)
+    activate CR
+    CR -> DB: SELECT * FROM categories WHERE id = ?
+    DB --> CR: Category or null
+    CR --> CS: Optional<Category>
+    deactivate CR
+    
+    alt Category Not Found
+        CS -> CS: throw new CategoryNotFoundException(...)
+        CS --> CC: CategoryNotFoundException
+        CC --> U: 404 Not Found\n{error message}
+    else Category Found
+        CS -> CS: setCategoryName(request.getName())
+        CS -> CS: setCategoryDescription(request.getDescription())
+        CS -> CS: setUpdatedAt(LocalDateTime.now())
+        
+        CS -> CR: save(category)
+        activate CR
+        CR -> DB: UPDATE categories SET name=?, description=?, updated_at=? WHERE id=?
+        DB --> CR: updated category
+        CR --> CS: Category entity
+        deactivate CR
+        
+        CS -> CM: toResponseDto(category)
+        activate CM
+        CM -> CM: map categoryName -> name
+        CM -> CM: map categoryDescription -> description
+        CM -> CM: map createdAt -> createAt
+        CM -> CM: map updatedAt -> updateAt
+        CM --> CS: CategoryResponseDto
+        deactivate CM
+        
+        CS --> CC: CategoryResponseDto
+        CC --> U: 200 OK\nCategoryResponseDto
+    end
+end
+
+deactivate CS
+deactivate CC
+
+@enduml 
