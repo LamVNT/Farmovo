@@ -145,7 +145,7 @@ const ImportDetailDialog = ({
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-center">quả</TableCell>
+                                    <TableCell className="text-center">{detail.unit || 'quả'}</TableCell>
                                     <TableCell className="text-center">{detail.importQuantity}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(detail.unitImportPrice)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(detail.unitSalePrice)}</TableCell>

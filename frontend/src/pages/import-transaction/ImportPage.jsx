@@ -105,6 +105,29 @@ const ImportPage = () => {
 
     const zoneSearchInputRef = useRef();
 
+    // Đơn vị tính (quả/khay)
+    const [unit, setUnit] = useState('quả');
+
+    // Khi đổi đơn vị, chỉ cập nhật quantity, giữ nguyên price (đơn giá luôn là giá 1 quả), và cập nhật lại total
+    useEffect(() => {
+        if (selectedProducts.length > 0) {
+            setSelectedProducts(prev => prev.map(p => {
+                let newQuantity = p.quantity;
+                if (unit === 'khay' && p.unit !== 'khay') {
+                    newQuantity = Math.ceil((p.quantity || 1) / 25);
+                } else if (unit === 'quả' && p.unit !== 'quả') {
+                    newQuantity = (p.quantity || 1) * 25;
+                }
+                return {
+                    ...p,
+                    unit,
+                    quantity: newQuantity,
+                    total: (p.price || 0) * newQuantity
+                };
+            }));
+        }
+    }, [unit]);
+
     // Auto-dismiss error/success after 5s
     useEffect(() => {
         if (error || success) {
@@ -298,10 +321,11 @@ const ImportPage = () => {
 
     // Hàm format ngày dd/MM/yyyy
 
+    // Sửa handleSelectProduct để truyền unit hiện tại, price luôn là giá 1 quả
     const handleSelectProduct = (product) => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
-            const price = 0; // Để user nhập vào
-            const quantity = 1;
+            const price = product.price || 0;
+            const quantity = unit === 'khay' ? 1 : 25;
             const total = price * quantity;
             const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
 
@@ -312,7 +336,7 @@ const ImportPage = () => {
                     name: product.name || product.productName,
                     productCode: product.code || product.productCode,
                     productDescription: product.productDescription,
-                    unit: 'quả',
+                    unit,
                     price,
                     quantity,
                     total,
@@ -705,9 +729,17 @@ const ImportPage = () => {
             field: 'total',
             headerName: 'Thành tiền',
             width: 150,
+            valueGetter: (params) => {
+                const row = params?.row ?? {};
+                const price = parseFloat(row.price) || 0;
+                const quantity = parseInt(row.quantity) || 0;
+                return price * quantity;
+            },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const total = params.value || 0;
+                const price = parseFloat(params.row.price) || 0;
+                const quantity = parseInt(params.row.quantity) || 0;
+                const total = price * quantity;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1029,6 +1061,16 @@ const ImportPage = () => {
                         />
                         <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
                         <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
+                        {/* Dropdown chọn đơn vị tính */}
+                        <Select
+                            size="small"
+                            value={unit}
+                            onChange={e => setUnit(e.target.value)}
+                            sx={{ minWidth: 80, marginLeft: 1, background: '#fff' }}
+                        >
+                            <MenuItem value="quả">quả</MenuItem>
+                            <MenuItem value="khay">khay</MenuItem>
+                        </Select>
                         {(isSearchFocused || searchTerm.trim() !== '') && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
                                 {filteredProducts.length > 0 ? (
@@ -1124,6 +1166,7 @@ const ImportPage = () => {
                 onClose={() => setOpenDialog(false)} 
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
+                unit={unit}
             />
 
             {/* Category Dialog */}
@@ -1195,7 +1238,7 @@ const ImportPage = () => {
                                                         <span className="text-xs text-gray-500 italic truncate">{product.productDescription}</span>
                                                     )}
                                                 </div>
-                                                <div className="text-xs text-gray-400 ml-2">quả</div>
+                                                <div className="text-xs text-gray-400 ml-2">{unit}</div>
                                             </div>
                                         ))
                                     ) : (

@@ -441,13 +441,13 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             java.util.List<ProductSaleResponseDto> detailList = new java.util.ArrayList<>();
             try {
                 if (transaction.getDetail() != null && !transaction.getDetail().isEmpty()) {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    objectMapper.registerModule(new JavaTimeModule());
-                    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
+            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                     detailList = objectMapper.readValue(
-                        transaction.getDetail(),
+                    transaction.getDetail(),
                         new TypeReference<java.util.List<ProductSaleResponseDto>>() {}
-                    );
+            );
                 }
             } catch (Exception e) {
                 detailList = new java.util.ArrayList<>();
