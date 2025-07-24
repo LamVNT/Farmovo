@@ -1,6 +1,7 @@
 package com.farmovo.backend.models;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -22,7 +23,7 @@ public class Store extends Base {
 
     @Column(name = "store_name", length = 255, nullable = false, unique = true)
     private String storeName;
-
+    @NotBlank
     @Column(name = "store_description", length = 1000)
     private String storeDescription;
 
