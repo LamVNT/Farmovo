@@ -357,7 +357,7 @@ const CreateStocktakePage = () => {
                 });
                 return;
             }
-            if (!lot.zonesId || !Array.isArray(lot.zonesId) || lot.zonesId.length === 0) {
+            if (!lot.zoneReal || (Array.isArray(lot.zoneReal) && lot.zoneReal.length === 0)) {
                 setSnackbar({
                     isOpen: true,
                     message: `Thiếu khu vực (zonesId) cho lô ${lot.name || lot.id}!`,
@@ -377,7 +377,7 @@ const CreateStocktakePage = () => {
             isCheck: lot.isCheck,
             note: lot.note,
             expireDate: lot.expireDate,
-            zoneReal: lot.zoneReal || ''
+            zoneReal: Array.isArray(lot.zoneReal) ? lot.zoneReal.join(',') : (lot.zoneReal || '')
         }));
         try {
             const payload = {
@@ -515,9 +515,9 @@ const CreateStocktakePage = () => {
                             <TableHead>
                                 <TableRow sx={{background: "#f5f5f5"}}>
                                     <TableCell padding="checkbox"></TableCell>
+                                    <TableCell><b>Mã lô</b></TableCell>
                                     {!isMobile && <TableCell><b>Khu vực</b></TableCell>}
                                     <TableCell><b>Sản phẩm</b></TableCell>
-                                    <TableCell><b>Mã lô</b></TableCell>
                                     <TableCell><b>Tồn kho</b></TableCell>
                                 </TableRow>
                             </TableHead>
@@ -539,9 +539,9 @@ const CreateStocktakePage = () => {
                                                 }}
                                             />
                                         </TableCell>
+                                        <TableCell>{lot.name}</TableCell>
                                         {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
                                         <TableCell>{lot.productName || lot.productId}</TableCell>
-                                        <TableCell>{lot.name}</TableCell>
                                         <TableCell>{lot.remainQuantity}</TableCell>
                                     </TableRow>
                                 ))}
@@ -556,9 +556,9 @@ const CreateStocktakePage = () => {
                     <TableHead>
                         <TableRow sx={{background: "#f5f5f5"}}>
                             <TableCell><b>STT</b></TableCell>
+                            <TableCell><b>Mã lô</b></TableCell>
                             {!isMobile && <TableCell><b>Khu vực</b></TableCell>}
                             <TableCell><b>Sản phẩm</b></TableCell>
-                            {!isMobile && <TableCell><b>Mã lô</b></TableCell>}
                             {!isMobile && <TableCell><b>Tồn kho</b></TableCell>}
                             {!isMobile && <TableCell><b>Hạn dùng</b></TableCell>}
                             <TableCell><b>Thực tế</b></TableCell>
@@ -578,9 +578,9 @@ const CreateStocktakePage = () => {
                                 key={(lot.batchCode || lot.name || 'row') + '-' + (lot.productId || '') + '-' + idx}
                                 hover>
                                 <TableCell>{idx + 1}</TableCell>
+                                <TableCell>{lot.name || lot.batchCode}</TableCell>
                                 {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
                                 <TableCell>{lot.productName || lot.productId}</TableCell>
-                                {!isMobile && <TableCell>{lot.name}</TableCell>}
                                 {!isMobile && <TableCell>{lot.remainQuantity}</TableCell>}
                                 {!isMobile &&
                                     <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>}
@@ -596,13 +596,28 @@ const CreateStocktakePage = () => {
                                     />
                                 </TableCell>
                                 {!isMobile && <TableCell>
-                                    <TextField
-                                        size="small"
-                                        value={lot.zoneReal || ''}
-                                        onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
-                                        fullWidth
-                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                    />
+                                    <FormControl size="small" fullWidth>
+                                        <Select
+                                            multiple
+                                            value={Array.isArray(lot.zoneReal) ? lot.zoneReal : (lot.zoneReal ? lot.zoneReal.split(',') : [])}
+                                            onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
+                                            disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                            renderValue={selected => selected
+                                                .map(id => {
+                                                    const z = zones.find(z => z.id === id || z.id === Number(id));
+                                                    return z ? z.zoneName : id;
+                                                })
+                                                .join(', ')}
+                                        >
+                                            {zones.map(z => (
+                                                <MenuItem key={z.id} value={z.id}>
+                                                    <Checkbox
+                                                        checked={Array.isArray(lot.zoneReal) ? lot.zoneReal.indexOf(z.id) > -1 : false}/>
+                                                    <Typography>{z.zoneName}</Typography>
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
                                 </TableCell>}
                                 <TableCell sx={lot.diff !== 0 ? {background: '#ffeaea'} : {}}>{lot.diff}</TableCell>
                                 {!isMobile && <TableCell>
