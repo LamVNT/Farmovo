@@ -240,7 +240,12 @@ const AddSalePage = () => {
             setHighlightProducts(false);
         }
         if (missing) return;
-        // ... existing logic to show summary ...
+        // Gọi đúng handler để mở dialog tổng kết
+        if (status === 'DRAFT') {
+            await handleSaveDraft();
+        } else if (status === 'COMPLETE') {
+            await handleComplete();
+        }
     };
 
     const toggleColumn = (col) => {
@@ -329,7 +334,14 @@ const AddSalePage = () => {
 
     // Memoized columns for DataGrid
     const columns = useMemo(() => [
-        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['STT'] && {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            renderCell: (params) => params.row.stt,
+            sortable: false,
+            filterable: false,
+        },
         columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
         columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
         columnVisibility['Số lượng'] && {
@@ -450,6 +462,8 @@ const AddSalePage = () => {
             ),
         },
     ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, unit]);
+
+    const [invalidProductIds, setInvalidProductIds] = useState([]);
 
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -583,13 +597,14 @@ const AddSalePage = () => {
                 <div style={{ height: 400, width: '100%' }}>
                     <DataGrid
                         key={dataGridKey}
-                        rows={selectedProducts}
+                        rows={selectedProducts.map((row, idx) => ({ ...row, stt: idx + 1 }))}
                         columns={columns}
                         pageSize={5}
                         rowsPerPageOptions={[5]}
                         disableSelectionOnClick
                         getRowId={(row) => row.id}
                         sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
+                        getRowClassName={(params) => invalidProductIds && invalidProductIds.includes(params.row.id) ? 'row-error' : ''}
                     />
                 </div>
             </div>

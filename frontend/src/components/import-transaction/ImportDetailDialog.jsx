@@ -44,7 +44,8 @@ const ImportDetailDialog = ({
     onCancelTransaction, // Thêm prop mới
     onCompleteTransaction, // Thêm prop mới cho hoàn thành
     loading = false, // Thêm prop loading
-    zones = [] // Thêm zones data
+    zones = [], // Thêm zones data
+    onExportPdf, // Thêm prop mới
 }) => {
     if (!transaction) return null;
 
@@ -266,7 +267,7 @@ const ImportDetailDialog = ({
                 <Button 
                     variant="outlined"
                     color="success"
-                    onClick={() => exportImportTransactionPdf(transaction, details, supplierDetails, userDetails, storeDetails, zones)}
+                    onClick={onExportPdf}
                     startIcon={<PictureAsPdfIcon />}
                 >
                     Xuất PDF

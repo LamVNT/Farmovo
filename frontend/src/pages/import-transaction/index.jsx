@@ -444,6 +444,24 @@ const ImportTransactionPage = () => {
         }
     };
 
+    // Hàm xuất file PDF từ backend
+    const handleExportPdf = async () => {
+        try {
+            if (!selectedTransaction) return;
+            const pdfBlob = await importTransactionService.exportPdf(selectedTransaction.id);
+            const url = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `import-transaction-${selectedTransaction.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            alert('Không thể xuất PDF. Vui lòng thử lại!');
+        }
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'WAITING_FOR_APPROVE': return '#f59e0b'; // Vàng
@@ -788,6 +806,7 @@ const ImportTransactionPage = () => {
                 userDetails={userDetails}
                 storeDetails={storeDetails}
                 onExport={handleExportDetail}
+                onExportPdf={handleExportPdf}
                 onOpenTransaction={handleOpenTransaction}
                 onCloseTransaction={handleCloseTransaction}
                 onCompleteTransaction={handleCompleteTransaction}

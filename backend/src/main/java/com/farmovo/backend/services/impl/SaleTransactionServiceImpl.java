@@ -360,15 +360,15 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             LocalDateTime createdAt = transaction.getCreatedAt();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String formattedTime = createdAt.format(timeFormatter);
-            String formattedDate = createdAt.format(dateFormatter);
+            String formattedTime = createdAt != null ? createdAt.format(timeFormatter) : "";
+            String formattedDate = createdAt != null ? createdAt.format(dateFormatter) : "";
 
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
             headerTable.setWidths(new float[]{2f, 1f});
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU BÁN HÀNG " + transaction.getName(), new Font(baseFont, 14, Font.BOLD)));
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU BÁN HÀNG " + safe(transaction.getName()), new Font(baseFont, 14, Font.BOLD)));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
@@ -383,7 +383,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
             document.add(headerTable);
 
-
             // ===== Trạng thái =====
             if (transaction.getStatus() == SaleTransactionStatus.COMPLETE) {
                 document.add(new Paragraph("✔ Phiếu hoàn thành", normalFont));
@@ -396,20 +395,29 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             infoTable.setSpacingAfter(10f);
             infoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-
             PdfPCell storeCell = new PdfPCell();
             storeCell.setBorder(Rectangle.NO_BORDER);
             storeCell.addElement(new Paragraph("Thông tin cửa hàng", boldFont));
-            storeCell.addElement(new Paragraph("Tên cửa hàng: " + safe(transaction.getStore().getStoreName()), normalFont));
-            storeCell.addElement(new Paragraph("Người tạo: " + safe(getStaff(transaction.getId()).getFullName()), normalFont));
-            storeCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getStore().getStoreAddress()), normalFont));
+            storeCell.addElement(new Paragraph("Tên cửa hàng: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreName() : null), normalFont));
+            // Người tạo
+            String nguoiTao = "Chưa có";
+            try {
+                if (transaction.getCreatedBy() != null) {
+                    User staff = getStaff(transaction.getCreatedBy());
+                    nguoiTao = staff != null && staff.getFullName() != null ? staff.getFullName() : "Chưa có";
+                }
+            } catch (Exception e) {
+                nguoiTao = "Chưa có";
+            }
+            storeCell.addElement(new Paragraph("Người tạo: " + nguoiTao, normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreAddress() : null), normalFont));
 
             PdfPCell customerCell = new PdfPCell();
             customerCell.setBorder(Rectangle.NO_BORDER);
             customerCell.addElement(new Paragraph("Thông tin khách hàng", boldFont));
-            customerCell.addElement(new Paragraph("Tên khách hàng: " + safe(transaction.getCustomer().getName()), normalFont));
-            customerCell.addElement(new Paragraph("Số điện thoại: " + safe(transaction.getCustomer().getPhone()), normalFont));
-            customerCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getCustomer().getAddress()), normalFont));
+            customerCell.addElement(new Paragraph("Tên khách hàng: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getName() : null), normalFont));
+            customerCell.addElement(new Paragraph("Số điện thoại: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getPhone() : null), normalFont));
+            customerCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getAddress() : null), normalFont));
 
             infoTable.addCell(storeCell);
             infoTable.addCell(customerCell);
@@ -429,22 +437,32 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             productTable.addCell(getCell("Số lượng", boldFont));
             productTable.addCell(getCell("Thành tiền", boldFont));
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            List<ProductSaleResponseDto> detailList = objectMapper.readValue(
-                    transaction.getDetail(),
-                    new TypeReference<List<ProductSaleResponseDto>>() {}
-            );
+            // Parse detail an toàn
+            java.util.List<ProductSaleResponseDto> detailList = new java.util.ArrayList<>();
+            try {
+                if (transaction.getDetail() != null && !transaction.getDetail().isEmpty()) {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    objectMapper.registerModule(new JavaTimeModule());
+                    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                    detailList = objectMapper.readValue(
+                        transaction.getDetail(),
+                        new TypeReference<java.util.List<ProductSaleResponseDto>>() {}
+                    );
+                }
+            } catch (Exception e) {
+                detailList = new java.util.ArrayList<>();
+            }
 
             int index = 1;
             for (ProductSaleResponseDto d : detailList) {
-                BigDecimal lineTotal = d.getUnitSalePrice().multiply(BigDecimal.valueOf(d.getQuantity()));
+                java.math.BigDecimal unitPrice = d.getUnitSalePrice() != null ? d.getUnitSalePrice() : java.math.BigDecimal.ZERO;
+                int quantity = d.getQuantity();
+                java.math.BigDecimal lineTotal = unitPrice.multiply(java.math.BigDecimal.valueOf(quantity));
                 productTable.addCell(getCell(String.valueOf(index++), normalFont));
                 productTable.addCell(getCell(safe(d.getProductName()), normalFont));
                 productTable.addCell(getCell(safe(d.getProductCode()), normalFont));
-                productTable.addCell(getCell(formatCurrency(d.getUnitSalePrice()), normalFont));
-                productTable.addCell(getCell(String.valueOf(d.getQuantity()), normalFont));
+                productTable.addCell(getCell(formatCurrency(unitPrice), normalFont));
+                productTable.addCell(getCell(String.valueOf(quantity), normalFont));
                 productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
             }
 
@@ -459,9 +477,12 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             // ===== Cột trái: Tổng tiền =====
             PdfPCell totalCell = new PdfPCell();
             totalCell.setBorder(Rectangle.NO_BORDER);
-            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(transaction.getTotalAmount()), normalFont));
-            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(transaction.getPaidAmount()), blueFont));
-            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(transaction.getTotalAmount().subtract(transaction.getPaidAmount())), redFont));
+            java.math.BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal remainAmount = totalAmount.subtract(paidAmount);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(totalAmount), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(paidAmount), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(remainAmount), redFont));
 
             // ===== Cột phải: Ghi chú =====
             PdfPCell noteCell = new PdfPCell();
@@ -474,7 +495,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             summaryTable.addCell(totalCell);
             summaryTable.addCell(noteCell);
             document.add(summaryTable);
-
 
             // ===== Chữ ký =====
             document.add(new Paragraph(" ")); // khoảng trắng

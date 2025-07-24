@@ -34,7 +34,8 @@ const SaleDetailDialog = ({
     userDetails,
     customerDetails,
     onCancel,
-    onComplete
+    onComplete,
+    onExportPdf
 }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
@@ -214,6 +215,17 @@ const SaleDetailDialog = ({
                 >
                     Xuất chi tiết
                 </Button>
+                {onExportPdf && (
+                    <Button
+                        onClick={onExportPdf}
+                        variant="outlined"
+                        startIcon={<FaFileExport />}
+                        color="primary"
+                        sx={{ ml: 1 }}
+                    >
+                        Xuất PDF
+                    </Button>
+                )}
                 {status !== 'COMPLETE' && status !== 'CANCEL' && (
                     <Button
                         onClick={() => {

@@ -160,6 +160,24 @@ const SaleTransactionPage = () => {
         }
     };
 
+    const handleExportPdf = async (transaction = null) => {
+        try {
+            const targetTransaction = transaction || selectedTransaction;
+            if (!targetTransaction) return;
+            const pdfBlob = await saleTransactionService.exportPdf(targetTransaction.id);
+            const url = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `sale-transaction-${targetTransaction.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            alert('Không thể xuất PDF. Vui lòng thử lại!');
+        }
+    };
+
     const loadTransactions = async () => {
         setLoading(true);
         setError(null);
@@ -660,6 +678,7 @@ const SaleTransactionPage = () => {
                 transaction={selectedTransaction}
                 formatCurrency={formatCurrency}
                 onExport={() => handleExportDetail(selectedTransaction)}
+                onExportPdf={() => handleExportPdf(selectedTransaction)}
                 userDetails={userDetails}
                 customerDetails={customerDetails}
                 onCancel={() => handleCancel(selectedTransaction)}
@@ -695,6 +714,13 @@ const SaleTransactionPage = () => {
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất chi tiết" />
+                </MenuItem>
+                <MenuItem onClick={() => {
+                    handleExportPdf(actionRow);
+                    handleActionClose();
+                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Xuất PDF" />
                 </MenuItem>
                 {actionRow && actionRow.status !== 'COMPLETE' && actionRow.status !== 'CANCEL' && (
                     <MenuItem onClick={() => {
