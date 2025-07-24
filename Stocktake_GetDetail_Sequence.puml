@@ -1,0 +1,49 @@
+@startuml Stocktake_GetDetail_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Get StocktakeDetail - Sequence Diagram
+
+actor Staff
+participant "StockTake Page" as UI
+participant ":StocktakeController" as CC
+participant ":StocktakeServiceImpl" as CS
+participant ":StocktakeRepository" as CR
+participant ":StocktakeMapper" as CM
+database "Database" as DB
+
+Staff -> UI : Yêu cầu xem chi tiết kiểm kê
+UI -> CC : GET /api/stocktakes/{id}/details
+activate CC
+CC -> CS : getStocktakeDetails(id)
+activate CS
+CS -> CR : findById(id)
+activate CR
+CR -> DB : SELECT * FROM stocktakes WHERE id = ?
+DB --> CR : return Stocktake or null
+CR --> CS : return Optional<Stocktake>
+deactivate CR
+alt Stocktake Not Found
+    CS -> CS : throw new StocktakeNotFoundException(...)
+    CS --> CC : return StocktakeNotFoundException
+    CC --> UI : return 404 Not Found {error message}
+    UI --> Staff : return error
+else Stocktake Found
+    CS -> CS : get detail (JSON)
+    CS -> CM : toDetailDto(detail)
+    activate CM
+    CM --> CS : return List<StocktakeDetailDto>
+    deactivate CM
+    CS --> CC : return List<StocktakeDetailDto>
+    CC --> UI : return 200 OK List<StocktakeDetailDto>
+    UI --> Staff : return List<StocktakeDetailDto>
+end
+deactivate CS
+deactivate CC
+@enduml 

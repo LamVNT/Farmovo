@@ -50,8 +50,12 @@ spring:
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
             token-uri: https://oauth2.googleapis.com/token
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-
+aws:
+  access-key-id: AKIAZ7OLKUTVXKNKW4W7
+  secret-access-key: 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
+  region: eu-north-1
+  s3:
+    bucket: my-debt-images
 
 server:
   port: 8080
-

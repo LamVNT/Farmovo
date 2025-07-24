@@ -1,0 +1,69 @@
+@startuml Category_Create_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Create Category - Sequence Diagram
+
+actor User as U
+participant "CategoryController" as CC
+participant "CategoryService" as CS
+participant "CategoryMapper" as CM
+participant "CategoryValidator" as CV
+participant "CategoryRepository" as CR
+database "Database" as DB
+
+== Request Phase ==
+U -> CC: POST /api/categories\n{name, description}
+activate CC
+
+CC -> CV: validate(requestDto)
+activate CV
+CV -> CV: validate name not empty
+CV -> CV: validate description length
+CV --> CC: validation result
+deactivate CV
+
+alt Validation Failed
+    CC --> U: 400 Bad Request\n{error message}
+else Validation Passed
+    CC -> CS: createCategory(requestDto)
+    activate CS
+    
+    CS -> CM: toEntity(requestDto)
+    activate CM
+    CM -> CM: map name -> categoryName
+    CM -> CM: map description -> categoryDescription
+    CM --> CS: Category entity
+    deactivate CM
+    
+    CS -> CS: setCreatedAt(LocalDateTime.now())
+    CS -> CR: save(category)
+    activate CR
+    CR -> DB: INSERT INTO categories
+    DB --> CR: saved category
+    CR --> CS: Category entity
+    deactivate CR
+    
+    CS -> CM: toResponseDto(category)
+    activate CM
+    CM -> CM: map categoryName -> name
+    CM -> CM: map categoryDescription -> description
+    CM -> CM: map createdAt -> createAt
+    CM --> CS: CategoryResponseDto
+    deactivate CM
+    
+    CS --> CC: CategoryResponseDto
+    deactivate CS
+    
+    CC --> U: 200 OK\nCategoryResponseDto
+end
+
+deactivate CC
+
+@enduml 

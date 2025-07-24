@@ -85,6 +85,7 @@ public class StoreServiceImpl implements StoreService {
         store.setStoreName(dto.getStoreName());
         store.setStoreDescription(dto.getStoreDescription());
         store.setStoreAddress(dto.getStoreAddress());
+        store.setCreatedBy(dto.getCreatedBy());
         return store;
     }
 

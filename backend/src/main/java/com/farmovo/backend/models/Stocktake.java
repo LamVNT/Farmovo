@@ -20,6 +20,9 @@ public class Stocktake extends Base {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "name", length = 20, unique = true)
+    private String name;
+
     @Column(name = "stocktake_date", nullable = false)
     private Instant stocktakeDate;
 

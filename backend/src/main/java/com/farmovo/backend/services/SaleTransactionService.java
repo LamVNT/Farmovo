@@ -1,7 +1,6 @@
 package com.farmovo.backend.services;
 
 import com.farmovo.backend.dto.request.CreateSaleTransactionRequestDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,4 +27,6 @@ public interface SaleTransactionService {
     SaleTransactionResponseDto getById(Long id);
 
     void complete(Long id);
+
+    byte[] exportPdf(Long id);
 }

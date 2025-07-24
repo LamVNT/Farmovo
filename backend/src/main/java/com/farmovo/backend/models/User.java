@@ -38,6 +38,9 @@ public class User extends Base implements UserDetails {
     @Column(name = "email", length = 255, nullable = false )
     private String email;
 
+    @Column(name = "phone")
+    private String phone;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;

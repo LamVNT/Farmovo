@@ -1,0 +1,46 @@
+@startuml Stocktake_Read_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Get/List StockTake - Sequence Diagram
+
+actor User
+participant "StockTake Page" as UI
+participant ":StocktakeController" as CC
+participant ":StocktakeServiceImpl" as CS
+participant ":StocktakeMapper" as CM
+participant ":StocktakeRepository" as CR
+database "Database" as DB
+
+User -> UI : Yêu cầu xem danh sách kiểm kê
+UI -> CC : GET /api/stocktakes
+activate CC
+
+CC -> CS : getAllStocktakes()
+activate CS
+CS -> CR : findAll()
+activate CR
+CR -> DB : SELECT * FROM stocktakes
+DB --> CR : return List<Stocktake>
+CR --> CS : return List<Stocktake>
+deactivate CR
+
+loop For each Stocktake
+    CS -> CM : toResponseDto(stocktake)
+    activate CM
+    CM --> CS : return StocktakeResponseDto
+    deactivate CM
+end
+
+CS --> CC : return List<StocktakeResponseDto>
+deactivate CS
+CC --> UI : return 200 OK List<StocktakeResponseDto>
+UI --> User : return List<StocktakeResponseDto>
+deactivate CC
+@enduml 

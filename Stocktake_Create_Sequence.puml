@@ -1,0 +1,69 @@
+@startuml Stocktake_Create_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Create StockTake - Sequence Diagram
+
+actor Staff
+participant "StockTake Page" as UI
+participant ":StocktakeController" as CC
+participant ":StocktakeServiceImpl" as CS
+participant ":ProductRepository" as PR
+participant ":ZoneRepository" as ZR
+participant ":StocktakeValidator" as CV
+participant ":StocktakeMapper" as CM
+participant ":StocktakeRepository" as CR
+database "Database" as DB
+
+Staff -> UI : Nhập thông tin kiểm kê, nhấn 'Tạo kiểm kê'
+UI -> PR : fetchProducts(storeId)
+PR -> DB : SELECT * FROM products WHERE store_id=?
+DB --> PR : return List<Product>
+PR --> UI : return List<Product>
+UI -> ZR : fetchZones(storeId)
+ZR -> DB : SELECT * FROM zones WHERE store_id=?
+DB --> ZR : return List<Zone>
+ZR --> UI : return List<Zone>
+UI -> CC : POST /api/stocktakes {stocktakeDate, detail, note, storeId}
+activate CC
+
+CC -> CV : validate(requestDto)
+activate CV
+CV -> CV : validate fields
+CV --> CC : return validation result
+deactivate CV
+
+alt Validation Failed
+    CC --> UI : return 400 Bad Request {error message}
+    UI --> Staff : return error
+else Validation Passed
+    CC -> CS : createStockTake(requestDto)
+    activate CS
+    CS -> CM : toEntity(requestDto)
+    activate CM
+    CM --> CS : return Stocktake entity
+    deactivate CM
+    CS -> CR : save(stocktake)
+    activate CR
+    CR -> DB : INSERT INTO stocktakes
+    DB --> CR : return saved stocktake
+    CR --> CS : return Stocktake entity
+    deactivate CR
+    CS -> CM : toResponseDto(stocktake)
+    activate CM
+    CM --> CS : return StocktakeResponseDto
+    deactivate CM
+    CS --> CC : return StocktakeResponseDto
+    deactivate CS
+    CC --> UI : return 200 OK StocktakeResponseDto
+    UI --> Staff : return StocktakeResponseDto
+end
+
+deactivate CC
+@enduml 

@@ -30,7 +30,7 @@ import { FaRegTrashCan } from "react-icons/fa6";
 import LockIcon from '@mui/icons-material/Lock';
 import CheckIcon from '@mui/icons-material/Check';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import AddProductDialog from './AddProductDialog';
+import AddProductDialog from '../../components/import-transaction/AddProductDialog.jsx';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
@@ -43,6 +43,7 @@ import { getCategories } from '../../services/categoryService';
 import { getZones } from '../../services/zoneService';
 import { getAllStores } from '../../services/storeService';
 import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
+import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 const ImportPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
@@ -103,6 +104,29 @@ const ImportPage = () => {
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
 
     const zoneSearchInputRef = useRef();
+
+    // Đơn vị tính (quả/khay)
+    const [unit, setUnit] = useState('quả');
+
+    // Khi đổi đơn vị, chỉ cập nhật quantity, giữ nguyên price (đơn giá luôn là giá 1 quả), và cập nhật lại total
+    useEffect(() => {
+        if (selectedProducts.length > 0) {
+            setSelectedProducts(prev => prev.map(p => {
+                let newQuantity = p.quantity;
+                if (unit === 'khay' && p.unit !== 'khay') {
+                    newQuantity = Math.ceil((p.quantity || 1) / 25);
+                } else if (unit === 'quả' && p.unit !== 'quả') {
+                    newQuantity = (p.quantity || 1) * 25;
+                }
+                return {
+                    ...p,
+                    unit,
+                    quantity: newQuantity,
+                    total: (p.price || 0) * newQuantity
+                };
+            }));
+        }
+    }, [unit]);
 
     // Auto-dismiss error/success after 5s
     useEffect(() => {
@@ -192,6 +216,8 @@ const ImportPage = () => {
                 {
                     id: newProduct.id,
                     name: newProduct.name || newProduct.productName,
+                    productCode: newProduct.code || newProduct.productCode,
+                    productDescription: newProduct.productDescription,
                     unit: 'quả',
                     price,
                     quantity,
@@ -295,10 +321,11 @@ const ImportPage = () => {
 
     // Hàm format ngày dd/MM/yyyy
 
+    // Sửa handleSelectProduct để truyền unit hiện tại, price luôn là giá 1 quả
     const handleSelectProduct = (product) => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
-            const price = 0; // Để user nhập vào
-            const quantity = 1;
+            const price = product.price || 0;
+            const quantity = unit === 'khay' ? 1 : 25;
             const total = price * quantity;
             const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
 
@@ -307,7 +334,9 @@ const ImportPage = () => {
                 {
                     id: product.id,
                     name: product.name || product.productName,
-                    unit: 'quả',
+                    productCode: product.code || product.productCode,
+                    productDescription: product.productDescription,
+                    unit,
                     price,
                     quantity,
                     total,
@@ -561,7 +590,20 @@ const ImportPage = () => {
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
     const columns = [
-        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['STT'] && {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            renderCell: (params) => {
+                // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
+                if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
+                if (params.id) {
+                    const idx = selectedProducts.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            }
+        },
         columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
         columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
         columnVisibility['Số lượng'] && {
@@ -687,9 +729,17 @@ const ImportPage = () => {
             field: 'total',
             headerName: 'Thành tiền',
             width: 150,
+            valueGetter: (params) => {
+                const row = params?.row ?? {};
+                const price = parseFloat(row.price) || 0;
+                const quantity = parseInt(row.quantity) || 0;
+                return price * quantity;
+            },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const total = params.value || 0;
+                const price = parseFloat(params.row.price) || 0;
+                const quantity = parseInt(params.row.quantity) || 0;
+                const total = price * quantity;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1011,6 +1061,16 @@ const ImportPage = () => {
                         />
                         <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
                         <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
+                        {/* Dropdown chọn đơn vị tính */}
+                        <Select
+                            size="small"
+                            value={unit}
+                            onChange={e => setUnit(e.target.value)}
+                            sx={{ minWidth: 80, marginLeft: 1, background: '#fff' }}
+                        >
+                            <MenuItem value="quả">quả</MenuItem>
+                            <MenuItem value="khay">khay</MenuItem>
+                        </Select>
                         {(isSearchFocused || searchTerm.trim() !== '') && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
                                 {filteredProducts.length > 0 ? (
@@ -1024,11 +1084,10 @@ const ImportPage = () => {
                                                 ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
                                             `}
                                         >
-                                            <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                            {product.code && (
-                                                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">#{product.code}</span>
-                                            )}
-                                            <span className="ml-2 text-xs text-gray-500">quả</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                            </div>
                                             {product.price && (
                                                 <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
                                             )}
@@ -1068,194 +1127,46 @@ const ImportPage = () => {
                 </div>
             </div>
 
-            <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">👤 {currentUser?.name || currentUser?.username || 'Đang tải...'}</span>
-                    </div>
-                    <span className="text-xs text-gray-500">{currentTime.toLocaleString('vi-VN')}</span>
-                </div>
-
-                {/* Mã phiếu nhập lên trên cùng */}
-                <div>
-                    <div className="font-semibold mb-1">Mã phiếu nhập</div>
-                    <span className="text-base font-medium">{nextImportCode}</span>
-                </div>
-
-                {/* Nhà cung cấp */}
-                <div>
-                    <div className="font-semibold mb-1">Nhà cung cấp</div>
-                    <div className="relative">
-                        <TextField
-                            size="small"
-                            fullWidth
-                            placeholder="Tìm nhà cung cấp..."
-                            value={supplierSearch || (suppliers.find(s => String(s.id) === String(selectedSupplier))?.name || '')}
-                            onChange={e => {
-                                setSupplierSearch(e.target.value);
-                                setSelectedSupplier('');
-                            }}
-                            onFocus={() => setSupplierDropdownOpen(true)}
-                            onBlur={() => setTimeout(() => setSupplierDropdownOpen(false), 150)}
-                            variant="outlined"
-                            error={highlightSupplier}
-                            sx={highlightSupplier ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
-                        />
-                        {(supplierDropdownOpen || supplierSearch.trim() !== '') && filteredSuppliers.length > 0 && (
-                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">
-                                {filteredSuppliers.map((supplier) => (
-                                    <div
-                                        key={supplier.id}
-                                        onClick={() => {
-                                            setSelectedSupplier(supplier.id);
-                                            setSupplierSearch(''); // reset search để input lấy tên từ selectedSupplier
-                                            setSupplierDropdownOpen(false);
-                                        }}
-                                        className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedSupplier) === String(supplier.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
-                                    >
-                                        <span className="font-medium truncate max-w-[180px]">{supplier.name}</span>
-                                        {supplier.address && (
-                                            <span className="text-xs text-gray-400 truncate max-w-[260px]">{supplier.address}</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                {/* Cửa hàng */}
-                <div>
-                    <div className="font-semibold mb-1">Cửa hàng</div>
-                    <div className="relative">
-                        <TextField
-                            size="small"
-                            fullWidth
-                            placeholder="Tìm cửa hàng..."
-                            value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || '')}
-                            onChange={e => {
-                                setStoreSearch(e.target.value);
-                                setSelectedStore('');
-                            }}
-                            onFocus={() => setStoreDropdownOpen(true)}
-                            onBlur={() => setTimeout(() => setStoreDropdownOpen(false), 150)}
-                            variant="outlined"
-                            error={highlightStore}
-                            sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
-                        />
-                        {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
-                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">
-                                {filteredStores.map((store) => (
-                                    <div
-                                        key={store.id}
-                                        onClick={() => {
-                                            setSelectedStore(store.id);
-                                            setStoreSearch(''); // reset search để input lấy tên từ selectedStore
-                                            setStoreDropdownOpen(false);
-                                        }}
-                                        className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedStore) === String(store.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
-                                    >
-                                        <span className="font-medium truncate max-w-[180px]">{store.name}</span>
-                                        {store.address && (
-                                            <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.address}</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div>
-                    <div className="font-semibold mb-1">Ghi chú</div>
-                    <TextField
-                        multiline
-                        rows={2}
-                        placeholder="Nhập ghi chú"
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={note}
-                        onChange={e => setNote(e.target.value)}
-                    />
-                </div>
-
-                <div className="flex justify-between items-center">
-                    <div className="font-semibold">Tổng tiền hàng</div>
-                    <div className="text-right w-32">{formatCurrency(totalAmount)}</div>
-                </div>
-
-                <div>
-                    <div className="font-semibold mb-1">Số tiền đã trả</div>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        type="number"
-                        placeholder="Nhập số tiền đã trả"
-                        value={paidAmountInput}
-                        onFocus={e => {
-                            if (paidAmountInput === '0') setPaidAmountInput('');
-                        }}
-                        onBlur={e => {
-                            if (paidAmountInput === '' || isNaN(Number(paidAmountInput))) {
-                                setPaidAmountInput('0');
-                                setPaidAmount(0);
-                            } else {
-                                setPaidAmount(Number(paidAmountInput));
-                            }
-                        }}
-                        onChange={e => {
-                            const val = e.target.value;
-                            // Allow empty string for controlled input
-                            if (/^\d*$/.test(val)) {
-                                setPaidAmountInput(val);
-                            }
-                        }}
-                        InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
-                        }}
-                        variant="outlined"
-                    />
-                </div>
-
-                {paidAmount > 0 && (
-                    <div className="flex justify-between items-center">
-                        <div className="font-semibold">Còn lại</div>
-                        <div className={`text-right w-32 ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {formatCurrency(totalAmount - paidAmount)}
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex gap-2">
-                    <Button 
-                        fullWidth 
-                        variant="outlined" 
-                        onClick={() => setPaidAmount(0)}
-                        disabled={paidAmount === 0}
-                    >
-                        Chưa trả
-                    </Button>
-                    <Button 
-                        fullWidth 
-                        variant="outlined" 
-                        onClick={() => setPaidAmount(totalAmount)}
-                        disabled={paidAmount === totalAmount}
-                    >
-                        Trả đủ
-                    </Button>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                    <Button fullWidth variant="contained" className="!bg-blue-600 hover:!bg-blue-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} onClick={() => handleShowSummary('DRAFT')} disabled={loading}>Lưu tạm</Button>
-                    <Button fullWidth variant="contained" className="!bg-green-600 hover:!bg-green-700 text-white" startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} onClick={() => handleShowSummary('WAITING_FOR_APPROVE')} disabled={loading}>Hoàn thành</Button>
-                </div>
-            </div>
+            <ImportSidebar
+                currentUser={currentUser}
+                currentTime={currentTime}
+                nextImportCode={nextImportCode}
+                suppliers={suppliers}
+                selectedSupplier={selectedSupplier}
+                setSelectedSupplier={setSelectedSupplier}
+                supplierSearch={supplierSearch}
+                setSupplierSearch={setSupplierSearch}
+                supplierDropdownOpen={supplierDropdownOpen}
+                setSupplierDropdownOpen={setSupplierDropdownOpen}
+                filteredSuppliers={filteredSuppliers}
+                stores={stores}
+                selectedStore={selectedStore}
+                setSelectedStore={setSelectedStore}
+                storeSearch={storeSearch}
+                setStoreSearch={setStoreSearch}
+                storeDropdownOpen={storeDropdownOpen}
+                setStoreDropdownOpen={setStoreDropdownOpen}
+                filteredStores={filteredStores}
+                note={note}
+                setNote={setNote}
+                totalAmount={totalAmount}
+                paidAmount={paidAmount}
+                paidAmountInput={paidAmountInput}
+                setPaidAmountInput={setPaidAmountInput}
+                setPaidAmount={setPaidAmount}
+                highlightSupplier={highlightSupplier}
+                highlightStore={highlightStore}
+                loading={loading}
+                onSaveDraft={() => handleShowSummary('DRAFT')}
+                onComplete={() => handleShowSummary('WAITING_FOR_APPROVE')}
+            />
 
             <AddProductDialog 
                 open={openDialog} 
                 onClose={() => setOpenDialog(false)} 
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
+                unit={unit}
             />
 
             {/* Category Dialog */}
@@ -1318,8 +1229,16 @@ const ImportPage = () => {
                                                     ${selectedCategoryProducts.includes(product.id) ? 'bg-green-100/60 border border-green-400 text-green-900 font-bold shadow' : ''}
                                                 `}
                                             >
-                                                <span className="font-medium text-base">{product.name || product.productName}</span>
-                                                <div className="text-xs text-gray-400 ml-2">quả</div>
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <span className="font-bold text-base text-gray-900 truncate">{product.name || product.productName}</span>
+                                                    <span className="flex items-center gap-1 text-xs font-semibold text-blue-700">
+                                                        <span className="truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                    </span>
+                                                    {product.productDescription && (
+                                                        <span className="text-xs text-gray-500 italic truncate">{product.productDescription}</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-400 ml-2">{unit}</div>
                                             </div>
                                         ))
                                     ) : (

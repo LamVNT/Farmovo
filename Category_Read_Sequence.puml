@@ -1,0 +1,51 @@
+@startuml Category_Read_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Get All Categories - Sequence Diagram
+
+actor User as U
+participant "CategoryController" as CC
+participant "CategoryService" as CS
+participant "CategoryMapper" as CM
+participant "CategoryRepository" as CR
+database "Database" as DB
+
+== Request Phase ==
+U -> CC: GET /api/categories
+activate CC
+
+CC -> CS: getAllActiveCategories()
+activate CS
+
+CS -> CR: findAll()
+activate CR
+CR -> DB: SELECT * FROM categories
+DB --> CR: List<Category>
+CR --> CS: List<Category>
+deactivate CR
+
+loop For each Category
+    CS -> CM: toResponseDto(category)
+    activate CM
+    CM -> CM: map categoryName -> name
+    CM -> CM: map categoryDescription -> description
+    CM -> CM: map createdAt -> createAt
+    CM -> CM: map updatedAt -> updateAt
+    CM --> CS: CategoryResponseDto
+    deactivate CM
+end
+
+CS --> CC: List<CategoryResponseDto>
+deactivate CS
+
+CC --> U: 200 OK\nList<CategoryResponseDto>
+deactivate CC
+
+@enduml 

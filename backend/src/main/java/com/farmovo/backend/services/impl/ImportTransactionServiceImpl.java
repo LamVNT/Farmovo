@@ -15,18 +15,34 @@ import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.ImportTransactionService;
 import com.farmovo.backend.validator.ImportTransactionDetailValidator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.*;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
+
+import static com.lowagie.text.factories.ElementFactory.getCell;
 
 @Service
 @RequiredArgsConstructor
@@ -81,6 +97,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             detailValidator.validate(d);
             ImportTransactionDetail detail = buildDetail(transaction, product, d);
 
+            // Lưu lần đầu để lấy id
+            ImportTransactionDetail savedDetail = detail;
+            if (detail.getId() == null) {
+                savedDetail = transaction.getDetails() == null ? null : detail;
+            }
+            // Sẽ lưu sau khi set vào transaction
             BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
             totalAmount = totalAmount.add(lineTotal);
             detailList.add(detail);
@@ -96,34 +118,39 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Import transaction created successfully. ID: {}, Code: {}, Total: {}, Paid: {}",
                 savedTransaction.getId(), savedTransaction.getName(), totalAmount, transaction.getPaidAmount());
 
-
-        // Lưu
-        importTransactionRepository.save(transaction);
+        // Sau khi transaction và details đã được lưu, sinh mã LH000000 cho từng detail
+        for (ImportTransactionDetail detail : savedTransaction.getDetails()) {
+            if (detail.getName() == null || detail.getName().isEmpty()) {
+                String code = String.format("LH%06d", detail.getId());
+                detail.setName(code);
+            }
+        }
+        importTransactionRepository.save(savedTransaction);
         log.info("Import transaction created. Total: {}, Paid: {}", totalAmount, transaction.getPaidAmount());
 
-        // Tạo DebtNote nếu paidAmount < || > totalAmount
-        BigDecimal paidAmount = transaction.getPaidAmount();
-        totalAmount = transaction.getTotalAmount();
+//        if(dto.getStatus() == ImportTransactionStatus.COMPLETE){
+//            // Tạo DebtNote nếu paidAmount < || > totalAmount
+//            BigDecimal paidAmount = transaction.getPaidAmount();
+//            totalAmount = transaction.getTotalAmount();
+//
+//            BigDecimal debtAmount = totalAmount.subtract(paidAmount);
+//
+//            if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
+//                String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
+//
+//                debtNoteService.createDebtNoteFromTransaction(
+//                        transaction.getSupplier().getId(),
+//                        debtAmount,
+//                        "IMPORT",
+//                        debtType,
+//                        transaction.getId(),
+//                        transaction.getStore().getId()
+//                );
+//
+//                log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
+//            }
+//        }
 
-// Sửa lại: nợ = totalAmount - paidAmount
-        BigDecimal debtAmount = totalAmount.subtract(paidAmount);
-// > 0: còn nợ supplier ⇒ supplier DƯƠNG
-// < 0: trả dư ⇒ supplier ÂM
-
-        if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
-
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getSupplier().getId(),
-                    debtAmount,
-                    "IMPORT",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
-
-            log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
-    }
     }
 
     @Override
@@ -294,6 +321,25 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setStatus(ImportTransactionStatus.COMPLETE);
         importTransactionRepository.save(transaction);
 
+
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal rawDebtAmount = totalAmount.subtract(paidAmount);  // raw = total - paid
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
+            BigDecimal debtAmount = rawDebtAmount.abs();  // Luôn dương
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getSupplier().getId(),
+                    debtAmount,
+                    "IMPORT",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            log.info("Created debt note for import transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+        }
+
+
         // Cập nhật số lượng sản phẩm khi hoàn thành phiếu nhập
         updateProductStockIfComplete(transaction);
 
@@ -336,8 +382,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return result;
     }
 
-
-    ///////////////
     @Override
     public List<ImportTransactionResponseDto> listAllImportTransaction() {
         List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
@@ -380,10 +424,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         importTransactionRepository.save(transaction);
     }
 
-    /**
-     * Cập nhật số lượng sản phẩm khi phiếu nhập được hoàn thành
-     * @param transaction Phiếu nhập hàng
-     */
     private void updateProductStockIfComplete(ImportTransaction transaction) {
         if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
             for (ImportTransactionDetail detail : transaction.getDetails()) {
@@ -396,4 +436,197 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         }
     }
 
+    @Override
+    public byte[] exportImportPdf(Long id) {
+        ImportTransaction transaction = importTransactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Import transaction not found"));
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4);
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            // Font Roboto hỗ trợ Unicode tiếng Việt
+            ClassPathResource fontResource = new ClassPathResource("fonts/Roboto-Regular.ttf");
+            File tempFontFile = File.createTempFile("roboto", ".ttf");
+            tempFontFile.deleteOnExit();
+            try (InputStream in = fontResource.getInputStream(); OutputStream os = new FileOutputStream(tempFontFile)) {
+                in.transferTo(os);
+            }
+
+            BaseFont baseFont = BaseFont.createFont(tempFontFile.getAbsolutePath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            Font normalFont = new Font(baseFont, 12);
+            Font boldFont = new Font(baseFont, 12, Font.BOLD);
+            Font redFont = new Font(baseFont, 12, Font.BOLD);
+            Font blueFont = new Font(baseFont, 12, Font.BOLD);
+
+            // Ngày giờ tạo
+            LocalDateTime createdAt = transaction.getCreatedAt();
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            String formattedTime = createdAt != null ? createdAt.format(timeFormatter) : "";
+            String formattedDate = createdAt != null ? createdAt.format(dateFormatter) : "";
+
+            // ===== Tiêu đề & ngày giờ =====
+            PdfPTable headerTable = new PdfPTable(2);
+            headerTable.setWidthPercentage(100);
+            headerTable.setWidths(new float[]{2f, 1f});
+            headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU NHẬP HÀNG " + safe(transaction.getName()), new Font(baseFont, 14, Font.BOLD)));
+            titleCell.setBorder(Rectangle.NO_BORDER);
+            titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+
+            PdfPCell dateCell = new PdfPCell();
+            dateCell.setBorder(Rectangle.NO_BORDER);
+            dateCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            dateCell.addElement(new Paragraph("Ngày lập: " + formattedDate, normalFont));
+            dateCell.addElement(new Paragraph("Giờ lập: " + formattedTime, normalFont));
+
+            headerTable.addCell(titleCell);
+            headerTable.addCell(dateCell);
+            document.add(headerTable);
+
+            // ===== Trạng thái =====
+            if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
+                document.add(new Paragraph("✔ Phiếu đã hoàn thành", normalFont));
+            }
+
+            // ===== Thông tin cửa hàng & nhà cung cấp =====
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            infoTable.setSpacingBefore(10f);
+            infoTable.setSpacingAfter(10f);
+            infoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell storeCell = new PdfPCell();
+            storeCell.setBorder(Rectangle.NO_BORDER);
+            storeCell.addElement(new Paragraph("Kho nhập", boldFont));
+            storeCell.addElement(new Paragraph("Tên kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreName() : null), normalFont));
+            // Người tạo
+            String nguoiTao = "Chưa có";
+            try {
+                if (transaction.getCreatedBy() != null) {
+                    User staff = userRepository.findById(transaction.getCreatedBy()).orElse(null);
+                    nguoiTao = staff != null && staff.getFullName() != null ? staff.getFullName() : "Chưa có";
+                }
+            } catch (Exception e) {
+                nguoiTao = "Chưa có";
+            }
+            storeCell.addElement(new Paragraph("Người tạo: " + nguoiTao, normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreAddress() : null), normalFont));
+
+            PdfPCell supplierCell = new PdfPCell();
+            supplierCell.setBorder(Rectangle.NO_BORDER);
+            supplierCell.addElement(new Paragraph("Thông tin nhà cung cấp", boldFont));
+            supplierCell.addElement(new Paragraph("Tên: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getName() : null), normalFont));
+            supplierCell.addElement(new Paragraph("SĐT: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getPhone() : null), normalFont));
+            supplierCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getAddress() : null), normalFont));
+
+            infoTable.addCell(storeCell);
+            infoTable.addCell(supplierCell);
+            document.add(infoTable);
+
+            // ===== Bảng sản phẩm =====
+            PdfPTable productTable = new PdfPTable(6);
+            productTable.setWidthPercentage(100);
+            productTable.setSpacingBefore(10);
+            productTable.setWidths(new float[]{0.8f, 3f, 1.5f, 2f, 1.2f, 2.5f});
+
+            productTable.addCell(getCell("STT", boldFont));
+            productTable.addCell(getCell("Tên sản phẩm", boldFont));
+            productTable.addCell(getCell("Mã", boldFont));
+            productTable.addCell(getCell("Đơn giá nhập", boldFont));
+            productTable.addCell(getCell("Số lượng", boldFont));
+            productTable.addCell(getCell("Thành tiền", boldFont));
+
+            List<ImportTransactionDetail> detailList = transaction.getDetails() != null ? transaction.getDetails() : new ArrayList<>();
+            int index = 1;
+            for (ImportTransactionDetail d : detailList) {
+                BigDecimal unitPrice = d.getUnitImportPrice() != null ? d.getUnitImportPrice() : BigDecimal.ZERO;
+                int quantity = d.getImportQuantity();
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+                productTable.addCell(getCell(String.valueOf(index++), normalFont));
+                productTable.addCell(getCell(safe(d.getProduct() != null ? d.getProduct().getProductName() : null), normalFont)); // Tên sản phẩm
+                productTable.addCell(getCell(safe(d.getProduct() != null ? String.valueOf(d.getProduct().getId()) : null), normalFont)); // Mã
+                productTable.addCell(getCell(formatCurrency(unitPrice), normalFont));
+                productTable.addCell(getCell(String.valueOf(quantity), normalFont));
+                productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
+            }
+            document.add(productTable);
+
+            // ===== Tổng tiền & Ghi chú =====
+            PdfPTable summaryTable = new PdfPTable(2);
+            summaryTable.setWidthPercentage(100);
+            summaryTable.setSpacingBefore(10);
+            summaryTable.setWidths(new float[]{1f, 1f});
+
+            // Cột bên trái: Tổng tiền
+            PdfPCell totalCell = new PdfPCell();
+            totalCell.setBorder(Rectangle.NO_BORDER);
+            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal remainAmount = totalAmount.subtract(paidAmount);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(totalAmount), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(paidAmount), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(remainAmount), redFont));
+
+            // Cột bên phải: Ghi chú
+            PdfPCell noteCell = new PdfPCell();
+            noteCell.setBorder(Rectangle.NO_BORDER);
+            if (transaction.getImportTransactionNote() != null && !transaction.getImportTransactionNote().isEmpty()) {
+                noteCell.addElement(new Paragraph("Ghi chú:", boldFont));
+                noteCell.addElement(new Paragraph(transaction.getImportTransactionNote(), normalFont));
+            }
+
+            summaryTable.addCell(totalCell);
+            summaryTable.addCell(noteCell);
+            document.add(summaryTable);
+
+            // ===== Chữ ký =====
+            document.add(new Paragraph(" ")); // khoảng trắng
+            PdfPTable signTable = new PdfPTable(2);
+            signTable.setWidthPercentage(100);
+            signTable.setWidths(new float[]{1f, 1f});
+            signTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+            // Cột trống bên trái
+            PdfPCell leftEmptyCell = new PdfPCell(new Phrase(""));
+            leftEmptyCell.setBorder(Rectangle.NO_BORDER);
+
+            // Cột bên phải là phần chữ ký
+            PdfPCell rightSignCell = new PdfPCell();
+            rightSignCell.setBorder(Rectangle.NO_BORDER);
+            rightSignCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            rightSignCell.addElement(new Paragraph("Người lập phiếu", boldFont));
+            rightSignCell.addElement(new Paragraph("(Ký, ghi rõ họ tên)", normalFont));
+
+            signTable.addCell(leftEmptyCell);
+            signTable.addCell(rightSignCell);
+
+            document.add(signTable);
+
+            document.close();
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi tạo PDF phiếu nhập: " + e.getMessage(), e);
+        }
+    }
+
+
+    private PdfPCell getCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setPadding(5);
+        return cell;
+    }
+
+    private String formatCurrency(BigDecimal amount) {
+        NumberFormat format = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        return format.format(amount).replace("₫", "VND");
+    }
+
+    private String safe(String input) {
+        return input == null ? "Chưa có" : input;
+    }
 }

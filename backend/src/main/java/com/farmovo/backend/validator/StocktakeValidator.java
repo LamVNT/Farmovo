@@ -1,8 +1,9 @@
 package com.farmovo.backend.validator;
 
 import com.farmovo.backend.dto.request.StocktakeRequestDto;
-import com.farmovo.backend.models.StocktakeDetail;
 import com.farmovo.backend.exceptions.ValidationException;
+import com.farmovo.backend.models.StocktakeDetail;
+
 import java.util.List;
 
 public class StocktakeValidator {

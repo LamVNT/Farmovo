@@ -4,6 +4,7 @@ import { FaPlus } from "react-icons/fa6";
 import StoreFormDialog from "../../components/store/StoreFormDialog";
 import StoreTable from "../../components/store/StoreTable";
 import { getAllStores, createStore, updateStore, deleteStore } from "../../services/storeService";
+import { userService } from "../../services/userService";
 import { toast } from "react-hot-toast";
 
 const Store = () => {
@@ -16,12 +17,16 @@ const Store = () => {
     const [error, setError] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [storeToDelete, setStoreToDelete] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
         const fetch = async () => {
             try {
                 const data = await getAllStores();
                 setStores(data);
+                // Lấy user hiện tại
+                const user = await userService.getCurrentUser();
+                setCurrentUser(user);
             } catch (err) {
                 setError("Failed to fetch stores");
             } finally {
@@ -78,30 +83,32 @@ const Store = () => {
             toast.error("Vui lòng nhập đầy đủ tên và địa chỉ cửa hàng!");
             return;
         }
-        const payload = {
-            storeName: formData.name,
-            storeAddress: formData.address,
-            storeDescription: formData.description || ""
-        };
         try {
             if (editMode) {
-                const updated = await updateStore(formData.id, payload);
+                const updated = await updateStore(formData.id, formData);
                 setStores(prev => prev.map(store => (store.id === formData.id ? updated : store)));
                 toast.success("Cập nhật cửa hàng thành công!");
             } else {
-                const created = await createStore(payload);
+                // Thêm created_by khi tạo mới
+                const created = await createStore({ ...formData, created_by: currentUser?.id });
                 setStores(prev => [...prev, created]);
                 toast.success("Thêm cửa hàng mới thành công!");
             }
             setOpenDialog(false);
-        } catch {
-            setError(`Thao tác thất bại`);
-            toast.error(`Thao tác thất bại!`);
+        } catch (err) {
+            // Kiểm tra lỗi duplicate key
+            const msg = err?.response?.data?.message || "";
+            if (msg.includes("duplicate key") || msg.includes("already exists")) {
+                toast.error("Tên cửa hàng đã tồn tại, vui lòng chọn tên khác!");
+            } else {
+                toast.error("Thao tác thất bại!");
+            }
+            setError(msg || "Thao tác thất bại");
         }
     };
 
     if (loading) return <div>Loading...</div>;
-    if (error) return <div>{error}</div>;
+    // Đã bỏ render lỗi ra màn hình, chỉ dùng toast
 
     return (
         <div className="p-5 bg-white shadow-md rounded-md">
@@ -120,7 +127,7 @@ const Store = () => {
                 </div>
             </div>
             <StoreTable
-                rows={filteredStores}
+                rows={filteredStores.map((row, idx) => ({ ...row, stt: idx + 1 }))}
                 onEdit={handleOpenEdit}
                 onDelete={id => handleDeleteRequest(stores.find(s => s.id === id))}
             />

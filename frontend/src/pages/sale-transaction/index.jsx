@@ -160,6 +160,24 @@ const SaleTransactionPage = () => {
         }
     };
 
+    const handleExportPdf = async (transaction = null) => {
+        try {
+            const targetTransaction = transaction || selectedTransaction;
+            if (!targetTransaction) return;
+            const pdfBlob = await saleTransactionService.exportPdf(targetTransaction.id);
+            const url = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `sale-transaction-${targetTransaction.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            alert('Không thể xuất PDF. Vui lòng thử lại!');
+        }
+    };
+
     const loadTransactions = async () => {
         setLoading(true);
         setError(null);
@@ -220,6 +238,12 @@ const SaleTransactionPage = () => {
         }
 
         return true;
+    });
+    // Sắp xếp theo saleDate mới nhất lên trên
+    filteredTransactions.sort((a, b) => {
+        const dateA = a.saleDate ? new Date(a.saleDate).getTime() : 0;
+        const dateB = b.saleDate ? new Date(b.saleDate).getTime() : 0;
+        return dateB - dateA;
     });
 
     const handlePresetChange = (key) => {
@@ -328,7 +352,26 @@ const SaleTransactionPage = () => {
     };
 
     const columns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
+        { 
+            field: 'stt', 
+            headerName: 'STT', 
+            width: 80, 
+            sortable: false, 
+            filterable: false, 
+            renderCell: (params) => {
+                // Try to use params.rowIndex (for newer DataGrid), fallback to indexOf in visibleRows
+                if (typeof params.rowIndex === 'number') {
+                    return params.rowIndex + 1;
+                }
+                // fallback: try to find index in filteredTransactions
+                if (params.id) {
+                    const idx = filteredTransactions.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            },
+        },
+        { field: 'name', headerName: 'Mã phiếu bán', flex: 1 },
         { field: 'customerName', headerName: 'Khách hàng', flex: 1 },
         { field: 'storeName', headerName: 'Cửa hàng', flex: 1 },
         {
@@ -381,7 +424,8 @@ const SaleTransactionPage = () => {
             renderCell: (params) => {
                 const statusMap = {
                     'COMPLETE': { label: 'Đã hoàn thành', color: '#10b981' },
-                    'DRAFT': { label: 'Nháp', color: '#6b7280' }
+                    'DRAFT': { label: 'Nháp', color: '#6b7280' },
+                    'CANCEL': { label: 'Đã hủy', color: '#ef4444' }
                 };
                 const status = statusMap[params.value] || { label: params.value, color: '#6b7280' };
                 return (
@@ -634,6 +678,7 @@ const SaleTransactionPage = () => {
                 transaction={selectedTransaction}
                 formatCurrency={formatCurrency}
                 onExport={() => handleExportDetail(selectedTransaction)}
+                onExportPdf={() => handleExportPdf(selectedTransaction)}
                 userDetails={userDetails}
                 customerDetails={customerDetails}
                 onCancel={() => handleCancel(selectedTransaction)}
@@ -669,6 +714,13 @@ const SaleTransactionPage = () => {
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất chi tiết" />
+                </MenuItem>
+                <MenuItem onClick={() => {
+                    handleExportPdf(actionRow);
+                    handleActionClose();
+                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Xuất PDF" />
                 </MenuItem>
                 {actionRow && actionRow.status !== 'COMPLETE' && actionRow.status !== 'CANCEL' && (
                     <MenuItem onClick={() => {
