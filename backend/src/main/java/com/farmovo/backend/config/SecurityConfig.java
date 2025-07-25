@@ -56,7 +56,7 @@ public class SecurityConfig {
 //                        .requestMatchers("/api/users/me", "/api/users").authenticated()
 //                        .requestMatchers("/admin/**").hasRole("ADMIN")
 //                        .requestMatchers("/staff/**").hasRole("STAFF")
-                                .anyRequest().permitAll()
+                        .anyRequest().permitAll()
                 )
 
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(unauthorizedHandler))
