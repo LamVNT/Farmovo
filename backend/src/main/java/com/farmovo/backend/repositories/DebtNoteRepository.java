@@ -2,6 +2,7 @@ package com.farmovo.backend.repositories;
 
 import com.farmovo.backend.models.DebtNote;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 
 @Repository
-public interface DebtNoteRepository extends JpaRepository<DebtNote, Long> {
+public interface DebtNoteRepository extends JpaRepository<DebtNote, Long>, JpaSpecificationExecutor<DebtNote> {
 
     // Query riêng cho import (debtType = '+', tính tăng nợ)
     @Query("""

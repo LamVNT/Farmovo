@@ -5,14 +5,38 @@ const API_URL = `${import.meta.env.VITE_API_URL}/debt/admin`;
 export const getDebtNotesByCustomerId = async (customerId, page = 0, size = 10) => {
     console.log(`Fetching debt notes for customer ID: ${customerId}, page: ${page}, size: ${size}`);
     try {
-        const response = await axios.get(`${API_URL}/customer/${customerId}/debt-notes`, {
-            params: { page, size },
+        const response = await axios.get(`${API_URL}/list-all`, {
+            params: { 
+                customerId: customerId,
+                page: page,
+                size: size,
+                sort: "debtDate,desc"
+            },
             withCredentials: true,
         });
         // Trả về cả content, totalPages, totalItems
         return response.data;
     } catch (error) {
         console.error(`Error fetching debt notes for customer ID: ${customerId}`, {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+        });
+        throw error;
+    }
+};
+
+export const listAllDebtNotes = async (params) => {
+    console.log("Listing debt notes with params:", params);
+    try {
+        const response = await axios.get(`${API_URL}/list-all`, {
+            params: params,
+            withCredentials: true,
+        });
+        console.log("List response:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error("Error listing debt notes:", {
             message: error.message,
             status: error.response?.status,
             data: error.response?.data,
