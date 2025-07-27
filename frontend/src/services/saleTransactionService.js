@@ -11,6 +11,16 @@ const saleTransactionService = {
         }
     },
 
+    async listPaged(params) {
+        try {
+            const res = await api.get('/sale-transactions/list-all', { params });
+            return res.data;
+        } catch (error) {
+            console.error('Error in listPaged:', error);
+            throw error;
+        }
+    },
+
     async getById(id) {
         try {
             const res = await api.get(`/sale-transactions/${id}`);
