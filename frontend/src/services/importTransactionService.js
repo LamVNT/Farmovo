@@ -54,6 +54,18 @@ const importTransactionService = {
     async getNextCode() {
         const res = await api.get('/import-transaction/next-code');
         return res.data;
+    },
+
+    async exportPdf(id) {
+        try {
+            const res = await api.get(`/import-transaction/${id}/export`, {
+                responseType: 'blob',
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error in exportPdf:', error);
+            throw error;
+        }
     }
 };
 

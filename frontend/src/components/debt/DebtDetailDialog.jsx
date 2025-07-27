@@ -127,29 +127,28 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                         minRows={2}
                     />
                 </Box>
-                {/* Ảnh bằng chứng */}
-                <Box mb={2}>
-                    <Typography variant="subtitle2">Bằng chứng</Typography>
-                    <Box>
-                        {previewUrl && (
-                            <img
-                                src={previewUrl}
-                                alt="Preview"
-                                style={{ maxWidth: "100%", maxHeight: 160, marginTop: 8, borderRadius: 8 }}
-                                onError={e => { e.target.style.display = 'none'; }}
-                            />
-                        )}
-                        {/* Nếu không có bằng chứng */}
-                        {!debtNote.debtEvidences && (
-                            <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
-                                Không có bằng chứng
-                            </Typography>
-                        )}
-                    </Box>
-                </Box>
-                {/* Nguồn và ID nguồn, cạnh nhau */}
+                {/* Bằng chứng, Nguồn, ID nguồn trên cùng một hàng */}
                 <Box display="flex" gap={2} mb={2}>
-                    <Box flex={1}>
+                    <Box flex={2} display="flex" flexDirection="column" alignItems="flex-start">
+                        <Typography variant="subtitle2">Bằng chứng</Typography>
+                        <Box>
+                            {previewUrl && (
+                                <img
+                                    src={previewUrl}
+                                    alt="Preview"
+                                    style={{ maxWidth: "100%", maxHeight: 120, marginTop: 8, borderRadius: 8 }}
+                                    onError={e => { e.target.style.display = 'none'; }}
+                                />
+                            )}
+                            {/* Nếu không có bằng chứng */}
+                            {!debtNote.debtEvidences && (
+                                <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
+                                    Không có bằng chứng
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+                    <Box flex={1} display="flex" flexDirection="column">
                         <Typography variant="subtitle2">Nguồn</Typography>
                         <TextField
                             margin="dense"
@@ -160,7 +159,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             label=""
                         />
                     </Box>
-                    <Box flex={1}>
+                    <Box flex={1} display="flex" flexDirection="column">
                         <Typography variant="subtitle2">ID nguồn</Typography>
                         <TextField
                             margin="dense"

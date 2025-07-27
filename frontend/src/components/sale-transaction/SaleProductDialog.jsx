@@ -132,7 +132,7 @@ const SaleProductDialog = ({
                                                 onClick={() => handleBatchSelection(batch)}
                                             >
                                                 <div className="flex-1">
-                                                    <div className="font-bold text-blue-800">Lô #{batch.id}</div>
+                                                    <div className="font-bold text-blue-800">Lô {batch.name}</div>
                                                     <div className="grid grid-cols-4 gap-1 text-xs text-gray-600 mt-1 w-full" style={{ alignItems: 'center', paddingTop: 2, paddingBottom: 2 }}>
                                                         <span className="col-span-1">Số lượng còn: <span className="font-bold text-gray-900">{batch.remainQuantity}</span></span>
                                                         <span className="col-span-1">Giá: <span className="font-bold text-green-700">{formatCurrency(batch.unitSalePrice)}</span></span>

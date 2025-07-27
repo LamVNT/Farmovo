@@ -37,7 +37,10 @@ const SaleSidebar = ({
     onComplete,
     onCancel,
     formatCurrency,
-    isValidValue
+    isValidValue,
+    highlightCustomer = false,
+    highlightStore = false,
+    highlightProducts = false,
 }) => {
     const [nextCode, setNextCode] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -119,6 +122,8 @@ const SaleSidebar = ({
                         onFocus={() => setCustomerDropdownOpen(true)}
                         onBlur={() => setTimeout(() => setCustomerDropdownOpen(false), 150)}
                         variant="outlined"
+                        error={highlightCustomer}
+                        sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
                     />
                     {(customerDropdownOpen || customerSearch.trim() !== '') && filteredCustomers.length > 0 && (
                         <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">
@@ -165,6 +170,8 @@ const SaleSidebar = ({
                         onFocus={() => setStoreDropdownOpen(true)}
                         onBlur={() => setTimeout(() => setStoreDropdownOpen(false), 150)}
                         variant="outlined"
+                        error={highlightStore}
+                        sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
                     />
                     {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
                         <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200">

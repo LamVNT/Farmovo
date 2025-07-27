@@ -35,20 +35,20 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
         })
         : [];
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0";
+        if (totalDebt == null || totalDebt === 0) return "0 VND";
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)}</span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
             );
         } else {
             return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt}</span>
+                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
             );
         }
     };
     return (
         <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-            <DialogTitle>Danh sách giao dịch nợ</DialogTitle>
+            <DialogTitle>Danh sách giao dịch nợ <span style={{fontWeight:400, fontSize:13, marginLeft:8}}>("-": khách đang nợ, "+": cửa hàng nợ)</span></DialogTitle>
             <DialogContent>
                 {/* Thông tin khách hàng, tổng nợ và nút thêm giao dịch nợ */}
                 {customer && (

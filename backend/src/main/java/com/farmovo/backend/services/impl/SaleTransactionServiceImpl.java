@@ -15,6 +15,7 @@ import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.SaleTransactionService;
+import com.farmovo.backend.specification.SaleTransactionSpecification;
 import com.farmovo.backend.validator.SaleTransactionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,6 +31,10 @@ import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,72 +90,26 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         saleTransactionValidator.validate(dto);
 
         SaleTransaction transaction = new SaleTransaction();
-        transaction.setTotalAmount(dto.getTotalAmount());
-        transaction.setPaidAmount(dto.getPaidAmount());
-        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
-        transaction.setSaleDate(dto.getSaleDate());
-        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
-        transaction.setCreatedBy(userId);
+        mapDtoToTransaction(transaction, dto, userId);
 
         // Sinh mã name tự động
-        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
-                .map(SaleTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PB%06d", lastId + 1); // hoặc PX%06d nếu bạn muốn
+        String newName = generateTransactionCode();
         transaction.setName(newName);
         log.debug("Generated sale transaction code: {}", newName);
-
-        // Lưu chi tiết dưới dạng JSON string
-        try {
-            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
-            transaction.setDetail(jsonDetail);
-            log.debug("Transaction details serialized to JSON successfully");
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize transaction details to JSON", e);
-            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
-        }
-
-        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> {
-                    log.error("Customer not found with ID: {}", dto.getCustomerId());
-                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
-                }));
-        transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> {
-                    log.error("Store not found with ID: {}", dto.getStoreId());
-                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
-                }));
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
         }
 
-        saleTransactionRepository.save(transaction);
-
-        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
-            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-            BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
-            if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-                String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-                BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
-                debtNoteService.createDebtNoteFromTransaction(
-                        transaction.getCustomer().getId(),
-                        debtAmount,
-                        "SALE",
-                        debtType,
-                        transaction.getId(),
-                        transaction.getStore().getId()
-                );
-                log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
-            }
-        }
-
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
-    }
 
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Handling debt note for completed transaction");
+            handleCompleteStatus(savedTransaction);
+        }
+    }
 
     @Override
     @Transactional
@@ -171,39 +130,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "cập nhật");
         }
 
-        transaction.setTotalAmount(dto.getTotalAmount());
-        transaction.setPaidAmount(dto.getPaidAmount());
-        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
-        transaction.setSaleDate(dto.getSaleDate());
-        transaction.setStatus(dto.getStatus());
-
-
-        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
-                .map(SaleTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PB%06d", lastId + 1);
-        transaction.setName(newName);
-
-
-        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> {
-                    log.error("Customer not found with ID: {}", dto.getCustomerId());
-                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
-                }));
-        transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> {
-                    log.error("Store not found with ID: {}", dto.getStoreId());
-                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
-                }));
-
-        try {
-            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
-            transaction.setDetail(jsonDetail);
-            log.debug("Updated transaction details serialized to JSON successfully");
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize updated transaction details to JSON", e);
-            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
-        }
+        mapDtoToTransaction(transaction, dto, null); // Không update createdBy khi update
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Updated transaction status is COMPLETE, deducting stock from batches");
@@ -212,6 +139,11 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         saleTransactionRepository.save(transaction);
         log.info("Sale transaction with ID: {} updated successfully", id);
+
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Handling debt note for completed transaction");
+            handleCompleteStatus(transaction);
+        }
     }
 
     private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
@@ -250,9 +182,39 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
 
     @Override
-    public List<SaleTransactionResponseDto> getAll() {
-        List<SaleTransaction> entities = saleTransactionRepository.findAllSaleActive();
-        return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    public Page<SaleTransactionResponseDto> getAll(String name,
+                                                   String customerName,
+                                                   String storeName,
+                                                   SaleTransactionStatus status,
+                                                   LocalDateTime fromDate,
+                                                   LocalDateTime toDate,
+                                                   BigDecimal minTotalAmount,
+                                                   BigDecimal maxTotalAmount,
+                                                   BigDecimal minPaidAmount,
+                                                   BigDecimal maxPaidAmount,
+                                                   String note,
+                                                   Long createdBy,
+                                                   Pageable pageable) {
+        Specification<SaleTransaction> spec = Specification.allOf(
+                SaleTransactionSpecification.isNotDeleted(),
+                SaleTransactionSpecification.hasName(name),
+                SaleTransactionSpecification.hasCustomerName(customerName),
+                SaleTransactionSpecification.hasStoreName(storeName),
+                SaleTransactionSpecification.hasStatus(status),
+                SaleTransactionSpecification.hasSaleDateBetween(fromDate, toDate),
+                SaleTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount),
+                SaleTransactionSpecification.hasPaidAmountBetween(minPaidAmount, maxPaidAmount),
+                SaleTransactionSpecification.hasNote(note),
+                SaleTransactionSpecification.hasCreatedBy(createdBy)
+        );
+
+        Page<SaleTransaction> entityPage = saleTransactionRepository.findAll(spec, pageable);
+
+        List<SaleTransactionResponseDto> dtoList = entityPage.getContent().stream()
+                .map(entity -> saleTransactionMapper.toResponseDto(entity, objectMapper))
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
     @Override
@@ -260,32 +222,16 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
             .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
-        transaction.setStatus(com.farmovo.backend.models.SaleTransactionStatus.COMPLETE);
+        transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
-
-        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
-        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-            BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getCustomer().getId(),
-                    debtAmount,
-                    "SALE",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
-            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
-        }
+        handleCompleteStatus(transaction);
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void cancel(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
-                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("ImportTransaction not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
         transaction.setStatus(SaleTransactionStatus.CANCEL);
         // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
         saleTransactionRepository.save(transaction);
@@ -326,7 +272,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     }
 
 
-
     @Override
     public byte[] exportPdf(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
@@ -360,15 +305,15 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             LocalDateTime createdAt = transaction.getCreatedAt();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String formattedTime = createdAt.format(timeFormatter);
-            String formattedDate = createdAt.format(dateFormatter);
+            String formattedTime = createdAt != null ? createdAt.format(timeFormatter) : "";
+            String formattedDate = createdAt != null ? createdAt.format(dateFormatter) : "";
 
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
             headerTable.setWidths(new float[]{2f, 1f});
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU BÁN HÀNG " + transaction.getName(), new Font(baseFont, 14, Font.BOLD)));
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU BÁN HÀNG " + safe(transaction.getName()), new Font(baseFont, 14, Font.BOLD)));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
@@ -383,7 +328,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
             document.add(headerTable);
 
-
             // ===== Trạng thái =====
             if (transaction.getStatus() == SaleTransactionStatus.COMPLETE) {
                 document.add(new Paragraph("✔ Phiếu hoàn thành", normalFont));
@@ -396,20 +340,29 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             infoTable.setSpacingAfter(10f);
             infoTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-
             PdfPCell storeCell = new PdfPCell();
             storeCell.setBorder(Rectangle.NO_BORDER);
             storeCell.addElement(new Paragraph("Thông tin cửa hàng", boldFont));
-            storeCell.addElement(new Paragraph("Tên cửa hàng: " + safe(transaction.getStore().getStoreName()), normalFont));
-            storeCell.addElement(new Paragraph("Người tạo: " + safe(getStaff(transaction.getId()).getFullName()), normalFont));
-            storeCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getStore().getStoreAddress()), normalFont));
+            storeCell.addElement(new Paragraph("Tên cửa hàng: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreName() : null), normalFont));
+            // Người tạo
+            String nguoiTao = "Chưa có";
+            try {
+                if (transaction.getCreatedBy() != null) {
+                    User staff = getStaff(transaction.getCreatedBy());
+                    nguoiTao = staff != null && staff.getFullName() != null ? staff.getFullName() : "Chưa có";
+                }
+            } catch (Exception e) {
+                nguoiTao = "Chưa có";
+            }
+            storeCell.addElement(new Paragraph("Người tạo: " + nguoiTao, normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreAddress() : null), normalFont));
 
             PdfPCell customerCell = new PdfPCell();
             customerCell.setBorder(Rectangle.NO_BORDER);
             customerCell.addElement(new Paragraph("Thông tin khách hàng", boldFont));
-            customerCell.addElement(new Paragraph("Tên khách hàng: " + safe(transaction.getCustomer().getName()), normalFont));
-            customerCell.addElement(new Paragraph("Số điện thoại: " + safe(transaction.getCustomer().getPhone()), normalFont));
-            customerCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getCustomer().getAddress()), normalFont));
+            customerCell.addElement(new Paragraph("Tên khách hàng: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getName() : null), normalFont));
+            customerCell.addElement(new Paragraph("Số điện thoại: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getPhone() : null), normalFont));
+            customerCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getCustomer() != null ? transaction.getCustomer().getAddress() : null), normalFont));
 
             infoTable.addCell(storeCell);
             infoTable.addCell(customerCell);
@@ -429,22 +382,32 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             productTable.addCell(getCell("Số lượng", boldFont));
             productTable.addCell(getCell("Thành tiền", boldFont));
 
+            // Parse detail an toàn
+            java.util.List<ProductSaleResponseDto> detailList = new java.util.ArrayList<>();
+            try {
+                if (transaction.getDetail() != null && !transaction.getDetail().isEmpty()) {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new JavaTimeModule());
             objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            List<ProductSaleResponseDto> detailList = objectMapper.readValue(
+                    detailList = objectMapper.readValue(
                     transaction.getDetail(),
-                    new TypeReference<List<ProductSaleResponseDto>>() {}
+                        new TypeReference<java.util.List<ProductSaleResponseDto>>() {}
             );
+                }
+            } catch (Exception e) {
+                detailList = new java.util.ArrayList<>();
+            }
 
             int index = 1;
             for (ProductSaleResponseDto d : detailList) {
-                BigDecimal lineTotal = d.getUnitSalePrice().multiply(BigDecimal.valueOf(d.getQuantity()));
+                java.math.BigDecimal unitPrice = d.getUnitSalePrice() != null ? d.getUnitSalePrice() : java.math.BigDecimal.ZERO;
+                int quantity = d.getQuantity();
+                java.math.BigDecimal lineTotal = unitPrice.multiply(java.math.BigDecimal.valueOf(quantity));
                 productTable.addCell(getCell(String.valueOf(index++), normalFont));
                 productTable.addCell(getCell(safe(d.getProductName()), normalFont));
                 productTable.addCell(getCell(safe(d.getProductCode()), normalFont));
-                productTable.addCell(getCell(formatCurrency(d.getUnitSalePrice()), normalFont));
-                productTable.addCell(getCell(String.valueOf(d.getQuantity()), normalFont));
+                productTable.addCell(getCell(formatCurrency(unitPrice), normalFont));
+                productTable.addCell(getCell(String.valueOf(quantity), normalFont));
                 productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
             }
 
@@ -459,9 +422,12 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             // ===== Cột trái: Tổng tiền =====
             PdfPCell totalCell = new PdfPCell();
             totalCell.setBorder(Rectangle.NO_BORDER);
-            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(transaction.getTotalAmount()), normalFont));
-            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(transaction.getPaidAmount()), blueFont));
-            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(transaction.getTotalAmount().subtract(transaction.getPaidAmount())), redFont));
+            java.math.BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal remainAmount = totalAmount.subtract(paidAmount);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(totalAmount), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(paidAmount), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(remainAmount), redFont));
 
             // ===== Cột phải: Ghi chú =====
             PdfPCell noteCell = new PdfPCell();
@@ -474,7 +440,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             summaryTable.addCell(totalCell);
             summaryTable.addCell(noteCell);
             document.add(summaryTable);
-
 
             // ===== Chữ ký =====
             document.add(new Paragraph(" ")); // khoảng trắng
@@ -528,5 +493,61 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                     log.warn("Staff not found with ID: {}", id);
                     return new com.farmovo.backend.exceptions.ResourceNotFoundException("Staff not found with ID: " + id);
                 });
+    }
+
+    private String generateTransactionCode() {
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        return String.format("PB%06d", lastId + 1);
+    }
+
+
+    private void mapDtoToTransaction(SaleTransaction transaction, CreateSaleTransactionRequestDto dto, Long userId) {
+        transaction.setTotalAmount(dto.getTotalAmount());
+        transaction.setPaidAmount(dto.getPaidAmount());
+        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
+        transaction.setSaleDate(dto.getSaleDate());
+        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
+        if (userId != null) {
+            transaction.setCreatedBy(userId);
+        }
+        try {
+            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
+            transaction.setDetail(jsonDetail);
+            log.debug("Transaction details serialized to JSON successfully");
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize transaction details to JSON", e);
+            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
+        }
+        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
+                .orElseThrow(() -> {
+                    log.error("Customer not found with ID: {}", dto.getCustomerId());
+                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
+                }));
+        transaction.setStore(storeRepository.findById(dto.getStoreId())
+                .orElseThrow(() -> {
+                    log.error("Store not found with ID: {}", dto.getStoreId());
+                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
+                }));
+    }
+
+    private void handleCompleteStatus(SaleTransaction transaction) {
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+            BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getCustomer().getId(),
+                    debtAmount,
+                    "SALE",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+        }
     }
 }

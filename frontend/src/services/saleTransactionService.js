@@ -95,6 +95,18 @@ const saleTransactionService = {
             console.error('Error in getNextCode:', error);
             throw error;
         }
+    },
+
+    async exportPdf(id) {
+        try {
+            const res = await api.get(`/sale-transactions/${id}/export-pdf`, {
+                responseType: 'blob',
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error in exportPdf:', error);
+            throw error;
+        }
     }
 };
 

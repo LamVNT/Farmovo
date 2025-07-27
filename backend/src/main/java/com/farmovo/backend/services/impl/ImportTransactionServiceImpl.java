@@ -14,6 +14,7 @@ import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.ImportTransactionService;
+import com.farmovo.backend.specification.ImportTransactionSpecification;
 import com.farmovo.backend.validator.ImportTransactionDetailValidator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,13 +29,17 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -42,7 +47,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import static com.lowagie.text.factories.ElementFactory.getCell;
 
 @Service
 @RequiredArgsConstructor
@@ -69,14 +73,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 dto.getDetails() != null ? dto.getDetails().size() : 0);
 
         ImportTransaction transaction = new ImportTransaction();
-        transaction.setSupplier(getSupplier(dto.getSupplierId()));
-        transaction.setStore(getStore(dto.getStoreId()));
-        transaction.setStaff(getStaff(dto.getStaffId()));
-        transaction.setCreatedBy(userId);
-        transaction.setImportTransactionNote(dto.getImportTransactionNote());
-        transaction.setImportDate(LocalDateTime.now());
-        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
-        transaction.setCreatedBy(dto.getCreatedBy());
+        mapDtoToTransaction(transaction, dto, true, userId);
 
         // Sinh mã name tự động
         Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
@@ -86,71 +83,13 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setName(newName);
         log.debug("Generated transaction code: {}", newName);
 
-        List<ImportTransactionDetail> detailList = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
-            log.debug("Processing detail: productId={}, quantity={}, unitPrice={}",
-                    d.getProductId(), d.getImportQuantity(), d.getUnitImportPrice());
-
-            Product product = getProduct(d.getProductId());
-            detailValidator.validate(d);
-            ImportTransactionDetail detail = buildDetail(transaction, product, d);
-
-            // Lưu lần đầu để lấy id
-            ImportTransactionDetail savedDetail = detail;
-            if (detail.getId() == null) {
-                savedDetail = transaction.getDetails() == null ? null : detail;
-            }
-            // Sẽ lưu sau khi set vào transaction
-            BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
-            totalAmount = totalAmount.add(lineTotal);
-            detailList.add(detail);
-            log.debug("Added detail: productId={}, quantity={}, lineTotal={}",
-                    d.getProductId(), d.getImportQuantity(), lineTotal);
-        }
-
-        transaction.setDetails(detailList);
-        transaction.setTotalAmount(totalAmount);
-        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
-
         ImportTransaction savedTransaction = importTransactionRepository.save(transaction);
         log.info("Import transaction created successfully. ID: {}, Code: {}, Total: {}, Paid: {}",
-                savedTransaction.getId(), savedTransaction.getName(), totalAmount, transaction.getPaidAmount());
+                savedTransaction.getId(), savedTransaction.getName(), transaction.getTotalAmount(), transaction.getPaidAmount());
 
-        // Sau khi transaction và details đã được lưu, sinh mã LH000000 cho từng detail
-        for (ImportTransactionDetail detail : savedTransaction.getDetails()) {
-            if (detail.getName() == null || detail.getName().isEmpty()) {
-                String code = String.format("LH%06d", detail.getId());
-                detail.setName(code);
-            }
-        }
-        importTransactionRepository.save(savedTransaction);
-        log.info("Import transaction created. Total: {}, Paid: {}", totalAmount, transaction.getPaidAmount());
-
-//        if(dto.getStatus() == ImportTransactionStatus.COMPLETE){
-//            // Tạo DebtNote nếu paidAmount < || > totalAmount
-//            BigDecimal paidAmount = transaction.getPaidAmount();
-//            totalAmount = transaction.getTotalAmount();
-//
-//            BigDecimal debtAmount = totalAmount.subtract(paidAmount);
-//
-//            if (debtAmount.compareTo(BigDecimal.ZERO) != 0) {
-//                String debtType = debtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
-//
-//                debtNoteService.createDebtNoteFromTransaction(
-//                        transaction.getSupplier().getId(),
-//                        debtAmount,
-//                        "IMPORT",
-//                        debtType,
-//                        transaction.getId(),
-//                        transaction.getStore().getId()
-//                );
-//
-//                log.info("Created debt note for import transaction ID: {} with debt amount: {}", transaction.getId(), debtAmount);
-//            }
-//        }
-
+        // Sinh mã LH000000 cho từng detail
+        generateDetailCodes(savedTransaction);
+        log.info("Import transaction created. Total: {}, Paid: {}", transaction.getTotalAmount(), transaction.getPaidAmount());
     }
 
     @Override
@@ -171,41 +110,18 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "cập nhật");
         }
 
-        transaction.setSupplier(getSupplier(dto.getSupplierId()));
-        transaction.setStore(getStore(dto.getStoreId()));
-        transaction.setStaff(getStaff(dto.getStaffId()));
-        transaction.setImportTransactionNote(dto.getImportTransactionNote());
-        transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
-        transaction.setStatus(dto.getStatus());
-
         // Clear old details before adding new ones
         int oldDetailsCount = transaction.getDetails().size();
         transaction.getDetails().clear();
         log.debug("Cleared {} old details from transaction", oldDetailsCount);
 
-        List<ImportTransactionDetail> newDetails = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        mapDtoToTransaction(transaction, dto, false, null);
 
-        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
-            log.debug("Processing update detail: productId={}, quantity={}, unitPrice={}",
-                    d.getProductId(), d.getImportQuantity(), d.getUnitImportPrice());
-
-            Product product = getProduct(d.getProductId());
-            detailValidator.validate(d);
-            ImportTransactionDetail detail = buildDetail(transaction, product, d);
-
-            BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
-            totalAmount = totalAmount.add(lineTotal);
-
-            newDetails.add(detail);
-        }
-
-        transaction.setDetails(newDetails);
-        transaction.setTotalAmount(totalAmount);
-        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
-
-        importTransactionRepository.save(transaction);
+        ImportTransaction savedTransaction = importTransactionRepository.save(transaction);
         log.info("Import transaction updated successfully with ID: {}", id);
+
+        // Sinh mã LH000000 cho từng detail (nếu cần)
+        generateDetailCodes(savedTransaction);
     }
 
     // --- Helper methods ---
@@ -262,6 +178,40 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         // false là cần kiểm hàng
         detail.setIsCheck(true);
         return detail;
+    }
+
+    private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {
+        transaction.setSupplier(getSupplier(dto.getSupplierId()));
+        transaction.setStore(getStore(dto.getStoreId()));
+        transaction.setStaff(getStaff(dto.getStaffId()));
+        transaction.setImportTransactionNote(dto.getImportTransactionNote());
+        transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
+        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
+        if (isCreate && userId != null) transaction.setCreatedBy(userId);
+
+        List<ImportTransactionDetail> detailList = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
+            Product product = getProduct(d.getProductId());
+            detailValidator.validate(d);
+            ImportTransactionDetail detail = buildDetail(transaction, product, d);
+            BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
+            totalAmount = totalAmount.add(lineTotal);
+            detailList.add(detail);
+        }
+        transaction.setDetails(detailList);
+        transaction.setTotalAmount(totalAmount);
+        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
+    }
+
+    private void generateDetailCodes(ImportTransaction transaction) {
+        for (ImportTransactionDetail detail : transaction.getDetails()) {
+            if (detail.getName() == null || detail.getName().isEmpty()) {
+                String code = String.format("LH%06d", detail.getId());
+                detail.setName(code);
+            }
+        }
+        importTransactionRepository.save(transaction);
     }
 
     @Override
@@ -336,6 +286,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                     transaction.getId(),
                     transaction.getStore().getId()
             );
+
+
             log.info("Created debt note for import transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
         }
 
@@ -382,12 +334,48 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return result;
     }
 
+//    @Override
+//    public List<ImportTransactionResponseDto> listAllImportTransaction() {
+//        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
+//        return entities.stream()
+//                .map(importTransactionMapper::toResponseDto)
+//                .collect(Collectors.toList());
+//    }
+
     @Override
-    public List<ImportTransactionResponseDto> listAllImportTransaction() {
-        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
-        return entities.stream()
+    public Page<ImportTransactionResponseDto> listAllImportTransaction(
+            String name,
+            String supplierName,
+            Long storeId,
+            Long staffId,
+            ImportTransactionStatus status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            BigDecimal minTotalAmount,
+            BigDecimal maxTotalAmount,
+            Pageable pageable) {
+
+        if (!pageable.getSort().isSorted()) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("importDate").descending());
+        }
+        Specification<ImportTransaction> spec = Specification.allOf(
+                ImportTransactionSpecification.isNotDeleted(),
+                ImportTransactionSpecification.hasName(name),
+                ImportTransactionSpecification.hasSupplierName(supplierName),
+                ImportTransactionSpecification.hasStore(storeId),
+                ImportTransactionSpecification.hasStaff(staffId),
+                ImportTransactionSpecification.hasStatus(status),
+                ImportTransactionSpecification.createdBetween(fromDate, toDate),
+                ImportTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount)
+        );
+
+        Page<ImportTransaction> entityPage = importTransactionRepository.findAll(spec, pageable);
+
+        List<ImportTransactionResponseDto> dtoList = entityPage.getContent().stream()
                 .map(importTransactionMapper::toResponseDto)
                 .collect(Collectors.toList());
+
+        return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
     @Override
@@ -464,8 +452,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             LocalDateTime createdAt = transaction.getCreatedAt();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String formattedTime = createdAt.format(timeFormatter);
-            String formattedDate = createdAt.format(dateFormatter);
+            String formattedTime = createdAt != null ? createdAt.format(timeFormatter) : "";
+            String formattedDate = createdAt != null ? createdAt.format(dateFormatter) : "";
 
             // ===== Tiêu đề & ngày giờ =====
             PdfPTable headerTable = new PdfPTable(2);
@@ -473,7 +461,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             headerTable.setWidths(new float[]{2f, 1f});
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU NHẬP HÀNG " + transaction.getName(), new Font(baseFont, 14, Font.BOLD)));
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU NHẬP HÀNG " + safe(transaction.getName()), new Font(baseFont, 14, Font.BOLD)));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
@@ -502,16 +490,26 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             PdfPCell storeCell = new PdfPCell();
             storeCell.setBorder(Rectangle.NO_BORDER);
             storeCell.addElement(new Paragraph("Kho nhập", boldFont));
-            storeCell.addElement(new Paragraph("Tên kho: " + safe(transaction.getStore().getStoreName()), normalFont));
-            storeCell.addElement(new Paragraph("Người tạo: " + safe(getStaff(transaction.getCreatedBy()).getFullName()), normalFont));
-            storeCell.addElement(new Paragraph("Địa chỉ kho: " + safe(transaction.getStore().getStoreAddress()), normalFont));
+            storeCell.addElement(new Paragraph("Tên kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreName() : null), normalFont));
+            // Người tạo
+            String nguoiTao = "Chưa có";
+            try {
+                if (transaction.getCreatedBy() != null) {
+                    User staff = userRepository.findById(transaction.getCreatedBy()).orElse(null);
+                    nguoiTao = staff != null && staff.getFullName() != null ? staff.getFullName() : "Chưa có";
+                }
+            } catch (Exception e) {
+                nguoiTao = "Chưa có";
+            }
+            storeCell.addElement(new Paragraph("Người tạo: " + nguoiTao, normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreAddress() : null), normalFont));
 
             PdfPCell supplierCell = new PdfPCell();
             supplierCell.setBorder(Rectangle.NO_BORDER);
             supplierCell.addElement(new Paragraph("Thông tin nhà cung cấp", boldFont));
-            supplierCell.addElement(new Paragraph("Tên: " + safe(transaction.getSupplier().getName()), normalFont));
-            supplierCell.addElement(new Paragraph("SĐT: " + safe(transaction.getSupplier().getPhone()), normalFont));
-            supplierCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getSupplier().getAddress()), normalFont));
+            supplierCell.addElement(new Paragraph("Tên: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getName() : null), normalFont));
+            supplierCell.addElement(new Paragraph("SĐT: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getPhone() : null), normalFont));
+            supplierCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getAddress() : null), normalFont));
 
             infoTable.addCell(storeCell);
             infoTable.addCell(supplierCell);
@@ -530,19 +528,17 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             productTable.addCell(getCell("Số lượng", boldFont));
             productTable.addCell(getCell("Thành tiền", boldFont));
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            List<ImportTransactionDetail> detailList = transaction.getDetails();
-
+            List<ImportTransactionDetail> detailList = transaction.getDetails() != null ? transaction.getDetails() : new ArrayList<>();
             int index = 1;
             for (ImportTransactionDetail d : detailList) {
-                BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
+                BigDecimal unitPrice = d.getUnitImportPrice() != null ? d.getUnitImportPrice() : BigDecimal.ZERO;
+                int quantity = d.getImportQuantity();
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
                 productTable.addCell(getCell(String.valueOf(index++), normalFont));
-                productTable.addCell(getCell(safe(d.getProduct().getProductName()), normalFont)); // Tên sản phẩm
-                productTable.addCell(getCell(safe(String.valueOf(d.getProduct().getId())), normalFont)); // Mã
-                productTable.addCell(getCell(formatCurrency(d.getUnitImportPrice()), normalFont));
-                productTable.addCell(getCell(String.valueOf(d.getImportQuantity()), normalFont));
+                productTable.addCell(getCell(safe(d.getProduct() != null ? d.getProduct().getProductName() : null), normalFont)); // Tên sản phẩm
+                productTable.addCell(getCell(safe(d.getProduct() != null ? String.valueOf(d.getProduct().getId()) : null), normalFont)); // Mã
+                productTable.addCell(getCell(formatCurrency(unitPrice), normalFont));
+                productTable.addCell(getCell(String.valueOf(quantity), normalFont));
                 productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
             }
             document.add(productTable);
@@ -556,9 +552,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             // Cột bên trái: Tổng tiền
             PdfPCell totalCell = new PdfPCell();
             totalCell.setBorder(Rectangle.NO_BORDER);
-            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(transaction.getTotalAmount()), normalFont));
-            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(transaction.getPaidAmount()), blueFont));
-            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(transaction.getTotalAmount().subtract(transaction.getPaidAmount())), redFont));
+            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal remainAmount = totalAmount.subtract(paidAmount);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(totalAmount), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(paidAmount), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(remainAmount), redFont));
 
             // Cột bên phải: Ghi chú
             PdfPCell noteCell = new PdfPCell();
@@ -571,7 +570,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             summaryTable.addCell(totalCell);
             summaryTable.addCell(noteCell);
             document.add(summaryTable);
-
 
             // ===== Chữ ký =====
             document.add(new Paragraph(" ")); // khoảng trắng
@@ -595,7 +593,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             signTable.addCell(rightSignCell);
 
             document.add(signTable);
-
 
             document.close();
             return out.toByteArray();
