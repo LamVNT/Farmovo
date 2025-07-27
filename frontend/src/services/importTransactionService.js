@@ -66,6 +66,11 @@ const importTransactionService = {
             console.error('Error in exportPdf:', error);
             throw error;
         }
+    },
+
+    async listPaged(params) {
+        const res = await api.get('/import-transaction/list-all', { params });
+        return res.data;
     }
 };
 
