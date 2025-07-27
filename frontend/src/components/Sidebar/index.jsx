@@ -183,31 +183,12 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-
-                    <li>
-                        <Link to="/category/add">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                             !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <IoBagCheckOutline className="text-[20px]"/> <span>Đơn hàng</span>
-                            </Button>
-                        </Link>
-                    </li>
                     <li>
                         <Link to="/stocktake">
                             <Button
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                  !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <FaRegSquareCheck className="text-[20px]"/> <span>Kiểm kho</span>
-                            </Button>
-                        </Link>
-                    </li>
-                    <li>
-                        <Link to="/import-detail-stocktake">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FaBoxOpen className="text-[20px]"/> <span>Kiểm kê lô</span>
                             </Button>
                         </Link>
                     </li>

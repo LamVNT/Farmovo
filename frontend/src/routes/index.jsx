@@ -28,7 +28,6 @@ import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
-import StocktakeLot from '../pages/import-detail/StocktakeLot';
 import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
@@ -140,16 +139,6 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <ImportPage/>
-                </MainLayout>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: "/import-detail-stocktake",
-        element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
-                <MainLayout>
-                    <StocktakeLot/>
                 </MainLayout>
             </ProtectedRoute>
         ),

@@ -37,48 +37,48 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import {useNavigate, useParams} from "react-router-dom";
 import {getCategories} from '../../services/categoryService';
+import useStocktake from "../../hooks/useStocktake";
 
 const CreateStocktakePage = () => {
-    const [zones, setZones] = useState([]);
-    const [stores, setStores] = useState([]);
-    const [products, setProducts] = useState([]);
-    const staffStoreId = localStorage.getItem('staff_store_id') || '';
+    const {id} = useParams();
+    const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user'));
     const userRole = user?.roles?.[0];
+    const {
+        products = [],
+        zones = [],
+        snackbar,
+        setSnackbar,
+        confirmDialog,
+        setConfirmDialog,
+        editMode,
+        setEditMode,
+        stocktakeStatus,
+        setStocktakeStatus,
+        filterDialogOpen,
+        setFilterDialogOpen,
+        showSuggestions,
+        setShowSuggestions,
+        searchAnchorEl,
+        setSearchAnchorEl,
+        selectedLots = [],
+        setSelectedLots,
+        rawDetail,
+        setRawDetail,
+        dataLoaded,
+        setDataLoaded,
+    } = useStocktake(user, userRole);
+    const staffStoreId = localStorage.getItem('staff_store_id') || '';
     const [filter, setFilter] = useState({store: '', zone: '', product: '', search: ''});
     const [loadingLots, setLoadingLots] = useState(false);
-    const [lots, setLots] = useState([]); // Danh sách lô tìm được
+    const [lots, setLots] = useState([]); // luôn khởi tạo là []
     // Khôi phục dữ liệu đã nhập từ localStorage nếu có (chỉ khi tạo mới, không phải editMode)
-    const [selectedLots, setSelectedLots] = useState(() => {
-        const saved = localStorage.getItem('stocktake_create_selected_lots');
-        return saved ? JSON.parse(saved) : [];
-    }); // Danh sách lô đã chọn để kiểm kê
-    const [confirmDialog, setConfirmDialog] = useState({isOpen: false, title: "", content: "", onConfirm: null});
-    const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
-    const navigate = useNavigate();
-    const {id} = useParams();
-    const [editMode, setEditMode] = useState(false);
-    const [stocktakeStatus, setStocktakeStatus] = useState('DRAFT');
-    const [searchAnchorEl, setSearchAnchorEl] = useState(null);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [filterDialogOpen, setFilterDialogOpen] = useState(false);
-    const [categories, setCategories] = useState([]);
-    const [categorySearch, setCategorySearch] = useState("");
     const [confirmCompleteDialog, setConfirmCompleteDialog] = useState(false);
-    const [rawDetail, setRawDetail] = useState([]); // Thêm state lưu rawDetail
-    const [dataLoaded, setDataLoaded] = useState(false); // Thêm state để theo dõi việc đã tải dữ liệu hay chưa
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
-        getZones().then(setZones);
-        getAllStores().then(setStores);
-        // Gọi API lấy danh sách sản phẩm
-        import('../../services/productService').then(({productService}) => {
-            productService.getAllProducts().then(setProducts);
-        });
-        getCategories().then(setCategories);
         // Nếu là STAFF thì luôn set filter.store là kho của staff
         if (userRole === 'STAFF' && staffStoreId) {
             setFilter(f => ({...f, store: staffStoreId}));
@@ -151,22 +151,25 @@ const CreateStocktakePage = () => {
     // Nếu có id trên URL, load dữ liệu phiếu kiểm kê (enrich lại từ API lots theo batchCode)
     useEffect(() => {
         if (id && !dataLoaded) {
-            getStocktakeById(id).then(res => {
-                const data = res.data;
-                console.log("Stocktake data from API:", data); // Log toàn bộ dữ liệu phiếu kiểm kê
+            getStocktakeById(id).then(data => {
+                if (!data) {
+                    console.error("Stocktake data is null/undefined!", data);
+                    setDataLoaded(true);
+                    return;
+                }
+                console.log("Stocktake data from API:", data);
                 setEditMode(true);
                 setStocktakeStatus(data.status);
                 setFilter(f => ({...f, store: data.storeId}));
 
                 // Lấy dữ liệu từ detail thay vì rawDetail
                 let detailData = data.detail || [];
-                console.log("Detail data before parsing:", detailData); // Log trước khi parse
+                console.log("Detail data before parsing:", detailData);
 
-                // Nếu detail là string, parse thành array
                 if (typeof detailData === 'string') {
                     try {
                         detailData = JSON.parse(detailData);
-                        console.log("Detail data after parsing:", detailData); // Log sau khi parse
+                        console.log("Detail data after parsing:", detailData);
                     } catch (e) {
                         console.error("Error parsing detail data:", e);
                         detailData = [];
@@ -334,7 +337,7 @@ const CreateStocktakePage = () => {
 
     // Validate và submit
     const handleSubmit = async (status) => {
-        if (selectedLots.length === 0) {
+        if (!Array.isArray(selectedLots) || selectedLots.length === 0) {
             setSnackbar({isOpen: true, message: "Vui lòng chọn ít nhất một lô để kiểm kê!", severity: "error"});
             return;
         }
@@ -404,8 +407,9 @@ const CreateStocktakePage = () => {
             }
             setSelectedLots([]);
             localStorage.removeItem('stocktake_create_selected_lots');
-            navigate("/stocktake");
-        } catch {
+            navigate("/stocktake", {state: {successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!"}});
+        } catch (err) {
+            console.error("[ERROR][handleSubmit] Lỗi khi lưu phiếu kiểm kê:", err, err?.response);
             setSnackbar({
                 isOpen: true,
                 message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thất bại!" : "Lưu nháp phiếu kiểm kê thất bại!",
@@ -532,7 +536,7 @@ const CreateStocktakePage = () => {
                                     <TableRow key={lot.id} hover>
                                         <TableCell padding="checkbox">
                                             <Checkbox
-                                                checked={selectedLots.some(l => l.id === lot.id)}
+                                                checked={Array.isArray(selectedLots) && selectedLots.some(l => l.id === lot.id)}
                                                 onChange={e => {
                                                     if (e.target.checked) handleSelectLot(lot);
                                                     else setSelectedLots(prev => prev.filter(l => l.id !== lot.id));
@@ -570,7 +574,7 @@ const CreateStocktakePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {selectedLots.length === 0 ? (
+                        {(Array.isArray(selectedLots) ? selectedLots.length : 0) === 0 ? (
                             <TableRow><TableCell colSpan={isMobile ? 5 : 12} align="center">Chưa có lô nào được
                                 chọn</TableCell></TableRow>
                         ) : selectedLots.map((lot, idx) => (

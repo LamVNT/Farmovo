@@ -7,62 +7,159 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
+skinparam actorBackgroundColor #FFD700
 
 title Update StockTake - Sequence Diagram
 
 actor User
-participant "StockTake Page" as UI
+participant ":StockTake Page" as UI
+participant ":Create StockTake Page" as CSUI
 participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
+participant ":ProductRepository" as PR
+participant ":ZoneRepository" as ZR
 participant ":StocktakeValidator" as CV
 participant ":StocktakeMapper" as CM
 participant ":StocktakeRepository" as CR
-database "Database" as DB
 
-User -> UI : Chọn kiểm kê cần cập nhật, nhấn 'Cập nhật'
-UI -> CC : PUT /api/stocktakes/{id} {stocktakeDate, detail, note, storeId}
+' Bước ban đầu: User chọn kiểm kê và nhấn Cập nhật
+User -> UI: Chọn kiểm kê cần cập nhật, nhấn "Cập nhật"
+activate User
+activate UI
+UI -> CC: GET /api/stocktakes/{id}
 activate CC
-
-CC -> CV : validate(requestDto)
-activate CV
-CV -> CV : validate fields
-CV --> CC : return validation result
-deactivate CV
-
-alt Validation Failed
-    CC --> UI : return 400 Bad Request {error message}
-    UI --> User : return error
-else Validation Passed
-    CC -> CS : updateStockTake(id, requestDto)
+CC -> CS: getStocktake(id)
+activate CS
+CS -> CR: findById(id): Optional<Stocktake>
+activate CR
+CR --> CS: return Optional<Stocktake>
+deactivate CR
+alt Stocktake Not Found
+    CS --> CC: throw StocktakeNotFoundException
+    CC --> UI: return 404 Not Found {error message}
+    UI --> User: Hiển thị lỗi
+    deactivate CS
+    deactivate CC
+    deactivate UI
+else Stocktake Found
+    CS -> CM: toResponseDto(stocktake)
+    activate CM
+    CM --> CS: return StocktakeResponseDto
+    deactivate CM
+    CS --> CC: return StocktakeResponseDto
+    deactivate CS
+    CC --> UI: return 200 OK StocktakeResponseDto
+    deactivate CC
+    UI -> CSUI: Chuyển đến Create StockTake Page với dữ liệu
+    deactivate UI
+    activate CSUI
+    ' Lấy dữ liệu sản phẩm và vùng kho (tương tự Create)
+    CSUI -> CS: fetchProducts(storeId)
     activate CS
-    CS -> CR : findById(id)
+    CS -> PR: fetchProducts(storeId): List<ProductDTO>
+    activate PR
+    PR --> CS: return List<ProductDTO>
+    deactivate PR
+    CS --> CSUI: return List<ProductDTO>
+    deactivate CS
+    CSUI -> CS: fetchZones(storeId)
+    activate CS
+    CS -> ZR: fetchZones(storeId): List<ZoneDTO>
+    activate ZR
+    ZR --> CS: return List<ZoneDTO>
+    deactivate ZR
+    CS --> CSUI: return List<ZoneDTO>
+    deactivate CS
+    CSUI -> User: Hiển thị form với dữ liệu kiểm kê và danh sách Products, Zones
+end
+
+' User thực hiện một trong 3 hành động: Draft, Hoàn thành, Xóa phiếu
+alt Nhấn "Draft" hoặc "Hoàn thành"
+    User -> CSUI: Nhập thông tin, nhấn "Draft" hoặc "Hoàn thành"
+    CSUI -> CC: PUT /api/stocktakes/{id} {requestDto, status=DRAFT|COMPLETED}
+    activate CC
+    CC -> CV: validate(stocktakeDate, detail, note, storeId, status)
+    activate CV
+    CV --> CC: return validation result
+    deactivate CV
+    alt Validation Failed
+        CC --> CSUI: return 400 Bad Request {error message}
+        CSUI --> User: Hiển thị lỗi
+    else Validation Passed
+        CC -> CS: updateStockTake(id, requestDto, status)
+        activate CS
+        CS -> CR: findById(id): Optional<Stocktake>
+        activate CR
+        CR --> CS: return Optional<Stocktake>
+        deactivate CR
+        alt Stocktake Not Found
+            CS --> CC: throw StocktakeNotFoundException
+            CC --> CSUI: return 404 Not Found {error message}
+            CSUI --> User: Hiển thị lỗi
+        else Stocktake Found
+            CS -> CS: update fields (stocktakeDate, detail, note, storeId, status)
+            CS -> CR: save(stocktake)
+            activate CR
+            alt Save Failed
+                CR --> CS: throw SaveException
+                CS --> CC: return 500 Internal Server Error
+                CC --> CSUI: return 500 Internal Server Error
+                CSUI --> User: Hiển thị lỗi
+            else Save Success
+                CR --> CS: return Stocktake entity
+                deactivate CR
+                CS -> CM: toResponseDto(stocktake)
+                activate CM
+                CM --> CS: return StocktakeResponseDto
+                deactivate CM
+                CS --> CC: return StocktakeResponseDto
+                deactivate CS
+                CC --> CSUI: return 200 OK StocktakeResponseDto
+                CSUI --> User: Hiển thị StocktakeResponseDto
+            end
+        end
+    end
+    deactivate CC
+else Nhấn "Xóa phiếu"
+    User -> CSUI: Nhấn "Xóa phiếu"
+    CSUI -> CC: DELETE /api/stocktakes/{id}
+    activate CC
+    CC -> CS: deleteStockTake(id)
+    activate CS
+    CS -> CR: findById(id): Optional<Stocktake>
     activate CR
-    CR -> DB : SELECT * FROM stocktakes WHERE id = ?
-    DB --> CR : return Stocktake or null
-    CR --> CS : return Optional<Stocktake>
+    CR --> CS: return Optional<Stocktake>
     deactivate CR
     alt Stocktake Not Found
-        CS -> CS : throw new StocktakeNotFoundException(...)
-        CS --> CC : return StocktakeNotFoundException
-        CC --> UI : return 404 Not Found {error message}
-        UI --> User : return error
+        CS --> CC: throw StocktakeNotFoundException
+        CC --> CSUI: return 404 Not Found {error message}
+        CSUI --> User: Hiển thị lỗi
     else Stocktake Found
-        CS -> CS : update fields
-        CS -> CR : save(stocktake)
+        CS -> CR: delete(id)
         activate CR
-        CR -> DB : UPDATE stocktakes SET ... WHERE id=?
-        DB --> CR : return updated stocktake
-        CR --> CS : return Stocktake entity
-        deactivate CR
-        CS -> CM : toResponseDto(stocktake)
-        activate CM
-        CM --> CS : return StocktakeResponseDto
-        deactivate CM
-        CS --> CC : return StocktakeResponseDto
-        CC --> UI : return 200 OK StocktakeResponseDto
-        UI --> User : return StocktakeResponseDto
+        alt Delete Failed
+            CR --> CS: throw DeleteException
+            CS --> CC: return 500 Internal Server Error
+            CC --> CSUI: return 500 Internal Server Error
+            CSUI --> User: Hiển thị lỗi
+        else Delete Success
+            CR --> CS: return success
+            deactivate CR
+            CS --> CC: return success
+            deactivate CS
+            CC --> CSUI: return 200 OK {message: "Deleted successfully"}
+            CSUI --> User: Hiển thị thông báo "Xóa thành công"
+        end
     end
+    deactivate CC
 end
-deactivate CS
-deactivate CC
-@enduml 
+
+deactivate CSUI
+deactivate User
+
+note right of CSUI
+    requestDto contains: stocktakeDate, detail, note, storeId, status
+    status: DRAFT, COMPLETED
+end note
+
+@enduml

@@ -26,4 +26,8 @@ public class Authority extends Base implements GrantedAuthority {
     public String getAuthority() {
         return role;
     }
+
+    public Authority(String role) {
+        this.role = role;
+    }
 }
