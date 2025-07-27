@@ -28,7 +28,7 @@ import {
     startOfYear, endOfYear
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
@@ -79,6 +79,9 @@ const labelMap = {
     this_year: "Năm nay"
 };
 const ImportTransactionPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -113,11 +116,61 @@ const ImportTransactionPage = () => {
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [userDetails, setUserDetails] = useState(null);
     const [storeDetails, setStoreDetails] = useState(null);
-
-    // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
-    // Thêm state cho thông báo lỗi khi mở phiếu
     const [openError, setOpenError] = useState(null);
+
+    // Effect để tự động mở dialog chi tiết khi có ID trong URL
+    useEffect(() => {
+        if (id) {
+            const loadTransactionById = async () => {
+                try {
+                    setLoading(true);
+                    const transaction = await importTransactionService.getWithDetails(parseInt(id));
+                    setSelectedTransaction(transaction);
+                    setSelectedDetails(transaction.details);
+                    
+                    // Fetch thông tin supplier
+                    if (transaction.supplierId) {
+                        try {
+                            const supplier = await getCustomerById(transaction.supplierId);
+                            setSupplierDetails(supplier);
+                        } catch (error) {
+                            setSupplierDetails(null);
+                        }
+                    }
+                    
+                    // Fetch thông tin user (người tạo)
+                    if (transaction.createdBy) {
+                        try {
+                            const user = await userService.getUserById(transaction.createdBy);
+                            setUserDetails(user);
+                        } catch (error) {
+                            setUserDetails(null);
+                        }
+                    }
+
+                    // Fetch thông tin store
+                    if (transaction.storeId) {
+                        try {
+                            const store = await getStoreById(transaction.storeId);
+                            setStoreDetails(store);
+                        } catch (error) {
+                            setStoreDetails(null);
+                        }
+                    }
+                    
+                    setOpenDetailDialog(true);
+                } catch (error) {
+                    console.error('Error loading transaction by ID:', error);
+                    setError('Không thể tải thông tin giao dịch');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            loadTransactionById();
+        }
+    }, [id]);
 
     // Auto-dismiss error/success messages
     useEffect(() => {
@@ -793,11 +846,17 @@ const ImportTransactionPage = () => {
                 open={openDetailDialog}
                 onClose={() => {
                     setOpenDetailDialog(false);
+                    setSelectedTransaction(null);
+                    setSelectedDetails([]);
                     setSupplierDetails(null);
                     setUserDetails(null);
                     setStoreDetails(null);
                     setCancelError(null);
                     setOpenError(null);
+                    // Nếu có ID trong URL, chuyển về trang chính
+                    if (id) {
+                        navigate('/import');
+                    }
                 }}
                 transaction={selectedTransaction}
                 details={selectedDetails}

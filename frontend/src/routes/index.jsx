@@ -135,6 +135,16 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/import/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: "/import/new",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
@@ -181,6 +191,16 @@ const router = createBrowserRouter([
     },
     {
         path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/:id",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>

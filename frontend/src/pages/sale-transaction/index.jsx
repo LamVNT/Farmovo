@@ -18,7 +18,7 @@ import {
     startOfYear, endOfYear
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
 import { userService } from "../../services/userService";
 import { getCustomerById } from "../../services/customerService";
@@ -77,6 +77,9 @@ const labelMap = {
 };
 
 const SaleTransactionPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -108,6 +111,54 @@ const SaleTransactionPage = () => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
     const [confirmRow, setConfirmRow] = useState(null);
+
+    // Effect để tự động mở dialog chi tiết khi có ID trong URL
+    useEffect(() => {
+        if (id) {
+            const loadTransactionById = async () => {
+                try {
+                    setLoading(true);
+                    const transaction = await saleTransactionService.getById(parseInt(id));
+                    setSelectedTransaction(transaction);
+                    
+                    // Lấy thông tin người tạo nếu có createdBy
+                    if (transaction.createdBy) {
+                        try {
+                            const user = await userService.getUserById(transaction.createdBy);
+                            setUserDetails(user);
+                        } catch (error) {
+                            console.error('Error loading user details:', error);
+                            setUserDetails(null);
+                        }
+                    } else {
+                        setUserDetails(null);
+                    }
+                    
+                    // Lấy thông tin chi tiết khách hàng nếu có customerId
+                    if (transaction.customerId) {
+                        try {
+                            const customer = await getCustomerById(transaction.customerId);
+                            setCustomerDetails(customer);
+                        } catch (error) {
+                            console.error('Error loading customer details:', error);
+                            setCustomerDetails(null);
+                        }
+                    } else {
+                        setCustomerDetails(null);
+                    }
+                    
+                    setOpenDetailDialog(true);
+                } catch (error) {
+                    console.error('Error loading transaction by ID:', error);
+                    setError('Không thể tải thông tin giao dịch');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            loadTransactionById();
+        }
+    }, [id]);
 
     const handleActionClick = (event, row) => {
         setActionAnchorEl(event.currentTarget);
@@ -674,6 +725,10 @@ const SaleTransactionPage = () => {
                     setSelectedTransaction(null);
                     setUserDetails(null);
                     setCustomerDetails(null);
+                    // Nếu có ID trong URL, chuyển về trang chính
+                    if (id) {
+                        navigate('/sale');
+                    }
                 }}
                 transaction={selectedTransaction}
                 formatCurrency={formatCurrency}
