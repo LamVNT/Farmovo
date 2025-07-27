@@ -654,7 +654,7 @@ const ImportTransactionPage = () => {
       right: -16,
       top: '50%',
       transform: 'translateY(-50%)',
-      zIndex: 20,
+      zIndex: 9999,
       background: '#fff',
       border: '2px solid #3b82f6',
       borderRadius: '50%',
