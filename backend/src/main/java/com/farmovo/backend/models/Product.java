@@ -21,6 +21,9 @@ public class Product extends Base {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    @Column(name = "product_code", length = 20, unique = true)
+    private String productCode;
+
     @Column(name = "product_name", length = 100)
     private String productName;
 

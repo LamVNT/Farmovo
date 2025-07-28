@@ -59,4 +59,19 @@ export const productService = {
             throw new Error(error.response?.data?.message || 'Không thể xóa sản phẩm');
         }
     },
+
+    // API mới lấy sản phẩm theo zone
+    getProductsByZone: async (zoneId) => {
+        const apiBase = import.meta.env.VITE_API_URL;
+        const response = await axios.get(`${apiBase}/stocktakes/products-by-zone?zoneId=${zoneId}`, {
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    // Lấy nhiều sản phẩm theo mảng id (filter từ getAllProducts)
+    getProductsByIds: async (ids) => {
+        const all = await productService.getAllProducts();
+        return all.filter(p => ids.includes(p.proId));
+    },
 };

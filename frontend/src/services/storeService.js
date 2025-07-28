@@ -21,7 +21,7 @@ export const uploadEvidence = async (file) => {
     try {
         const formData = new FormData();
         formData.append("file", file);
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/debt/admin/upload-evidence`, formData, {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/debt/admin/upload-evidence`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
             withCredentials: true,
         });
@@ -48,8 +48,14 @@ export const getStoreById = async (storeId) => {
 };
 
 export const createStore = async (store) => {
+    // Map dữ liệu sang đúng định dạng backend yêu cầu
+    const payload = {
+        storeName: store.name,
+        storeAddress: store.address,
+        storeDescription: store.description,
+    };
     try {
-        const response = await axios.post(`${API_URL}/store`, store, {
+        const response = await axios.post(`${API_URL}/store`, payload, {
             withCredentials: true,
         });
         return response.data;
@@ -60,8 +66,14 @@ export const createStore = async (store) => {
 };
 
 export const updateStore = async (id, store) => {
+    // Map dữ liệu sang đúng định dạng backend yêu cầu
+    const payload = {
+        storeName: store.name,
+        storeAddress: store.address,
+        storeDescription: store.description,
+    };
     try {
-        const response = await axios.put(`${API_URL}/store/${id}`, store, {
+        const response = await axios.put(`${API_URL}/store/${id}`, payload, {
             withCredentials: true,
         });
         return response.data;

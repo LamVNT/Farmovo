@@ -1,11 +1,11 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { IconButton, TextField } from "@mui/material";
+import {DataGrid} from "@mui/x-data-grid";
+import {IconButton, TextField} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState, useMemo } from "react";
+import {useState, useMemo} from "react";
 import Progress from "../progress-bar";
 
-const ProductsTable = ({ products }) => {
+const ProductsTable = ({products}) => {
     const [searchProduct, setSearchProduct] = useState("");
 
     const filteredProducts = useMemo(() =>
@@ -14,8 +14,8 @@ const ProductsTable = ({ products }) => {
         ), [searchProduct, products]);
 
     const productColumns = [
-        { field: 'name', headerName: 'Product Name', flex: 1 },
-        { field: 'category', headerName: 'Category', flex: 1 },
+        {field: 'name', headerName: 'Product Name', flex: 1},
+        {field: 'category', headerName: 'Category', flex: 1},
         {
             field: 'stock',
             headerName: 'Stock',
@@ -28,12 +28,12 @@ const ProductsTable = ({ products }) => {
                 return (
                     <div className="flex items-center gap-2">
                         <div className="text-sm font-medium">{stock}</div>
-                        <Progress percentage={percentage} type={type} />
+                        <Progress percentage={percentage} type={type}/>
                     </div>
                 );
             }
         },
-        { field: 'price', headerName: 'Price', flex: 1 },
+        {field: 'price', headerName: 'Price', flex: 1},
         {
             field: 'actions',
             headerName: 'Actions',
@@ -41,8 +41,10 @@ const ProductsTable = ({ products }) => {
             sortable: false,
             renderCell: (params) => (
                 <>
-                    <IconButton onClick={() => alert("Edit product " + params.id)}><EditIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => alert("Delete product " + params.id)}><DeleteIcon color="error" /></IconButton>
+                    <IconButton onClick={() => alert("Edit product " + params.id)}><EditIcon
+                        color="primary"/></IconButton>
+                    <IconButton onClick={() => alert("Delete product " + params.id)}><DeleteIcon
+                        color="error"/></IconButton>
                 </>
             )
         }
@@ -59,7 +61,7 @@ const ProductsTable = ({ products }) => {
                     onChange={(e) => setSearchProduct(e.target.value)}
                 />
             </div>
-            <div style={{ height: 400 }}>
+            <div style={{height: 400}}>
                 <DataGrid
                     rows={filteredProducts}
                     columns={productColumns}

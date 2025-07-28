@@ -4,17 +4,10 @@ const API_URL = `${import.meta.env.VITE_API_URL}/customer`;
 
 
 export const getAllCustomers = async () => {
-    console.log("Fetching all customers");
-    try {
-        const response = await axios.get(`${API_URL}/admin/customerList`, {
-            withCredentials: true, // Sử dụng cookie để xác thực
-        });
-        console.log(`Successfully fetched ${response.data.length} customers`);
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching customers:", error.response?.data || error.message);
-        throw error;
-    }
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/customer/admin/customerList`, {
+        withCredentials: true,
+    });
+    return response.data;
 };
 
 export const customerService = {
@@ -27,8 +20,8 @@ export const customerService = {
     },
 
 
-    createCustomer: async (customerDto) => {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer`, customerDto, {
+    createCustomer: async (customerDto, createdBy) => {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer?createdBy=${createdBy}`, customerDto, {
             withCredentials: true,
         });
         return response.data;
@@ -43,7 +36,7 @@ export const customerService = {
 
     deleteCustomer: async (id, deletedBy) => {
         const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}`, {
-            data: { deletedBy },
+            data: {deletedBy},
             withCredentials: true,
         });
         return response.data;

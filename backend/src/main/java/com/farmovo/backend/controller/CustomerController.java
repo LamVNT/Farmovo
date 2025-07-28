@@ -95,6 +95,7 @@ public class CustomerController {
     private CustomerResponseDto convertToResponseDTO(CustomerResponseDto dto) {
         return dto; // Pass-through method
     }
+
     @GetMapping("/suppliers")
     public ResponseEntity<List<CustomerResponseDto>> getSuppliers() {
         logger.info("Fetching all suppliers (isSupplier=true)");

@@ -2,13 +2,14 @@ import axios from "axios";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/debt/admin`;
 
-export const getDebtNotesByCustomerId = async (customerId) => {
-    console.log(`Fetching debt notes for customer ID: ${customerId}`);
+export const getDebtNotesByCustomerId = async (customerId, page = 0, size = 10) => {
+    console.log(`Fetching debt notes for customer ID: ${customerId}, page: ${page}, size: ${size}`);
     try {
         const response = await axios.get(`${API_URL}/customer/${customerId}/debt-notes`, {
-            withCredentials: true, // Sử dụng cookie để xác thực
+            params: { page, size },
+            withCredentials: true,
         });
-        console.log(`Successfully fetched ${response.data.length} debt notes for customer ID: ${customerId}`);
+        // Trả về cả content, totalPages, totalItems
         return response.data;
     } catch (error) {
         console.error(`Error fetching debt notes for customer ID: ${customerId}`, {

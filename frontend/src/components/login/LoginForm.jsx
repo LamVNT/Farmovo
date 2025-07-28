@@ -1,7 +1,8 @@
-import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { MyContext } from "../../App";
+import {useState, useContext} from "react";
+import {useNavigate} from "react-router-dom";
+import {MyContext} from "../../App";
 import axios from "axios";
+import {userService} from "../../services/userService";
 
 const LoginForm = () => {
     const [username, setUsername] = useState("");
@@ -9,7 +10,7 @@ const LoginForm = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const { setIslogin } = useContext(MyContext);
+    const {setIslogin} = useContext(MyContext);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -20,14 +21,13 @@ const LoginForm = () => {
         try {
             const res = await axios.post(
                 `${import.meta.env.VITE_API_URL}/signin`,
-                { username, password, rememberMe },
-                { withCredentials: true }
+                {username, password, rememberMe},
+                {withCredentials: true}
             );
 
-            localStorage.setItem("user", JSON.stringify({
-                username: res.data.username,
-                roles: res.data.roles
-            }));
+            // Sau khi đăng nhập thành công, lấy thông tin user chi tiết
+            const userDetail = await userService.getCurrentUser();
+            localStorage.setItem("user", JSON.stringify(userDetail));
 
             setIslogin(true);
             navigate("/");

@@ -7,14 +7,13 @@ import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.repositories.ForgotPasswordRepository;
 import com.farmovo.backend.services.ForgotPasswordService;
-import com.farmovo.backend.services.impl.EmailService;
+import com.farmovo.backend.services.impl.EmailServiceImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Random;
@@ -25,7 +24,7 @@ public class ForgotPasswordController {
 
     private final UserRepository userRepository;
 
-    private final EmailService emailService;
+    private final EmailServiceImpl emailService;
 
     private final ForgotPasswordRepository forgotPasswordRepository;
 
@@ -33,7 +32,7 @@ public class ForgotPasswordController {
 
     private final ForgotPasswordService forgotPasswordService;
 
-    public ForgotPasswordController(UserRepository userRepository, EmailService emailService, ForgotPasswordRepository forgotPasswordRepository, PasswordEncoder passwordEncoder, ForgotPasswordService forgotPasswordService) {
+    public ForgotPasswordController(UserRepository userRepository, EmailServiceImpl emailService, ForgotPasswordRepository forgotPasswordRepository, PasswordEncoder passwordEncoder, ForgotPasswordService forgotPasswordService) {
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.forgotPasswordRepository = forgotPasswordRepository;

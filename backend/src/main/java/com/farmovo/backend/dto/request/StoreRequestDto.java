@@ -20,4 +20,6 @@ public class StoreRequestDto {
     @NotBlank(message = "Địa chỉ không được để trống")
     @Size(max = 500, message = "Địa chỉ tối đa 500 ký tự")
     private String storeAddress;
+
+    private Long createdBy;
 }

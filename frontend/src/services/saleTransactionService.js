@@ -11,6 +11,16 @@ const saleTransactionService = {
         }
     },
 
+    async listPaged(params) {
+        try {
+            const res = await api.get('/sale-transactions/list-all', { params });
+            return res.data;
+        } catch (error) {
+            console.error('Error in listPaged:', error);
+            throw error;
+        }
+    },
+
     async getById(id) {
         try {
             const res = await api.get(`/sale-transactions/${id}`);
@@ -83,6 +93,28 @@ const saleTransactionService = {
             return res.data;
         } catch (error) {
             console.error('Error in complete:', error);
+            throw error;
+        }
+    },
+
+    async getNextCode() {
+        try {
+            const res = await api.get('/sale-transactions/next-code');
+            return res.data;
+        } catch (error) {
+            console.error('Error in getNextCode:', error);
+            throw error;
+        }
+    },
+
+    async exportPdf(id) {
+        try {
+            const res = await api.get(`/sale-transactions/${id}/export-pdf`, {
+                responseType: 'blob',
+            });
+            return res.data;
+        } catch (error) {
+            console.error('Error in exportPdf:', error);
             throw error;
         }
     }

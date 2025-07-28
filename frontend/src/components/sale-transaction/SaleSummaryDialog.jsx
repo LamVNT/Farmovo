@@ -25,11 +25,21 @@ const SaleSummaryDialog = ({
     saleData,
     formatCurrency,
     loading,
-    currentUser
+    currentUser,
+    nextCode
 }) => {
     if (!saleData) return null;
 
-    const { customer, store, products, totalAmount, paidAmount, note, saleDate, status } = saleData;
+    const { customer, store, products, totalAmount, paidAmount, note, saleDate, status, name } = saleData;
+
+    const [currentTime, setCurrentTime] = React.useState(new Date());
+    React.useEffect(() => {
+        if (!open) return;
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [open]);
 
     return (
         <Dialog 
@@ -39,9 +49,9 @@ const SaleSummaryDialog = ({
             fullWidth
         >
             <DialogTitle className="flex justify-between items-center bg-gray-50">
-                <div>
-                    <Typography variant="h6" className="font-bold text-gray-800">
-                        PHIẾU BÁN HÀNG
+                <div className="flex flex-col items-start">
+                    <Typography variant="h6" className="font-bold text-gray-800" style={{display: 'inline', fontWeight: 700}}>
+                        PHIẾU BÁN HÀNG: {name || nextCode || '---'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
@@ -49,10 +59,10 @@ const SaleSummaryDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
+                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : currentTime.toLocaleDateString('vi-VN')}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {new Date().toLocaleTimeString('vi-VN')}
+                        Giờ: {currentTime.toLocaleTimeString('vi-VN')}
                     </Typography>
                 </div>
             </DialogTitle>

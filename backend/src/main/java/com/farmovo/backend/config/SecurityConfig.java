@@ -32,11 +32,9 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-
-    @Autowired
     DataSource dataSource;
-
+    @Autowired
+    private UserDetailsServiceImpl userDetailsService;
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
 
@@ -58,7 +56,7 @@ public class SecurityConfig {
 //                        .requestMatchers("/api/users/me", "/api/users").authenticated()
 //                        .requestMatchers("/admin/**").hasRole("ADMIN")
 //                        .requestMatchers("/staff/**").hasRole("STAFF")
-                        .anyRequest().permitAll()
+                                .anyRequest().permitAll()
                 )
 
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(unauthorizedHandler))
@@ -71,11 +69,11 @@ public class SecurityConfig {
     }
 
 
-
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration builder) throws Exception {
         return builder.getAuthenticationManager();
     }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return NoOpPasswordEncoder.getInstance();

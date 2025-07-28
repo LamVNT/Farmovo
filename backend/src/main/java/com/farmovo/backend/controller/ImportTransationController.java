@@ -7,16 +7,21 @@ import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.ImportTransactionNotFoundException;
 import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.jwt.JwtUtils;
+import com.farmovo.backend.models.ImportTransactionStatus;
 import com.farmovo.backend.services.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -38,7 +43,7 @@ public class ImportTransationController {
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
         log.info("Getting create form data for import transaction");
 
-        List<CustomerDto> customers = customerService.getAllCustomerDto();
+        List<CustomerDto> customers = customerService.getAllCustomerDto(); // Đã trả về đủ trường
         List<ProductDto> products = productService.getAllProductDto();
         List<ZoneDto> zones = zoneService.getAllZoneDtos();
         List<StoreRequestDto> stores = storeService.getAllStoreDto();
@@ -121,15 +126,38 @@ public class ImportTransationController {
         }
     }
 
+//    @GetMapping("/list-all")
+//    public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
+//        log.info("Getting all import transactions");
+//
+//        List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
+//
+//        log.debug("Retrieved {} import transactions", transactions.size());
+//        return ResponseEntity.ok(transactions);
+//    }
+
     @GetMapping("/list-all")
-    public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
-        log.info("Getting all import transactions");
-
-        List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
-
-        log.debug("Retrieved {} import transactions", transactions.size());
-        return ResponseEntity.ok(transactions);
+    public ResponseEntity<PageResponse<ImportTransactionResponseDto>> listAllImportTransaction(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String supplierName,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) Long staffId,
+            @RequestParam(required = false) ImportTransactionStatus status,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) BigDecimal minTotalAmount,
+            @RequestParam(required = false) BigDecimal maxTotalAmount,
+            Pageable pageable
+    ) {
+        Page<ImportTransactionResponseDto> result = importTransactionService.listAllImportTransaction(
+                name, supplierName, storeId, staffId, status,
+                fromDate, toDate, minTotalAmount, maxTotalAmount, pageable
+        );
+        return ResponseEntity.ok(PageResponse.fromPage(result));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<CreateImportTransactionRequestDto> getImportTransactionById(@PathVariable Long id) {
@@ -212,4 +240,16 @@ public class ImportTransationController {
         }
     }
 
+    @GetMapping("/{id}/export")
+    public ResponseEntity<byte[]> exportImportTransactionPdf(@PathVariable Long id) {
+        byte[] pdfBytes = importTransactionService.exportImportPdf(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.builder("attachment")
+                .filename("phieu_nhap_" + id + ".pdf")
+                .build());
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
 }

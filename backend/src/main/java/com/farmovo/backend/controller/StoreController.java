@@ -5,6 +5,7 @@ import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.services.StoreService;
+import com.farmovo.backend.repositories.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,9 @@ public class StoreController {
 
     @Autowired
     private StoreService storeService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping("/admin/storeList")
     public List<StoreResponseDto> getAllStores() {
@@ -47,9 +52,18 @@ public class StoreController {
     }
 
     @PostMapping("/store")
-    public StoreResponseDto createStore(@Valid @RequestBody StoreRequestDto dto) {
+    public StoreResponseDto createStore(@Valid @RequestBody StoreRequestDto dto, Principal principal) {
         logger.info("Creating new store: {}", dto.getStoreName());
         Store store = storeService.convertToEntity(dto);
+        try {
+            String username = principal.getName();
+            Long userId = userRepository.findByUsernameAndDeletedAtIsNull(username)
+                .map(user -> user.getId())
+                .orElse(null);
+            store.setCreatedBy(userId);
+        } catch (Exception e) {
+            logger.warn("Could not get userId from principal, createdBy will be null");
+        }
         Store savedStore = storeService.saveStore(store);
         return convertToResponseDTO(savedStore);
     }

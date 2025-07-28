@@ -1,60 +1,76 @@
-import React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
-import { IconButton, Button } from '@mui/material';
+import React, { useState, useMemo } from 'react';
+import { Table, TableHead, TableBody, TableRow, TableCell, IconButton, TablePagination, Button } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
+const ROWS_PER_PAGE_OPTIONS = [5, 10];
 
 const UserTable = ({ users, onEdit, onDelete, onToggleStatus }) => {
-    const userColumns = [
-        { field: 'id', headerName: 'ID', flex: 0.5 },
-        { field: 'fullName', headerName: 'Họ tên', flex: 1.5 },
-        { field: 'username', headerName: 'Tên đăng nhập', flex: 1.5 },
-        {
-            field: 'status',
-            headerName: 'Trạng thái',
-            flex: 1,
-            renderCell: (params) => (params.value ? 'Hoạt động' : 'Không hoạt động'),
-        },
-        { field: 'storeName', headerName: 'Cửa hàng', flex: 1, renderCell: (params) => params.value || 'N/A' },
-        {
-            field: 'actions',
-            headerName: 'Hành động',
-            flex: 2,
-            sortable: false,
-            renderCell: (params) => (
-                <>
-                    <IconButton onClick={() => onEdit(params.row)}>
-                        <EditIcon color="primary" />
-                    </IconButton>
-                    <IconButton onClick={() => onDelete(params.id)}>
-                        <DeleteIcon color="error" />
-                    </IconButton>
-                    <IconButton onClick={() => onToggleStatus(params.id)}>
-                        <SwapHorizIcon color="warning" />
-                    </IconButton>
-                </>
-            ),
-        },
-    ];
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
+
+    const pagedUsers = useMemo(() => {
+        const start = page * rowsPerPage;
+        return users.slice(start, start + rowsPerPage);
+    }, [users, page, rowsPerPage]);
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
 
     return (
-        <div style={{ height: 400 }}>
-            <DataGrid
-                rows={users}
-                columns={userColumns}
-                pageSize={5}
-                rowsPerPageOptions={[5, 10]}
-                checkboxSelection
-                disableSelectionOnClick
-                sx={{
-                    borderRadius: 2,
-                    '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f5f5f5',
-                        fontWeight: 'bold',
-                    },
-                }}
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        {/* <TableCell>ID</TableCell> */}
+                        <TableCell>Họ tên</TableCell>
+                        <TableCell>Tên đăng nhập</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell>Trạng thái</TableCell>
+                        <TableCell>Cửa hàng</TableCell>
+                        <TableCell>Hành động</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {pagedUsers.map((row) => (
+                        <TableRow key={row.id}>
+                            {/* <TableCell>{row.id}</TableCell> */}
+                            <TableCell>{row.fullName}</TableCell>
+                            <TableCell>{row.username}</TableCell>
+                            <TableCell>{row.email || 'N/A'}</TableCell>
+                            <TableCell>{row.status ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
+                            <TableCell>{row.storeName || 'N/A'}</TableCell>
+                            <TableCell>
+                                <IconButton onClick={() => onEdit(row)}>
+                                    <EditIcon color="primary" />
+                                </IconButton>
+                                <IconButton onClick={() => onDelete(row.id)}>
+                                    <DeleteIcon color="error" />
+                                </IconButton>
+                                <IconButton onClick={() => onToggleStatus(row.id)}>
+                                    <SwapHorizIcon color="warning" />
+                                </IconButton>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+            <TablePagination
+                component="div"
+                count={users.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                labelRowsPerPage="Số dòng mỗi trang"
             />
         </div>
     );

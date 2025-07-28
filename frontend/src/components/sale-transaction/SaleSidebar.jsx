@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Select,
     MenuItem,
@@ -7,11 +7,17 @@ import {
     FormControlLabel,
     Checkbox,
     CircularProgress,
+    Snackbar,
+    Alert,
+    Popover,
 } from '@mui/material';
 import { FaLock, FaCheck } from 'react-icons/fa';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
+import Autocomplete from '@mui/material/Autocomplete';
+import saleTransactionService from '../../services/saleTransactionService';
+import { userService } from '../../services/userService';
 
 const SaleSidebar = ({
     currentUser,
@@ -33,9 +39,83 @@ const SaleSidebar = ({
     onComplete,
     onCancel,
     formatCurrency,
-    isValidValue
+    isValidValue,
+    highlightCustomer = false,
+    highlightStore = false,
+    highlightProducts = false,
 }) => {
+    const [nextCode, setNextCode] = useState('');
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    // State cho khách hàng
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+    const filteredCustomers = customers.filter(c => {
+        const name = c.name || c.customerName || '';
+        const address = c.address || c.customerAddress || '';
+        return (
+            name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+            address.toLowerCase().includes(customerSearch.toLowerCase())
+        );
+    });
+
+    // State cho cửa hàng
+    const [storeSearch, setStoreSearch] = useState('');
+    const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+    const filteredStores = stores.filter(s => {
+        const name = s.name || s.storeName || '';
+        const address = s.address || s.storeAddress || '';
+        return (
+            name.toLowerCase().includes(storeSearch.toLowerCase()) ||
+            address.toLowerCase().includes(storeSearch.toLowerCase())
+        );
+    });
+
+    // State cho số tiền đã trả focus
+    const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
+    // State cho lỗi nhập số tiền
+    const [paidAmountError, setPaidAmountError] = useState('');
+    // State cho snackbar lỗi
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
+
+    // State hover cho customer và store
+    const [hoveredCustomer, setHoveredCustomer] = useState(null);
+    const [hoverCustomerAnchorEl, setHoverCustomerAnchorEl] = useState(null);
+    const [hoveredStore, setHoveredStore] = useState(null);
+    const [hoverStoreAnchorEl, setHoverStoreAnchorEl] = useState(null);
+
+    const [creatorInfo, setCreatorInfo] = useState(null);
+    const [isLoadingCreator, setIsLoadingCreator] = useState(false);
+
+    useEffect(() => {
+        saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
+    }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // useEffect auto-clear hover khi dropdown đóng
+    useEffect(() => {
+        if (!customerDropdownOpen) {
+            setHoveredCustomer(null);
+            setHoverCustomerAnchorEl(null);
+            setCreatorInfo(null);
+            setIsLoadingCreator(false);
+        }
+    }, [customerDropdownOpen]);
+    useEffect(() => {
+        if (!storeDropdownOpen) {
+            setHoveredStore(null);
+            setHoverStoreAnchorEl(null);
+        }
+    }, [storeDropdownOpen]);
+
     return (
+        <>
         <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -44,55 +124,316 @@ const SaleSidebar = ({
                     </span>
                 </div>
                 <span className="text-xs text-gray-500">
-                    {new Date().toLocaleString('vi-VN')}
+                    {currentTime.toLocaleString('vi-VN')}
                 </span>
             </div>
+            {/* Hiển thị mã phiếu bán */}
+            <div className="mb-2">
+                <div className="text-xs text-gray-600 font-medium">Mã phiếu bán</div>
+                <div className="font-bold text-lg tracking-widest text-blue-900">{nextCode}</div>
+            </div>
 
+            {/* Khách hàng */}
             <div>
                 <div className="font-semibold mb-1">Khách hàng</div>
-                <Select
-                    size="small"
-                    fullWidth
-                    displayEmpty
-                    value={isValidValue(selectedCustomer, customers) ? selectedCustomer : ''}
-                    onChange={onCustomerChange}
-                    renderValue={(selected) =>
-                        selected && customers.find((c) => String(c.id) === String(selected))
-                            ? customers.find((c) => String(c.id) === String(selected)).name || 
-                              customers.find((c) => String(c.id) === String(selected)).customerName
-                            : 'Chọn khách hàng'
-                    }
-                >
-                    {customers.map((customer) => (
-                        <MenuItem key={customer.id} value={customer.id}>
-                            👤 {customer.name || customer.customerName}
-                        </MenuItem>
-                    ))}
-                </Select>
+                <div className="relative">
+                    <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Tìm khách hàng..."
+                        value={customerSearch || (customers.find(c => String(c.id) === String(selectedCustomer))?.name || customers.find(c => String(c.id) === String(selectedCustomer))?.customerName || '')}
+                        onChange={e => {
+                            setCustomerSearch(e.target.value);
+                            onCustomerChange({ target: { value: '' } });
+                        }}
+                        onFocus={() => setCustomerDropdownOpen(true)}
+                        onBlur={() => {
+                            if (!hoveredCustomer) {
+                                setCustomerDropdownOpen(false);
+                                setHoveredCustomer(null);
+                                setHoverCustomerAnchorEl(null);
+                            }
+                        }}
+                        variant="outlined"
+                        error={highlightCustomer}
+                        sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                    />
+                    {(customerDropdownOpen || customerSearch.trim() !== '') && filteredCustomers.length > 0 && (
+                        <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
+                            onMouseLeave={() => {
+                                setHoveredCustomer(null);
+                                setHoverCustomerAnchorEl(null);
+                                setCustomerDropdownOpen(false);
+                            }}
+                        >
+                            {filteredCustomers.map((customer) => (
+                                <div
+                                    key={customer.id}
+                                    onMouseDown={() => {
+                                        onCustomerChange({ target: { value: customer.id } });
+                                        setCustomerSearch('');
+                                        setCustomerDropdownOpen(false);
+                                        setHoveredCustomer(null);
+                                        setHoverCustomerAnchorEl(null);
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (customerDropdownOpen || customerSearch.trim() !== '') {
+                                            setHoveredCustomer(customer);
+                                            setHoverCustomerAnchorEl(e.currentTarget);
+                                            if (customer.createBy && !creatorInfo) {
+                                                setIsLoadingCreator(true);
+                                                userService.getUserById(customer.createBy)
+                                                    .then(user => {
+                                                        setCreatorInfo(user);
+                                                        setIsLoadingCreator(false);
+                                                    })
+                                                    .catch(() => {
+                                                        setCreatorInfo(null);
+                                                        setIsLoadingCreator(false);
+                                                    });
+                                            }
+                                        }
+                                    }}
+                                    onMouseLeave={() => {
+                                        setHoveredCustomer(null);
+                                        setHoverCustomerAnchorEl(null);
+                                    }}
+                                    className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedCustomer) === String(customer.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
+                                >
+                                    <span className="font-medium truncate max-w-[180px]">{customer.name || customer.customerName}</span>
+                                    {(customer.address || customer.customerAddress) && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{customer.address || customer.customerAddress}</span>
+                                    )}
+                                    {customer.phone && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{customer.phone}</span>
+                                    )}
+                                    {customer.email && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{customer.email}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+            <Popover
+                open={Boolean(hoveredCustomer) && Boolean(hoverCustomerAnchorEl) && customerDropdownOpen}
+                anchorEl={hoverCustomerAnchorEl}
+                onClose={() => {
+                    setHoveredCustomer(null);
+                    setHoverCustomerAnchorEl(null);
+                }}
+                anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                sx={{
+                    pointerEvents: 'none',
+                    '& .MuiPopover-paper': {
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                        borderRadius: 3,
+                        border: '1px solid #e8e8e8',
+                        maxWidth: 320,
+                        minWidth: 280,
+                        animation: 'fadeInScale 0.2s ease-out',
+                        '@keyframes fadeInScale': {
+                            '0%': { opacity: 0, transform: 'scale(0.95) translateX(-10px)' },
+                            '100%': { opacity: 1, transform: 'scale(1) translateX(0)' },
+                        },
+                    }
+                }}
+            >
+                {hoveredCustomer && (
+                    <div className="p-5 bg-white">
+                        <div className="space-y-4">
+                            <div className="border-b border-gray-100 pb-3">
+                                <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredCustomer.name || hoveredCustomer.customerName}</h3>
+                                <div className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                    Khách hàng
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {hoveredCustomer.phone && (
+                                    <div className="flex items-center group">
+                                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 transition-colors">
+                                            <span className="text-green-600 text-sm">📞</span>
+                                        </div>
+                                        <span className="text-sm text-gray-700 font-medium">{hoveredCustomer.phone}</span>
+                                    </div>
+                                )}
+                                {hoveredCustomer.email && (
+                                    <div className="flex items-center group">
+                                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200 transition-colors">
+                                            <span className="text-blue-600 text-sm">✉️</span>
+                                        </div>
+                                        <span className="text-sm text-gray-700 font-medium">{hoveredCustomer.email}</span>
+                                    </div>
+                                )}
+                                {(hoveredCustomer.address || hoveredCustomer.customerAddress) && (
+                                    <div className="flex items-start group">
+                                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 mt-0.5 group-hover:bg-orange-200 transition-colors">
+                                            <span className="text-orange-600 text-sm">📍</span>
+                                        </div>
+                                        <span className="text-sm text-gray-700 leading-relaxed">{hoveredCustomer.address || hoveredCustomer.customerAddress}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Tổng nợ */}
+                            {hoveredCustomer.totalDebt !== undefined && (
+                                <div className="pt-3 border-t border-gray-100">
+                                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                        <span className="text-sm font-medium text-gray-700">Tổng nợ:</span>
+                                        <span className={`text-sm font-bold px-2 py-1 rounded ${hoveredCustomer.totalDebt > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                            {hoveredCustomer.totalDebt?.toLocaleString('vi-VN') || '0'} VND
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Ngày tạo, Người tạo */}
+                            <div className="pt-3 border-t border-gray-100">
+                                <div className="text-xs text-gray-500 space-y-2">
+                                    {hoveredCustomer.createAt && (
+                                        <div className="flex items-center">
+                                            <span className="w-3 h-3 bg-gray-300 rounded-full mr-2"></span>
+                                            <span>Ngày tạo: {new Date(hoveredCustomer.createAt).toLocaleDateString('vi-VN')}</span>
+                                        </div>
+                                    )}
+                                    {isLoadingCreator ? (
+                                        <div className="flex items-center">
+                                            <span className="w-3 h-3 bg-gray-300 rounded-full mr-2"></span>
+                                            <span>Người tạo: <span className="text-blue-500">Đang tải...</span></span>
+                                        </div>
+                                    ) : creatorInfo ? (
+                                        <div className="flex items-center">
+                                            <span className="w-3 h-3 bg-gray-300 rounded-full mr-2"></span>
+                                            <span>Người tạo: <span className="font-medium text-gray-700">{creatorInfo.fullName || creatorInfo.username}</span></span>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Popover>
 
+            {/* Cửa hàng */}
             <div>
                 <div className="font-semibold mb-1">Cửa hàng</div>
-                <Select
-                    size="small"
-                    fullWidth
-                    displayEmpty
-                    value={isValidValue(selectedStore, stores) ? selectedStore : ''}
-                    onChange={onStoreChange}
-                    renderValue={(selected) =>
-                        selected && stores.find((s) => String(s.id) === String(selected))
-                            ? stores.find((s) => String(s.id) === String(selected)).name || 
-                              stores.find((s) => String(s.id) === String(selected)).storeName
-                            : 'Chọn cửa hàng'
-                    }
-                >
-                    {stores.map((store) => (
-                        <MenuItem key={store.id} value={store.id}>
-                            🏬 {store.name || store.storeName}
-                        </MenuItem>
-                    ))}
-                </Select>
+                <div className="relative">
+                    <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Tìm cửa hàng..."
+                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
+                        onChange={e => {
+                            setStoreSearch(e.target.value);
+                            onStoreChange({ target: { value: '' } });
+                        }}
+                        onFocus={() => setStoreDropdownOpen(true)}
+                        onBlur={() => {
+                            if (!hoveredStore) {
+                                setStoreDropdownOpen(false);
+                                setHoveredStore(null);
+                                setHoverStoreAnchorEl(null);
+                            }
+                        }}
+                        variant="outlined"
+                        error={highlightStore}
+                        sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                    />
+                    {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
+                        <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
+                            onMouseLeave={() => {
+                                setHoveredStore(null);
+                                setHoverStoreAnchorEl(null);
+                                setStoreDropdownOpen(false);
+                            }}
+                        >
+                            {filteredStores.map((store) => (
+                                <div
+                                    key={store.id}
+                                    onMouseDown={() => {
+                                        onStoreChange({ target: { value: store.id } });
+                                        setStoreSearch('');
+                                        setStoreDropdownOpen(false);
+                                        setHoveredStore(null);
+                                        setHoverStoreAnchorEl(null);
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (storeDropdownOpen || storeSearch.trim() !== '') {
+                                            setHoveredStore(store);
+                                            setHoverStoreAnchorEl(e.currentTarget);
+                                        }
+                                    }}
+                                    onMouseLeave={() => {
+                                        setHoveredStore(null);
+                                        setHoverStoreAnchorEl(null);
+                                    }}
+                                    className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedStore) === String(store.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
+                                >
+                                    <span className="font-medium truncate max-w-[180px]">{store.name || store.storeName}</span>
+                                    {(store.address || store.storeAddress) && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.address || store.storeAddress}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+            <Popover
+                open={Boolean(hoveredStore) && Boolean(hoverStoreAnchorEl) && storeDropdownOpen}
+                anchorEl={hoverStoreAnchorEl}
+                onClose={() => {
+                    setHoveredStore(null);
+                    setHoverStoreAnchorEl(null);
+                }}
+                anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                sx={{
+                    pointerEvents: 'none',
+                    '& .MuiPopover-paper': {
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                        borderRadius: 3,
+                        border: '1px solid #e8e8e8',
+                        maxWidth: 320,
+                        minWidth: 280,
+                        animation: 'fadeInScale 0.2s ease-out',
+                        '@keyframes fadeInScale': {
+                            '0%': { opacity: 0, transform: 'scale(0.95) translateX(-10px)' },
+                            '100%': { opacity: 1, transform: 'scale(1) translateX(0)' },
+                        },
+                    }
+                }}
+            >
+                {hoveredStore && (
+                    <div className="p-5 bg-white">
+                        <div className="space-y-4">
+                            <div className="border-b border-gray-100 pb-3">
+                                <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredStore.name || hoveredStore.storeName}</h3>
+                                <div className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                    Cửa hàng
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {(hoveredStore.address || hoveredStore.storeAddress) && (
+                                    <div className="flex items-start group">
+                                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 mt-0.5 group-hover:bg-orange-200 transition-colors">
+                                            <span className="text-orange-600 text-sm">📍</span>
+                                        </div>
+                                        <span className="text-sm text-gray-700 leading-relaxed">{hoveredStore.address || hoveredStore.storeAddress}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {hoveredStore.description && (
+                                <div className="pt-3 border-t border-gray-100">
+                                    <div className="text-xs text-gray-500">Mô tả: {hoveredStore.description}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Popover>
 
             <div>
                 <div className="font-semibold mb-1">Ngày bán</div>
@@ -123,28 +464,18 @@ const SaleSidebar = ({
                 </LocalizationProvider>
             </div>
 
+            {/* Ghi chú */}
             <div>
                 <div className="font-semibold mb-1">Ghi chú</div>
                 <TextField
                     multiline
                     rows={2}
-                    placeholder="Ghi chú"
+                    placeholder="Nhập ghi chú"
                     fullWidth
-                    variant="standard"
+                    variant="outlined"
                     size="small"
                     value={note}
                     onChange={onNoteChange}
-                    sx={{
-                        '& .MuiInput-underline:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                        '& .MuiInput-underline:after': {
-                            borderBottomColor: '#1976d2',
-                        },
-                        '& .MuiInput-underline:hover:before': {
-                            borderBottomColor: 'transparent',
-                        }
-                    }}
                 />
             </div>
 
@@ -153,28 +484,58 @@ const SaleSidebar = ({
                 <div className="text-right w-32">{formatCurrency(totalAmount)}</div>
             </div>
 
+            {/* Số tiền đã trả */}
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
                 <TextField
                     size="small"
                     fullWidth
-                    type="number"
-                    placeholder="0"
-                    value={paidAmount}
-                    onChange={onPaidAmountChange}
+                    type="text"
+                    placeholder="Nhập số tiền đã trả"
+                    value={isPaidAmountFocused && (paidAmount === 0 || paidAmount === '0') ? '' : paidAmount}
+                    onFocus={e => {
+                        setIsPaidAmountFocused(true);
+                        if (paidAmount === 0 || paidAmount === '0') onPaidAmountChange({ target: { value: '' } });
+                    }}
+                    onBlur={e => {
+                        setIsPaidAmountFocused(false);
+                        if (e.target.value === '' || isNaN(Number(e.target.value))) {
+                            onPaidAmountChange({ target: { value: '0' } });
+                        } else {
+                            onPaidAmountChange({ target: { value: e.target.value } });
+                        }
+                    }}
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (/^\d*$/.test(val)) {
+                            if (val === '' || Number(val) <= Number.MAX_SAFE_INTEGER) {
+                                setPaidAmountError('');
+                                onPaidAmountChange({ target: { value: val } });
+                            } else {
+                                setPaidAmountError('');
+                                setSnackbar({ open: true, message: 'Không được nhập số quá lớn (tối đa 9,007,199,254,740,991)', severity: 'error' });
+                            }
+                        } else {
+                            setPaidAmountError('');
+                            setSnackbar({ open: true, message: 'Chỉ được nhập số nguyên dương', severity: 'error' });
+                        }
+                    }}
+                    error={!!paidAmountError}
+                    helperText={''}
                     InputProps={{
                         endAdornment: <span className="text-gray-500">VND</span>,
+                        inputProps: {
+                            style: { textAlign: 'left', padding: '6px 8px' },
+                            inputMode: 'numeric',
+                            pattern: '[0-9]*',
+                        }
                     }}
-                    variant="standard"
+                    variant="outlined"
                     sx={{
-                        '& .MuiInput-underline:before': {
-                            borderBottomColor: 'transparent',
-                        },
-                        '& .MuiInput-underline:after': {
-                            borderBottomColor: '#1976d2',
-                        },
-                        '& .MuiInput-underline:hover:before': {
-                            borderBottomColor: 'transparent',
+                        '& .MuiFormHelperText-root': {
+                            marginLeft: 0,
+                            textAlign: 'left',
+                            paddingLeft: 0,
                         }
                     }}
                 />
@@ -240,6 +601,17 @@ const SaleSidebar = ({
                 Hủy
             </Button>
         </div>
+        <Snackbar
+            open={snackbar.open}
+            autoHideDuration={5000}
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+            <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+                {snackbar.message}
+            </Alert>
+        </Snackbar>
+        </>
     );
 };
 

@@ -2,6 +2,7 @@ package com.farmovo.backend.dto.response;
 
 import lombok.Builder;
 import lombok.Data;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,6 +18,9 @@ public class UserResponseDto {
     private LocalDateTime updateAt;
     private LocalDateTime deleteAt;
     private Long deleteBy;
+    private Long storeId;
     private String storeName;
     private List<String> roles; // Thêm danh sách role
+    private String email;
+    private String phone;
 }

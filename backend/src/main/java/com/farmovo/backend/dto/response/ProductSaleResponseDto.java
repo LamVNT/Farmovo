@@ -1,5 +1,6 @@
 package com.farmovo.backend.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,6 +10,8 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true) // Thêm dòng này
+
 public class ProductSaleResponseDto {
     private Long id; // importtransactiondetailID
     private Long proId;
@@ -19,5 +22,7 @@ public class ProductSaleResponseDto {
     private BigDecimal unitSalePrice;
     private String categoryName;
     private String storeName;
+    private String name; // mã lô hàng LH000000
     private java.time.LocalDateTime createAt;
+    private java.time.LocalDateTime expireDate;
 }

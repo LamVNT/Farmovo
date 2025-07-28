@@ -101,53 +101,36 @@ export const useSaleTransaction = () => {
     }, []);
 
     // Handle product selection
-    const handleSelectProduct = useCallback(async (product) => {
+    const handleSelectProduct = useCallback(async (product, options = {}) => {
+        // Nếu gọi từ AddSalePage (chọn lô), thêm luôn vào bảng, không bật dialog
+        if (options.directAdd) {
+            // Tạo object sản phẩm từ batch
+            const newItem = {
+                id: product.id, // id của importtransactiondetail (batch)
+                name: product.name,
+                unit: product.unit || 'quả',
+                price: product.price,
+                quantity: product.quantity || 1,
+                total: (product.price || 0) * (product.quantity || 1),
+                productId: product.proId,
+                remainQuantity: product.remainQuantity,
+                unitSalePrice: product.price,
+                batchId: product.id,
+                productCode: product.productCode,
+                categoryName: product.categoryName,
+                storeName: product.storeName,
+                createAt: product.createAt,
+            };
+            setSelectedProducts(prev => [...prev, newItem]);
+            setError(null);
+            return;
+        }
+        // Nếu gọi từ dialog Thêm sản phẩm thì vẫn giữ logic cũ
         setSelectedProduct(product);
-        
         try {
             const batches = await saleTransactionService.getBatchesByProductId(product.proId);
             setAvailableBatches(batches);
-            
-            // Auto add if only 1 batch
-            if (batches.length === 1) {
-                const batch = batches[0];
-                const price = batch.unitSalePrice || 0;
-                const total = price * 1;
-                
-                const existingIndex = selectedProducts.findIndex(item => item.batchId === batch.id);
-                if (existingIndex >= 0) {
-                    const updatedDetail = [...selectedProducts];
-                    const newQuantity = updatedDetail[existingIndex].quantity + 1;
-                    
-                    if (newQuantity <= batch.remainQuantity) {
-                        updatedDetail[existingIndex].quantity = newQuantity;
-                        updatedDetail[existingIndex].total = updatedDetail[existingIndex].price * newQuantity;
-                        setSelectedProducts(updatedDetail);
-                        setSuccess(`Đã thêm ${product.productName} vào bảng`);
-                    } else {
-                        setError(`Số lượng vượt quá tồn kho. Còn lại: ${batch.remainQuantity}`);
-                    }
-                } else {
-                    const newItem = {
-                        id: batch.id,
-                        name: batch.productName,
-                        unit: 'quả',
-                        price,
-                        quantity: 1,
-                        total,
-                        productId: batch.proId,
-                        remainQuantity: batch.remainQuantity,
-                        unitSalePrice: batch.unitSalePrice,
-                        batchId: batch.id,
-                        productCode: batch.productCode,
-                        categoryName: batch.categoryName,
-                        storeName: batch.storeName,
-                        createAt: batch.createAt,
-                    };
-                    setSelectedProducts([...selectedProducts, newItem]);
-                    setSuccess(`Đã thêm ${product.productName} vào bảng`);
-                }
-            } else if (batches.length > 1) {
+            if (batches.length > 0) {
                 setShowProductDialog(true);
             } else {
                 setError('Không có batch nào cho sản phẩm này');
@@ -473,6 +456,7 @@ export const useSaleTransaction = () => {
         setShowSummaryDialog,
         setSummaryData,
         setPendingAction,
+        setSelectedProducts, // thêm dòng này để export
         
         // Handlers
         handleSelectProduct,

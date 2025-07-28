@@ -1,9 +1,9 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer} from 'recharts';
 import React from "react";
 
 const pieColors = ['#4CAF50', '#FFC107', '#F44336'];
 
-const OrderStatusPieChart = ({ data }) => {
+const OrderStatusPieChart = ({data}) => {
     return (
         <div className="bg-white p-5 shadow-md rounded-lg">
             <h3 className="font-semibold mb-2">Order Status</h3>
