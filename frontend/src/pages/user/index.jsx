@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { TextField, Button } from '@mui/material';
-import { FaPlus } from 'react-icons/fa6';
+import {useState, useEffect, useMemo} from 'react';
+import {TextField, Button} from '@mui/material';
+import {FaPlus} from 'react-icons/fa6';
 import UserTable from '../../components/user/UserTable';
 import UserFormDialog from '../../components/user/UserFormDialog';
-import { userService } from '../../services/userService';
+import {userService} from '../../services/userService';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -22,6 +22,7 @@ const UserManagement = () => {
         updateAt: '',
         storeName: '',
         roles: [],
+        email: '',
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ const UserManagement = () => {
             updateAt: '',
             storeName: '',
             roles: [], // Reset roles khi tạo mới
+            email: '',
         });
         setEditMode(false);
         setOpenDialog(true);
@@ -81,6 +83,7 @@ const UserManagement = () => {
             updateAt: user.updateAt || '',
             storeName: user.storeName || '',
             roles: user.roles || [], // Lấy roles từ dữ liệu
+            email: user.email || '',
         });
         setEditMode(true);
         setOpenDialog(true);
@@ -116,6 +119,7 @@ const UserManagement = () => {
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
+            email: form.email || undefined,
         };
         try {
             if (editMode) {
@@ -165,13 +169,13 @@ const UserManagement = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Thêm
                     </Button>
                 </div>
             </div>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{color: 'red'}}>{error}</p>}
             {loading ? (
                 <p>Đang tải...</p>
             ) : (

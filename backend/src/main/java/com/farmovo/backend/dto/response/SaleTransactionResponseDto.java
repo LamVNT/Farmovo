@@ -14,15 +14,18 @@ import java.util.List;
 @AllArgsConstructor
 public class SaleTransactionResponseDto {
     private Long id;
+    private String name;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
     private String saleTransactionNote;
     private SaleTransactionStatus status;
     private LocalDateTime saleDate;
     private String customerName;
+    private String customerPhone;
+    private String customerAddress;
     private String storeName;
+    private String storeAddress;
     private Long createdBy;
-    private String name; // mã phiếu bán
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
 }
 

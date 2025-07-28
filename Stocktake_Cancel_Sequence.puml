@@ -1,0 +1,75 @@
+@startuml Stocktake_Cancel_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+skinparam actorBackgroundColor #FFD700
+
+title Cancel StockTake - Sequence Diagram
+
+actor Staff
+participant ":StockTake Page" as UI
+participant ":StocktakeController" as CC
+participant ":StocktakeServiceImpl" as CS
+participant ":StocktakeRepository" as CR
+participant ":StocktakeMapper" as CM
+
+Staff -> UI: Nhấn "Hủy kiểm kê"
+activate Staff
+activate UI
+UI -> CC: PUT /api/stocktakes/{id}/cancel
+activate CC
+CC -> CS: cancelStocktake(id)
+activate CS
+CS -> CR: findById(id): Optional<Stocktake>
+activate CR
+CR --> CS: return Optional<Stocktake>
+deactivate CR
+alt Stocktake Not Found
+    CS --> CC: throw StocktakeNotFoundException
+    CC --> UI: return 404 Not Found {error message}
+    UI --> Staff: Hiển thị lỗi
+else Stocktake Found
+    CS -> CS: check status == DRAFT
+    alt Status Not Valid
+        CS --> CC: throw InvalidStatusException
+        CC --> UI: return 400 Bad Request {error message: "Only DRAFT can be cancelled"}
+        UI --> Staff: Hiển thị lỗi
+    else Status Valid
+        CS -> CS: setStatus(CANCELLED), setUpdatedAt
+        CS -> CR: save(stocktake)
+        activate CR
+        alt Save Failed
+            CR --> CS: throw SaveException
+            CS --> CC: return 500 Internal Server Error
+            CC --> UI: return 500 Internal Server Error
+            UI --> Staff: Hiển thị lỗi
+        else Save Success
+            CR --> CS: return Stocktake entity
+            deactivate CR
+            CS -> CM: toResponseDto(stocktake)
+            activate CM
+            CM --> CS: return StocktakeResponseDto
+            deactivate CM
+            CS --> CC: return StocktakeResponseDto
+            deactivate CS
+            CC --> UI: return 200 OK StocktakeResponseDto
+            UI --> Staff: Hiển thị kiểm kê với trạng thái CANCELLED
+        end
+    end
+end
+
+deactivate CC
+deactivate UI
+deactivate Staff
+
+note right of UI
+    StocktakeResponseDto contains: id, stocktakeDate, detail, note, storeId, status
+    status: DRAFT, CANCELLED
+end note
+
+@enduml

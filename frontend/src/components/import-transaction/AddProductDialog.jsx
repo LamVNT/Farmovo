@@ -18,7 +18,7 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import { FiX } from 'react-icons/fi';
 import axios from 'axios';
 import DialogActions from '@mui/material/DialogActions';
-import { productService } from '../../services/productService';
+import { productService } from '../../services/productService.js';
 
 const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) => {
     const [tab, setTab] = useState(0);
@@ -158,31 +158,31 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
     return (
         <>
             <Dialog open={open} onClose={() => { resetForm(); onClose(); }} maxWidth="md" fullWidth>
-                <DialogTitle className="flex justify-between items-center p-4 pb-0">
-                    <span className="text-lg font-semibold">Thêm hàng hóa</span>
-                    <IconButton onClick={onClose}>
-                        <FiX />
-                    </IconButton>
-                </DialogTitle>
+            <DialogTitle className="flex justify-between items-center p-4 pb-0">
+                <span className="text-lg font-semibold">Thêm hàng hóa</span>
+                <IconButton onClick={onClose}>
+                    <FiX />
+                </IconButton>
+            </DialogTitle>
 
-                <DialogContent className="p-4 pt-2">
-                    <Tabs value={tab} onChange={(e, newTab) => setTab(newTab)} indicatorColor="success">
-                        <Tab label="Thông tin" />
-                        <Tab label="Mô tả chi tiết" />
-                    </Tabs>
+            <DialogContent className="p-4 pt-2">
+                <Tabs value={tab} onChange={(e, newTab) => setTab(newTab)} indicatorColor="success">
+                    <Tab label="Thông tin" />
+                    <Tab label="Mô tả chi tiết" />
+                </Tabs>
 
-                    {tab === 0 && (
-                        <div className="mt-4 space-y-4 text-sm">
-                            {/* Tên hàng (70%) */}
-                            <div style={{ width: '70%' }}>
-                                <TextField
-                                    label="Tên hàng"
-                                    variant="standard"
-                                    value={product.name}
-                                    onChange={handleChange('name')}
-                                    fullWidth
-                                />
-                            </div>
+                {tab === 0 && (
+                    <div className="mt-4 space-y-4 text-sm">
+                        {/* Tên hàng (70%) */}
+                        <div style={{ width: '70%' }}>
+                            <TextField
+                                label="Tên hàng"
+                                variant="standard"
+                                value={product.name}
+                                onChange={handleChange('name')}
+                                fullWidth
+                            />
+                        </div>
 
                             {/* Mô tả */}
                             <div>
@@ -198,32 +198,32 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                             </div>
 
                             {/* Nhóm hàng + Cửa hàng */}
-                            <div className="flex gap-4">
-                                <div className="flex items-end gap-2 w-1/2">
-                                    <Select
-                                        value={product.category}
-                                        onChange={handleChange('category')}
-                                        displayEmpty
-                                        variant="standard"
-                                        fullWidth
-                                    >
-                                        <MenuItem value="">---Lựa chọn---</MenuItem>
+                        <div className="flex gap-4">
+                            <div className="flex items-end gap-2 w-1/2">
+                                <Select
+                                    value={product.category}
+                                    onChange={handleChange('category')}
+                                    displayEmpty
+                                    variant="standard"
+                                    fullWidth
+                                >
+                                    <MenuItem value="">---Lựa chọn---</MenuItem>
                                         {categories.map((cat) => (
                                             <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
                                         ))}
-                                    </Select>
+                                </Select>
                                     <IconButton size="small" onClick={() => setAddCategoryOpen(true)}>
-                                        <AiOutlinePlus />
-                                    </IconButton>
-                                </div>
+                                    <AiOutlinePlus />
+                                </IconButton>
+                            </div>
 
-                                <div className="flex items-end gap-2 w-1/2">
+                            <div className="flex items-end gap-2 w-1/2">
                                     <Select
                                         value={product.store}
                                         onChange={handleChange('store')}
                                         displayEmpty
-                                        variant="standard"
-                                        fullWidth
+                                    variant="standard"
+                                    fullWidth
                                     >
                                         <MenuItem value="">---Cửa hàng---</MenuItem>
                                         {stores.map((store) => (
@@ -231,30 +231,57 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                                         ))}
                                     </Select>
                                     <IconButton size="small" onClick={() => setAddStoreOpen(true)}>
-                                        <AiOutlinePlus />
-                                    </IconButton>
-                                </div>
+                                    <AiOutlinePlus />
+                                </IconButton>
                             </div>
                         </div>
-                    )}
-
-                    {tab === 1 && (
-                        <div className="mt-4 text-gray-500 italic text-sm">
-                            Mô tả chi tiết (chưa triển khai).
-                        </div>
-                    )}
-
-                    {/* Buttons */}
-                    <div className="flex justify-end gap-2 mt-6">
-                        <Button onClick={onClose} variant="outlined" color="inherit">
-                            Bỏ qua
-                        </Button>
-                        <Button onClick={handleSubmit} variant="contained" color="success">
-                            Lưu
-                        </Button>
                     </div>
-                </DialogContent>
-            </Dialog>
+                )}
+
+                {tab === 1 && (
+                    <div className="mt-4 text-gray-500 italic text-sm">
+                        Mô tả chi tiết (chưa triển khai).
+                    </div>
+                )}
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-2 mt-6">
+                    <Button 
+                        onClick={onClose} 
+                        variant="outlined" 
+                        color="inherit"
+                        sx={{
+                            borderColor: '#ddd',
+                            color: '#666',
+                            '&:hover': {
+                                borderColor: '#999',
+                                backgroundColor: '#f5f5f5'
+                            }
+                        }}
+                    >
+                        Bỏ qua
+                    </Button>
+                    <Button 
+                        onClick={handleSubmit} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Lưu
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
 
             {/* Dialog thêm category */}
             <Dialog open={addCategoryOpen} onClose={() => setAddCategoryOpen(false)}>
@@ -264,8 +291,33 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                     <TextField label="Mô tả" value={newCategoryDescription} onChange={e => setNewCategoryDescription(e.target.value)} fullWidth multiline rows={2} sx={{ mt: 2 }} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setAddCategoryOpen(false)}>Hủy</Button>
-                    <Button onClick={handleAddCategory} variant="contained">Thêm</Button>
+                    <Button 
+                        onClick={() => setAddCategoryOpen(false)}
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={handleAddCategory} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -277,8 +329,33 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                     <TextField label="Mô tả" value={newStoreDescription} onChange={e => setNewStoreDescription(e.target.value)} fullWidth multiline rows={2} sx={{ mt: 2 }} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setAddStoreOpen(false)}>Hủy</Button>
-                    <Button onClick={handleAddStore} variant="contained">Thêm</Button>
+                    <Button 
+                        onClick={() => setAddStoreOpen(false)}
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={handleAddStore} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm
+                    </Button>
                 </DialogActions>
             </Dialog>
 

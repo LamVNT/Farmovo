@@ -9,7 +9,6 @@ import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
 import com.farmovo.backend.services.DebtNoteService;
-import com.farmovo.backend.services.S3Service;
 import com.farmovo.backend.utils.DebtNoteValidation;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -43,6 +42,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerId(Long customerId) {
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
+        }
         logger.debug("Finding debt notes for customer ID: {}", customerId);
         try {
             customerService.getCustomerById(customerId);
@@ -127,6 +129,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     @Transactional
     public DebtNoteResponseDto updateDebtNote(Long debtId, DebtNoteRequestDto requestDto) {
+        if (requestDto.getCustomerId() == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
+        }
         logger.debug("Updating debt note ID: {} with data: {}", debtId, requestDto);
         try {
             DebtNote debtNote = debtNoteRepository.findById(debtId)
@@ -166,6 +171,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public BigDecimal getTotalDebtByCustomerId(Long customerId) {
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
+        }
         logger.debug("Calculating total debt for customer ID: {}", customerId);
         try {
             BigDecimal totalDebt = calculateTotalDebt(customerId);
@@ -179,6 +187,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public BigDecimal getTotalImportDebtByCustomerId(Long customerId) {
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
+        }
         logger.debug("Calculating total import debt for customer ID: {}", customerId);
         try {
             BigDecimal totalImport = debtNoteRepository.getTotalImportDebtByCustomerId(customerId);
@@ -191,6 +202,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public BigDecimal getTotalSaleDebtByCustomerId(Long customerId) {
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
+        }
         logger.debug("Calculating total sale debt for customer ID: {}", customerId);
         try {
             BigDecimal totalSale = debtNoteRepository.getTotalSaleDebtByCustomerId(customerId);
@@ -213,6 +227,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Transactional
     public void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId) {
         // Validation debtType
+        if (debtAmount == null) {
+            throw new IllegalArgumentException("Số tiền nợ (debtAmount) không được để trống.");
+        }
         if (!"+".equals(debtType) && !"-".equals(debtType)) {
             throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
         }

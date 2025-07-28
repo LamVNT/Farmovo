@@ -30,7 +30,7 @@ import { FaRegTrashCan } from "react-icons/fa6";
 import LockIcon from '@mui/icons-material/Lock';
 import CheckIcon from '@mui/icons-material/Check';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import AddProductDialog from './AddProductDialog';
+import AddProductDialog from '../../components/import-transaction/AddProductDialog.jsx';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
@@ -104,6 +104,9 @@ const ImportPage = () => {
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
 
     const zoneSearchInputRef = useRef();
+
+    // Đơn vị tính mặc định cho sản phẩm mới
+    const defaultUnit = 'quả';
 
     // Auto-dismiss error/success after 5s
     useEffect(() => {
@@ -193,6 +196,8 @@ const ImportPage = () => {
                 {
                     id: newProduct.id,
                     name: newProduct.name || newProduct.productName,
+                    productCode: newProduct.code || newProduct.productCode,
+                    productDescription: newProduct.productDescription,
                     unit: 'quả',
                     price,
                     quantity,
@@ -296,10 +301,11 @@ const ImportPage = () => {
 
     // Hàm format ngày dd/MM/yyyy
 
+    // Sửa handleSelectProduct để truyền unit hiện tại, price luôn là giá 1 quả
     const handleSelectProduct = (product) => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
-            const price = 0; // Để user nhập vào
-            const quantity = 1;
+            const price = product.price || 0;
+            const quantity = 1; // Mặc định 1 quả
             const total = price * quantity;
             const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
 
@@ -308,7 +314,9 @@ const ImportPage = () => {
                 {
                     id: product.id,
                     name: product.name || product.productName,
-                    unit: 'quả',
+                    productCode: product.code || product.productCode,
+                    productDescription: product.productDescription,
+                    unit: defaultUnit,
                     price,
                     quantity,
                     total,
@@ -376,6 +384,32 @@ const ImportPage = () => {
                     }
                     : p
             )
+        );
+    };
+
+    const handleUnitChange = (id, newUnit) => {
+        setSelectedProducts((prev) =>
+            prev.map((p) => {
+                if (p.id === id) {
+                    let newQuantity = p.quantity;
+                    // Chuyển đổi số lượng khi đổi đơn vị
+                    if (newUnit === 'khay' && p.unit !== 'khay') {
+                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
+                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
+                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
+                        // Từ khay sang quả: nhân với 25
+                        newQuantity = (p.quantity || 1) * 25;
+                    }
+                    
+                    return {
+                        ...p,
+                        unit: newUnit,
+                        quantity: newQuantity,
+                        total: (p.price || 0) * newQuantity
+                    };
+                }
+                return p;
+            })
         );
     };
 
@@ -562,9 +596,51 @@ const ImportPage = () => {
     const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
 
     const columns = [
-        columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
+        columnVisibility['STT'] && {
+            field: 'stt',
+            headerName: 'STT',
+            width: 80,
+            renderCell: (params) => {
+                // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
+                if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
+                if (params.id) {
+                    const idx = selectedProducts.findIndex(row => row.id === params.id);
+                    return idx >= 0 ? idx + 1 : '';
+                }
+                return '';
+            }
+        },
         columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
-        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80 },
+        columnVisibility['ĐVT'] && { 
+            field: 'unit', 
+            headerName: 'ĐVT', 
+            width: 120,
+            renderCell: (params) => (
+                <div className="flex items-center justify-center h-full">
+                    <Select
+                        size="small"
+                        value={params.row.unit || defaultUnit}
+                        onChange={(e) => handleUnitChange(params.row.id, e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        sx={{
+                            width: '80px',
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'transparent',
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
+                        }}
+                    >
+                        <MenuItem value="quả">quả</MenuItem>
+                        <MenuItem value="khay">khay</MenuItem>
+                    </Select>
+                </div>
+            )
+        },
         columnVisibility['Số lượng'] && {
             field: 'quantity',
             headerName: 'Số lượng',
@@ -688,9 +764,17 @@ const ImportPage = () => {
             field: 'total',
             headerName: 'Thành tiền',
             width: 150,
+            valueGetter: (params) => {
+                const row = params?.row ?? {};
+                const price = parseFloat(row.price) || 0;
+                const quantity = parseInt(row.quantity) || 0;
+                return price * quantity;
+            },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const total = params.value || 0;
+                const price = parseFloat(params.row.price) || 0;
+                const quantity = parseInt(params.row.quantity) || 0;
+                const total = price * quantity;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1025,11 +1109,10 @@ const ImportPage = () => {
                                                 ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
                                             `}
                                         >
-                                            <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                            {product.code && (
-                                                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">#{product.code}</span>
-                                            )}
-                                            <span className="ml-2 text-xs text-gray-500">quả</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                            </div>
                                             {product.price && (
                                                 <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
                                             )}
@@ -1074,6 +1157,7 @@ const ImportPage = () => {
                 currentTime={currentTime}
                 nextImportCode={nextImportCode}
                 suppliers={suppliers}
+                setSuppliers={setSuppliers}
                 selectedSupplier={selectedSupplier}
                 setSelectedSupplier={setSelectedSupplier}
                 supplierSearch={supplierSearch}
@@ -1108,6 +1192,7 @@ const ImportPage = () => {
                 onClose={() => setOpenDialog(false)} 
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
+                unit={defaultUnit}
             />
 
             {/* Category Dialog */}
@@ -1170,8 +1255,16 @@ const ImportPage = () => {
                                                     ${selectedCategoryProducts.includes(product.id) ? 'bg-green-100/60 border border-green-400 text-green-900 font-bold shadow' : ''}
                                                 `}
                                             >
-                                                <span className="font-medium text-base">{product.name || product.productName}</span>
-                                                <div className="text-xs text-gray-400 ml-2">quả</div>
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <span className="font-bold text-base text-gray-900 truncate">{product.name || product.productName}</span>
+                                                    <span className="flex items-center gap-1 text-xs font-semibold text-blue-700">
+                                                        <span className="truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                    </span>
+                                                    {product.productDescription && (
+                                                        <span className="text-xs text-gray-500 italic truncate">{product.productDescription}</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-400 ml-2">{defaultUnit}</div>
                                             </div>
                                         ))
                                     ) : (
@@ -1188,10 +1281,38 @@ const ImportPage = () => {
                     </div>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseCategoryDialog} color="primary">
+                    <Button 
+                        onClick={handleCloseCategoryDialog} 
+                        color="primary"
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
                         Đóng
                     </Button>
-                    <Button onClick={handleAddSelectedProducts} color="success" variant="contained" disabled={selectedCategoryProducts.length === 0}>
+                    <Button 
+                        onClick={handleAddSelectedProducts} 
+                        variant="contained" 
+                        disabled={selectedCategoryProducts.length === 0}
+                        sx={{
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            '&:disabled': {
+                                background: '#ccc',
+                                boxShadow: 'none',
+                                transform: 'none'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
                         Thêm ({selectedCategoryProducts.length})
                     </Button>
                 </DialogActions>

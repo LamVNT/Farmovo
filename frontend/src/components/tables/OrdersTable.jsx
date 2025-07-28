@@ -1,10 +1,10 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { IconButton, TextField } from "@mui/material";
+import {DataGrid} from "@mui/x-data-grid";
+import {IconButton, TextField} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState, useMemo } from "react";
+import {useState, useMemo} from "react";
 
-const OrdersTable = ({ orders }) => {
+const OrdersTable = ({orders}) => {
     const [searchOrder, setSearchOrder] = useState("");
 
     const filteredOrders = useMemo(() =>
@@ -13,11 +13,11 @@ const OrdersTable = ({ orders }) => {
         ), [searchOrder, orders]);
 
     const orderColumns = [
-        { field: 'product', headerName: 'Order Id', flex: 1 },
-        { field: 'customer', headerName: 'Customer', flex: 1 },
-        { field: 'category', headerName: 'Category', flex: 1 },
-        { field: 'price', headerName: 'Price', flex: 1, type: 'number' },
-        { field: 'created', headerName: 'Created', flex: 1 },
+        {field: 'product', headerName: 'Order Id', flex: 1},
+        {field: 'customer', headerName: 'Customer', flex: 1},
+        {field: 'category', headerName: 'Category', flex: 1},
+        {field: 'price', headerName: 'Price', flex: 1, type: 'number'},
+        {field: 'created', headerName: 'Created', flex: 1},
         {
             field: 'status',
             headerName: 'Status',
@@ -31,7 +31,7 @@ const OrdersTable = ({ orders }) => {
                         : 'text-red-600';
                 return (
                     <div className={`flex items-center gap-2 font-medium ${textColor}`}>
-                        <span className={`w-3 h-3 rounded-full ${colorDot}`} />
+                        <span className={`w-3 h-3 rounded-full ${colorDot}`}/>
                         <span>{params.value}</span>
                     </div>
                 );
@@ -44,8 +44,9 @@ const OrdersTable = ({ orders }) => {
             sortable: false,
             renderCell: (params) => (
                 <>
-                    <IconButton onClick={() => alert("Edit row " + params.id)}><EditIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => alert("Delete row " + params.id)}><DeleteIcon color="error" /></IconButton>
+                    <IconButton onClick={() => alert("Edit row " + params.id)}><EditIcon color="primary"/></IconButton>
+                    <IconButton onClick={() => alert("Delete row " + params.id)}><DeleteIcon
+                        color="error"/></IconButton>
                 </>
             )
         }
@@ -62,7 +63,7 @@ const OrdersTable = ({ orders }) => {
                     onChange={(e) => setSearchOrder(e.target.value)}
                 />
             </div>
-            <div style={{ height: 400 }}>
+            <div style={{height: 400}}>
                 <DataGrid
                     rows={filteredOrders}
                     columns={orderColumns}

@@ -101,7 +101,31 @@ export const useSaleTransaction = () => {
     }, []);
 
     // Handle product selection
-    const handleSelectProduct = useCallback(async (product) => {
+    const handleSelectProduct = useCallback(async (product, options = {}) => {
+        // Nếu gọi từ AddSalePage (chọn lô), thêm luôn vào bảng, không bật dialog
+        if (options.directAdd) {
+            // Tạo object sản phẩm từ batch
+            const newItem = {
+                id: product.id, // id của importtransactiondetail (batch)
+                name: product.name,
+                unit: product.unit || 'quả',
+                price: product.price,
+                quantity: product.quantity || 1,
+                total: (product.price || 0) * (product.quantity || 1),
+                productId: product.proId,
+                remainQuantity: product.remainQuantity,
+                unitSalePrice: product.price,
+                batchId: product.id,
+                productCode: product.productCode,
+                categoryName: product.categoryName,
+                storeName: product.storeName,
+                createAt: product.createAt,
+            };
+            setSelectedProducts(prev => [...prev, newItem]);
+            setError(null);
+            return;
+        }
+        // Nếu gọi từ dialog Thêm sản phẩm thì vẫn giữ logic cũ
         setSelectedProduct(product);
         try {
             const batches = await saleTransactionService.getBatchesByProductId(product.proId);
@@ -432,6 +456,7 @@ export const useSaleTransaction = () => {
         setShowSummaryDialog,
         setSummaryData,
         setPendingAction,
+        setSelectedProducts, // thêm dòng này để export
         
         // Handlers
         handleSelectProduct,

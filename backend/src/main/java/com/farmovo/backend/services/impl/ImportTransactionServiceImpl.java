@@ -444,8 +444,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             LocalDateTime createdAt = transaction.getCreatedAt();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String formattedTime = createdAt.format(timeFormatter);
-            String formattedDate = createdAt.format(dateFormatter);
+            String formattedTime = createdAt != null ? createdAt.format(timeFormatter) : "";
+            String formattedDate = createdAt != null ? createdAt.format(dateFormatter) : "";
 
             // ===== Tiêu đề & ngày giờ =====
             PdfPTable headerTable = new PdfPTable(2);
@@ -453,7 +453,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             headerTable.setWidths(new float[]{2f, 1f});
             headerTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
-            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU NHẬP HÀNG " + transaction.getName(), new Font(baseFont, 14, Font.BOLD)));
+            PdfPCell titleCell = new PdfPCell(new Phrase("CHI TIẾT PHIẾU NHẬP HÀNG " + safe(transaction.getName()), new Font(baseFont, 14, Font.BOLD)));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
@@ -482,16 +482,26 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             PdfPCell storeCell = new PdfPCell();
             storeCell.setBorder(Rectangle.NO_BORDER);
             storeCell.addElement(new Paragraph("Kho nhập", boldFont));
-            storeCell.addElement(new Paragraph("Tên kho: " + safe(transaction.getStore().getStoreName()), normalFont));
-            storeCell.addElement(new Paragraph("Người tạo: " + safe(getStaff(transaction.getCreatedBy()).getFullName()), normalFont));
-            storeCell.addElement(new Paragraph("Địa chỉ kho: " + safe(transaction.getStore().getStoreAddress()), normalFont));
+            storeCell.addElement(new Paragraph("Tên kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreName() : null), normalFont));
+            // Người tạo
+            String nguoiTao = "Chưa có";
+            try {
+                if (transaction.getCreatedBy() != null) {
+                    User staff = userRepository.findById(transaction.getCreatedBy()).orElse(null);
+                    nguoiTao = staff != null && staff.getFullName() != null ? staff.getFullName() : "Chưa có";
+                }
+            } catch (Exception e) {
+                nguoiTao = "Chưa có";
+            }
+            storeCell.addElement(new Paragraph("Người tạo: " + nguoiTao, normalFont));
+            storeCell.addElement(new Paragraph("Địa chỉ kho: " + safe(transaction.getStore() != null ? transaction.getStore().getStoreAddress() : null), normalFont));
 
             PdfPCell supplierCell = new PdfPCell();
             supplierCell.setBorder(Rectangle.NO_BORDER);
             supplierCell.addElement(new Paragraph("Thông tin nhà cung cấp", boldFont));
-            supplierCell.addElement(new Paragraph("Tên: " + safe(transaction.getSupplier().getName()), normalFont));
-            supplierCell.addElement(new Paragraph("SĐT: " + safe(transaction.getSupplier().getPhone()), normalFont));
-            supplierCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getSupplier().getAddress()), normalFont));
+            supplierCell.addElement(new Paragraph("Tên: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getName() : null), normalFont));
+            supplierCell.addElement(new Paragraph("SĐT: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getPhone() : null), normalFont));
+            supplierCell.addElement(new Paragraph("Địa chỉ: " + safe(transaction.getSupplier() != null ? transaction.getSupplier().getAddress() : null), normalFont));
 
             infoTable.addCell(storeCell);
             infoTable.addCell(supplierCell);
@@ -510,19 +520,17 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             productTable.addCell(getCell("Số lượng", boldFont));
             productTable.addCell(getCell("Thành tiền", boldFont));
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            List<ImportTransactionDetail> detailList = transaction.getDetails();
-
+            List<ImportTransactionDetail> detailList = transaction.getDetails() != null ? transaction.getDetails() : new ArrayList<>();
             int index = 1;
             for (ImportTransactionDetail d : detailList) {
-                BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
+                BigDecimal unitPrice = d.getUnitImportPrice() != null ? d.getUnitImportPrice() : BigDecimal.ZERO;
+                int quantity = d.getImportQuantity();
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
                 productTable.addCell(getCell(String.valueOf(index++), normalFont));
-                productTable.addCell(getCell(safe(d.getProduct().getProductName()), normalFont)); // Tên sản phẩm
-                productTable.addCell(getCell(safe(String.valueOf(d.getProduct().getId())), normalFont)); // Mã
-                productTable.addCell(getCell(formatCurrency(d.getUnitImportPrice()), normalFont));
-                productTable.addCell(getCell(String.valueOf(d.getImportQuantity()), normalFont));
+                productTable.addCell(getCell(safe(d.getProduct() != null ? d.getProduct().getProductName() : null), normalFont)); // Tên sản phẩm
+                productTable.addCell(getCell(safe(d.getProduct() != null ? String.valueOf(d.getProduct().getId()) : null), normalFont)); // Mã
+                productTable.addCell(getCell(formatCurrency(unitPrice), normalFont));
+                productTable.addCell(getCell(String.valueOf(quantity), normalFont));
                 productTable.addCell(getCell(formatCurrency(lineTotal), normalFont));
             }
             document.add(productTable);
@@ -536,9 +544,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             // Cột bên trái: Tổng tiền
             PdfPCell totalCell = new PdfPCell();
             totalCell.setBorder(Rectangle.NO_BORDER);
-            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(transaction.getTotalAmount()), normalFont));
-            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(transaction.getPaidAmount()), blueFont));
-            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(transaction.getTotalAmount().subtract(transaction.getPaidAmount())), redFont));
+            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal remainAmount = totalAmount.subtract(paidAmount);
+            totalCell.addElement(new Paragraph("Tổng tiền hàng: " + formatCurrency(totalAmount), normalFont));
+            totalCell.addElement(new Paragraph("Số tiền đã trả: " + formatCurrency(paidAmount), blueFont));
+            totalCell.addElement(new Paragraph("Còn lại: " + formatCurrency(remainAmount), redFont));
 
             // Cột bên phải: Ghi chú
             PdfPCell noteCell = new PdfPCell();
@@ -551,7 +562,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             summaryTable.addCell(totalCell);
             summaryTable.addCell(noteCell);
             document.add(summaryTable);
-
 
             // ===== Chữ ký =====
             document.add(new Paragraph(" ")); // khoảng trắng
@@ -575,7 +585,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             signTable.addCell(rightSignCell);
 
             document.add(signTable);
-
 
             document.close();
             return out.toByteArray();

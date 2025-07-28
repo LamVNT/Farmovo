@@ -100,6 +100,7 @@ public class UserServiceImpl implements UserService {
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
                 if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
+                if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());
                 // Cập nhật authorities (roles)
                 if (user.getAuthorities() != null) {
@@ -149,7 +150,7 @@ public class UserServiceImpl implements UserService {
         logger.info("Toggling status for user with id: {}", id);
         return userRepository.findByIdAndDeletedAtIsNull(id).map(user -> {
             Boolean currentStatus = user.getStatus();
-            Boolean newStatus = currentStatus == null ? true : !currentStatus;
+            Boolean newStatus = currentStatus == null || !currentStatus;
             user.setStatus(newStatus);
             logger.info("Status toggled to {} for user id: {}", newStatus, id);
             return userRepository.save(user);
@@ -164,6 +165,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(dto.getPassword());
         user.setStatus(dto.getStatus());
+        user.setEmail(dto.getEmail());
         if (dto.getStoreId() != null) {
             Store store = storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> {
@@ -192,6 +194,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(dto.getPassword());
         user.setStatus(dto.getStatus());
+        user.setEmail(dto.getEmail());
         if (dto.getStoreId() != null) {
             Store store = storeRepository.findById(dto.getStoreId())
                     .orElseThrow(() -> {

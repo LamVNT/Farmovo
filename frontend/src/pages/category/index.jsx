@@ -1,55 +1,37 @@
-// pages/Category/index.jsx
-import React, { useState, useEffect, useMemo } from "react";
-import { Button, TextField } from "@mui/material";
-import { FaPlus } from "react-icons/fa6";
+import React, {useState, useEffect, useMemo} from "react";
+import {Button, TextField} from "@mui/material";
+import {FaPlus} from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
-import { getCategories, createCategory, updateCategory, deleteCategory } from "../../services/categoryService";
+import {getCategories, createCategory, updateCategory, deleteCategory} from "../../services/categoryService";
 import TablePagination from '@mui/material/TablePagination';
+import ConfirmDialog from "../../components/ConfirmDialog";
+import SnackbarAlert from "../../components/SnackbarAlert";
+import useCategory from "../../hooks/useCategory";
 
 const Category = () => {
-    const [categories, setCategories] = useState([]);
+    const {
+        categories,
+        loading,
+        error,
+        handleCreate,
+        handleUpdate,
+        handleDelete,
+    } = useCategory();
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [form, setForm] = useState({ id: null, name: "", description: "" });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    // Xoá các state và logic phân trang ở ngoài
-    // const [page, setPage] = useState(0);
-    // const [rowsPerPage, setRowsPerPage] = useState(5);
-    // const paginatedCategories = useMemo(() =>
-    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    //     [filteredCategories, page, rowsPerPage]
-    // );
-
-    useEffect(() => {
-        const fetch = async () => {
-            try {
-                const data = await getCategories();
-                setCategories(data);
-            } catch (err) {
-                setError("Failed to fetch categories");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetch();
-    }, []);
+    const [form, setForm] = useState({id: null, name: "", description: ""});
+    const [confirmDialog, setConfirmDialog] = useState({isOpen: false, title: "", content: "", onConfirm: null});
+    const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
 
     const filteredCategories = useMemo(() =>
         categories.filter(cat =>
             cat.name.toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, categories]);
 
-    // Xoá các state và logic phân trang ở ngoài
-    // const paginatedCategories = useMemo(() =>
-    //     filteredCategories.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    //     [filteredCategories, page, rowsPerPage]
-    // );
-
     const handleOpenCreate = () => {
-        setForm({ id: null, name: "", description: "" });
+        setForm({id: null, name: "", description: ""});
         setEditMode(false);
         setOpenDialog(true);
     };
@@ -60,31 +42,43 @@ const Category = () => {
         setOpenDialog(true);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this category?")) {
-            try {
-                await deleteCategory(id);
-                setCategories(prev => prev.filter(cat => cat.id !== id));
-            } catch {
-                setError("Failed to delete category");
+    const handleDeleteCategory = (id) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Xác nhận xóa danh mục",
+            content: "Bạn có chắc chắn muốn xóa danh mục này? Hành động này không thể hoàn tác.",
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({...prev, isOpen: false}));
+                try {
+                    await handleDelete(id);
+                    setSnackbar({isOpen: true, message: "Xóa danh mục thành công!", severity: "success"});
+                } catch (err) {
+                    setSnackbar({isOpen: true, message: err.message || "Xóa danh mục thất bại!", severity: "error"});
+                }
             }
-        }
+        });
     };
 
     const handleSubmit = async () => {
-        if (!form.name.trim()) return;
-
+        if (!form.name.trim()) {
+            setSnackbar({isOpen: true, message: "Tên danh mục không được để trống!", severity: "error"});
+            return;
+        }
         try {
             if (editMode) {
-                const updated = await updateCategory(form.id, form);
-                setCategories(prev => prev.map(cat => (cat.id === form.id ? updated : cat)));
+                const updated = await handleUpdate(form.id, form);
+                setSnackbar({isOpen: true, message: "Cập nhật danh mục thành công!", severity: "success"});
             } else {
-                const created = await createCategory(form);
-                setCategories(prev => [...prev, created]);
+                const created = await handleCreate(form);
+                setSnackbar({isOpen: true, message: "Tạo mới danh mục thành công!", severity: "success"});
             }
             setOpenDialog(false);
-        } catch {
-            setError(`Failed to ${editMode ? "update" : "create"} category`);
+        } catch (err) {
+            let msg = err.message || `Danh mục ${editMode ? "cập nhật" : "tạo mới"} thất bại!`;
+            if (msg.includes("Tên danh mục đã tồn tại")) {
+                msg = "Tên danh mục đã tồn tại!";
+            }
+            setSnackbar({isOpen: true, message: msg, severity: "error"});
         }
     };
 
@@ -102,7 +96,7 @@ const Category = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
-                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus />}>
+                    <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
                         Add
                     </Button>
                 </div>
@@ -111,10 +105,8 @@ const Category = () => {
             <CategoryTable
                 rows={filteredCategories}
                 onEdit={handleOpenEdit}
-                onDelete={handleDelete}
+                onDelete={handleDeleteCategory}
             />
-
-            {/* Xoá TablePagination ở ngoài */}
 
             <CategoryFormDialog
                 open={openDialog}
@@ -123,6 +115,21 @@ const Category = () => {
                 setForm={setForm}
                 onSubmit={handleSubmit}
                 editMode={editMode}
+            />
+
+            <ConfirmDialog
+                open={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                content={confirmDialog.content}
+            />
+
+            <SnackbarAlert
+                open={snackbar.isOpen}
+                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                message={snackbar.message}
+                severity={snackbar.severity}
             />
         </div>
     );

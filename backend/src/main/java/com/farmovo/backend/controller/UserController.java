@@ -6,17 +6,17 @@ import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
+import jakarta.validation.Valid;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.springframework.security.core.GrantedAuthority;
 
 @RestController
 @RequestMapping("/api")
@@ -120,6 +120,7 @@ public class UserController {
                 .storeId(user.getStore() != null ? user.getStore().getId() : null) // Thêm dòng này
                 .storeName(user.getStore() != null ? user.getStore().getStoreName() : null)
                 .roles(user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
+                .email(user.getEmail())
                 .build();
     }
 

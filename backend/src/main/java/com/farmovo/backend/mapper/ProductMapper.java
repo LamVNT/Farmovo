@@ -40,8 +40,7 @@ public interface ProductMapper {
 
     List<ProductSaleResponseDto> toDtoProSaleList(List<Product> products);
 
-
-    @Mapping(source = "product.productName", target = "name") // Lấy tên từ Product
+    @Mapping(source = "product.productName", target = "name")
     @Mapping(source = "product.id", target = "proId")
     @Mapping(source = "product.category.categoryName", target = "categoryName")
     @Mapping(source = "product.store.storeName", target = "storeName")
@@ -49,16 +48,16 @@ public interface ProductMapper {
 
 
     @Mapping(source = "id", target = "id")
-    @Mapping(source = "product.productName", target = "productName") // Lấy tên từ Product
-    @Mapping(source = "product.id", target = "productCode") // Sử dụng productId làm productCode
+    @Mapping(source = "product.productName", target = "productName")
+    @Mapping(source = "product.productCode", target = "productCode")
     @Mapping(source = "product.id", target = "proId")
     @Mapping(source = "product.category.categoryName", target = "categoryName")
     @Mapping(source = "product.store.storeName", target = "storeName")
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "unitSalePrice", target = "unitSalePrice")
     @Mapping(source = "createdAt", target = "createAt")
-    @Mapping(source = "expireDate", target = "expireDate") // Thêm dòng này
-    @Mapping(source = "name", target = "name") // mapping mã lô hàng LH000000
+    @Mapping(source = "expireDate", target = "expireDate")
+    @Mapping(source = "name", target = "name")
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
 
 }
