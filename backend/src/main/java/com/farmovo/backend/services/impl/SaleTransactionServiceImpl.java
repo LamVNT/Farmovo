@@ -15,6 +15,7 @@ import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.SaleTransactionService;
+import com.farmovo.backend.specification.SaleTransactionSpecification;
 import com.farmovo.backend.validator.SaleTransactionValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,6 +31,10 @@ import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,72 +90,26 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         saleTransactionValidator.validate(dto);
 
         SaleTransaction transaction = new SaleTransaction();
-        transaction.setTotalAmount(dto.getTotalAmount());
-        transaction.setPaidAmount(dto.getPaidAmount());
-        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
-        transaction.setSaleDate(dto.getSaleDate());
-        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
-        transaction.setCreatedBy(userId);
+        mapDtoToTransaction(transaction, dto, userId);
 
         // Sinh mã name tự động
-        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
-                .map(SaleTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PB%06d", lastId + 1); // hoặc PX%06d nếu bạn muốn
+        String newName = generateTransactionCode();
         transaction.setName(newName);
         log.debug("Generated sale transaction code: {}", newName);
-
-        // Lưu chi tiết dưới dạng JSON string
-        try {
-            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
-            transaction.setDetail(jsonDetail);
-            log.debug("Transaction details serialized to JSON successfully");
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize transaction details to JSON", e);
-            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
-        }
-
-        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> {
-                    log.error("Customer not found with ID: {}", dto.getCustomerId());
-                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
-                }));
-        transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> {
-                    log.error("Store not found with ID: {}", dto.getStoreId());
-                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
-                }));
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
         }
 
-        saleTransactionRepository.save(transaction);
-
-        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
-            BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-            BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-            BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
-            if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-                String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-                BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
-                debtNoteService.createDebtNoteFromTransaction(
-                        transaction.getCustomer().getId(),
-                        debtAmount,
-                        "SALE",
-                        debtType,
-                        transaction.getId(),
-                        transaction.getStore().getId()
-                );
-                log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
-            }
-        }
-
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
-    }
 
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Handling debt note for completed transaction");
+            handleCompleteStatus(savedTransaction);
+        }
+    }
 
     @Override
     @Transactional
@@ -171,39 +130,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "cập nhật");
         }
 
-        transaction.setTotalAmount(dto.getTotalAmount());
-        transaction.setPaidAmount(dto.getPaidAmount());
-        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
-        transaction.setSaleDate(dto.getSaleDate());
-        transaction.setStatus(dto.getStatus());
-
-
-        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
-                .map(SaleTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PB%06d", lastId + 1);
-        transaction.setName(newName);
-
-
-        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> {
-                    log.error("Customer not found with ID: {}", dto.getCustomerId());
-                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
-                }));
-        transaction.setStore(storeRepository.findById(dto.getStoreId())
-                .orElseThrow(() -> {
-                    log.error("Store not found with ID: {}", dto.getStoreId());
-                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
-                }));
-
-        try {
-            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
-            transaction.setDetail(jsonDetail);
-            log.debug("Updated transaction details serialized to JSON successfully");
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize updated transaction details to JSON", e);
-            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
-        }
+        mapDtoToTransaction(transaction, dto, null); // Không update createdBy khi update
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Updated transaction status is COMPLETE, deducting stock from batches");
@@ -212,6 +139,11 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         saleTransactionRepository.save(transaction);
         log.info("Sale transaction with ID: {} updated successfully", id);
+
+        if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
+            log.info("Handling debt note for completed transaction");
+            handleCompleteStatus(transaction);
+        }
     }
 
     private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
@@ -250,9 +182,39 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
 
     @Override
-    public List<SaleTransactionResponseDto> getAll() {
-        List<SaleTransaction> entities = saleTransactionRepository.findAllSaleActive();
-        return saleTransactionMapper.toResponseDtoList(entities, objectMapper);
+    public Page<SaleTransactionResponseDto> getAll(String name,
+                                                   String customerName,
+                                                   String storeName,
+                                                   SaleTransactionStatus status,
+                                                   LocalDateTime fromDate,
+                                                   LocalDateTime toDate,
+                                                   BigDecimal minTotalAmount,
+                                                   BigDecimal maxTotalAmount,
+                                                   BigDecimal minPaidAmount,
+                                                   BigDecimal maxPaidAmount,
+                                                   String note,
+                                                   Long createdBy,
+                                                   Pageable pageable) {
+        Specification<SaleTransaction> spec = Specification.allOf(
+                SaleTransactionSpecification.isNotDeleted(),
+                SaleTransactionSpecification.hasName(name),
+                SaleTransactionSpecification.hasCustomerName(customerName),
+                SaleTransactionSpecification.hasStoreName(storeName),
+                SaleTransactionSpecification.hasStatus(status),
+                SaleTransactionSpecification.hasSaleDateBetween(fromDate, toDate),
+                SaleTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount),
+                SaleTransactionSpecification.hasPaidAmountBetween(minPaidAmount, maxPaidAmount),
+                SaleTransactionSpecification.hasNote(note),
+                SaleTransactionSpecification.hasCreatedBy(createdBy)
+        );
+
+        Page<SaleTransaction> entityPage = saleTransactionRepository.findAll(spec, pageable);
+
+        List<SaleTransactionResponseDto> dtoList = entityPage.getContent().stream()
+                .map(entity -> saleTransactionMapper.toResponseDto(entity, objectMapper))
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
     @Override
@@ -260,32 +222,16 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
             .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
-        transaction.setStatus(com.farmovo.backend.models.SaleTransactionStatus.COMPLETE);
+        transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
-
-        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
-        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
-            BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getCustomer().getId(),
-                    debtAmount,
-                    "SALE",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
-            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
-        }
+        handleCompleteStatus(transaction);
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void cancel(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
-                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("ImportTransaction not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
         transaction.setStatus(SaleTransactionStatus.CANCEL);
         // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
         saleTransactionRepository.save(transaction);
@@ -324,7 +270,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         log.debug("Retrieved sale transaction with ID: {}", id);
         return result;
     }
-
 
 
     @Override
@@ -548,5 +493,61 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                     log.warn("Staff not found with ID: {}", id);
                     return new com.farmovo.backend.exceptions.ResourceNotFoundException("Staff not found with ID: " + id);
                 });
+    }
+
+    private String generateTransactionCode() {
+        Long lastId = saleTransactionRepository.findTopByOrderByIdDesc()
+                .map(SaleTransaction::getId)
+                .orElse(0L);
+        return String.format("PB%06d", lastId + 1);
+    }
+
+
+    private void mapDtoToTransaction(SaleTransaction transaction, CreateSaleTransactionRequestDto dto, Long userId) {
+        transaction.setTotalAmount(dto.getTotalAmount());
+        transaction.setPaidAmount(dto.getPaidAmount());
+        transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
+        transaction.setSaleDate(dto.getSaleDate());
+        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
+        if (userId != null) {
+            transaction.setCreatedBy(userId);
+        }
+        try {
+            String jsonDetail = objectMapper.writeValueAsString(dto.getDetail());
+            transaction.setDetail(jsonDetail);
+            log.debug("Transaction details serialized to JSON successfully");
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize transaction details to JSON", e);
+            throw new BadRequestException("Không thể chuyển danh sách sản phẩm sang JSON.");
+        }
+        transaction.setCustomer(customerRepository.findById(dto.getCustomerId())
+                .orElseThrow(() -> {
+                    log.error("Customer not found with ID: {}", dto.getCustomerId());
+                    return new CustomerNotFoundException("Customer not found with ID: " + dto.getCustomerId());
+                }));
+        transaction.setStore(storeRepository.findById(dto.getStoreId())
+                .orElseThrow(() -> {
+                    log.error("Store not found with ID: {}", dto.getStoreId());
+                    return new StoreNotFoundException("Store not found with ID: " + dto.getStoreId());
+                }));
+    }
+
+    private void handleCompleteStatus(SaleTransaction transaction) {
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) < 0 ? "-" : "+";
+            BigDecimal debtAmount = rawDebtAmount.abs();  // Đã có, giữ luôn dương
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getCustomer().getId(),
+                    debtAmount,
+                    "SALE",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
+        }
     }
 }

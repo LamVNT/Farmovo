@@ -11,6 +11,7 @@ import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
+import com.farmovo.backend.models.SaleTransactionStatus;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.ProductRepository;
@@ -20,12 +21,19 @@ import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -128,14 +136,30 @@ public class SaleTransactionController {
     }
 
     @GetMapping("/list-all")
-    public ResponseEntity<List<SaleTransactionResponseDto>> listAllSaleTransactions() {
-        log.info("Getting all sale transactions");
-
-        List<SaleTransactionResponseDto> transactions = saleTransactionService.getAll();
-
-        log.debug("Retrieved {} sale transactions", transactions.size());
-        return ResponseEntity.ok(transactions);
+    public ResponseEntity<PageResponse<SaleTransactionResponseDto>> listAllSaleTransactions(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String storeName,
+            @RequestParam(required = false) SaleTransactionStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) BigDecimal minTotalAmount,
+            @RequestParam(required = false) BigDecimal maxTotalAmount,
+            @RequestParam(required = false) BigDecimal minPaidAmount,
+            @RequestParam(required = false) BigDecimal maxPaidAmount,
+            @RequestParam(required = false) String note,
+            @RequestParam(required = false) Long createdBy,
+            @PageableDefault(page = 0, size = 20, sort = "saleDate", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<SaleTransactionResponseDto> result = saleTransactionService.getAll(
+                name, customerName, storeName, status, fromDate,
+                toDate, minTotalAmount, maxTotalAmount, minPaidAmount,
+                maxPaidAmount, note, createdBy, pageable
+        );
+        return ResponseEntity.ok(PageResponse.fromPage(result));
     }
+
+
 
     @GetMapping("/{id}")
     public ResponseEntity<SaleTransactionResponseDto> getSaleTransactionById(@PathVariable Long id) {

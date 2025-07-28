@@ -7,43 +7,110 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
+skinparam actorBackgroundColor #FFD700
 
-title Get StocktakeDetail - Sequence Diagram
+title Get Stocktake Detail - Sequence Diagram
 
 actor Staff
-participant "StockTake Page" as UI
+participant ":StockTake Page" as UI
+participant ":Create StockTake Page" as CSUI
+participant ":Stocktake Detail Page" as DUI
 participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
 participant ":StocktakeRepository" as CR
+participant ":ProductRepository" as PR
+participant ":ZoneRepository" as ZR
 participant ":StocktakeMapper" as CM
-database "Database" as DB
 
-Staff -> UI : Yêu cầu xem chi tiết kiểm kê
-UI -> CC : GET /api/stocktakes/{id}/details
+Staff -> UI: Chọn kiểm kê, nhấn "Xem chi tiết"
+activate Staff
+activate UI
+UI -> CC: GET /api/stocktakes/{id}
 activate CC
-CC -> CS : getStocktakeDetails(id)
+CC -> CS: getStocktake(id)
 activate CS
-CS -> CR : findById(id)
+CS -> CR: findById(id): Optional<Stocktake>
 activate CR
-CR -> DB : SELECT * FROM stocktakes WHERE id = ?
-DB --> CR : return Stocktake or null
-CR --> CS : return Optional<Stocktake>
+CR --> CS: return Optional<Stocktake>
 deactivate CR
 alt Stocktake Not Found
-    CS -> CS : throw new StocktakeNotFoundException(...)
-    CS --> CC : return StocktakeNotFoundException
-    CC --> UI : return 404 Not Found {error message}
-    UI --> Staff : return error
+    CS --> CC: throw StocktakeNotFoundException
+    CC --> UI: return 404 Not Found {error message}
+    UI --> Staff: Hiển thị lỗi
+    deactivate CS
+    deactivate CC
+    deactivate UI
 else Stocktake Found
-    CS -> CS : get detail (JSON)
-    CS -> CM : toDetailDto(detail)
+    CS -> CM: toResponseDto(stocktake)
     activate CM
-    CM --> CS : return List<StocktakeDetailDto>
+    CM --> CS: return StocktakeResponseDto
     deactivate CM
-    CS --> CC : return List<StocktakeDetailDto>
-    CC --> UI : return 200 OK List<StocktakeDetailDto>
-    UI --> Staff : return List<StocktakeDetailDto>
+    CS --> CC: return StocktakeResponseDto
+    deactivate CS
+    CC --> UI: return 200 OK StocktakeResponseDto
+    deactivate CC
+    alt Status is DRAFT
+        UI -> CSUI: Chuyển đến Create StockTake Page với dữ liệu
+        deactivate UI
+        activate CSUI
+        CSUI -> CS: fetchProducts(storeId)
+        activate CS
+        CS -> PR: fetchProducts(storeId): List<ProductDTO>
+        activate PR
+        PR --> CS: return List<ProductDTO>
+        deactivate PR
+        CS --> CSUI: return List<ProductDTO>
+        deactivate CS
+        CSUI -> CS: fetchZones(storeId)
+        activate CS
+        CS -> ZR: fetchZones(storeId): List<ZoneDTO>
+        activate ZR
+        ZR --> CS: return List<ZoneDTO>
+        deactivate ZR
+        CS --> CSUI: return List<ZoneDTO>
+        deactivate CS
+        CSUI -> Staff: Hiển thị form chỉnh sửa với dữ liệu kiểm kê, Products, Zones
+    else Status is COMPLETED or CANCELLED
+        UI -> CC: GET /api/stocktakes/{id}/details
+        activate CC
+        CC -> CS: getStocktakeDetails(id)
+        activate CS
+        CS -> CR: findById(id): Optional<Stocktake>
+        activate CR
+        CR --> CS: return Optional<Stocktake>
+        deactivate CR
+        alt Stocktake Not Found
+            CS --> CC: throw StocktakeNotFoundException
+            CC --> UI: return 404 Not Found {error message}
+            UI --> Staff: Hiển thị lỗi
+        else Stocktake Found
+            CS -> CS: get detail (JSON)
+            CS -> CM: toDetailDto(detail)
+            activate CM
+            CM --> CS: return List<StocktakeDetailDto>
+            deactivate CM
+            CS --> CC: return List<StocktakeDetailDto>
+            deactivate CS
+            CC --> UI: return 200 OK List<StocktakeDetailDto>
+            deactivate CC
+            UI -> DUI: Chuyển đến Stocktake Detail Page
+            deactivate UI
+            activate DUI
+            DUI -> Staff: Hiển thị chi tiết kiểm kê (chỉ đọc)
+        end
+    end
 end
-deactivate CS
-deactivate CC
-@enduml 
+
+deactivate DUI
+deactivate CSUI
+deactivate Staff
+
+note right of CSUI
+    StocktakeResponseDto contains: id, stocktakeDate, detail, note, storeId, status
+    status: DRAFT, COMPLETED, CANCELLED
+end note
+note right of DUI
+    StocktakeDetailDto contains: detailed data (read-only)
+end note
+
+@enduml

@@ -7,11 +7,13 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
+skinparam actorBackgroundColor #FFD700
 
 title Create StockTake - Sequence Diagram
 
 actor Staff
-participant "StockTake Page" as UI
+participant ":StockTake Page" as UI
+participant ":Create StockTake Page" as CSUI
 participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
 participant ":ProductRepository" as PR
@@ -19,51 +21,86 @@ participant ":ZoneRepository" as ZR
 participant ":StocktakeValidator" as CV
 participant ":StocktakeMapper" as CM
 participant ":StocktakeRepository" as CR
-database "Database" as DB
 
-Staff -> UI : Nhập thông tin kiểm kê, nhấn 'Tạo kiểm kê'
-UI -> PR : fetchProducts(storeId)
-PR -> DB : SELECT * FROM products WHERE store_id=?
-DB --> PR : return List<Product>
-PR --> UI : return List<Product>
-UI -> ZR : fetchZones(storeId)
-ZR -> DB : SELECT * FROM zones WHERE store_id=?
-DB --> ZR : return List<Zone>
-ZR --> UI : return List<Zone>
-UI -> CC : POST /api/stocktakes {stocktakeDate, detail, note, storeId}
-activate CC
+' Bước ban đầu: Staff truy cập StockTake Page và nhấn nút Create
+Staff -> UI: Truy cập StockTake Page
+activate Staff
+activate UI
+Staff -> UI: Nhấn "Create new StockTake"
+UI -> CSUI: Chuyển đến Create StockTake Page
+deactivate UI
+activate CSUI
 
-CC -> CV : validate(requestDto)
-activate CV
-CV -> CV : validate fields
-CV --> CC : return validation result
-deactivate CV
+' Create StockTake Page lấy dữ liệu
+CSUI -> CS: fetchProducts(storeId)
+activate CS
+CS -> PR: fetchProducts(storeId): List<ProductDTO>
+activate PR
+PR --> CS: return List<ProductDTO>
+deactivate PR
+CS --> CSUI: return List<ProductDTO>
+deactivate CS
+CSUI -> CS: fetchZones(storeId)
+activate CS
+CS -> ZR: fetchZones(storeId): List<ZoneDTO>
+activate ZR
+ZR --> CS: return List<ZoneDTO>
+deactivate ZR
+CS --> CSUI: return List<ZoneDTO>
+deactivate CS
+CSUI -> Staff: Hiển thị form với danh sách Products và Zones
 
-alt Validation Failed
-    CC --> UI : return 400 Bad Request {error message}
-    UI --> Staff : return error
-else Validation Passed
-    CC -> CS : createStockTake(requestDto)
-    activate CS
-    CS -> CM : toEntity(requestDto)
-    activate CM
-    CM --> CS : return Stocktake entity
-    deactivate CM
-    CS -> CR : save(stocktake)
-    activate CR
-    CR -> DB : INSERT INTO stocktakes
-    DB --> CR : return saved stocktake
-    CR --> CS : return Stocktake entity
-    deactivate CR
-    CS -> CM : toResponseDto(stocktake)
-    activate CM
-    CM --> CS : return StocktakeResponseDto
-    deactivate CM
-    CS --> CC : return StocktakeResponseDto
-    deactivate CS
-    CC --> UI : return 200 OK StocktakeResponseDto
-    UI --> Staff : return StocktakeResponseDto
+' Staff nhập thông tin và chọn Draft hoặc Hoàn thành
+alt Nhấn "Draft" hoặc "Hoàn thành"
+    Staff -> CSUI: Nhập thông tin, nhấn "Draft" hoặc "Hoàn thành"
+    CSUI -> CC: POST /api/stocktakes {requestDto, status=DRAFT|COMPLETED}
+    activate CC
+    CC -> CV: validate(stocktakeDate, detail, note, storeId, status)
+    activate CV
+    CV --> CC: return validation result
+    deactivate CV
+    alt Validation Failed
+        CC --> CSUI: return 400 Bad Request {error message}
+        CSUI --> Staff: Hiển thị lỗi
+    else Validation Passed
+        CC -> CS: createStockTake(requestDto, status)
+        activate CS
+        CS -> CM: toEntity(requestDto, status) «create»
+        activate CM
+        CM --> CS: return Stocktake entity
+        deactivate CM
+        CS -> CR: save(stocktake)
+        activate CR
+        alt Save Failed
+            CR --> CS: throw SaveException
+            CS --> CC: return 500 Internal Server Error
+            CC --> CSUI: return 500 Internal Server Error
+            CSUI --> Staff: Hiển thị lỗi
+        else Save Success
+            CR --> CS: return Stocktake entity
+            deactivate CR
+            CS -> CM: toResponseDto(stocktake)
+            activate CM
+            CM --> CS: return StocktakeResponseDto
+            deactivate CM
+            CS --> CC: return StocktakeResponseDto
+            deactivate CS
+            CC --> CSUI: return 200 OK StocktakeResponseDto
+            CSUI --> UI: Chuyển về StockTake Page với StocktakeResponseDto
+            deactivate CSUI
+            activate UI
+            UI --> Staff: Hiển thị kiểm kê với trạng thái DRAFT hoặc COMPLETED
+        end
+    end
+    deactivate CC
 end
 
-deactivate CC
-@enduml 
+deactivate UI
+deactivate Staff
+
+note right of CSUI
+    requestDto contains: stocktakeDate, detail, note, storeId, status
+    status: DRAFT, COMPLETED
+end note
+
+@enduml

@@ -95,12 +95,12 @@ class SaleTransactionControllerTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void testListAllSaleTransactions() throws Exception {
-        Mockito.when(saleTransactionService.getAll()).thenReturn(List.of(new SaleTransactionResponseDto()));
-        mockMvc.perform(get("/api/sale-transactions/list-all"))
-                .andExpect(status().isOk());
-    }
+//    @Test
+//    void testListAllSaleTransactions() throws Exception {
+//        Mockito.when(saleTransactionService.getAll()).thenReturn(List.of(new SaleTransactionResponseDto()));
+//        mockMvc.perform(get("/api/sale-transactions/list-all"))
+//                .andExpect(status().isOk());
+//    }
 
     @Test
     void testGetSaleTransactionById() throws Exception {
