@@ -4,10 +4,10 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } 
 const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError,zoneDescriptionError }) => {
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{editMode ? "Edit Zone" : "Add Zone"}</DialogTitle>
+            <DialogTitle>{editMode ? "Sửa khu vực" : "Thêm khu vực"}</DialogTitle>
             <DialogContent className="flex flex-col gap-4 mt-2">
                 <TextField
-                    label="Zone Name"
+                    label="Tên khu vực"
                     value={form.zoneName}
                     onChange={(e) => setForm({ ...form, zoneName: e.target.value })}
                     required
@@ -15,7 +15,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                     helperText={zoneNameError}
                 />
                 <TextField
-                    label="Zone Description"
+                    label="Mô tả khu vực"
                     value={form.zoneDescription}
                     onChange={(e) => setForm({ ...form, zoneDescription: e.target.value })}
                     error={Boolean(zoneDescriptionError)}
@@ -25,9 +25,9 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                 />
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={onClose}>Hủy</Button>
                 <Button variant="contained" onClick={onSubmit}>
-                    {editMode ? "Update" : "Create"}
+                    {editMode ? "Cập nhật" : "Tạo mới"}
                 </Button>
             </DialogActions>
         </Dialog>

@@ -39,9 +39,9 @@ const ZoneTable = ({
                 <TableHead>
                     <TableRow>
                         <TableCell>ID</TableCell>
-                        <TableCell>Zone Name</TableCell>
-                        <TableCell>Zone Description</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                        <TableCell>Tên khu vực</TableCell>
+                        <TableCell>Mô tả khu vực</TableCell>
+                        <TableCell align="right">Hành động</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -58,10 +58,10 @@ const ZoneTable = ({
                             <TableCell>{zone.zoneDescription}</TableCell>
                             <TableCell align="right">
                                 <Button size="small" onClick={() => onEdit(zone)}>
-                                    Edit
+                                    Sửa
                                 </Button>
                                 <Button size="small" color="error" onClick={() => onDelete(zone)}>
-                                    Delete
+                                    Xóa
                                 </Button>
                             </TableCell>
                         </TableRow>

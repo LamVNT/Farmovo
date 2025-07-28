@@ -75,23 +75,23 @@ const Zone = () => {
         setZoneNameError(""); // Reset lỗi
 
         if (!form.zoneName.trim()) {
-            setZoneNameError("Zone name is required");
+            setZoneNameError("Tên kho không được để trống");
             return;
         }
         if (form.zoneName.length > 100) {
-            setZoneNameError("Zone name cannot > 100 characters");
+            setZoneNameError("Tên kho không vượt quá 100 kí tự");
             return;
         }
         // Kiểm tra zoneDescription có vượt quá 1000 ký tự không
         if (form.zoneDescription && form.zoneDescription.length > 1000) {
-            setZoneDescriptionError("Zone description cannot be > 1000 characters");
+            setZoneDescriptionError("Mô tả khu vực khôgn vượt quá 1000 kí tự");
             return;
         }
         const isDuplicate = zones.some(z =>
             z.zoneName === form.zoneName && z.id !== form.id
         );
         if (isDuplicate) {
-            setZoneNameError("Zone name is existed");
+            setZoneNameError("Tên khu vực đã tồn tại trong kho");
             return;
         }
 
