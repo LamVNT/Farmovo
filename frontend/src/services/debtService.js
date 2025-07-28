@@ -2,41 +2,22 @@ import axios from "axios";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/debt/admin`;
 
-export const getDebtNotesByCustomerId = async (customerId, page = 0, size = 10) => {
-    console.log(`Fetching debt notes for customer ID: ${customerId}, page: ${page}, size: ${size}`);
+export const getDebtNotesByCustomerId = async (customerId, page = 0, size = 10, filters = {}) => {
+    console.log(`Fetching debt notes for customer ID: ${customerId}, page: ${page}, size: ${size}`, filters);
     try {
-        const response = await axios.get(`${API_URL}/list-all`, {
-            params: { 
-                customerId: customerId,
-                page: page,
-                size: size,
-                sort: "debtDate,desc"
-            },
+        const params = { page, size, ...filters };
+        const response = await axios.get(`${API_URL}/customer/${customerId}/debt-notes`, {
+            params,
             withCredentials: true,
         });
-        // Trả về cả content, totalPages, totalItems
-        return response.data;
+        const data = response.data;
+        // Chuẩn hoá tên trường để frontend cũ vẫn dùng được
+        if (data && data.totalElements !== undefined && data.totalItems === undefined) {
+            data.totalItems = data.totalElements;
+        }
+        return data;
     } catch (error) {
         console.error(`Error fetching debt notes for customer ID: ${customerId}`, {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data,
-        });
-        throw error;
-    }
-};
-
-export const listAllDebtNotes = async (params) => {
-    console.log("Listing debt notes with params:", params);
-    try {
-        const response = await axios.get(`${API_URL}/list-all`, {
-            params: params,
-            withCredentials: true,
-        });
-        console.log("List response:", response.data);
-        return response.data;
-    } catch (error) {
-        console.error("Error listing debt notes:", {
             message: error.message,
             status: error.response?.status,
             data: error.response?.data,

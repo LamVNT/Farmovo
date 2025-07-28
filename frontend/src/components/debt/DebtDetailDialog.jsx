@@ -52,7 +52,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
             // Chuyển sang trang chi tiết sale transaction
             console.log('Navigating to sale transaction:', sourceId);
             navigate(`/sale/${sourceId}`);
-        } else if (fromSource === 'PURCHASE') {
+        } else if (fromSource === 'IMPORT' || fromSource === 'PURCHASE') {
             // Chuyển sang trang chi tiết import transaction
             console.log('Navigating to import transaction:', sourceId);
             navigate(`/import/${sourceId}`);
@@ -89,7 +89,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
 
     // Kiểm tra xem có thể click vào sourceId không
     const canClickSourceId = debtNote.sourceId && debtNote.fromSource && 
-        (debtNote.fromSource === 'SALE' || debtNote.fromSource === 'PURCHASE');
+        (debtNote.fromSource === 'SALE' || debtNote.fromSource === 'PURCHASE' || debtNote.fromSource === 'IMPORT');
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

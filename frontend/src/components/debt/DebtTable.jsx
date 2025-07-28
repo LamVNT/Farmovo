@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
     Dialog,
     DialogTitle,
@@ -19,8 +21,10 @@ import SearchIcon from '@mui/icons-material/Search';
 import AddDebtDialog from "./AddDebtDialog";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
-const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, addDebtDialogProps, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange }) => {
+const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
     const [search, setSearch] = useState("");
+    const [localFromDate, setLocalFromDate] = useState(fromDate);
+    const [localToDate, setLocalToDate] = useState(toDate);
     const handleSearchChange = (e) => {
         setSearch(e.target.value);
     };
@@ -72,7 +76,6 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                             onClose={onAddDialogClose}
                             customerId={customer.id}
                             onAdd={onAddDebtNote}
-                            {...addDebtDialogProps}
                         />
                     </>
                 )}
@@ -91,6 +94,26 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                         ),
                     }}
                 />
+
+                {/* Date range filter */}
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                        <DatePicker
+                            label="Từ ngày"
+                            value={localFromDate}
+                            onChange={(newVal) => setLocalFromDate(newVal)}
+                            slotProps={{ textField: { size: 'small' } }}
+                        />
+                        <DatePicker
+                            label="Đến ngày"
+                            value={localToDate}
+                            onChange={(newVal) => setLocalToDate(newVal)}
+                            slotProps={{ textField: { size: 'small' } }}
+                        />
+                        <Button variant="outlined" onClick={() => onDateFilterChange(localFromDate, localToDate)}>Lọc</Button>
+                        <Button variant="text" onClick={() => { setLocalFromDate(null); setLocalToDate(null); onDateFilterChange(null, null); }}>Tất cả</Button>
+                    </div>
+                </LocalizationProvider>
                 {/* Bảng giao dịch nợ */}
                 <div style={{ width: '100%', overflowX: 'auto' }}>
                     <Table>

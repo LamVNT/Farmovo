@@ -4,6 +4,7 @@ import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
+import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
 import jakarta.validation.Valid;
@@ -11,12 +12,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api")
@@ -27,19 +29,38 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private UserMapper userMapper;
+
     @GetMapping("/admin/userList")
     public List<UserResponseDto> getAllUsers() {
         logger.info("Fetching all users");
         return userService.getAllUsers().stream()
-                .map(this::convertToResponseDTO)
+                .map(userMapper::toResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    // New paged search endpoint
+    @GetMapping("/admin/users")
+    public ResponseEntity<com.farmovo.backend.dto.request.PageResponse<UserResponseDto>> searchUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
+        org.springframework.data.domain.Page<UserResponseDto> result = userService.searchUsers(username, email, status, fromDate, toDate, pageable);
+        return ResponseEntity.ok(com.farmovo.backend.dto.request.PageResponse.fromPage(result));
     }
 
     @GetMapping("/admin/{id}")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
-                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
+                .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
@@ -48,7 +69,7 @@ public class UserController {
         logger.info("Creating new user: {} by user: {}", dto.getUsername(), principal.getName());
         User user = userService.convertToEntity(dto);
         User savedUser = userService.saveUser(user, principal);
-        return convertToResponseDTO(savedUser);
+        return userMapper.toResponseDto(savedUser);
     }
 
     @PutMapping("/admin/{id}")
@@ -56,7 +77,7 @@ public class UserController {
         logger.info("Updating user with id: {}", id);
         User user = userService.convertToEntity(dto);
         return userService.updateUser(id, user)
-                .map(updatedUser -> ResponseEntity.ok(convertToResponseDTO(updatedUser)))
+                .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
@@ -74,7 +95,7 @@ public class UserController {
     public ResponseEntity<UserResponseDto> updateUserStatus(@PathVariable Long id, @RequestBody Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
         return userService.updateUserStatus(id, status)
-                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
+                .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
@@ -82,7 +103,7 @@ public class UserController {
     public ResponseEntity<UserResponseDto> toggleUserStatus(@PathVariable Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userService.toggleUserStatus(id)
-                .map(user -> ResponseEntity.ok(convertToResponseDTO(user)))
+                .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
@@ -91,7 +112,7 @@ public class UserController {
         logger.info("Fetching current user: {}", principal.getName());
         User user = userService.getUserByUsername(principal.getName())
                 .orElseThrow(() -> new UserManagementException("User not found"));
-        return ResponseEntity.ok(convertToResponseDTO(user));
+        return ResponseEntity.ok(userMapper.toResponseDto(user));
     }
 
     @PutMapping("/staff/me")
@@ -105,23 +126,8 @@ public class UserController {
                 .map(User::getId)
                 .orElseThrow(() -> new UserManagementException("User not found"));
         return userService.updateUser(userId, user)
-                .map(updatedUser -> ResponseEntity.ok(convertToResponseDTO(updatedUser)))
+                .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found"));
-    }
-
-    private UserResponseDto convertToResponseDTO(User user) {
-        return UserResponseDto.builder()
-                .id(user.getId())
-                .fullName(user.getFullName())
-                .username(user.getUsername())
-                .status(user.getStatus())
-                .createAt(user.getCreatedAt())
-                .updateAt(user.getUpdatedAt())
-                .storeId(user.getStore() != null ? user.getStore().getId() : null) // Thêm dòng này
-                .storeName(user.getStore() != null ? user.getStore().getStoreName() : null)
-                .roles(user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
-                .email(user.getEmail())
-                .build();
     }
 
     @ExceptionHandler(UserManagementException.class)

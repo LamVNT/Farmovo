@@ -2,15 +2,11 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
-import com.farmovo.backend.dto.request.PageResponse;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.impl.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,8 +17,9 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.List;
+import com.farmovo.backend.dto.request.PageResponse;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api/debt/admin")
@@ -35,40 +32,22 @@ public class DebtNoteController {
     private final S3Service s3Service;
 
     @GetMapping("/customer/{customerId}/debt-notes")
-    public ResponseEntity<List<DebtNoteResponseDto>> getDebtNotes(@PathVariable Long customerId) {
-        logger.debug("Received request to get debt notes for customer ID: {}", customerId);
-        List<DebtNoteResponseDto> debtNotes = debtNoteService.findDebtNotesByCustomerId(customerId);
-        logger.info("Successfully retrieved {} debt notes for customer ID: {}", debtNotes.size(), customerId);
-        return ResponseEntity.ok(debtNotes);
-    }
-
-    @GetMapping("/list-all")
-    public ResponseEntity<PageResponse<DebtNoteResponseDto>> listAllDebtNotes(
-            @RequestParam(required = false) Long customerId,
-            @RequestParam(required = false) Long storeId,
-            @RequestParam(required = false) String debtType,
+    public ResponseEntity<PageResponse<DebtNoteResponseDto>> getDebtNotes(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String fromSource,
-            @RequestParam(required = false) Long sourceId,
-            @RequestParam(required = false) String debtDescription,
-            @RequestParam(required = false) BigDecimal minDebtAmount,
-            @RequestParam(required = false) BigDecimal maxDebtAmount,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
-            @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String storeName,
-            @RequestParam(required = false) Long createdBy,
-            @RequestParam(required = false) Boolean hasEvidence,
-            @RequestParam(required = false) String evidence,
-            Pageable pageable
-    ) {
-        Page<DebtNoteResponseDto> result = debtNoteService.listAllDebtNotes(
-                customerId, storeId, debtType, fromSource, sourceId, debtDescription,
-                minDebtAmount, maxDebtAmount, fromDate, toDate, customerName, storeName,
-                createdBy, hasEvidence, evidence, pageable
-        );
-        return ResponseEntity.ok(PageResponse.fromPage(result));
+            @RequestParam(required = false) String debtType,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+
+        logger.debug("Debt notes search: cust={}, page={}, size={}, src={}, type={}, store={}, from={}, to={}", customerId, page, size, fromSource, debtType, storeId, fromDate, toDate);
+
+        Page<DebtNoteResponseDto> pageResult = debtNoteService.searchDebtNotes(customerId, fromSource, debtType, storeId, fromDate, toDate, page, size);
+        PageResponse<DebtNoteResponseDto> response = PageResponse.fromPage(pageResult);
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/debt-note")

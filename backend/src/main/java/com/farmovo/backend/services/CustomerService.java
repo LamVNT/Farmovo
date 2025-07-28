@@ -3,6 +3,8 @@ package com.farmovo.backend.services;
 import com.farmovo.backend.dto.request.CustomerDto;
 import com.farmovo.backend.dto.request.CustomerRequestDto;
 import com.farmovo.backend.dto.response.CustomerResponseDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -15,6 +17,12 @@ public interface CustomerService {
     CustomerResponseDto getCustomerById(Long id);
 
     List<CustomerResponseDto> getAllCustomers();
+
+    Page<CustomerResponseDto> getCustomerPage(Pageable pageable, String search);
+
+    Page<CustomerResponseDto> searchCustomers(String name, String phone, String email,
+                                              java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate,
+                                              Pageable pageable);
 
     List<CustomerResponseDto> searchCustomersByName(String name);
 
