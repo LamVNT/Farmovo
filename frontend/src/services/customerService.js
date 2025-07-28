@@ -27,8 +27,8 @@ export const customerService = {
     },
 
 
-    createCustomer: async (customerDto) => {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer`, customerDto, {
+    createCustomer: async (customerDto, createdBy) => {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer?createdBy=${createdBy}`, customerDto, {
             withCredentials: true,
         });
         return response.data;

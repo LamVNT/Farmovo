@@ -436,7 +436,7 @@ const SaleTransactionPage = () => {
         const from = total === 0 ? 0 : page * pageSize + 1;
         const to = Math.min((page + 1) * pageSize, total);
         const totalPages = Math.ceil(total / pageSize);
-        return (
+                return (
             <GridFooterContainer>
                 <div style={{ flex: 1, paddingLeft: 16 }}>
                     {`Hiển thị ${from}-${to} trên tổng số ${total} | Trang ${total === 0 ? 0 : page + 1}/${totalPages}`}
@@ -540,15 +540,17 @@ const SaleTransactionPage = () => {
                 >
                   {showFilter && (
                     <>
-                      {/* Nút ẩn filter chỉ hiện khi hover filter sidebar */}
-                      <button
-                        style={{ ...filterHideBtnStyle, opacity: 0 }}
-                        className="filter-hide-btn"
-                        onClick={() => setShowFilter(false)}
-                        title='Ẩn bộ lọc'
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                      </button>
+                      {/* Nút ẩn filter chỉ hiện khi hover filter sidebar và không mở dialog detail */}
+                      {!openDetailDialog && (
+                        <button
+                          style={{ ...filterHideBtnStyle, opacity: 0 }}
+                          className="filter-hide-btn"
+                          onClick={() => setShowFilter(false)}
+                          title='Ẩn bộ lọc'
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                      )}
                       <style>{`
                         .group:hover .filter-hide-btn { opacity: 1 !important; }
                         .filter-hide-btn:hover {
@@ -559,7 +561,7 @@ const SaleTransactionPage = () => {
                           box-shadow: 0 4px 16px #b6d4fe;
                         }
                       `}</style>
-                      <div className="bg-white p-4 rounded shadow mb-4">
+                    <div className="bg-white p-4 rounded shadow mb-4">
                         <FormLabel className="mb-2 font-semibold">Lọc theo thời gian</FormLabel>
                         <div className="flex flex-col gap-2">
                             <FormControlLabel
@@ -588,7 +590,7 @@ const SaleTransactionPage = () => {
                                 }
                             />
                             <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(true); }} />} label={<div className="flex items-center justify-between w-full"><span>{customLabel}</span><Button size="small" onClick={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(!showDatePicker); }}>📅</Button></div>} />
-                        </div>
+                                    </div>
                         <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
                             <div className="p-4 grid grid-cols-2 gap-2">
                                 {Object.entries(labelMap).map(([key, label]) => (
@@ -596,9 +598,9 @@ const SaleTransactionPage = () => {
                                 ))}
                             </div>
                         </Popover>
-                      </div>
+                    </div>
 
-                      <div className="bg-white p-4 rounded shadow mb-4">
+                    <div className="bg-white p-4 rounded shadow mb-4">
                         <FormLabel className="font-semibold mb-2 block">Trạng thái</FormLabel>
                         <FormControl component="fieldset" className="flex flex-col gap-2">
                             <FormControlLabel
@@ -650,9 +652,9 @@ const SaleTransactionPage = () => {
                                 }
                             />
                         </FormControl>
-                      </div>
+                    </div>
 
-                      <Accordion className="bg-white rounded shadow mb-4 w-full">
+                    <Accordion className="bg-white rounded shadow mb-4 w-full">
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <span className="font-semibold">Khách hàng</span>
                         </AccordionSummary>
@@ -665,9 +667,9 @@ const SaleTransactionPage = () => {
                                 onChange={(e) => setFilter({ ...filter, customer: e.target.value })} 
                             />
                         </AccordionDetails>
-                      </Accordion>
+                    </Accordion>
 
-                      <Accordion className="bg-white rounded shadow mb-4 w-full">
+                    <Accordion className="bg-white rounded shadow mb-4 w-full">
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <span className="font-semibold">Cửa hàng</span>
                         </AccordionSummary>
@@ -680,9 +682,9 @@ const SaleTransactionPage = () => {
                                 onChange={(e) => setFilter({ ...filter, store: e.target.value })} 
                             />
                         </AccordionDetails>
-                      </Accordion>
+                    </Accordion>
 
-                      {showDatePicker && selectedMode === "custom" && (
+                    {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
                             <div className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
                                 <DateRange 
@@ -701,7 +703,7 @@ const SaleTransactionPage = () => {
                         </ClickAwayListener>
                       )}
                     </>
-                  )}
+                    )}
                 </div>
 
                 {/* Main content area */}
