@@ -59,7 +59,7 @@ public class SaleTransactionController {
     public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
         log.info("Getting create form data for sale transaction");
 
-        List<CustomerDto> customers = customerService.getAllCustomerDto();
+        List<CustomerDto> customers = customerService.getAllCustomerDto(); // Đã trả về đủ trường
         List<StoreResponseDto> stores = storeService.getAllStores().stream()
                 .map(store -> {
                     StoreResponseDto dto = new StoreResponseDto();
