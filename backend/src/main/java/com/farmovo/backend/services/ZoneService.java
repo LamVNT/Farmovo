@@ -3,6 +3,7 @@ package com.farmovo.backend.services;
 import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
+import com.farmovo.backend.models.Zone;
 
 import java.util.List;
 
