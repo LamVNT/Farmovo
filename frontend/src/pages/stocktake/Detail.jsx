@@ -7,57 +7,43 @@ import { saveAs } from 'file-saver';
 import {
     Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box, TextField, useTheme, useMediaQuery
 } from "@mui/material";
+import useStocktake from "../../hooks/useStocktake";
+import SnackbarAlert from "../../components/SnackbarAlert";
 
 const StockTakeDetailPage = () => {
     const { id } = useParams();
-    const [detail, setDetail] = useState(null);
-    const [products, setProducts] = useState([]);
-    const [zones, setZones] = useState([]);
-    const [filter, setFilter] = useState({ batchCode: '', productName: '' });
+    const user = JSON.parse(localStorage.getItem('user'));
+    const userRole = user?.roles?.[0];
+    const {
+        detail,
+        setDetail,
+        products,
+        zones,
+        snackbar,
+        setSnackbar,
+        filter,
+        setFilter,
+        filteredDetails,
+        handleExportExcel,
+    } = useStocktake(user, userRole);
     const navigate = useNavigate();
-
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
-        axios.get(`/stocktakes/${id}`)
-            .then(res => setDetail(res.data))
-            .catch(() => alert("Không lấy được chi tiết phiếu kiểm kê!"));
-    }, [id]);
-
-    useEffect(() => {
-        productService.getAllProducts().then(setProducts);
-        getZones().then(setZones);
-    }, []);
-
-    const handleExportExcel = async () => {
-        try {
-            const res = await axios.get(`/stocktakes/${id}/export-excel`, { responseType: 'blob' });
-            saveAs(res.data, `stocktake_${id}.xlsx`);
-        } catch {
-            alert('Không thể export file Excel!');
+        // Chỉ cần lấy detail từ API nếu chưa có
+        if (!detail && id) {
+            axios.get(`/stocktakes/${id}`)
+                .then(res => setDetail(res.data))
+                .catch(() => alert("Không lấy được chi tiết phiếu kiểm kê!"));
         }
-    };
+    }, [id, detail, setDetail]);
 
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">Đang tải chi tiết...</Typography>
         </Box>
     );
-
-    // Parse detail JSON
-    let details = [];
-    try {
-        details = Array.isArray(detail.detail) ? detail.detail : JSON.parse(detail.detail);
-    } catch {}
-
-    // Filter bảng chi tiết
-    const filteredDetails = details.filter(d => {
-        const matchesBatch = !filter.batchCode || (d.batchCode || d.name || '').toLowerCase().includes(filter.batchCode.toLowerCase());
-        const product = products.find(p => p.id === d.productId);
-        const matchesProduct = !filter.productName || (product?.productName || '').toLowerCase().includes(filter.productName.toLowerCase());
-        return matchesBatch && matchesProduct;
-    });
 
     return (
         <Box sx={{ maxWidth: 1100, margin: '20px auto', background: '#fff', p: isMobile ? 2 : 4, borderRadius: 3, boxShadow: 2 }}>
@@ -99,6 +85,17 @@ const StockTakeDetailPage = () => {
                     value={filter.productName}
                     onChange={e => setFilter(f => ({ ...f, productName: e.target.value }))}
                 />
+                {/* Nút Export Excel chỉ hiển thị khi phiếu đã hoàn thành */}
+                {detail.status === "COMPLETED" && (
+                    <Button
+                        variant="contained"
+                        color="success"
+                        sx={{ borderRadius: 2, minWidth: 160, fontWeight: 700 }}
+                        onClick={() => handleExportExcel(detail, filteredDetails, products, zones)}
+                    >
+                        Export Excel
+                    </Button>
+                )}
             </Box>
             {/* Bảng dữ liệu */}
             <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
@@ -157,6 +154,12 @@ const StockTakeDetailPage = () => {
             <Box mt={2}>
                 <Button variant="outlined" onClick={() => navigate("/stocktake")} sx={{ borderRadius: 2 }}>Quay lại danh sách</Button>
             </Box>
+            <SnackbarAlert
+                open={snackbar.isOpen}
+                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                message={snackbar.message}
+                severity={snackbar.severity}
+            />
         </Box>
     );
 };

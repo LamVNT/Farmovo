@@ -16,4 +16,5 @@ public class CustomerRequestDto {
     private String phone;
     private String role;
     private BigDecimal totalDept;
+    private Boolean isSupplier;
 }

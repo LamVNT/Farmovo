@@ -12,6 +12,12 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
     CustomerMapper INSTANCE = Mappers.getMapper(CustomerMapper.class);
+    @Mapping(target = "address", source = "address")
+    @Mapping(target = "phone", source = "phone")
+    @Mapping(target = "email", source = "email")
+    @Mapping(target = "totalDebt", source = "totalDebt")
+    @Mapping(target = "createBy", source = "createdBy")
+    @Mapping(target = "createAt", source = "createdAt")
 
     // Mapping entity -> lightweight dto for dropdowns etc.
     CustomerDto toDto(Customer customer);

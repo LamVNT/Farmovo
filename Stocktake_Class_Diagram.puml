@@ -78,7 +78,6 @@ class StocktakeDetailDto {
 ' StocktakeStatus: Trạng thái phiếu kiểm kê
 enum StocktakeStatus {
     DRAFT
-    INPROGRESS
     COMPLETED
     CANCELLED
 }

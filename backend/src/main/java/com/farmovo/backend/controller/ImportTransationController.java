@@ -43,7 +43,7 @@ public class ImportTransationController {
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
         log.info("Getting create form data for import transaction");
 
-        List<CustomerDto> customers = customerService.getAllCustomerDto();
+        List<CustomerDto> customers = customerService.getAllCustomerDto(); // Đã trả về đủ trường
         List<ProductDto> products = productService.getAllProductDto();
         List<ZoneDto> zones = zoneService.getAllZoneDtos();
         List<StoreRequestDto> stores = storeService.getAllStoreDto();

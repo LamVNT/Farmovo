@@ -70,16 +70,16 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Page<CustomerResponseDto> getCustomerPage(Pageable pageable, String search) {
-        logger.info("Fetching customers with pagination, page: {}, size: {}, search: {}", 
+        logger.info("Fetching customers with pagination, page: {}, size: {}, search: {}",
                    pageable.getPageNumber(), pageable.getPageSize(), search);
-        
+
         Page<Customer> page;
         if (search != null && !search.trim().isEmpty()) {
             page = customerRepository.findByNameContainingIgnoreCaseAndActive(search.trim(), pageable);
         } else {
             page = customerRepository.findAllActive(pageable);
         }
-        
+
         return page.map(this::mapToResponseDto);
     }
 
@@ -117,6 +117,9 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
         customer.setTotalDebt(requestDto.getTotalDept());
+        if (requestDto.getIsSupplier() != null) {
+            customer.setIsSupplier(requestDto.getIsSupplier());
+        }
 
         Customer updatedCustomer = customerRepository.save(customer);
         return customerMapper.toResponseDto(updatedCustomer);

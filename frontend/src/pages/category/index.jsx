@@ -7,31 +7,23 @@ import {getCategories, createCategory, updateCategory, deleteCategory} from "../
 import TablePagination from '@mui/material/TablePagination';
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
+import useCategory from "../../hooks/useCategory";
 
 const Category = () => {
-    const [categories, setCategories] = useState([]);
+    const {
+        categories,
+        loading,
+        error,
+        handleCreate,
+        handleUpdate,
+        handleDelete,
+    } = useCategory();
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({id: null, name: "", description: ""});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState({isOpen: false, title: "", content: "", onConfirm: null});
     const [snackbar, setSnackbar] = useState({isOpen: false, message: "", severity: "success"});
-
-    useEffect(() => {
-        const fetch = async () => {
-            try {
-                const data = await getCategories();
-                setCategories(data);
-            } catch (err) {
-                setError("Failed to fetch categories");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetch();
-    }, []);
 
     const filteredCategories = useMemo(() =>
         categories.filter(cat =>
@@ -50,7 +42,7 @@ const Category = () => {
         setOpenDialog(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDeleteCategory = (id) => {
         setConfirmDialog({
             isOpen: true,
             title: "Xác nhận xóa danh mục",
@@ -58,8 +50,7 @@ const Category = () => {
             onConfirm: async () => {
                 setConfirmDialog(prev => ({...prev, isOpen: false}));
                 try {
-                    await deleteCategory(id);
-                    setCategories(prev => prev.filter(cat => cat.id !== id));
+                    await handleDelete(id);
                     setSnackbar({isOpen: true, message: "Xóa danh mục thành công!", severity: "success"});
                 } catch (err) {
                     setSnackbar({isOpen: true, message: err.message || "Xóa danh mục thất bại!", severity: "error"});
@@ -75,12 +66,10 @@ const Category = () => {
         }
         try {
             if (editMode) {
-                const updated = await updateCategory(form.id, form);
-                setCategories(prev => prev.map(cat => (cat.id === form.id ? updated : cat)));
+                const updated = await handleUpdate(form.id, form);
                 setSnackbar({isOpen: true, message: "Cập nhật danh mục thành công!", severity: "success"});
             } else {
-                const created = await createCategory(form);
-                setCategories(prev => [...prev, created]);
+                const created = await handleCreate(form);
                 setSnackbar({isOpen: true, message: "Tạo mới danh mục thành công!", severity: "success"});
             }
             setOpenDialog(false);
@@ -116,7 +105,7 @@ const Category = () => {
             <CategoryTable
                 rows={filteredCategories}
                 onEdit={handleOpenEdit}
-                onDelete={handleDelete}
+                onDelete={handleDeleteCategory}
             />
 
             <CategoryFormDialog
