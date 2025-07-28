@@ -195,17 +195,10 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                                                    String note,
                                                    Long createdBy,
                                                    Pageable pageable) {
-        Specification<SaleTransaction> spec = Specification.allOf(
-                SaleTransactionSpecification.isNotDeleted(),
-                SaleTransactionSpecification.hasName(name),
-                SaleTransactionSpecification.hasCustomerName(customerName),
-                SaleTransactionSpecification.hasStoreName(storeName),
-                SaleTransactionSpecification.hasStatus(status),
-                SaleTransactionSpecification.hasSaleDateBetween(fromDate, toDate),
-                SaleTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount),
-                SaleTransactionSpecification.hasPaidAmountBetween(minPaidAmount, maxPaidAmount),
-                SaleTransactionSpecification.hasNote(note),
-                SaleTransactionSpecification.hasCreatedBy(createdBy)
+
+        Specification<SaleTransaction> spec = SaleTransactionSpecification.buildSpecification(
+                name, customerName, storeName, status, fromDate, toDate,
+                minTotalAmount, maxTotalAmount, minPaidAmount, maxPaidAmount, note, createdBy
         );
 
         Page<SaleTransaction> entityPage = saleTransactionRepository.findAll(spec, pageable);

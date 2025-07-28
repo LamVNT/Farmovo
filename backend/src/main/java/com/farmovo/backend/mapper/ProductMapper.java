@@ -61,6 +61,5 @@ public interface ProductMapper {
     @Mapping(source = "name", target = "name") // mapping mã lô hàng LH000000
     ProductSaleResponseDto toDtoSale(ImportTransactionDetail detail);
 
-
 }
 

@@ -31,17 +31,4 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         
         return result;
     }
-
-//    @Override
-//    public List<ProductSaleResponseDto> getAllProductSaleDto() {
-//        log.info("Getting all product sale DTOs from import transaction details");
-//        
-//        List<ImportTransactionDetail> details = detailRepository.findAllWithProductAndTransaction();
-//        List<ProductSaleResponseDto> result = details.stream()
-//                .map(productMapper::toDtoSale)
-//                .collect(Collectors.toList());
-//        
-//        log.info("Retrieved {} product sale DTOs", result.size());
-//        return result;
-//    }
 }

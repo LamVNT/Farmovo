@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import com.farmovo.backend.aop.LogStatusChange;
 
 
 @Service
@@ -216,6 +217,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void cancel(Long id) {
         log.info("Cancelling import transaction with ID: {}", id);
 
@@ -233,6 +235,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void open(Long id) {
         log.info("Opening import transaction with ID: {}", id);
 
@@ -255,6 +258,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void complete(Long id) {
         log.info("Completing import transaction with ID: {}", id);
 
@@ -301,6 +305,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void close(Long id) {
         log.info("Closing import transaction with ID: {}", id);
 
@@ -334,14 +339,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         return result;
     }
 
-//    @Override
-//    public List<ImportTransactionResponseDto> listAllImportTransaction() {
-//        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
-//        return entities.stream()
-//                .map(importTransactionMapper::toResponseDto)
-//                .collect(Collectors.toList());
-//    }
-
     @Override
     public Page<ImportTransactionResponseDto> listAllImportTransaction(
             String name,
@@ -358,16 +355,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         if (!pageable.getSort().isSorted()) {
             pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("importDate").descending());
         }
-        Specification<ImportTransaction> spec = Specification.allOf(
-                ImportTransactionSpecification.isNotDeleted(),
-                ImportTransactionSpecification.hasName(name),
-                ImportTransactionSpecification.hasSupplierName(supplierName),
-                ImportTransactionSpecification.hasStore(storeId),
-                ImportTransactionSpecification.hasStaff(staffId),
-                ImportTransactionSpecification.hasStatus(status),
-                ImportTransactionSpecification.createdBetween(fromDate, toDate),
-                ImportTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount)
-        );
+
+        Specification<ImportTransaction> spec =
+                ImportTransactionSpecification.buildSpecification(name, supplierName, storeId, staffId,
+                        status, fromDate, toDate,
+                        minTotalAmount, maxTotalAmount);
 
         Page<ImportTransaction> entityPage = importTransactionRepository.findAll(spec, pageable);
 
@@ -608,4 +600,12 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     private String safe(String input) {
         return input == null ? "Chưa có" : input;
     }
+
+    //    @Override
+//    public List<ImportTransactionResponseDto> listAllImportTransaction() {
+//        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
+//        return entities.stream()
+//                .map(importTransactionMapper::toResponseDto)
+//                .collect(Collectors.toList());
+//    }
 }
