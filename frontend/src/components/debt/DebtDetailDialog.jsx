@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { getAllStores } from "../../services/storeService";
+import { formatCurrency } from "../../utils/formatters";
 
 // S3 bucket info
 const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
@@ -102,9 +103,9 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                         <TextField
                             margin="dense"
                             name="debtAmount"
-                            type="number"
+                            type="text"
                             fullWidth
-                            value={debtNote.debtAmount}
+                            value={formatCurrency(debtNote.debtAmount)}
                             disabled
                             InputLabelProps={{ shrink: true }}
                             label=""

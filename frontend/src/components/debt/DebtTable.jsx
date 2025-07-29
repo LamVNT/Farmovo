@@ -20,6 +20,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AddDebtDialog from "./AddDebtDialog";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { formatCurrency } from "../../utils/formatters";
 
 const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
     const [search, setSearch] = useState("");
@@ -39,16 +40,15 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
         })
         : [];
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0 VND";
+        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
-            );
-        } else {
-            return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
             );
         }
+        return (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
+        );
     };
     return (
         <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>

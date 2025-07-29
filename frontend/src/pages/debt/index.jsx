@@ -27,6 +27,7 @@ import DebtDetailDialog from "../../components/debt/DebtDetailDialog.jsx";
 import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
 import { getAllCustomers, getCustomerById } from "../../services/customerService";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { formatCurrency } from "../../utils/formatters";
 
 const DebtManagement = () => {
     const [customers, setCustomers] = useState([]);
@@ -101,16 +102,15 @@ const DebtManagement = () => {
     };
 
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0 VND";
+        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
-            );
-        } else {
-            return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
             );
         }
+        return (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
+        );
     };
 
     const handleCustomerSearchChange = (e) => {
