@@ -10,14 +10,18 @@ import {
     Snackbar,
     Alert,
     Popover,
+    IconButton,
+    Tooltip,
 } from '@mui/material';
 import { FaLock, FaCheck } from 'react-icons/fa';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
 import Autocomplete from '@mui/material/Autocomplete';
+import AddIcon from '@mui/icons-material/Add';
 import saleTransactionService from '../../services/saleTransactionService';
 import { userService } from '../../services/userService';
+import AddCustomerDialog from './AddCustomerDialog';
 
 const SaleSidebar = ({
     currentUser,
@@ -43,6 +47,9 @@ const SaleSidebar = ({
     highlightCustomer = false,
     highlightStore = false,
     highlightProducts = false,
+    setCustomers = () => {},
+    paidAmountInput = '0',
+    setPaidAmountInput = () => {},
 }) => {
     const [nextCode, setNextCode] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -86,6 +93,28 @@ const SaleSidebar = ({
 
     const [creatorInfo, setCreatorInfo] = useState(null);
     const [isLoadingCreator, setIsLoadingCreator] = useState(false);
+
+    // State cho dialog thêm khách hàng
+    const [showAddCustomerDialog, setShowAddCustomerDialog] = useState(false);
+
+    // Auto-hide error highlight after 5 seconds
+    React.useEffect(() => {
+        if (paidAmountError) {
+            const timer = setTimeout(() => {
+                setPaidAmountError('');
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [paidAmountError]);
+
+    // Hàm xử lý khi thêm khách hàng thành công
+    const handleCustomerAdded = (newCustomer) => {
+        // Thêm vào danh sách customers
+        setCustomers([...customers, newCustomer]);
+        // Chọn khách hàng vừa thêm
+        onCustomerChange({ target: { value: newCustomer.id } });
+        setCustomerSearch(newCustomer.name);
+    };
 
     useEffect(() => {
         saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
@@ -157,6 +186,29 @@ const SaleSidebar = ({
                         variant="outlined"
                         error={highlightCustomer}
                         sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        InputProps={{
+                            endAdornment: (
+                                <Tooltip title="Thêm khách hàng mới">
+                                    <IconButton 
+                                        size="small" 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowAddCustomerDialog(true);
+                                        }}
+                                        sx={{ 
+                                            color: '#1976d2',
+                                            '&:hover': { 
+                                                backgroundColor: '#e3f0ff',
+                                                transform: 'scale(1.1)'
+                                            },
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <AddIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            ),
+                        }}
                     />
                     {(customerDropdownOpen || customerSearch.trim() !== '') && filteredCustomers.length > 0 && (
                         <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
@@ -484,6 +536,30 @@ const SaleSidebar = ({
                 <div className="text-right w-32">{formatCurrency(totalAmount)}</div>
             </div>
 
+            {/* Tổng nợ hiện tại của khách hàng */}
+            {selectedCustomer && (
+                <div className="flex justify-between items-center">
+                    <div className="font-semibold">Tổng nợ hiện tại</div>
+                    <div className={`text-right w-32 ${(() => {
+                        const customer = customers.find(c => String(c.id) === String(selectedCustomer));
+                        const totalDebt = customer?.totalDebt || 0;
+                        return totalDebt > 0 ? 'text-red-600' : totalDebt < 0 ? 'text-green-600' : 'text-gray-600';
+                    })()}`}>
+                        {(() => {
+                            const customer = customers.find(c => String(c.id) === String(selectedCustomer));
+                            const totalDebt = customer?.totalDebt || 0;
+                            if (totalDebt > 0) {
+                                return `+${formatCurrency(totalDebt)} (Khách nợ)`;
+                            } else if (totalDebt < 0) {
+                                return `-${formatCurrency(Math.abs(totalDebt))} (Cửa hàng nợ)`;
+                            } else {
+                                return `${formatCurrency(0)} (Không nợ)`;
+                            }
+                        })()}
+                    </div>
+                </div>
+            )}
+
             {/* Số tiền đã trả */}
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
@@ -492,31 +568,38 @@ const SaleSidebar = ({
                     fullWidth
                     type="text"
                     placeholder="Nhập số tiền đã trả"
-                    value={isPaidAmountFocused && (paidAmount === 0 || paidAmount === '0') ? '' : paidAmount}
+                    value={isPaidAmountFocused && (paidAmountInput === '0' || paidAmountInput === '') ? '' : paidAmountInput}
                     onFocus={e => {
                         setIsPaidAmountFocused(true);
-                        if (paidAmount === 0 || paidAmount === '0') onPaidAmountChange({ target: { value: '' } });
+                        if (paidAmountInput === '0') setPaidAmountInput('');
                     }}
                     onBlur={e => {
                         setIsPaidAmountFocused(false);
-                        if (e.target.value === '' || isNaN(Number(e.target.value))) {
-                            onPaidAmountChange({ target: { value: '0' } });
+                        const numericValue = e.target.value.replace(/\./g, '');
+                        if (numericValue === '' || isNaN(Number(numericValue))) {
+                            setPaidAmountInput('0');
+                            onPaidAmountChange({ target: { value: 0 } });
                         } else {
-                            onPaidAmountChange({ target: { value: e.target.value } });
+                            const formattedValue = Number(numericValue).toLocaleString('vi-VN');
+                            setPaidAmountInput(formattedValue);
+                            onPaidAmountChange({ target: { value: Number(numericValue) } });
                         }
                     }}
                     onChange={e => {
-                        const val = e.target.value;
-                        if (/^\d*$/.test(val)) {
+                        const val = e.target.value.replace(/\./g, ''); // Loại bỏ dấu chấm để validate
+                        // Cho phép nhập số và chuỗi rỗng
+                        if (val === '' || /^\d+$/.test(val)) {
                             if (val === '' || Number(val) <= Number.MAX_SAFE_INTEGER) {
                                 setPaidAmountError('');
-                                onPaidAmountChange({ target: { value: val } });
+                                // Thêm dấu chấm phân cách hàng nghìn ngay khi nhập
+                                const formattedVal = val === '' ? '' : Number(val).toLocaleString('vi-VN');
+                                setPaidAmountInput(formattedVal);
                             } else {
-                                setPaidAmountError('');
+                                setPaidAmountError('Số quá lớn');
                                 setSnackbar({ open: true, message: 'Không được nhập số quá lớn (tối đa 9,007,199,254,740,991)', severity: 'error' });
                             }
                         } else {
-                            setPaidAmountError('');
+                            setPaidAmountError('Chỉ được nhập số');
                             setSnackbar({ open: true, message: 'Chỉ được nhập số nguyên dương', severity: 'error' });
                         }
                     }}
@@ -532,6 +615,11 @@ const SaleSidebar = ({
                     }}
                     variant="outlined"
                     sx={{
+                        ...(!!paidAmountError && { 
+                            boxShadow: '0 0 0 3px #ffbdbd', 
+                            borderRadius: 1, 
+                            background: '#fff6f6' 
+                        }),
                         '& .MuiFormHelperText-root': {
                             marginLeft: 0,
                             textAlign: 'left',
@@ -541,56 +629,116 @@ const SaleSidebar = ({
                 />
             </div>
 
-            {paidAmount > 0 && (
-                <div className="flex justify-between items-center">
-                    <div className="font-semibold">Còn lại</div>
-                    <div className={`text-right w-32 ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(totalAmount - paidAmount)}
-                    </div>
+            <div className="flex justify-between items-center">
+                <div className="font-semibold">Còn lại</div>
+                <div className={`text-right w-32 ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatCurrency(totalAmount - paidAmount)}
                 </div>
-            )}
+            </div>
 
             <div className="flex gap-2">
                 <Button 
                     fullWidth 
                     variant="outlined" 
-                    onClick={() => onPaidAmountChange({ target: { value: '0' } })}
+                    onClick={() => {
+                        onPaidAmountChange({ target: { value: 0 } });
+                        setPaidAmountInput('0');
+                    }}
                     disabled={paidAmount === 0}
+                    sx={{
+                        borderColor: '#ddd',
+                        color: '#666',
+                        '&:hover': {
+                            borderColor: '#999',
+                            backgroundColor: '#f5f5f5'
+                        },
+                        '&:disabled': {
+                            borderColor: '#eee',
+                            color: '#ccc'
+                        }
+                    }}
                 >
                     Chưa trả
                 </Button>
                 <Button 
                     fullWidth 
                     variant="outlined" 
-                    onClick={() => onPaidAmountChange({ target: { value: totalAmount.toString() } })}
+                    onClick={() => {
+                        onPaidAmountChange({ target: { value: totalAmount } });
+                        setPaidAmountInput(totalAmount.toLocaleString('vi-VN'));
+                    }}
                     disabled={paidAmount === totalAmount}
+                    sx={{
+                        borderColor: '#ddd',
+                        color: '#666',
+                        '&:hover': {
+                            borderColor: '#999',
+                            backgroundColor: '#f5f5f5'
+                        },
+                        '&:disabled': {
+                            borderColor: '#eee',
+                            color: '#ccc'
+                        }
+                    }}
                 >
                     Trả đủ
                 </Button>
             </div>
 
             <div className="flex gap-2 pt-2">
-                    <Button 
-                        fullWidth 
-                        variant="outlined"
-                        className="border-blue-600 text-blue-600 hover:bg-blue-50" 
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} 
-                        onClick={onSaveDraft} 
-                        disabled={loading}
-                    >
-                        Lưu tạm
-                    </Button>
-                    <Button 
-                        fullWidth 
-                        variant="contained" 
-                        className="!bg-green-600 hover:!bg-green-700 text-white" 
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} 
-                        onClick={onComplete} 
-                        disabled={loading}
-                    >
-                        Hoàn thành
-                    </Button>
-                </div>
+                <Button 
+                    fullWidth 
+                    variant="contained" 
+                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />} 
+                    onClick={onSaveDraft} 
+                    disabled={loading}
+                    sx={{
+                        background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                        boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                        '&:hover': {
+                            background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                            boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                            transform: 'translateY(-1px)'
+                        },
+                        '&:disabled': {
+                            background: '#ccc',
+                            boxShadow: 'none',
+                            transform: 'none'
+                        },
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    Lưu tạm
+                </Button>
+                <Button 
+                    fullWidth 
+                    variant="contained" 
+                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />} 
+                    onClick={onComplete} 
+                    disabled={loading}
+                    sx={{
+                        background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                        boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                        '&:hover': {
+                            background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                            boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                            transform: 'translateY(-1px)'
+                        },
+                        '&:disabled': {
+                            background: '#ccc',
+                            boxShadow: 'none',
+                            transform: 'none'
+                        },
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    Hoàn thành
+                </Button>
+            </div>
 
             <Button 
                 fullWidth 
@@ -601,13 +749,25 @@ const SaleSidebar = ({
                 Hủy
             </Button>
         </div>
+        <AddCustomerDialog
+            open={showAddCustomerDialog}
+            onClose={() => setShowAddCustomerDialog(false)}
+            onCustomerAdded={handleCustomerAdded}
+            currentUser={currentUser}
+        />
+
+        {/* Snackbar cho thông báo lỗi */}
         <Snackbar
             open={snackbar.open}
             autoHideDuration={5000}
             onClose={() => setSnackbar({ ...snackbar, open: false })}
             anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         >
-            <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+            <Alert 
+                onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                severity={snackbar.severity}
+                sx={{ width: '100%' }}
+            >
                 {snackbar.message}
             </Alert>
         </Snackbar>

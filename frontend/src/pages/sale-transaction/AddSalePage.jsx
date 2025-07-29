@@ -52,6 +52,9 @@ const AddSalePage = () => {
     // Thêm state cho đơn vị tính
     const [unit, setUnit] = useState('quả'); // Đơn vị tính mặc định
     
+    // Thêm state cho paidAmountInput
+    const [paidAmountInput, setPaidAmountInput] = useState('0');
+    
     // Column visibility state - moved up before useMemo
     const [columnVisibility, setColumnVisibility] = useState({
         STT: true,
@@ -75,7 +78,6 @@ const AddSalePage = () => {
         loading,
         error,
         success,
-        setSelectedProducts, // <-- thêm dòng này để sửa lỗi và cho phép cập nhật
         
         // Form states
         selectedCustomer,
@@ -109,6 +111,8 @@ const AddSalePage = () => {
         setShowSummaryDialog,
         setSummaryData,
         setPendingAction,
+        setSelectedProducts, // <-- thêm dòng này để sửa lỗi và cho phép cập nhật
+        setCustomers, // <-- thêm dòng này để cập nhật danh sách customers
         
         // Handlers
         handleSelectProduct,
@@ -637,6 +641,9 @@ const AddSalePage = () => {
                 highlightCustomer={highlightCustomer}
                 highlightStore={highlightStore}
                 highlightProducts={highlightProducts}
+                setCustomers={setCustomers}
+                paidAmountInput={paidAmountInput}
+                setPaidAmountInput={setPaidAmountInput}
             />
 
             {/* Product Selection Dialog */}
