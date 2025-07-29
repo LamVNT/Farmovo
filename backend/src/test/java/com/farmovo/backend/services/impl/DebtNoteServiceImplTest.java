@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import com.farmovo.backend.dto.response.CustomerResponseDto;
+import com.farmovo.backend.mapper.DebtNoteMapper;
 
 class DebtNoteServiceImplTest {
     @Mock
@@ -38,12 +39,30 @@ class DebtNoteServiceImplTest {
     @Mock
     private S3Service s3Service;
 
+    @Mock
+    private com.farmovo.backend.mapper.DebtNoteMapper debtNoteMapper;
+
     @InjectMocks
     private DebtNoteServiceImpl debtNoteService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        // Default lenient stub for mapper to avoid NPE in tests not asserting mapper
+        org.mockito.Mockito.lenient()
+                .when(debtNoteMapper.toResponseDto(org.mockito.ArgumentMatchers.any(DebtNote.class)))
+                .thenAnswer(invocation -> {
+                    DebtNote dn = invocation.getArgument(0);
+                    com.farmovo.backend.dto.response.DebtNoteResponseDto dto = new com.farmovo.backend.dto.response.DebtNoteResponseDto();
+                    dto.setId(dn.getId());
+                    dto.setCustomerId(dn.getCustomer() != null ? dn.getCustomer().getId() : null);
+                    dto.setDebtAmount(dn.getDebtAmount());
+                    dto.setDebtDate(dn.getDebtDate());
+                    dto.setDebtType(dn.getDebtType());
+                    dto.setDebtDescription(dn.getDebtDescription());
+                    return dto;
+                });
     }
 
     @Test
