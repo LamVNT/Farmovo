@@ -11,41 +11,47 @@ skinparam sequenceLifeLineStroke dash
 title Get All Categories - Sequence Diagram
 
 actor User as U
-participant "CategoryController" as CC
-participant "CategoryService" as CS
-participant "CategoryMapper" as CM
-participant "CategoryRepository" as CR
-database "Database" as DB
+participant ":Category Page" as UI
+participant ":CategoryController" as CC
+participant ":CategoryService" as CS
+participant ":CategoryMapper" as CM
+participant ":CategoryRepository" as CR
 
 == Request Phase ==
-U -> CC: GET /api/categories
+U -> UI: Yêu cầu xem danh sách Category
+activate U
+activate UI
+UI -> CC: GET /api/categories
 activate CC
-
 CC -> CS: getAllActiveCategories()
 activate CS
-
 CS -> CR: findAll()
 activate CR
-CR -> DB: SELECT * FROM categories
-DB --> CR: List<Category>
 CR --> CS: List<Category>
 deactivate CR
-
-loop For each Category
-    CS -> CM: toResponseDto(category)
-    activate CM
-    CM -> CM: map categoryName -> name
-    CM -> CM: map categoryDescription -> description
-    CM -> CM: map createdAt -> createAt
-    CM -> CM: map updatedAt -> updateAt
-    CM --> CS: CategoryResponseDto
-    deactivate CM
+alt Không có category nào
+    CS --> CC: 404 Not Found {no categories}
+    CC --> UI: 404 Not Found {no categories}
+    UI --> U: Hiển thị thông báo "Không có category"
+else Có category
+    loop For each Category
+        CS -> CM: toResponseDto(category)
+        activate CM
+        CM --> CS: CategoryResponseDto
+        deactivate CM
+    end
+    CS --> CC: List<CategoryResponseDto>
+    CC --> UI: 200 OK List<CategoryResponseDto>
+    UI --> U: Hiển thị danh sách category
 end
 
-CS --> CC: List<CategoryResponseDto>
 deactivate CS
-
-CC --> U: 200 OK\nList<CategoryResponseDto>
 deactivate CC
+deactivate UI
+deactivate U
+
+note right of UI
+    CategoryResponseDto: id, name, description, createdAt, updatedAt
+end note
 
 @enduml 

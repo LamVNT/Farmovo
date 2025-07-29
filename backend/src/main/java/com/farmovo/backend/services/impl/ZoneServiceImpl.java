@@ -74,4 +74,12 @@ public class ZoneServiceImpl implements ZoneService {
                 .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
         zoneRepository.delete(zone);
     }
+
+    @Override
+    public List<ZoneResponseDto> getZonesByStoreId(Long storeId) {
+        return zoneRepository.findAllByStore_Id(storeId)
+                .stream()
+                .map(zoneMapper::toResponseDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

@@ -304,11 +304,11 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                         onClick={handleAddCategory} 
                         variant="contained"
                         sx={{
-                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
                                 transform: 'translateY(-1px)'
                             },
                             fontWeight: 600,
@@ -342,11 +342,11 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                         onClick={handleAddStore} 
                         variant="contained"
                         sx={{
-                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
                                 transform: 'translateY(-1px)'
                             },
                             fontWeight: 600,

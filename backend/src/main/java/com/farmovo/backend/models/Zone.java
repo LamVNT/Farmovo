@@ -26,4 +26,7 @@ public class Zone extends Base {
     @Column(name = "zone_description", length = 1000)
     private String zoneDescription;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
 }

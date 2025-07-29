@@ -1,7 +1,10 @@
 import React from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
+import MenuItem from '@mui/material/MenuItem';
 
-const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError,zoneDescriptionError }) => {
+const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError, zoneDescriptionError, user, stores }) => {
+    const isOwner = user?.roles?.includes('OWNER');
+    // const isStaff = user?.roles?.includes('STAFF'); // Không cần vì STAFF không chọn kho
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{editMode ? "Edit Zone" : "Add Zone"}</DialogTitle>
@@ -23,6 +26,20 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                     multiline
                     rows={10}
                 />
+                {isOwner && (
+                    <TextField
+                        select
+                        label="Store"
+                        value={form.storeId || ""}
+                        onChange={e => setForm({ ...form, storeId: e.target.value })}
+                        required
+                    >
+                        <MenuItem value="">Select store</MenuItem>
+                        {stores.map(store => (
+                            <MenuItem key={store.id} value={store.id}>{store.storeName}</MenuItem>
+                        ))}
+                    </TextField>
+                )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>
