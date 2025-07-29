@@ -18,8 +18,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.farmovo.backend.specification.DebtNoteSpecification.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,6 +38,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private final StoreRepository storeRepository;
     private final CustomerService customerService;
     private final S3Service s3Service;
+    private final com.farmovo.backend.mapper.DebtNoteMapper debtNoteMapper;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -46,10 +49,8 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         logger.debug("Finding debt notes for customer ID: {}", customerId);
         try {
             customerService.getCustomerById(customerId);
-            List<DebtNote> debtNotes = debtNoteRepository.findAll().stream()
-                    .filter(debtNote -> debtNote.getCustomer().getId().equals(customerId)
-                            && debtNote.getDeletedAt() == null)
-                    .toList();
+            Specification<DebtNote> spec = defaultFilter(customerId);
+            List<DebtNote> debtNotes = debtNoteRepository.findAll(spec, Sort.by("debtDate").descending());
             List<DebtNoteResponseDto> result = debtNotes.stream()
                     .map(this::mapToDebtNoteResponseDto)
                     .collect(Collectors.toList());
@@ -67,7 +68,8 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
-        return debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable)
+        Specification<DebtNote> spec = defaultFilter(customerId);
+        return debtNoteRepository.findAll(spec, pageable)
                 .getContent()
                 .stream()
                 .map(this::mapToDebtNoteResponseDto)
@@ -77,9 +79,29 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     public Page<DebtNoteResponseDto> getDebtNotesPage(Long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
-        Page<DebtNote> pageResult = debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable);
+        Specification<DebtNote> spec = defaultFilter(customerId);
+        Page<DebtNote> pageResult = debtNoteRepository.findAll(spec, pageable);
         return pageResult.map(this::mapToDebtNoteResponseDto);
     }
+
+    @Override
+    public Page<DebtNoteResponseDto> searchDebtNotes(Long customerId, String fromSource, String debtType, Long storeId,
+                                                     LocalDateTime fromDate, LocalDateTime toDate, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
+
+        Specification<DebtNote> spec = Specification.allOf(
+                isNotDeleted(),
+                hasCustomer(customerId),
+                hasFromSource(fromSource),
+                hasDebtType(debtType),
+                hasStore(storeId),
+                createdBetween(fromDate, toDate)
+        );
+
+        Page<DebtNote> pageResult = debtNoteRepository.findAll(spec, pageable);
+        return pageResult.map(this::mapToDebtNoteResponseDto);
+    }
+
 
     @Override
     @Transactional
@@ -289,23 +311,9 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     }
 
     private DebtNoteResponseDto mapToDebtNoteResponseDto(DebtNote debtNote) {
-        String evidenceUrl = generateEvidenceUrl(debtNote.getDebtEvidences());
-        return new DebtNoteResponseDto(
-                debtNote.getId(),
-                debtNote.getCustomer().getId(),
-                debtNote.getDebtAmount() != null ? debtNote.getDebtAmount() : BigDecimal.ZERO,
-                debtNote.getDebtDate() != null ? debtNote.getDebtDate() : LocalDateTime.now(),
-                debtNote.getStore() != null ? debtNote.getStore().getId() : null,
-                debtNote.getDebtType() != null ? debtNote.getDebtType() : "",
-                debtNote.getDebtDescription() != null ? debtNote.getDebtDescription() : "",
-                evidenceUrl != null ? evidenceUrl : "",
-                debtNote.getFromSource() != null ? debtNote.getFromSource() : "",
-                debtNote.getSourceId(),
-                debtNote.getCreatedAt() != null ? debtNote.getCreatedAt() : LocalDateTime.now(),
-                debtNote.getCreatedBy(),
-                debtNote.getUpdatedAt(),
-                debtNote.getDeletedAt(),
-                debtNote.getDeletedBy()
-        );
+        DebtNoteResponseDto dto = debtNoteMapper.toResponseDto(debtNote);
+        // Thay thế đường dẫn evidence thành presigned URL
+        dto.setDebtEvidences(generateEvidenceUrl(debtNote.getDebtEvidences()));
+        return dto;
     }
 }

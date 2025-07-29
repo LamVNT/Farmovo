@@ -14,11 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import com.farmovo.backend.dto.response.CustomerResponseDto;
+import com.farmovo.backend.mapper.DebtNoteMapper;
 
 class DebtNoteServiceImplTest {
     @Mock
@@ -41,12 +39,30 @@ class DebtNoteServiceImplTest {
     @Mock
     private S3Service s3Service;
 
+    @Mock
+    private com.farmovo.backend.mapper.DebtNoteMapper debtNoteMapper;
+
     @InjectMocks
     private DebtNoteServiceImpl debtNoteService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        // Default lenient stub for mapper to avoid NPE in tests not asserting mapper
+        org.mockito.Mockito.lenient()
+                .when(debtNoteMapper.toResponseDto(org.mockito.ArgumentMatchers.any(DebtNote.class)))
+                .thenAnswer(invocation -> {
+                    DebtNote dn = invocation.getArgument(0);
+                    com.farmovo.backend.dto.response.DebtNoteResponseDto dto = new com.farmovo.backend.dto.response.DebtNoteResponseDto();
+                    dto.setId(dn.getId());
+                    dto.setCustomerId(dn.getCustomer() != null ? dn.getCustomer().getId() : null);
+                    dto.setDebtAmount(dn.getDebtAmount());
+                    dto.setDebtDate(dn.getDebtDate());
+                    dto.setDebtType(dn.getDebtType());
+                    dto.setDebtDescription(dn.getDebtDescription());
+                    return dto;
+                });
     }
 
     @Test
@@ -75,7 +91,7 @@ class DebtNoteServiceImplTest {
         note.setDeletedBy(null);
         List<DebtNote> notes = List.of(note);
         when(customerService.getCustomerById(customerId)).thenReturn(customerResponseDto);
-        when(debtNoteRepository.findAll()).thenReturn(notes);
+        when(debtNoteRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(notes);
         List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerId(customerId);
         assertEquals(1, result.size());
         assertEquals(10L, result.get(0).getId());
@@ -102,7 +118,7 @@ class DebtNoteServiceImplTest {
         note.setDebtDescription("desc");
         List<DebtNote> notes = List.of(note);
         Page<DebtNote> page = new PageImpl<>(notes);
-        when(debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(eq(customerId), any(Pageable.class))).thenReturn(page);
+        when(debtNoteRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
         List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, 0, 10);
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getId());
@@ -121,7 +137,7 @@ class DebtNoteServiceImplTest {
         note.setDebtDescription("desc");
         List<DebtNote> notes = List.of(note);
         Page<DebtNote> page = new PageImpl<>(notes);
-        when(debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(eq(customerId), any(Pageable.class))).thenReturn(page);
+        when(debtNoteRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
         Page<DebtNoteResponseDto> result = debtNoteService.getDebtNotesPage(customerId, 0, 10);
         assertEquals(1, result.getTotalElements());
         assertEquals(1L, result.getContent().get(0).getId());
@@ -713,7 +729,7 @@ class DebtNoteServiceImplTest {
         note.setDeletedBy(null);
         List<DebtNote> notes = List.of(note);
         when(customerService.getCustomerById(customerId)).thenReturn(customerResponseDto);
-        when(debtNoteRepository.findAll()).thenReturn(notes);
+        when(debtNoteRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(notes);
         List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerId(customerId);
         assertEquals(1, result.size());
         assertEquals(10L, result.get(0).getId());

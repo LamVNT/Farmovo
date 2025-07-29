@@ -12,9 +12,13 @@ import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.services.UserService;
 import com.farmovo.backend.utils.InputUserValidation;
+import com.farmovo.backend.mapper.UserMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.security.Principal;
@@ -38,6 +42,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private InputUserValidation inputUserValidation;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public List<User> getAllUsers() {
@@ -155,6 +162,23 @@ public class UserServiceImpl implements UserService {
             logger.info("Status toggled to {} for user id: {}", newStatus, id);
             return userRepository.save(user);
         });
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<com.farmovo.backend.dto.response.UserResponseDto> searchUsers(String username, String email, Boolean status, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
+        Specification<User> spec = com.farmovo.backend.specification.UserSpecification.isNotDeleted()
+                .and(com.farmovo.backend.specification.UserSpecification.hasUsername(username))
+                .and(com.farmovo.backend.specification.UserSpecification.hasEmail(email))
+                .and(com.farmovo.backend.specification.UserSpecification.hasStatus(status))
+                .and(com.farmovo.backend.specification.UserSpecification.createdBetween(fromDate, toDate));
+
+        Page<User> pageResult = userRepository.findAll(spec, pageable);
+        return pageResult.map(userMapper::toResponseDto);
+    }
+
+    // Mapping now delegated to UserMapper; keep method for backward compatibility if other tests call it.
+    private com.farmovo.backend.dto.response.UserResponseDto toResponseDto(User user) {
+        return userMapper.toResponseDto(user);
     }
 
     @Override

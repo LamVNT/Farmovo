@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import useDebtNotes from "../../hooks/useDebtNotes";
 import {
     Container,
     Typography,
@@ -17,6 +18,8 @@ import {
     ToggleButton,
     ToggleButtonGroup
 } from "@mui/material";
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SearchIcon from '@mui/icons-material/Search';
 import DebtTable from "../../components/debt/DebtTable";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
@@ -24,17 +27,23 @@ import DebtDetailDialog from "../../components/debt/DebtDetailDialog.jsx";
 import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
 import { getAllCustomers, getCustomerById } from "../../services/customerService";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { formatCurrency } from "../../utils/formatters";
 
 const DebtManagement = () => {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
     const [customer, setCustomer] = useState(null);
-    const [debtNotes, setDebtNotes] = useState([]);
-    const [debtNotesPage, setDebtNotesPage] = useState(0);
-    const [debtNotesRowsPerPage, setDebtNotesRowsPerPage] = useState(10);
-    const [debtNotesTotalPages, setDebtNotesTotalPages] = useState(0);
-    const [debtNotesTotalItems, setDebtNotesTotalItems] = useState(0);
-    const [totalDebt, setTotalDebt] = useState(null);
+    const {
+        debtNotes,
+        totalDebt,
+        page: debtNotesPage,
+        size: debtNotesRowsPerPage,
+        totalPages: debtNotesTotalPages,
+        totalItems: debtNotesTotalItems,
+        setPage: setDebtNotesPage,
+        setSize: setDebtNotesRowsPerPage,
+        fetchDebtNotes,
+    } = useDebtNotes();
     const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [debtTableOpen, setDebtTableOpen] = useState(false); // State cho modal DebtTable
@@ -44,6 +53,11 @@ const DebtManagement = () => {
     const [customerPage, setCustomerPage] = useState(0);
     const [customerRowsPerPage, setCustomerRowsPerPage] = useState(5);
     const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
+    const [filterDebt, setFilterDebt] = useState(false);
+
+    // Date filter for debt notes
+    const [debtFromDate, setDebtFromDate] = useState(null);
+    const [debtToDate, setDebtToDate] = useState(null);
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -60,46 +74,24 @@ const DebtManagement = () => {
 
     useEffect(() => {
         if (selectedCustomerId) {
-            const fetchCustomerData = async () => {
+            const load = async () => {
                 try {
                     setError("");
                     const customerData = await getCustomerById(selectedCustomerId);
                     setCustomer(customerData);
-
-                    const debtNotesData = await getDebtNotesByCustomerId(selectedCustomerId, debtNotesPage, debtNotesRowsPerPage);
-                    setDebtNotes(debtNotesData.content || []);
-                    setDebtNotesTotalPages(debtNotesData.totalPages || 0);
-                    setDebtNotesTotalItems(debtNotesData.totalItems || 0);
-
-                    try {
-                        const totalDebtData = await getTotalDebtByCustomerId(selectedCustomerId);
-                        setTotalDebt(totalDebtData || 0);
-                    } catch (error) {
-                        console.error("Failed to fetch total debt, continuing with other data:", error);
-                        setTotalDebt(0);
-                        setError("Không thể tải tổng nợ, nhưng dữ liệu khác vẫn được hiển thị");
-                    }
-
+                    await fetchDebtNotes(selectedCustomerId, buildDebtFilters());
                     setDebtTableOpen(true);
                 } catch (error) {
                     console.error("Failed to fetch customer data:", error);
                     setError("Không thể tải dữ liệu khách hàng: " + (error.response?.data?.message || error.message));
                 }
             };
-            fetchCustomerData();
+            load();
         }
-    }, [selectedCustomerId, debtNotesPage, debtNotesRowsPerPage]);
+    }, [selectedCustomerId, debtNotesPage, debtNotesRowsPerPage, fetchDebtNotes, debtFromDate, debtToDate]);
 
-    const handleAddDebtNote = (newDebtNote) => {
-        if (newDebtNote) {
-            setDebtNotes([...debtNotes, newDebtNote]);
-            getTotalDebtByCustomerId(selectedCustomerId)
-                .then((data) => setTotalDebt(data || 0))
-                .catch((error) => {
-                    console.error("Failed to refresh total debt:", error);
-                    setError("Không thể làm mới tổng nợ");
-                });
-        }
+    const handleAddDebtNote = () => {
+        fetchDebtNotes(selectedCustomerId);
     };
 
     const handleViewDebtNote = (debtNote) => {
@@ -110,16 +102,15 @@ const DebtManagement = () => {
     };
 
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0 VND";
+        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
-            );
-        } else {
-            return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
             );
         }
+        return (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
+        );
     };
 
     const handleCustomerSearchChange = (e) => {
@@ -161,6 +152,19 @@ const DebtManagement = () => {
     const handleDebtNotesRowsPerPageChange = (event) => {
         setDebtNotesRowsPerPage(parseInt(event.target.value, 10));
         setDebtNotesPage(0);
+    };
+
+    // Handle date filter change from DebtTable
+    const handleDateFilterChange = (from, to) => {
+        setDebtFromDate(from);
+        setDebtToDate(to);
+    };
+
+    const buildDebtFilters = () => {
+        const filters = {};
+        if (debtFromDate) filters.fromDate = debtFromDate.toISOString();
+        if (debtToDate) filters.toDate = debtToDate.toISOString();
+        return filters;
     };
 
     return (
@@ -272,6 +276,9 @@ const DebtManagement = () => {
                     debtNotesTotalItems={debtNotesTotalItems}
                     onDebtNotesPageChange={handleDebtNotesPageChange}
                     onDebtNotesRowsPerPageChange={handleDebtNotesRowsPerPageChange}
+                    fromDate={debtFromDate}
+                    toDate={debtToDate}
+                    onDateFilterChange={handleDateFilterChange}
                 />
             )}
             <DebtDetailDialog

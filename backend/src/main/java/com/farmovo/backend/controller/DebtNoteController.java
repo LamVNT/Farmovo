@@ -14,8 +14,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import com.farmovo.backend.dto.request.PageResponse;
 import org.springframework.data.domain.Page;
 
 @RestController
@@ -29,18 +32,21 @@ public class DebtNoteController {
     private final S3Service s3Service;
 
     @GetMapping("/customer/{customerId}/debt-notes")
-    public ResponseEntity<Map<String, Object>> getDebtNotes(
+    public ResponseEntity<PageResponse<DebtNoteResponseDto>> getDebtNotes(
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        logger.debug("Received request to get debt notes for customer ID: {} page: {} size: {}", customerId, page, size);
-        Page<DebtNoteResponseDto> pageResult = debtNoteService.getDebtNotesPage(customerId, page, size);
-        Map<String, Object> response = new HashMap<>();
-        response.put("content", pageResult.getContent());
-        response.put("currentPage", pageResult.getNumber());
-        response.put("totalItems", pageResult.getTotalElements());
-        response.put("totalPages", pageResult.getTotalPages());
-        logger.info("Successfully retrieved {} debt notes for customer ID: {} (page {}/{})", pageResult.getNumberOfElements(), customerId, pageResult.getNumber() + 1, pageResult.getTotalPages());
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String fromSource,
+            @RequestParam(required = false) String debtType,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+
+        logger.debug("Debt notes search: cust={}, page={}, size={}, src={}, type={}, store={}, from={}, to={}", customerId, page, size, fromSource, debtType, storeId, fromDate, toDate);
+
+        Page<DebtNoteResponseDto> pageResult = debtNoteService.searchDebtNotes(customerId, fromSource, debtType, storeId, fromDate, toDate, page, size);
+        PageResponse<DebtNoteResponseDto> response = PageResponse.fromPage(pageResult);
+
         return ResponseEntity.ok(response);
     }
 

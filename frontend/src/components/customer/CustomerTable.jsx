@@ -3,6 +3,7 @@ import { Table, TableHead, TableBody, TableRow, TableCell, IconButton, Stack, Pa
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { formatCurrency } from "../../utils/formatters";
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10];
 
@@ -26,7 +27,7 @@ const CustomerTable = ({ customers, onEdit, onDelete, onDetail, page, pageCount,
               <TableCell>{customer.name}</TableCell>
               <TableCell>{customer.email}</TableCell>
               <TableCell>{customer.phone}</TableCell>
-              <TableCell>{customer.totalDebt}</TableCell>
+              <TableCell>{formatCurrency(customer.totalDebt)}</TableCell>
               <TableCell>{customer.isSupplier ? "Có" : "Không"}</TableCell>
               <TableCell>
                 <IconButton color="primary" onClick={() => onDetail(customer)}><VisibilityIcon /></IconButton>

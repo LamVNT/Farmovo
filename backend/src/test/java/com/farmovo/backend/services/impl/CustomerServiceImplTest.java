@@ -7,10 +7,11 @@ import com.farmovo.backend.mapper.CustomerMapper;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.repositories.CustomerRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.InjectMocks;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class CustomerServiceImplTest {
     @Mock
     private CustomerRepository customerRepository;
@@ -32,7 +34,7 @@ class CustomerServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        // MockitoExtension handles initialization
     }
 
     @Test
@@ -161,5 +163,26 @@ class CustomerServiceImplTest {
         CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, new BigDecimal("-10"), false);
         Exception exception = assertThrows(IllegalArgumentException.class, () -> customerService.createCustomer(requestDto, 1L));
         assertTrue(exception.getMessage().contains("Total debt cannot be negative"));
+    }
+
+    @Test
+    void testCreateCustomer_PhoneInvalid_PassIfNoValidation() {
+        CustomerRequestDto dto = new CustomerRequestDto(null, "Cust", "email@test.com", "abc", null, BigDecimal.ZERO, false);
+        Customer customer = new Customer();
+        customer.setId(1L);
+        when(customerRepository.save(any(Customer.class))).thenReturn(customer);
+        CustomerResponseDto res = customerService.createCustomer(dto, 1L);
+        assertEquals(1L, res.getId());
+    }
+
+    @Test
+    void testUpdateCustomer_PhoneUpdateSuccess() {
+        Customer existing = new Customer();
+        existing.setId(1L);
+        when(customerRepository.findByIdAndActive(1L)).thenReturn(existing);
+        when(customerRepository.save(any(Customer.class))).thenReturn(existing);
+        CustomerRequestDto dto = new CustomerRequestDto(null, "New", "e@t.com", "0987654321", null, BigDecimal.ZERO, false);
+        CustomerResponseDto resp = customerService.updateCustomer(1L, dto);
+        assertEquals("New", resp.getName());
     }
 } 
