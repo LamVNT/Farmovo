@@ -31,6 +31,7 @@ import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
+import EditPage from '../pages/import-transaction/EditPage';
 
 const router = createBrowserRouter([
     {
@@ -139,6 +140,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <ImportPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/import/edit/:id',
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <EditPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),

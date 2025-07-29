@@ -17,6 +17,10 @@ import CheckIcon from '@mui/icons-material/Check';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import FirstPageIcon from '@mui/icons-material/FirstPage';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LastPageIcon from '@mui/icons-material/LastPage';
 // Không cần import FaPlus nữa vì đã dùng Material-UI icons
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
@@ -27,7 +31,7 @@ import {
     startOfYear, endOfYear
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
@@ -78,6 +82,7 @@ const labelMap = {
     this_year: "Năm nay"
 };
 const ImportTransactionPage = () => {
+    const navigate = useNavigate();
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -122,6 +127,15 @@ const ImportTransactionPage = () => {
     const [cancelError, setCancelError] = useState(null);
     // Thêm state cho thông báo lỗi khi mở phiếu
     const [openError, setOpenError] = useState(null);
+
+    // State cho dialog xác nhận
+    const [confirmDialog, setConfirmDialog] = useState({
+        open: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        actionType: ''
+    });
 
     // Auto-dismiss error/success messages
     useEffect(() => {
@@ -181,6 +195,8 @@ const ImportTransactionPage = () => {
     useEffect(() => {
         loadTransactions();
     }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate)]);
+
+
 
     // Thay thế đoạn filter transactions:
     const getStatusKeys = () => {
@@ -255,83 +271,133 @@ const ImportTransactionPage = () => {
     // Hàm xử lý huỷ phiếu
     const handleCancelTransaction = async () => {
         if (!selectedTransaction?.id) return;
-        setCancelError(null);
-        try {
-            await importTransactionService.updateStatus(selectedTransaction.id);
-            setOpenDetailDialog(false);
-            loadTransactions();
-        } catch (err) {
-            setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
-        }
+        
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận hủy phiếu',
+            message: `Bạn có chắc chắn muốn hủy phiếu nhập hàng "${selectedTransaction.name}"?`,
+            onConfirm: async () => {
+                setCancelError(null);
+                try {
+                    await importTransactionService.updateStatus(selectedTransaction.id);
+                    setOpenDetailDialog(false);
+                    loadTransactions();
+                    setSuccess('Hủy phiếu thành công!');
+                } catch (err) {
+                    setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
+                }
+                setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            actionType: 'cancel'
+        });
     };
 
     // Hàm xử lý mở phiếu
     const handleOpenTransaction = async () => {
         if (!selectedTransaction?.id) return;
-        setOpenError(null);
-        setLoading(true);
-        try {
-            await importTransactionService.openTransaction(selectedTransaction.id);
-            setOpenDetailDialog(false);
-            loadTransactions();
-            // Thêm thông báo thành công
-            setSuccess('Mở phiếu thành công!');
-        } catch (err) {
-            setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
-        } finally {
-            setLoading(false);
-        }
+        
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận mở phiếu',
+            message: `Bạn có chắc chắn muốn mở phiếu nhập hàng "${selectedTransaction.name}" để chờ duyệt?`,
+            onConfirm: async () => {
+                setOpenError(null);
+                setLoading(true);
+                try {
+                    await importTransactionService.openTransaction(selectedTransaction.id);
+                    setOpenDetailDialog(false);
+                    loadTransactions();
+                    setSuccess('Mở phiếu thành công!');
+                } catch (err) {
+                    setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            actionType: 'open'
+        });
     };
 
     // Hàm xử lý đóng phiếu (quay về DRAFT)
     const handleCloseTransaction = async () => {
         if (!selectedTransaction?.id) return;
-        setOpenError(null);
-        setLoading(true);
-        try {
-            await importTransactionService.closeTransaction(selectedTransaction.id);
-            setOpenDetailDialog(false);
-            loadTransactions();
-            setSuccess('Đóng phiếu thành công!');
-        } catch (err) {
-            setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
-        } finally {
-            setLoading(false);
-        }
+        
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận đóng phiếu',
+            message: `Bạn có chắc chắn muốn đóng phiếu nhập hàng "${selectedTransaction.name}" và quay về trạng thái nháp?`,
+            onConfirm: async () => {
+                setOpenError(null);
+                setLoading(true);
+                try {
+                    await importTransactionService.closeTransaction(selectedTransaction.id);
+                    setOpenDetailDialog(false);
+                    loadTransactions();
+                    setSuccess('Đóng phiếu thành công!');
+                } catch (err) {
+                    setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            actionType: 'close'
+        });
     };
 
     // Hàm xử lý hoàn thành phiếu
     const handleCompleteTransaction = async () => {
         if (!selectedTransaction?.id) return;
-        setOpenError(null);
-        setLoading(true);
-        try {
-            await importTransactionService.completeTransaction(selectedTransaction.id);
-            setOpenDetailDialog(false);
-            loadTransactions();
-            setSuccess('Hoàn thành phiếu thành công!');
-        } catch (err) {
-            setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
-        } finally {
-            setLoading(false);
-        }
+        
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận hoàn thành phiếu',
+            message: `Bạn có chắc chắn muốn hoàn thành phiếu nhập hàng "${selectedTransaction.name}"? Hành động này sẽ cập nhật tồn kho và tạo ghi chú nợ nếu cần.`,
+            onConfirm: async () => {
+                setOpenError(null);
+                setLoading(true);
+                try {
+                    await importTransactionService.completeTransaction(selectedTransaction.id);
+                    setOpenDetailDialog(false);
+                    loadTransactions();
+                    setSuccess('Hoàn thành phiếu thành công!');
+                } catch (err) {
+                    setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            actionType: 'complete'
+        });
     };
 
     // Hàm xử lý hủy phiếu từ dialog
     const handleCancelTransactionFromDialog = async () => {
         if (!selectedTransaction?.id) return;
-        setCancelError(null);
-        setLoading(true);
-        try {
-            await importTransactionService.updateStatus(selectedTransaction.id);
-            setOpenDetailDialog(false);
-            loadTransactions();
-            setSuccess('Hủy phiếu thành công!');
-        } catch (err) {
-            setCancelError('Không thể hủy phiếu. Vui lòng thử lại!');
-        } finally {
-            setLoading(false);
-        }
+        
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận hủy phiếu',
+            message: `Bạn có chắc chắn muốn hủy phiếu nhập hàng "${selectedTransaction.name}"?`,
+            onConfirm: async () => {
+                setCancelError(null);
+                setLoading(true);
+                try {
+                    await importTransactionService.updateStatus(selectedTransaction.id);
+                    setOpenDetailDialog(false);
+                    loadTransactions();
+                    setSuccess('Hủy phiếu thành công!');
+                } catch (err) {
+                    setCancelError('Không thể hủy phiếu. Vui lòng thử lại!');
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            actionType: 'cancel'
+        });
     };
 
     // Hàm xử lý action menu
@@ -353,13 +419,22 @@ const ImportTransactionPage = () => {
     const handleOpenTransactionMenu = async () => {
         if (actionRow?.status === 'DRAFT') {
             setSelectedTransaction(actionRow);
-            try {
-                await importTransactionService.openTransaction(actionRow.id);
-                loadTransactions();
-                setSuccess('Mở phiếu thành công!');
-            } catch (err) {
-                setError('Không thể mở phiếu. Vui lòng thử lại!');
-            }
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận mở phiếu',
+                message: `Bạn có chắc chắn muốn mở phiếu nhập hàng "${actionRow.name}" để chờ duyệt?`,
+                onConfirm: async () => {
+                    try {
+                        await importTransactionService.openTransaction(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Mở phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể mở phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'open'
+            });
         }
         handleActionClose();
     };
@@ -367,13 +442,22 @@ const ImportTransactionPage = () => {
     const handleCloseTransactionMenu = async () => {
         if (actionRow?.status === 'WAITING_FOR_APPROVE') {
             setSelectedTransaction(actionRow);
-            try {
-                await importTransactionService.closeTransaction(actionRow.id);
-                loadTransactions();
-                setSuccess('Đóng phiếu thành công!');
-            } catch (err) {
-                setError('Không thể đóng phiếu. Vui lòng thử lại!');
-            }
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận đóng phiếu',
+                message: `Bạn có chắc chắn muốn đóng phiếu nhập hàng "${actionRow.name}" và quay về trạng thái nháp?`,
+                onConfirm: async () => {
+                    try {
+                        await importTransactionService.closeTransaction(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Đóng phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'close'
+            });
         }
         handleActionClose();
     };
@@ -381,13 +465,22 @@ const ImportTransactionPage = () => {
     const handleCompleteTransactionMenu = async () => {
         if (actionRow?.status === 'WAITING_FOR_APPROVE') {
             setSelectedTransaction(actionRow);
-            try {
-                await importTransactionService.completeTransaction(actionRow.id);
-                loadTransactions();
-                setSuccess('Hoàn thành phiếu thành công!');
-            } catch (err) {
-                setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
-            }
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hoàn thành phiếu',
+                message: `Bạn có chắc chắn muốn hoàn thành phiếu nhập hàng "${actionRow.name}"? Hành động này sẽ cập nhật tồn kho và tạo ghi chú nợ nếu cần.`,
+                onConfirm: async () => {
+                    try {
+                        await importTransactionService.completeTransaction(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Hoàn thành phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'complete'
+            });
         }
         handleActionClose();
     };
@@ -395,24 +488,52 @@ const ImportTransactionPage = () => {
     const handleCancelTransactionMenu = async () => {
         if (actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') {
             setSelectedTransaction(actionRow);
-            try {
-                await importTransactionService.updateStatus(actionRow.id);
-                loadTransactions();
-                setSuccess('Hủy phiếu thành công!');
-            } catch (err) {
-                setError('Không thể hủy phiếu. Vui lòng thử lại!');
-            }
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hủy phiếu',
+                message: `Bạn có chắc chắn muốn hủy phiếu nhập hàng "${actionRow.name}"?`,
+                onConfirm: async () => {
+                    try {
+                        await importTransactionService.updateStatus(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Hủy phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể hủy phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'cancel'
+            });
         }
         handleActionClose();
     };
 
     const handleEdit = () => {
-        // TODO: Thêm logic sửa
+        if (actionRow) {
+            navigate(`/import/edit/${actionRow.id}`);
+        }
         handleActionClose();
     };
 
     const handleDelete = () => {
-        // TODO: Thêm logic xóa
+        if (actionRow) {
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận xóa phiếu',
+                message: `Bạn có chắc chắn muốn xóa phiếu nhập hàng "${actionRow.name}"? Hành động này không thể hoàn tác.`,
+                onConfirm: async () => {
+                    try {
+                        await importTransactionService.softDelete(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Xóa phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể xóa phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'delete'
+            });
+        }
         handleActionClose();
     };
 
@@ -741,15 +862,17 @@ const ImportTransactionPage = () => {
                 >
                   {showFilter && (
                     <>
-                      {/* Nút ẩn filter chỉ hiện khi hover filter sidebar */}
-                      <button
-                        style={{ ...filterHideBtnStyle, opacity: 0 }}
-                        className="filter-hide-btn"
-                        onClick={() => setShowFilter(false)}
-                        title='Ẩn bộ lọc'
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                      </button>
+                      {/* Nút ẩn filter chỉ hiện khi hover filter sidebar và không mở dialog detail */}
+                      {!openDetailDialog && (
+                        <button
+                          style={{ ...filterHideBtnStyle, opacity: 0 }}
+                          className="filter-hide-btn"
+                          onClick={() => setShowFilter(false)}
+                          title='Ẩn bộ lọc'
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                      )}
                       <style>{`
                         .group:hover .filter-hide-btn { opacity: 1 !important; }
                         .filter-hide-btn:hover {
@@ -790,7 +913,7 @@ const ImportTransactionPage = () => {
                             />
                             <FormControlLabel control={<Checkbox checked={selectedMode === "custom"} onChange={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(true); }} />} label={<div className="flex items-center justify-between w-full"><span>{customLabel}</span><Button size="small" onClick={() => { setSelectedMode("custom"); setAnchorEl(null); setShowDatePicker(!showDatePicker); }}>📅</Button></div>} />
                         </div>
-                        <Popover open={openPopover} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
+                        <Popover open={openPopover && !openDetailDialog} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }} transformOrigin={{ vertical: "top", horizontal: "left" }}>
                             <div className="p-4 grid grid-cols-2 gap-2">
                                 {Object.entries(labelMap).map(([key, label]) => (
                                     <Button key={key} size="small" variant="outlined" onClick={() => handlePresetChange(key)}>{label}</Button>
@@ -1031,6 +1154,8 @@ const ImportTransactionPage = () => {
                 </div>
             </div>
 
+
+
             {/* Chi tiết phiếu nhập */}
             <ImportDetailDialog
                 open={openDetailDialog}
@@ -1144,6 +1269,91 @@ const ImportTransactionPage = () => {
                 </MenuItem>
             </Menu>
 
+            {/* Dialog xác nhận */}
+            <Dialog
+                open={confirmDialog.open}
+                onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ 
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    {(() => {
+                        switch (confirmDialog.actionType) {
+                            case 'cancel':
+                                return <CancelIcon color="error" />;
+                            case 'open':
+                                return <LockOpenIcon color="primary" />;
+                            case 'close':
+                                return <SaveIcon color="warning" />;
+                            case 'complete':
+                                return <CheckIcon color="success" />;
+                            case 'delete':
+                                return <DeleteIcon color="error" />;
+                            default:
+                                return <CancelIcon />;
+                        }
+                    })()}
+                    {confirmDialog.title}
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <div className="text-gray-700">
+                        {confirmDialog.message}
+                    </div>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 1 }}>
+                    <Button 
+                        onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                        variant="outlined"
+                        sx={{
+                            borderColor: '#ddd',
+                            color: '#666',
+                            '&:hover': {
+                                borderColor: '#999',
+                                backgroundColor: '#f5f5f5'
+                            }
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={confirmDialog.onConfirm}
+                        variant="contained"
+                        sx={{
+                            background: (() => {
+                                switch (confirmDialog.actionType) {
+                                    case 'cancel':
+                                        return 'linear-gradient(45deg, #f44336 30%, #ff5722 90%)';
+                                    case 'open':
+                                        return 'linear-gradient(45deg, #2196f3 30%, #42a5f5 90%)';
+                                    case 'close':
+                                        return 'linear-gradient(45deg, #ff9800 30%, #ffb74d 90%)';
+                                    case 'complete':
+                                        return 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)';
+                                    case 'delete':
+                                        return 'linear-gradient(45deg, #dc2626 30%, #ef4444 90%)';
+                                    default:
+                                        return 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)';
+                                }
+                            })(),
+                            boxShadow: '0 3px 15px rgba(0,0,0,0.2)',
+                            '&:hover': {
+                                boxShadow: '0 5px 20px rgba(0,0,0,0.3)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

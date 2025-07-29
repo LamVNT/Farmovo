@@ -246,10 +246,37 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
 
                 {/* Buttons */}
                 <div className="flex justify-end gap-2 mt-6">
-                    <Button onClick={onClose} variant="outlined" color="inherit">
+                    <Button 
+                        onClick={onClose} 
+                        variant="outlined" 
+                        color="inherit"
+                        sx={{
+                            borderColor: '#ddd',
+                            color: '#666',
+                            '&:hover': {
+                                borderColor: '#999',
+                                backgroundColor: '#f5f5f5'
+                            }
+                        }}
+                    >
                         Bỏ qua
                     </Button>
-                    <Button onClick={handleSubmit} variant="contained" color="success">
+                    <Button 
+                        onClick={handleSubmit} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
                         Lưu
                     </Button>
                 </div>
@@ -264,8 +291,33 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                     <TextField label="Mô tả" value={newCategoryDescription} onChange={e => setNewCategoryDescription(e.target.value)} fullWidth multiline rows={2} sx={{ mt: 2 }} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setAddCategoryOpen(false)}>Hủy</Button>
-                    <Button onClick={handleAddCategory} variant="contained">Thêm</Button>
+                    <Button 
+                        onClick={() => setAddCategoryOpen(false)}
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={handleAddCategory} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -277,8 +329,33 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                     <TextField label="Mô tả" value={newStoreDescription} onChange={e => setNewStoreDescription(e.target.value)} fullWidth multiline rows={2} sx={{ mt: 2 }} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setAddStoreOpen(false)}>Hủy</Button>
-                    <Button onClick={handleAddStore} variant="contained">Thêm</Button>
+                    <Button 
+                        onClick={() => setAddStoreOpen(false)}
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={handleAddStore} 
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm
+                    </Button>
                 </DialogActions>
             </Dialog>
 

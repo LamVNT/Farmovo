@@ -23,7 +23,7 @@ const CustomerManagementPage = () => {
   // Fetch all customers
   const fetchCustomers = async () => {
     try {
-      const data = await getAllCustomers();
+      const data = await getAllCustomers(); // Đã trả về CustomerDto mới
       setCustomers(data);
     } catch (err) {
       // handle error

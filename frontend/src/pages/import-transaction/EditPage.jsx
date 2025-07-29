@@ -20,20 +20,23 @@ import {
     Chip,
     TextField as MuiTextField,
     Popover,
+    Typography,
 } from '@mui/material';
 import { FaSearch } from 'react-icons/fa';
 import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
-// Không cần import FiPlus nữa vì đã dùng Material-UI icons
 import AddIcon from '@mui/icons-material/Add';
 import { DataGrid } from '@mui/x-data-grid';
 import { FaRegTrashCan } from "react-icons/fa6";
 import LockIcon from '@mui/icons-material/Lock';
 import CheckIcon from '@mui/icons-material/Check';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+
 import AddProductDialog from '../../components/import-transaction/AddProductDialog.jsx';
+import ImportCategoryDialog from '../../components/import-transaction/ImportCategoryDialog';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
+import { useParams, useNavigate } from 'react-router-dom';
 
 import importTransactionService from '../../services/importTransactionService';
 import { productService } from '../../services/productService';
@@ -43,19 +46,59 @@ import { getCategories } from '../../services/categoryService';
 import { getZones } from '../../services/zoneService';
 import { getAllStores } from '../../services/storeService';
 import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
-import ImportSidebar from '../../components/import-transaction/ImportSidebar';
-const ImportPage = () => {
+import EditSidebar from '../../components/import-transaction/EditSidebar';
+
+const EditPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    
+    // State management
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
-    const [isSearchFocused, setIsSearchFocused] = useState(false); // Thêm state này
-    const [activeIndex, setActiveIndex] = useState(-1); // Thêm state highlight dòng hover
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(-1);
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [products, setProducts] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [selectedSupplier, setSelectedSupplier] = useState('');
+    const [stores, setStores] = useState([]);
+    const [selectedStore, setSelectedStore] = useState('');
+    const [zones, setZones] = useState([]);
+    const [categories, setCategories] = useState([]);
+    
+    // Form data
+    const [importCode, setImportCode] = useState('');
+    const [note, setNote] = useState('');
+    const [paidAmount, setPaidAmount] = useState(0);
+    const [paidAmountInput, setPaidAmountInput] = useState('0');
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [importDate, setImportDate] = useState(new Date());
+    
+    // UI states
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [highlightSupplier, setHighlightSupplier] = useState(false);
+    const [highlightStore, setHighlightStore] = useState(false);
+    const [highlightProducts, setHighlightProducts] = useState(false);
+    
+    // Search states
+    const [supplierSearch, setSupplierSearch] = useState('');
+    const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
+    const [filteredSuppliers, setFilteredSuppliers] = useState([]);
+    const [storeSearch, setStoreSearch] = useState('');
+    const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+    const [filteredStores, setFilteredStores] = useState([]);
+    
+    // Original data for comparison
+    const [originalData, setOriginalData] = useState(null);
+    const [hasChanges, setHasChanges] = useState(false);
+    
+    // Column visibility
     const [columnVisibility, setColumnVisibility] = useState({
         STT: true,
         'Tên hàng': true,
@@ -65,50 +108,137 @@ const ImportPage = () => {
         'Giá bán': true,
         'Zone': true,
         'Thành tiền': true,
+        'Ngày hết hạn': true,
     });
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
-    const [categories, setCategories] = useState([]);
+    // Category dialog states
     const [showCategoryDialog, setShowCategoryDialog] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
-    const [zones, setZones] = useState([]);
-    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
-    const [summaryData, setSummaryData] = useState(null);
-    const [supplierDetails, setSupplierDetails] = useState(null);
-    const [storeDetails, setStoreDetails] = useState(null);
-    const [stores, setStores] = useState([]);
-    const [selectedStore, setSelectedStore] = useState('');
+    const [selectedCategoryProducts, setSelectedCategoryProducts] = useState([]);
 
-    const [nextImportCode, setNextImportCode] = useState('');
-    const [note, setNote] = useState('');
-    const [paidAmount, setPaidAmount] = useState(0);
-    const [paidAmountInput, setPaidAmountInput] = useState('0');
-    const [currentTime, setCurrentTime] = useState(new Date());
-    const [highlightSupplier, setHighlightSupplier] = useState(false);
-    const [highlightStore, setHighlightStore] = useState(false);
-    const [highlightProducts, setHighlightProducts] = useState(false);
-    const [selectedCategoryProducts, setSelectedCategoryProducts] = useState([]); // Sản phẩm đã chọn trong dialog
-
-    const [supplierSearch, setSupplierSearch] = useState('');
-    const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
-    const [filteredSuppliers, setFilteredSuppliers] = useState([]);
-    const [storeSearch, setStoreSearch] = useState('');
-    const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
-    const [filteredStores, setFilteredStores] = useState([]);
-    const [zoneSearch, setZoneSearch] = useState('');
-
+    // Zone popover states
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
 
-    const zoneSearchInputRef = useRef();
+    // Load initial data
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                // Load current user
+                const currentUserData = await userService.getCurrentUser();
+                setCurrentUser(currentUserData);
 
-    // Đơn vị tính mặc định cho sản phẩm mới
-    const defaultUnit = 'quả';
+                // Load import transaction data
+                const importData = await importTransactionService.getById(id);
+                setOriginalData(importData);
+                
+                // Set form data
+                setImportCode(importData.name || '');
+                setSelectedSupplier(importData.supplierId || '');
+                setSelectedStore(importData.storeId || '');
+                setNote(importData.importTransactionNote || '');
+                setPaidAmount(importData.paidAmount || 0);
+                setPaidAmountInput(String(importData.paidAmount || 0));
+                setImportDate(importData.importDate ? new Date(importData.importDate) : new Date());
+                
+                // Set search values after loading suppliers and stores
+                setTimeout(() => {
+                    const supplier = suppliersData.find(s => s.id === importData.supplierId);
+                    if (supplier) {
+                        setSupplierSearch(supplier.name);
+                    }
+                    const store = storesData.find(s => s.id === importData.storeId);
+                    if (store) {
+                        setStoreSearch(store.name);
+                    }
+                }, 100);
+                
+                // Set products
+                if (importData.details) {
+                    const formattedProducts = importData.details.map(detail => ({
+                        id: detail.productId,
+                        name: detail.product?.name || detail.product?.productName,
+                        productCode: detail.product?.code || detail.product?.productCode,
+                        productDescription: detail.product?.productDescription,
+                        unit: 'quả',
+                        price: detail.unitImportPrice || 0,
+                        quantity: detail.importQuantity || 0,
+                        total: (detail.unitImportPrice || 0) * (detail.importQuantity || 0),
+                        productId: detail.productId,
+                        salePrice: detail.unitSalePrice || 0,
+                        zoneIds: detail.zones_id ? detail.zones_id.map(String) : [],
+                        expireDate: detail.expireDate ? detail.expireDate.split('T')[0] : '',
+                    }));
+                    setSelectedProducts(formattedProducts);
+                }
 
-    // Auto-dismiss error/success after 5s
+                // Load other data
+                const [productsData, suppliersData, categoriesData, zonesData, storesData] = await Promise.all([
+                    productService.getAllProducts(),
+                    customerService.getSuppliers(),
+                    getCategories(),
+                    getZones(),
+                    getAllStores(),
+                ]);
+
+                setProducts(productsData);
+                setSuppliers(suppliersData);
+                setCategories(categoriesData);
+                setZones(zonesData);
+                setStores(storesData);
+                
+            } catch (error) {
+                setError('Không thể tải dữ liệu: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id) {
+            loadData();
+        }
+    }, [id]);
+
+    // Check for changes
+    useEffect(() => {
+        if (originalData) {
+            const currentData = {
+                supplierId: selectedSupplier,
+                storeId: selectedStore,
+                importTransactionNote: note,
+                paidAmount: paidAmount,
+                details: selectedProducts.map(product => ({
+                    productId: product.productId,
+                    importQuantity: product.quantity,
+                    unitImportPrice: product.price,
+                    unitSalePrice: product.salePrice,
+                    zones_id: product.zoneIds,
+                    expireDate: product.expireDate,
+                })),
+            };
+
+            const hasDataChanged = JSON.stringify(currentData) !== JSON.stringify({
+                supplierId: originalData.supplierId,
+                storeId: originalData.storeId,
+                importTransactionNote: originalData.importTransactionNote,
+                paidAmount: originalData.paidAmount,
+                details: originalData.details?.map(detail => ({
+                    productId: detail.productId,
+                    importQuantity: detail.importQuantity,
+                    unitImportPrice: detail.unitImportPrice,
+                    unitSalePrice: detail.unitSalePrice,
+                    zones_id: detail.zones_id,
+                    expireDate: detail.expireDate,
+                })),
+            });
+
+            setHasChanges(hasDataChanged);
+        }
+    }, [selectedSupplier, selectedStore, note, paidAmount, selectedProducts, originalData]);
+
+    // Auto-dismiss messages
     useEffect(() => {
         if (error || success) {
             const timer = setTimeout(() => {
@@ -122,49 +252,29 @@ const ImportPage = () => {
         }
     }, [error, success]);
 
+    // Cập nhật filteredSuppliers khi search hoặc focus
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                // Load current user
-                const currentUserData = await userService.getCurrentUser();
-                setCurrentUser(currentUserData);
-                // Không setSelectedUser nữa
+        if (supplierSearch.trim() !== '') {
+            setFilteredSuppliers(suppliers.filter(s => s.name?.toLowerCase().includes(supplierSearch.toLowerCase())));
+        } else if (supplierDropdownOpen) {
+            setFilteredSuppliers(suppliers.slice(0, 5));
+        } else {
+            setFilteredSuppliers([]);
+        }
+    }, [suppliers, supplierSearch, supplierDropdownOpen]);
 
-                // Load all users for dropdown (không cần nữa)
-                // const allUsers = await userService.getAllUsers();
-                // setUsers(allUsers);
+    // Cập nhật filteredStores khi search hoặc focus
+    useEffect(() => {
+        if (storeSearch.trim() !== '') {
+            setFilteredStores(stores.filter(s => s.name?.toLowerCase().includes(storeSearch.toLowerCase())));
+        } else if (storeDropdownOpen) {
+            setFilteredStores(stores.slice(0, 5));
+        } else {
+            setFilteredStores([]);
+        }
+    }, [stores, storeSearch, storeDropdownOpen]);
 
-                // Load products
-                const productsData = await productService.getAllProducts();
-                setProducts(productsData);
-
-                // Load suppliers
-                const suppliersData = await customerService.getSuppliers();
-                setSuppliers(suppliersData);
-
-                // Load categories
-                const categoriesData = await getCategories();
-                setCategories(categoriesData);
-
-                // Load zones
-                const zonesData = await getZones();
-                setZones(zonesData);
-
-                // Load stores
-                const storesData = await getAllStores();
-                setStores(storesData);
-
-                // Lấy mã phiếu nhập tiếp theo
-                const code = await importTransactionService.getNextCode();
-                setNextImportCode(code);
-            } catch (error) {
-                setError('Không thể tải dữ liệu: ' + error.message);
-            }
-        };
-
-        loadData();
-    }, []);
-
+    // Update current time
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentTime(new Date());
@@ -172,59 +282,9 @@ const ImportPage = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Function để refresh products sau khi tạo mới
-    const refreshProducts = async () => {
-        try {
-            const productsData = await productService.getAllProducts();
-            setProducts(productsData);
-        } catch (error) {
-            console.error('Failed to refresh products:', error);
-        }
-    };
-
-    // Function để thêm product mới vào bảng
-    const handleAddNewProduct = (newProduct) => {
-        // Kiểm tra xem product đã có trong bảng chưa
-        if (!selectedProducts.find((p) => p.id === newProduct.id)) {
-            const price = 0; // Để user nhập vào
-            const quantity = 1;
-            const total = price * quantity;
-            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
-
-            setSelectedProducts((prev) => [
-                ...prev,
-                {
-                    id: newProduct.id,
-                    name: newProduct.name || newProduct.productName,
-                    productCode: newProduct.code || newProduct.productCode,
-                    productDescription: newProduct.productDescription,
-                    unit: 'quả',
-                    price,
-                    quantity,
-                    total,
-                    productId: newProduct.id,
-                    salePrice: 0,
-                    zoneId: '',
-                    expireDate: defaultExpireDate,
-                },
-            ]);
-        }
-    };
-
-    // Cập nhật category products khi products thay đổi
-    useEffect(() => {
-        if (selectedCategory) {
-            const filteredProducts = products.filter(product => 
-                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
-            );
-            setCategoryProducts(filteredProducts);
-        }
-    }, [products, selectedCategory]);
-
-    // Cập nhật search results khi products hoặc searchTerm hoặc isSearchFocused thay đổi
+    // Search functionality
     useEffect(() => {
         if (searchTerm.trim() !== '') {
-            // Ưu tiên lọc searchTerm nếu có nhập
             const results = products.filter(
                 (p) => {
                     const name = p.name || p.productName || '';
@@ -237,77 +297,28 @@ const ImportPage = () => {
             );
             setFilteredProducts(results);
         } else if (isSearchFocused) {
-            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên
             setFilteredProducts(products.slice(0, 5));
         } else {
-            // Không focus và không nhập thì không gợi ý gì
             setFilteredProducts([]);
         }
     }, [products, searchTerm, isSearchFocused]);
 
-    // Cập nhật filteredSuppliers khi search hoặc focus
-    useEffect(() => {
-        if (supplierSearch.trim() !== '') {
-            setFilteredSuppliers(suppliers.filter(s => s.name?.toLowerCase().includes(supplierSearch.toLowerCase())));
-        } else if (supplierDropdownOpen) {
-            setFilteredSuppliers(suppliers.slice(0, 5));
-        } else {
-            setFilteredSuppliers([]);
-        }
-    }, [suppliers, supplierSearch, supplierDropdownOpen]);
-    // Cập nhật filteredStores khi search hoặc focus
-    useEffect(() => {
-        if (storeSearch.trim() !== '') {
-            setFilteredStores(stores.filter(s => s.name?.toLowerCase().includes(storeSearch.toLowerCase())));
-        } else if (storeDropdownOpen) {
-            setFilteredStores(stores.slice(0, 5));
-        } else {
-            setFilteredStores([]);
-        }
-    }, [stores, storeSearch, storeDropdownOpen]);
-
+    // Helper functions
     const formatCurrency = (value) => {
         const number = Number(value);
         return !isNaN(number) ? number.toLocaleString('vi-VN') + ' VND' : '0 VND';
     };
 
-    const toggleColumn = (col) => {
-        setColumnVisibility((prev) => ({ ...prev, [col]: !prev[col] }));
-    };
-
     const handleSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        // Không cần setFilteredProducts ở đây nữa, đã xử lý trong useEffect
+        setSearchTerm(e.target.value);
     };
 
-    // Hàm xử lý thay đổi ngày hết hạn
-    const handleExpireDateChange = (id, newDate) => {
-        // newDate là object Date hoặc null
-        let formatted = '';
-        if (newDate instanceof Date && !isNaN(newDate)) {
-            // format yyyy-MM-dd để lưu backend
-            formatted = newDate.toISOString().slice(0, 10);
-        }
-        setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? { ...p, expireDate: formatted }
-                    : p
-            )
-        );
-    };
-
-
-    // Hàm format ngày dd/MM/yyyy
-
-    // Sửa handleSelectProduct để truyền unit hiện tại, price luôn là giá 1 quả
     const handleSelectProduct = (product) => {
         if (!selectedProducts.find((p) => p.id === product.id)) {
             const price = product.price || 0;
-            const quantity = 1; // Mặc định 1 quả
+            const quantity = 1;
             const total = price * quantity;
-            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // 2 tuần, yyyy-MM-dd
+            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
             setSelectedProducts((prev) => [
                 ...prev,
@@ -316,20 +327,20 @@ const ImportPage = () => {
                     name: product.name || product.productName,
                     productCode: product.code || product.productCode,
                     productDescription: product.productDescription,
-                    unit: defaultUnit,
+                    unit: 'quả',
                     price,
                     quantity,
                     total,
                     productId: product.id,
                     salePrice: 0,
-                    zoneId: '',
+                    zoneIds: [],
                     expireDate: defaultExpireDate,
                 },
             ]);
         }
         setSearchTerm('');
         setFilteredProducts([]);
-        setIsSearchFocused(false); // Ẩn gợi ý khi chọn
+        setIsSearchFocused(false);
     };
 
     const handleQuantityChange = (id, delta) => {
@@ -340,20 +351,6 @@ const ImportPage = () => {
                         ...p,
                         quantity: Math.max(1, p.quantity + delta),
                         total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
-        );
-    };
-
-    const handleQuantityInputChange = (id, newQuantity) => {
-        setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
-                        ...p,
-                        quantity: Math.max(1, newQuantity),
-                        total: (p.price || 0) * Math.max(1, newQuantity),
                     }
                     : p
             )
@@ -387,37 +384,38 @@ const ImportPage = () => {
         );
     };
 
-    const handleUnitChange = (id, newUnit) => {
-        setSelectedProducts((prev) =>
-            prev.map((p) => {
-                if (p.id === id) {
-                    let newQuantity = p.quantity;
-                    // Chuyển đổi số lượng khi đổi đơn vị
-                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
-                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
-                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                        // Từ khay sang quả: nhân với 25
-                        newQuantity = (p.quantity || 1) * 25;
-                    }
-                    
-                    return {
-                        ...p,
-                        unit: newUnit,
-                        quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity
-                    };
-                }
-                return p;
-            })
-        );
-    };
-
-
     const handleDeleteProduct = (id) => {
         setSelectedProducts((prev) => prev.filter((p) => p.id !== id));
     };
 
+    const handleZoneChange = (id, zoneIds) => {
+        setSelectedProducts((prev) =>
+            prev.map((p) =>
+                p.id === id
+                    ? {
+                        ...p,
+                        zoneIds,
+                    }
+                    : p
+            )
+        );
+    };
+
+    const handleExpireDateChange = (id, newDate) => {
+        let formatted = '';
+        if (newDate instanceof Date && !isNaN(newDate)) {
+            formatted = newDate.toISOString().slice(0, 10);
+        }
+        setSelectedProducts((prev) =>
+            prev.map((p) =>
+                p.id === id
+                    ? { ...p, expireDate: formatted }
+                    : p
+            )
+        );
+    };
+
+    // Category dialog functions
     const handleOpenCategoryDialog = () => {
         setShowCategoryDialog(true);
         setSelectedCategory(null);
@@ -461,22 +459,7 @@ const ImportPage = () => {
         setCategoryProducts([]);
     };
 
-    // Sửa handleZoneChange để nhận mảng zoneIds
-    const handleZoneChange = (id, zoneIds) => {
-        setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
-                        ...p,
-                        zoneIds,
-                    }
-                    : p
-            )
-        );
-        setZoneSearch(''); // reset search sau khi chọn
-    };
-
-    // Hàm bỏ chọn zone khỏi sản phẩm
+    // Zone functions
     const handleRemoveZone = (productId, zoneId) => {
         setSelectedProducts((prev) =>
             prev.map((p) =>
@@ -487,121 +470,67 @@ const ImportPage = () => {
         );
     };
 
-    const formatExpireDateForBackend = (dateStr) => {
-        if (!dateStr) return '';
-        // Nếu đã có T, giữ nguyên
-        if (dateStr.includes('T')) return dateStr;
-        return dateStr + 'T00:00:00';
-    };
-
-    const handleSaveDraft = async () => {
+    const handleSave = async () => {
         if (!selectedSupplier) {
             setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
             return;
         }
 
         if (selectedProducts.length === 0) {
             setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
             return;
         }
 
-        setLoading(true);
+        setSaving(true);
         setError(null);
-        setSuccess(null);
 
         try {
             const importData = {
-                name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
+                storeId: selectedStore || 1,
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,
-                createdBy: currentUser?.id, // Thêm dòng này
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
                     remainQuantity: product.quantity,
-                    expireDate: formatExpireDateForBackend(product.expireDate),
+                    expireDate: product.expireDate ? product.expireDate + 'T00:00:00' : '',
                     unitImportPrice: product.price,
                     unitSalePrice: product.salePrice,
-                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
+                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : [],
                 })),
-                status: 'DRAFT',
             };
 
-            await importTransactionService.create(importData);
-            setSuccess('Tạo phiếu nhập hàng thành công!');
-            setSelectedProducts([]);
-            setPaidAmount(0);
-            setNote('');
-            // setImportCode('');
+            await importTransactionService.update(id, importData);
+            setSuccess('Cập nhật phiếu nhập hàng thành công!');
+            setHasChanges(false);
         } catch (err) {
-            setError('Không thể tạo phiếu nhập hàng');
+            setError('Không thể cập nhật phiếu nhập hàng: ' + err.message);
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    const handleComplete = async () => {
-        if (!selectedSupplier) {
-            setError('Vui lòng chọn nhà cung cấp');
-            return;
-        }
-
-        if (selectedProducts.length === 0) {
-            setError('Vui lòng chọn ít nhất một sản phẩm');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-
-        try {
-            const importData = {
-                name: nextImportCode,
-                supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
-                staffId: currentUser?.id || 1,
-                importTransactionNote: note,
-                paidAmount: paidAmount,
-                createdBy: currentUser?.id, // Thêm dòng này
-                details: selectedProducts.map(product => ({
-                    productId: product.productId,
-                    importQuantity: product.quantity,
-                    remainQuantity: product.quantity,
-                    expireDate: formatExpireDateForBackend(product.expireDate),
-                    unitImportPrice: product.price,
-                    unitSalePrice: product.salePrice,
-                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
-                })),
-                status: 'WAITING_FOR_APPROVE',
-            };
-
-            await importTransactionService.create(importData);
-            setSuccess('Tạo phiếu nhập hàng thành công!');
-            setSelectedProducts([]);
-            setPaidAmount(0);
-            setNote('');
-            // setImportCode('');
-        } catch (err) {
-            setError('Không thể tạo phiếu nhập hàng');
-        } finally {
-            setLoading(false);
+    const handleBack = () => {
+        if (hasChanges) {
+            if (window.confirm('Bạn có chắc chắn muốn rời khỏi? Các thay đổi chưa lưu sẽ bị mất.')) {
+                navigate('/import');
+            }
+        } else {
+            navigate('/import');
         }
     };
 
-    // Helper: kiểm tra value có hợp lệ trong danh sách không
-    const isValidValue = (value, options) => options.some(opt => String(opt.id) === String(value));
-
+    // DataGrid columns
     const columns = [
         columnVisibility['STT'] && {
             field: 'stt',
             headerName: 'STT',
             width: 80,
             renderCell: (params) => {
-                // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
                 if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
                 if (params.id) {
                     const idx = selectedProducts.findIndex(row => row.id === params.id);
@@ -610,7 +539,17 @@ const ImportPage = () => {
                 return '';
             }
         },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 200,
+            renderCell: (params) => (
+                <div className="flex flex-col">
+                    <span className="font-semibold">{params.value}</span>
+                    <span className="text-xs text-gray-500">Mã: {params.row.productCode}</span>
+                </div>
+            )
+        },
         columnVisibility['ĐVT'] && { 
             field: 'unit', 
             headerName: 'ĐVT', 
@@ -619,8 +558,10 @@ const ImportPage = () => {
                 <div className="flex items-center justify-center h-full">
                     <Select
                         size="small"
-                        value={params.row.unit || defaultUnit}
-                        onChange={(e) => handleUnitChange(params.row.id, e.target.value)}
+                        value={params.row.unit || 'quả'}
+                        onChange={(e) => {
+                            // Handle unit change logic here
+                        }}
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
@@ -628,9 +569,6 @@ const ImportPage = () => {
                                 borderColor: 'transparent',
                             },
                             '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#1976d2',
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                 borderColor: '#1976d2',
                             },
                         }}
@@ -658,7 +596,7 @@ const ImportPage = () => {
                         type="number"
                         variant="standard"
                         value={params.row.quantity || 1}
-                        onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
+                        onChange={(e) => handleQuantityChange(params.row.id, Number(e.target.value) - (params.row.quantity || 1))}
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
@@ -668,15 +606,6 @@ const ImportPage = () => {
                             '& .MuiInput-underline:after': {
                                 borderBottomColor: '#1976d2',
                             },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
                         }}
                     />
                     <button 
@@ -692,7 +621,6 @@ const ImportPage = () => {
             field: 'price',
             headerName: 'Đơn giá',
             width: 150,
-            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
                     <TextField
@@ -716,9 +644,6 @@ const ImportPage = () => {
                             '& .MuiInput-underline:after': {
                                 borderBottomColor: '#1976d2',
                             },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
                         }}
                     />
                 </div>
@@ -728,7 +653,6 @@ const ImportPage = () => {
             field: 'salePrice',
             headerName: 'Giá bán',
             width: 150,
-            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
                     <TextField
@@ -752,9 +676,6 @@ const ImportPage = () => {
                             '& .MuiInput-underline:after': {
                                 borderBottomColor: '#1976d2',
                             },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
                         }}
                     />
                 </div>
@@ -776,7 +697,7 @@ const ImportPage = () => {
                 const quantity = parseInt(params.row.quantity) || 0;
                 const total = price * quantity;
                 return (
-                    <div className="text-right w-full">
+                    <div className="text-right w-full font-semibold text-green-600">
                         {formatCurrency(total)}
                     </div>
                 );
@@ -893,7 +814,7 @@ const ImportPage = () => {
                 );
             },
         },
-        {
+        columnVisibility['Ngày hết hạn'] && {
             field: 'expireDate',
             headerName: 'Ngày hết hạn',
             width: 170,
@@ -922,9 +843,6 @@ const ImportPage = () => {
                                         '& .MuiInput-underline:after': {
                                             borderBottomColor: '#1976d2',
                                         },
-                                        '& .MuiInput-underline:hover:before': {
-                                            borderBottomColor: 'transparent',
-                                        },
                                     },
                                     inputProps: { style: { textAlign: 'center' } },
                                 }
@@ -948,104 +866,18 @@ const ImportPage = () => {
         },
     ].filter(Boolean);
 
-    // Hàm lấy chi tiết nhà cung cấp
-    const fetchSupplierDetails = async (supplierId) => {
-        if (!supplierId) return null;
-        try {
-            const supplier = await customerService.getCustomerById(supplierId);
-            setSupplierDetails(supplier);
-        } catch (error) {
-            setSupplierDetails(null);
-        }
-    };
-    // Hàm lấy chi tiết cửa hàng (nếu cần)
-    const fetchStoreDetails = async (storeId) => {
-        // Nếu có nhiều store, implement lấy chi tiết ở đây
-        setStoreDetails(null); // placeholder
-    };
-
-    // Tổng tiền hàng
+    // Calculate total
     const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
 
-    // Xử lý mở dialog tổng kết
-    const handleShowSummary = async (status) => {
-        let missing = false;
-        if (!selectedSupplier) {
-            setError('Vui lòng chọn nhà cung cấp');
-            setHighlightSupplier(true);
-            missing = true;
-        } else {
-            setHighlightSupplier(false);
-        }
-        if (!selectedStore) {
-            setError('Vui lòng chọn cửa hàng');
-            setHighlightStore(true);
-            missing = true;
-        } else {
-            setHighlightStore(false);
-        }
-        if (selectedProducts.length === 0) {
-            setError('Vui lòng chọn ít nhất một sản phẩm');
-            setHighlightProducts(true);
-            missing = true;
-        } else {
-            setHighlightProducts(false);
-        }
-        if (missing) return;
-        await fetchSupplierDetails(selectedSupplier);
-        setSummaryData({
-            importCode: nextImportCode, // Thêm mã phiếu nhập vào summary
-            supplier: suppliers.find(s => s.id === selectedSupplier) || {},
-            store: stores.find(s => s.id === selectedStore) || {}, // Use selectedStore
-            products: selectedProducts,
-            totalAmount,
-            paidAmount,
-            note,
-            importDate: new Date(),
-            status,
-        });
-        setShowSummaryDialog(true);
-    };
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <CircularProgress size={60} />
+                <Typography variant="h6" className="ml-4">Đang tải dữ liệu...</Typography>
+            </div>
+        );
+    }
 
-    // Xác nhận lưu phiếu nhập
-    const handleConfirmSummary = async () => {
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-        try {
-            const importData = {
-                name: nextImportCode,
-                supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
-                staffId: currentUser?.id || 1,
-                importTransactionNote: note,
-                paidAmount: paidAmount,
-                createdBy: currentUser?.id, // Thêm dòng này
-                details: selectedProducts.map(product => ({
-                    productId: product.productId,
-                    importQuantity: product.quantity,
-                    remainQuantity: product.quantity,
-                    expireDate: formatExpireDateForBackend(product.expireDate),
-                    unitImportPrice: product.price,
-                    unitSalePrice: product.salePrice,
-                    zones_id: Array.isArray(product.zoneIds) ? product.zoneIds.map(String) : (product.zoneId ? [String(product.zoneId)] : []),
-                })),
-                status: summaryData.status,
-            };
-            await importTransactionService.create(importData);
-            setSuccess('Tạo phiếu nhập hàng thành công!');
-            setSelectedProducts([]);
-            setPaidAmount(0);
-            setNote('');
-            setShowSummaryDialog(false);
-            setSummaryData(null);
-        } catch (err) {
-            setError('Không thể tạo phiếu nhập hàng');
-        } finally {
-            setLoading(false);
-        }
-    };
-    
     return (
         <div className="flex w-full h-screen bg-gray-100">
             {error && <Alert severity="error" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
@@ -1061,7 +893,7 @@ const ImportPage = () => {
                             value={searchTerm}
                             onChange={handleSearchChange}
                             onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
                             variant="outlined"
                             InputProps={{
                                 startAdornment: (
@@ -1094,8 +926,16 @@ const ImportPage = () => {
                                 },
                             }}
                         />
-                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
-                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
+                        <Tooltip title="Thêm từ nhóm hàng">
+                            <IconButton onClick={handleOpenCategoryDialog}>
+                                <MdCategory />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Tạo mới hàng hóa">
+                            <IconButton onClick={() => setOpenDialog(true)}>
+                                <AddIcon />
+                            </IconButton>
+                        </Tooltip>
                         {(isSearchFocused || searchTerm.trim() !== '') && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
                                 {filteredProducts.length > 0 ? (
@@ -1127,12 +967,17 @@ const ImportPage = () => {
 
                     <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
-                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><VisibilityIcon /></IconButton>
+                            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
+                                <VisibilityIcon />
+                            </IconButton>
                         </Tooltip>
                         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                             {Object.entries(columnVisibility).map(([col, visible]) => (
                                 <MenuItem key={col} dense>
-                                    <MuiFormControlLabel control={<Checkbox checked={visible} onChange={() => toggleColumn(col)} />} label={col} />
+                                    <MuiFormControlLabel 
+                                        control={<Checkbox checked={visible} onChange={() => setColumnVisibility(prev => ({ ...prev, [col]: !prev[col] }))} />} 
+                                        label={col} 
+                                    />
                                 </MenuItem>
                             ))}
                         </Menu>
@@ -1152,10 +997,10 @@ const ImportPage = () => {
                 </div>
             </div>
 
-            <ImportSidebar
+            <EditSidebar
                 currentUser={currentUser}
                 currentTime={currentTime}
-                nextImportCode={nextImportCode}
+                importCode={importCode}
                 suppliers={suppliers}
                 setSuppliers={setSuppliers}
                 selectedSupplier={selectedSupplier}
@@ -1175,6 +1020,8 @@ const ImportPage = () => {
                 filteredStores={filteredStores}
                 note={note}
                 setNote={setNote}
+                importDate={importDate}
+                setImportDate={setImportDate}
                 totalAmount={totalAmount}
                 paidAmount={paidAmount}
                 paidAmountInput={paidAmountInput}
@@ -1182,155 +1029,42 @@ const ImportPage = () => {
                 setPaidAmount={setPaidAmount}
                 highlightSupplier={highlightSupplier}
                 highlightStore={highlightStore}
-                loading={loading}
-                onSaveDraft={() => handleShowSummary('DRAFT')}
-                onComplete={() => handleShowSummary('WAITING_FOR_APPROVE')}
+                hasChanges={hasChanges}
+                onSave={handleSave}
+                onBack={handleBack}
+                saving={saving}
             />
 
+            {/* Add Product Dialog */}
             <AddProductDialog 
                 open={openDialog} 
                 onClose={() => setOpenDialog(false)} 
-                onProductCreated={refreshProducts}
-                onProductAdded={handleAddNewProduct}
-                unit={defaultUnit}
+                onProductCreated={() => {
+                    // Refresh products
+                    productService.getAllProducts().then(setProducts);
+                }}
+                onProductAdded={(newProduct) => {
+                    handleSelectProduct(newProduct);
+                    setOpenDialog(false);
+                }}
+                unit="quả"
             />
 
             {/* Category Dialog */}
-            <Dialog 
-                open={showCategoryDialog} 
+            <ImportCategoryDialog
+                open={showCategoryDialog}
                 onClose={handleCloseCategoryDialog}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle className="flex justify-between items-center text-xl font-bold text-blue-700 border-b border-blue-100 pb-2">
-                    <span>Thêm từ nhóm hàng</span>
-                    <IconButton onClick={handleCloseCategoryDialog} size="small">
-                        <span>×</span>
-                    </IconButton>
-                </DialogTitle>
-                <DialogContent>
-                    <div className="flex flex-col gap-6">
-                        {/* Danh sách Category */}
-                        <div>
-                            <h3 className="font-semibold mb-3 text-blue-600 text-lg">Danh mục sản phẩm</h3>
-                            <div className="border border-blue-100 rounded-2xl shadow-sm max-h-60 overflow-y-auto bg-white divide-y divide-blue-50">
-                                {categories.length > 0 ? (
-                                    categories.map((category) => (
-                                        <div
-                                            key={category.id}
-                                            onClick={() => {
-                                                handleSelectCategory(category);
-                                                setSelectedCategoryProducts([]);
-                                            }}
-                                            className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-150 rounded-xl m-2
-                                                ${selectedCategory?.id === category.id ? 'bg-blue-50 border border-blue-400 font-bold text-blue-800 shadow' : 'hover:bg-blue-50'}
-                                            `}
-                                        >
-                                            <div className="font-medium text-base">{category.name}</div>
-                                            <div className="text-sm text-gray-500 font-semibold bg-blue-100 rounded-full px-3 py-1 ml-2">
-                                                {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="p-6 text-center text-gray-400">Không có danh mục nào</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Danh sách sản phẩm theo category */}
-                        <div>
-                            <h3 className="font-semibold mb-3 text-green-700 text-lg">
-                                {selectedCategory ? `Sản phẩm - ${selectedCategory.name}` : 'Chọn danh mục để xem sản phẩm'}
-                            </h3>
-                            <div className="border border-green-100 rounded-2xl shadow-sm max-h-60 overflow-y-auto bg-white divide-y divide-green-50">
-                                {selectedCategory ? (
-                                    categoryProducts.length > 0 ? (
-                                        categoryProducts.map((product) => (
-                                            <div
-                                                key={product.id}
-                                                onClick={() => handleToggleCategoryProduct(product.id)}
-                                                className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-150 rounded-xl m-2 font-semibold
-                                                    hover:bg-green-50
-                                                    ${selectedCategoryProducts.includes(product.id) ? 'bg-green-100/60 border border-green-400 text-green-900 font-bold shadow' : ''}
-                                                `}
-                                            >
-                                                <div className="flex flex-col gap-1 min-w-0">
-                                                    <span className="font-bold text-base text-gray-900 truncate">{product.name || product.productName}</span>
-                                                    <span className="flex items-center gap-1 text-xs font-semibold text-blue-700">
-                                                        <span className="truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
-                                                    </span>
-                                                    {product.productDescription && (
-                                                        <span className="text-xs text-gray-500 italic truncate">{product.productDescription}</span>
-                                                    )}
-                                                </div>
-                                                <div className="text-xs text-gray-400 ml-2">{defaultUnit}</div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-6 text-center text-gray-400 flex flex-col items-center gap-2">
-                                            <span className="text-3xl">😕</span>
-                                            <span>Không có sản phẩm nào trong danh mục này</span>
-                                        </div>
-                                    )
-                                ) : (
-                                    <div className="p-6 text-center text-gray-400">Vui lòng chọn một danh mục</div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </DialogContent>
-                <DialogActions>
-                    <Button 
-                        onClick={handleCloseCategoryDialog} 
-                        color="primary"
-                        sx={{
-                            color: '#666',
-                            '&:hover': { backgroundColor: '#f5f5f5' }
-                        }}
-                    >
-                        Đóng
-                    </Button>
-                    <Button 
-                        onClick={handleAddSelectedProducts} 
-                        variant="contained" 
-                        disabled={selectedCategoryProducts.length === 0}
-                        sx={{
-                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
-                            '&:hover': {
-                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
-                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
-                                transform: 'translateY(-1px)'
-                            },
-                            '&:disabled': {
-                                background: '#ccc',
-                                boxShadow: 'none',
-                                transform: 'none'
-                            },
-                            fontWeight: 600,
-                            borderRadius: 2,
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Thêm ({selectedCategoryProducts.length})
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <ImportSummaryDialog
-                open={showSummaryDialog}
-                onClose={() => setShowSummaryDialog(false)}
-                onConfirm={handleConfirmSummary}
-                importData={summaryData}
-                formatCurrency={formatCurrency}
-                loading={loading}
-                currentUser={currentUser}
-                supplierDetails={supplierDetails}
-                storeDetails={storeDetails}
+                categories={categories}
+                products={products}
+                selectedCategory={selectedCategory}
+                categoryProducts={categoryProducts}
+                selectedCategoryProducts={selectedCategoryProducts}
+                onSelectCategory={handleSelectCategory}
+                onToggleProduct={handleToggleCategoryProduct}
+                onAddProducts={handleAddSelectedProducts}
             />
 
-            {/* Popup xem tất cả zone đã chọn */}
+            {/* Zone Popover */}
             <Popover
                 open={Boolean(zonePopoverAnchor)}
                 anchorEl={zonePopoverAnchor}
@@ -1371,4 +1105,4 @@ const ImportPage = () => {
     );
 };
 
-export default ImportPage;
+export default EditPage; 

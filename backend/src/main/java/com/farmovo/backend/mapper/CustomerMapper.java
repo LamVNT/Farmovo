@@ -9,6 +9,9 @@ public interface CustomerMapper {
     @org.mapstruct.Mapping(target = "address", source = "address")
     @org.mapstruct.Mapping(target = "phone", source = "phone")
     @org.mapstruct.Mapping(target = "email", source = "email")
+    @org.mapstruct.Mapping(target = "totalDebt", source = "totalDebt")
+    @org.mapstruct.Mapping(target = "createBy", source = "createdBy")
+    @org.mapstruct.Mapping(target = "createAt", source = "createdAt")
     CustomerDto toDto(Customer customer);
 }
 
