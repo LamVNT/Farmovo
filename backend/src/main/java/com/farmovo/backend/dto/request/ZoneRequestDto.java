@@ -17,4 +17,5 @@ public class ZoneRequestDto {
     private String zoneName;
     @Size(max = 100, message = "ZoneDescription must be at most 1000 characters")
     private String zoneDescription;
+    private Long storeId;
 }

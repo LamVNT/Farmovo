@@ -33,7 +33,7 @@ class ZoneServiceImplTest {
     @Test
     void testCreateZoneSuccess() {
         // Given
-        ZoneRequestDto request = new ZoneRequestDto("Z_[1;1]", "Zone A");
+        ZoneRequestDto request = new ZoneRequestDto("Z_[1;1]", "Zone A", 1L);
 
         Zone zoneToSave = new Zone();
         zoneToSave.setZoneName("Z_[1;1]");
@@ -53,7 +53,8 @@ class ZoneServiceImplTest {
                 LocalDateTime.of(2024, 1, 1, 12, 0),
                 null,
                 null,
-                null
+                null,
+                1L
         );
 
         Mockito.when(zoneMapper.toEntity(request)).thenReturn(zoneToSave);
@@ -80,7 +81,7 @@ class ZoneServiceImplTest {
     void testUpdateZoneSuccess() {
         // Given
         Long id = 1L;
-        ZoneRequestDto request = new ZoneRequestDto("Z_[2;3]", "Updated Description");
+        ZoneRequestDto request = new ZoneRequestDto("Z_[2;3]", "Updated Description", 1L);
 
         Zone existingZone = new Zone();
         existingZone.setId(id);
@@ -101,7 +102,8 @@ class ZoneServiceImplTest {
                 null,
                 LocalDateTime.of(2024, 1, 1, 14, 0),
                 null,
-                null
+                null,
+                1L
         );
 
         Mockito.when(zoneRepository.findById(id)).thenReturn(java.util.Optional.of(existingZone));
@@ -124,7 +126,7 @@ class ZoneServiceImplTest {
     @Test
     void testUpdateZoneWithInvalidZoneName() { // zonename sai format
         Long id = 1L;
-        ZoneRequestDto request = new ZoneRequestDto("INVALID", "Desc");
+        ZoneRequestDto request = new ZoneRequestDto("INVALID", "Desc", 1L);
 
         Zone existingZone = new Zone();
         existingZone.setId(id);
@@ -159,10 +161,8 @@ class ZoneServiceImplTest {
         zone2.setZoneName("Z_[2;2]");
         List<Zone> zones = List.of(zone1, zone2);
 
-        ZoneResponseDto dto1 = new ZoneResponseDto();
-        dto1.setZoneName("Z_[1;1]");
-        ZoneResponseDto dto2 = new ZoneResponseDto();
-        dto2.setZoneName("Z_[2;2]");
+        ZoneResponseDto dto1 = new ZoneResponseDto(1L, "Z_[1;1]", null, null, null, null, null, null, 1L);
+        ZoneResponseDto dto2 = new ZoneResponseDto(2L, "Z_[2;2]", null, null, null, null, null, null, 1L);
         List<ZoneResponseDto> expected = List.of(dto1, dto2);
 
         Mockito.when(zoneRepository.findAll()).thenReturn(zones);
