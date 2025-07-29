@@ -45,7 +45,7 @@ class CustomerControllerTest {
 
     @Test
     void testCreateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
         CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
         when(customerService.createCustomer(any(CustomerRequestDto.class), eq(1L))).thenReturn(responseDto);
 
@@ -106,7 +106,7 @@ class CustomerControllerTest {
 
     @Test
     void testUpdateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
         CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
         when(customerService.updateCustomer(eq(1L), any(CustomerRequestDto.class))).thenReturn(responseDto);
 

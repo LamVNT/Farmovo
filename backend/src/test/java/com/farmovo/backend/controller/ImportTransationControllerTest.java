@@ -32,6 +32,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 @WebMvcTest(controllers = ImportTransationController.class, excludeAutoConfiguration = {SecurityAutoConfiguration.class})
 @AutoConfigureMockMvc(addFilters = false)
@@ -109,7 +112,11 @@ class ImportTransationControllerTest {
     @Test
     @DisplayName("GET /api/import-transaction/list-all - success")
     void testListAllImportTransaction() throws Exception {
-        given(importTransactionService.listAllImportTransaction()).willReturn(Collections.emptyList());
+        Pageable pageable = Pageable.unpaged();
+        Page<ImportTransactionResponseDto> page = new PageImpl<>(Collections.emptyList());
+        given(importTransactionService.listAllImportTransaction(
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(Pageable.class)
+        )).willReturn(page);
         mockMvc.perform(get("/api/import-transaction/list-all"))
                 .andExpect(status().isOk());
     }

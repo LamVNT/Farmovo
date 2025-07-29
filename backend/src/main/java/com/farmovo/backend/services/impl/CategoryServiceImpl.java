@@ -7,6 +7,7 @@ import com.farmovo.backend.mapper.CategoryMapper;
 import com.farmovo.backend.models.Category;
 import com.farmovo.backend.repositories.CategoryRepository;
 import com.farmovo.backend.services.CategoryService;
+import com.farmovo.backend.validator.CategoryValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,9 @@ public class CategoryServiceImpl implements CategoryService {
     @Autowired
     private CategoryMapper categoryMapper;
 
+    @Autowired
+    private CategoryValidator categoryValidator;
+
     @Override
     public List<CategoryResponseDto> getAllActiveCategories() {
         return categoryRepository.findAll()
@@ -32,6 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto createCategory(CategoryRequestDto request) {
+        categoryValidator.validate(request);
         // Kiểm tra trùng tên
         if (categoryRepository.findByCategoryName(request.getName()).isPresent()) {
             throw new com.farmovo.backend.exceptions.ValidationException("Tên danh mục đã tồn tại!");
@@ -43,6 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryResponseDto updateCategory(Long id, CategoryRequestDto request) {
+        categoryValidator.validate(request);
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
         // Nếu tên mới khác tên cũ, kiểm tra trùng tên

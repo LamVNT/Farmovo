@@ -54,6 +54,10 @@ public class StocktakeServiceImpl implements StocktakeService {
         List<StocktakeDetailDto> enriched = enrichStocktakeDetails(details);
         Stocktake stocktake = createStocktakeEntity(requestDto, userId, enriched);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
+        // GỘP LOGIC: Nếu tạo mới với status COMPLETED thì cân bằng kho luôn
+        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+            updateImportDetailsForCompletedStocktake(savedStocktake);
+        }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -127,6 +131,10 @@ public class StocktakeServiceImpl implements StocktakeService {
 
         updateStocktakeDetails(stocktake, rawDetails, requestDto);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
+        // GỘP LOGIC: Nếu cập nhật với status COMPLETED thì cân bằng kho luôn
+        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+            updateImportDetailsForCompletedStocktake(savedStocktake);
+        }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -374,7 +382,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         try {
             List<StocktakeDetailDto> details = objectMapper.readValue(stocktake.getDetail(), new TypeReference<>() {
             });
-            log.info("Bắt đầu cập nhật tồn kho cho {} lô trong phiếu #{}", details.size(), stocktake.getId());
+            log.info("[BUG-DEBUG] Bắt đầu cập nhật tồn kho cho {} lô trong phiếu #{}", details.size(), stocktake.getId());
 
             // Truy vấn tất cả lô theo name trong một lần gọi DB để tối ưu hiệu suất
             List<String> batchCodes = details.stream()
@@ -384,7 +392,7 @@ public class StocktakeServiceImpl implements StocktakeService {
 
             // Nếu không có batchCode nào, thoát sớm
             if (batchCodes.isEmpty()) {
-                log.warn("Không có lô nào để cập nhật trong phiếu #{}", stocktake.getId());
+                log.warn("[BUG-DEBUG] Không có lô nào để cập nhật trong phiếu #{}", stocktake.getId());
                 return;
             }
 
@@ -401,17 +409,17 @@ public class StocktakeServiceImpl implements StocktakeService {
                 lotsByName.put(lot.getName().replace("-", ""), lot);
             }
 
-            log.info("Tìm thấy {} lô từ database", allLots.size());
+            log.info("[BUG-DEBUG] Tìm thấy {} lô từ database", allLots.size());
 
             for (StocktakeDetailDto detail : details) {
                 if (detail.getReal() == null) {
-                    log.warn("Bỏ qua lô do thiếu giá trị real: {}", detail.getBatchCode());
+                    log.warn("[BUG-DEBUG] Bỏ qua lô do thiếu giá trị real: {}", detail.getBatchCode());
                     continue;
                 }
 
                 String batchCode = detail.getBatchCode();
                 if (batchCode == null) {
-                    log.warn("Bỏ qua lô do thiếu batchCode");
+                    log.warn("[BUG-DEBUG] Bỏ qua lô do thiếu batchCode");
                     continue;
                 }
 
@@ -422,29 +430,29 @@ public class StocktakeServiceImpl implements StocktakeService {
                 }
 
                 if (lot != null) {
-                    log.info("Cập nhật lô {}: tồn kho {} -> {}", lot.getName(), lot.getRemainQuantity(), detail.getReal());
+                    log.info("[BUG-DEBUG] Cập nhật lô {}: tồn kho {} -> {}", lot.getName(), lot.getRemainQuantity(), detail.getReal());
 
                     // Cập nhật trực tiếp trong transaction hiện tại
                     lot.setRemainQuantity(detail.getReal());
                     lot.setIsCheck(true);
 
                     if (detail.getZoneReal() != null && !detail.getZoneReal().isEmpty()) {
-                        log.info("Cập nhật khu vực lô {}: {} -> {}", lot.getName(), lot.getZones_id(), detail.getZoneReal());
+                        log.info("[BUG-DEBUG] Cập nhật khu vực lô {}: {} -> {}", lot.getName(), lot.getZones_id(), detail.getZoneReal());
                         lot.setZones_id(detail.getZoneReal());
                     }
 
                     // Lưu trực tiếp để đảm bảo cập nhật
                     importTransactionDetailRepository.saveAndFlush(lot);
 
-                    log.info("Đã cập nhật thành công lô {}", lot.getName());
+                    log.info("[BUG-DEBUG] Đã cập nhật thành công lô {} (remainQuantity={})", lot.getName(), lot.getRemainQuantity());
                 } else {
-                    log.warn("Không tìm thấy lô nào với mã {}", batchCode);
+                    log.warn("[BUG-DEBUG] Không tìm thấy lô nào với mã {}", batchCode);
                 }
             }
 
-            log.info("Hoàn thành cập nhật tồn kho cho phiếu #{}", stocktake.getId());
+            log.info("[BUG-DEBUG] Hoàn thành cập nhật tồn kho cho phiếu #{}", stocktake.getId());
         } catch (Exception e) {
-            log.error("Lỗi khi cập nhật chi tiết import: {}", e.getMessage(), e);
+            log.error("[BUG-DEBUG] Lỗi khi cập nhật chi tiết import: {}", e.getMessage(), e);
             throw new ValidationException("Failed to update import details: " + e.getMessage());
         }
     }

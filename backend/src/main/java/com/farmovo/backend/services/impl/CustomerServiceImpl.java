@@ -45,7 +45,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
         customer.setAddress(null); // Address not in request DTO, set to null
-        customer.setIsSupplier(false); // Default to false
+        customer.setIsSupplier(requestDto.getIsSupplier() != null ? requestDto.getIsSupplier() : false);
         customer.setTotalDebt(requestDto.getTotalDept());
         customer.setCreatedBy(createdBy);
 
@@ -93,6 +93,9 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
         customer.setTotalDebt(requestDto.getTotalDept());
+        if (requestDto.getIsSupplier() != null) {
+            customer.setIsSupplier(requestDto.getIsSupplier());
+        }
 
         Customer updatedCustomer = customerRepository.save(customer);
         return mapToResponseDto(updatedCustomer);

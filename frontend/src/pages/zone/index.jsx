@@ -4,6 +4,8 @@ import { FaPlus } from "react-icons/fa6";
 import ZoneFormDialog from "../../components/zone/ZoneFormDialog";
 import ZoneTable from "../../components/zone/ZoneTable";
 import { getZones, createZone, updateZone, deleteZone } from "../../services/zoneService";
+import { getAllStores } from "../../services/storeService";
+import { userService } from "../../services/userService";
 
 const Zone = () => {
     const [zones, setZones] = useState([]);
@@ -18,6 +20,9 @@ const Zone = () => {
     const [zoneToDelete, setZoneToDelete] = useState(null);
     const [zoneNameError, setZoneNameError] = useState("");
     const [zoneDescriptionError, setZoneDescriptionError] = useState("");
+
+    const [user, setUser] = useState(null);
+    const [stores, setStores] = useState([]);
 
 
     // Frontend pagination
@@ -38,13 +43,29 @@ const Zone = () => {
         fetch();
     }, []);
 
+    useEffect(() => {
+        const fetchUserAndStores = async () => {
+            try {
+                const userData = await userService.getCurrentUser();
+                setUser(userData);
+                if (userData.roles?.includes("OWNER")) {
+                    const storeList = await getAllStores();
+                    setStores(storeList);
+                }
+            } catch (err) {
+                setError("Failed to fetch user or stores");
+            }
+        };
+        fetchUserAndStores();
+    }, []);
+
     const filteredZones = useMemo(() =>
         zones.filter(z =>
             z.zoneDescription.toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
-        setForm({ id: null, zoneName: "", zoneDescription: "" });
+        setForm({ id: null, zoneName: "", zoneDescription: "", storeId: user?.storeId || "" });
         setEditMode(false);
         setOpenDialog(true);
     };
@@ -95,12 +116,18 @@ const Zone = () => {
             return;
         }
 
+        // Gán storeId cho STAFF trước khi submit
+        let submitForm = { ...form };
+        if (user?.roles?.includes("STAFF")) {
+            submitForm.storeId = user.storeId;
+        }
+
         try {
             if (editMode) {
-                const updated = await updateZone(form.id, form);
+                const updated = await updateZone(form.id, submitForm);
                 setZones(prev => prev.map(z => (z.id === form.id ? updated : z)));
             } else {
-                const created = await createZone(form);
+                const created = await createZone(submitForm);
                 setZones(prev => [...prev, created]);
             }
             setOpenDialog(false);
@@ -157,6 +184,8 @@ const Zone = () => {
                 editMode={editMode}
                 zoneNameError={zoneNameError}
                 zoneDescriptionError={zoneDescriptionError}
+                user={user}
+                stores={stores}
             />
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
                 <DialogTitle>Xác nhận xóa</DialogTitle>

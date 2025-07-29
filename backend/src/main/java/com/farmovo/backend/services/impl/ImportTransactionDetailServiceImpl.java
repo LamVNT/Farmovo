@@ -167,13 +167,10 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         log.debug("Updating remainQuantity for ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
-        
         // Log giá trị trước khi thay đổi
         log.info("Changing remainQuantity for id={}: {} -> {}", id, detail.getRemainQuantity(), remainQuantity);
-        
         detail.setRemainQuantity(remainQuantity);
         ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
-        
         // Log xác nhận sau khi lưu
         log.info("Confirmed update remainQuantity for id={}: new value={}", saved.getId(), saved.getRemainQuantity());
     }
@@ -184,16 +181,12 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         log.debug("Updating remainQuantity and returning DTO for id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
-        
         // Log giá trị trước khi thay đổi
         log.info("Changing remainQuantity for id={}: {} -> {}", id, detail.getRemainQuantity(), remainQuantity);
-        
         detail.setRemainQuantity(remainQuantity);
         ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
-        
         // Log xác nhận sau khi lưu
         log.info("Confirmed update remainQuantity for id={}: new value={}", saved.getId(), saved.getRemainQuantity());
-        
         return importDetailLotMapper.toDto(saved);
     }
 
@@ -214,13 +207,10 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         log.debug("Updating zonesId for ImportTransactionDetail id: {}", id);
         ImportTransactionDetail detail = detailRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found"));
-        
         // Log giá trị trước khi thay đổi
         log.info("Changing zonesId for id={}: {} -> {}", id, detail.getZones_id(), zonesId);
-        
         detail.setZones_id(zonesId);
         ImportTransactionDetail saved = detailRepository.saveAndFlush(detail); // Đảm bảo flush ngay lập tức
-        
         // Log xác nhận sau khi lưu
         log.info("Confirmed update zonesId for id={}: new value={}", saved.getId(), saved.getZones_id());
     }
