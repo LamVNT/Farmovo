@@ -1,11 +1,6 @@
 package com.farmovo.backend.services;
 
-import com.farmovo.backend.dto.response.ZoneResponseDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
-import com.farmovo.backend.dto.response.ZoneProductDetailDto;
-import com.farmovo.backend.dto.response.MissingZoneDto;
-import com.farmovo.backend.dto.response.StocktakeDetailDto;
-import com.farmovo.backend.dto.response.ImportDetailLotDto;
+import com.farmovo.backend.dto.response.*;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.mapper.ImportTransactionDetailLotMapper;
 
@@ -43,4 +38,6 @@ public interface ImportTransactionDetailService {
     void completeImportDetail(Long id);
 
     void updateZonesId(Long id, String zonesId);
+
+    List<ProductSaleResponseDto> getAvailableProductsForSale();
 }

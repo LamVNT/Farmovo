@@ -215,6 +215,19 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         log.info("Confirmed update zonesId for id={}: new value={}", saved.getId(), saved.getZones_id());
     }
 
+    @Override
+    public List<ProductSaleResponseDto> getAvailableProductsForSale() {
+        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
+        if (!availableDetails.isEmpty()) {
+            return availableDetails.stream()
+                    .map(productMapper::toDtoSale)
+                    .toList();
+        } else {
+            return productService.getAllProductSaleDto();
+        }
+    }
+
+
     // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
     private ProductResponseDto enrichProductWithDetails(ProductResponseDto product, String zoneId) {
         List<ImportTransactionDetail> details = detailRepository.findByZoneId(zoneId);

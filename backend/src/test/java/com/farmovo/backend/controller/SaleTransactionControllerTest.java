@@ -95,13 +95,6 @@ class SaleTransactionControllerTest {
                 .andExpect(status().isOk());
     }
 
-//    @Test
-//    void testListAllSaleTransactions() throws Exception {
-//        Mockito.when(saleTransactionService.getAll()).thenReturn(List.of(new SaleTransactionResponseDto()));
-//        mockMvc.perform(get("/api/sale-transactions/list-all"))
-//                .andExpect(status().isOk());
-//    }
-
     @Test
     void testGetSaleTransactionById() throws Exception {
         Mockito.when(saleTransactionService.getById(1L)).thenReturn(new SaleTransactionResponseDto());
@@ -157,5 +150,37 @@ class SaleTransactionControllerTest {
         mockMvc.perform(get("/api/sale-transactions/1/export-pdf"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"));
+    }
+
+    @Test
+    void testListAllSaleTransactions() throws Exception {
+        SaleTransactionResponseDto dto = new SaleTransactionResponseDto();
+        dto.setId(1L);
+        dto.setName("PB000001");
+        dto.setTotalAmount(new java.math.BigDecimal("100000"));
+        dto.setPaidAmount(new java.math.BigDecimal("50000"));
+        dto.setSaleTransactionNote("Test note");
+        dto.setStatus(null);
+        dto.setSaleDate(java.time.LocalDateTime.now());
+        dto.setCustomerName("Customer A");
+        dto.setCustomerPhone("0123456789");
+        dto.setCustomerAddress("Address 1");
+        dto.setStoreName("Store 1");
+        dto.setStoreAddress("Store Address 1");
+        dto.setCreatedBy(1L);
+        dto.setDetail(List.of());
+
+        org.springframework.data.domain.Page<SaleTransactionResponseDto> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(dto));
+
+        Mockito.when(saleTransactionService.getAll(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(org.springframework.data.domain.Pageable.class)
+        )).thenReturn(page);
+
+        mockMvc.perform(get("/api/sale-transactions/list-all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1L))
+                .andExpect(jsonPath("$.content[0].name").value("PB000001"))
+                .andExpect(jsonPath("$.content[0].customerName").value("Customer A"));
     }
 }

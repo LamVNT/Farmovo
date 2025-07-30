@@ -17,6 +17,7 @@ import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.farmovo.backend.specification.SaleTransactionSpecification;
 import com.farmovo.backend.validator.SaleTransactionValidator;
+import com.farmovo.backend.aop.LogStatusChange;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -195,17 +196,10 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                                                    String note,
                                                    Long createdBy,
                                                    Pageable pageable) {
-        Specification<SaleTransaction> spec = Specification.allOf(
-                SaleTransactionSpecification.isNotDeleted(),
-                SaleTransactionSpecification.hasName(name),
-                SaleTransactionSpecification.hasCustomerName(customerName),
-                SaleTransactionSpecification.hasStoreName(storeName),
-                SaleTransactionSpecification.hasStatus(status),
-                SaleTransactionSpecification.hasSaleDateBetween(fromDate, toDate),
-                SaleTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount),
-                SaleTransactionSpecification.hasPaidAmountBetween(minPaidAmount, maxPaidAmount),
-                SaleTransactionSpecification.hasNote(note),
-                SaleTransactionSpecification.hasCreatedBy(createdBy)
+
+        Specification<SaleTransaction> spec = SaleTransactionSpecification.buildSpecification(
+                name, customerName, storeName, status, fromDate, toDate,
+                minTotalAmount, maxTotalAmount, minPaidAmount, maxPaidAmount, note, createdBy
         );
 
         Page<SaleTransaction> entityPage = saleTransactionRepository.findAll(spec, pageable);
@@ -219,6 +213,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
     @Override
     @Transactional
+    @LogStatusChange
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
             .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
@@ -229,6 +224,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
+    @LogStatusChange
     public void cancel(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));

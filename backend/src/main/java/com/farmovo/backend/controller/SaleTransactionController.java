@@ -10,12 +10,16 @@ import com.farmovo.backend.exceptions.InsufficientStockException;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
+import com.farmovo.backend.mapper.StoreMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.SaleTransactionStatus;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.*;
+import com.farmovo.backend.models.User;
+import com.farmovo.backend.models.Authority;
+import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -31,6 +35,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -52,46 +59,46 @@ public class SaleTransactionController {
     private final StoreService storeService;
     private final ProductRepository productRepository;
     private final JwtUtils jwtUtils;
-
+    private final JwtAuthenticationService jwtAuthenticationService;
+    private final StoreMapper storeMapper;
+    private final ImportTransactionDetailService importTransactionDetailService;
 
 
     @GetMapping("/create-form-data")
-    public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData() {
+    public ResponseEntity<SaleTransactionCreateFormDataDto> getCreateFormData(HttpServletRequest request) {
         log.info("Getting create form data for sale transaction");
 
-        List<CustomerDto> customers = customerService.getAllCustomerDto(); // Đã trả về đủ trường
-        List<StoreResponseDto> stores = storeService.getAllStores().stream()
-                .map(store -> {
-                    StoreResponseDto dto = new StoreResponseDto();
-                    dto.setId(store.getId());
-                    dto.setName(store.getStoreName());
-                    dto.setDescription(store.getStoreDescription());
-                    dto.setAddress(store.getStoreAddress());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        User user = jwtAuthenticationService.extractAuthenticatedUser(request);
+        List<String> roles = jwtAuthenticationService.getUserRoles(user);
+        List<CustomerDto> customers = customerService.getAllCustomerDto();
+        List<StoreResponseDto> stores;
 
-        // Lấy sản phẩm từ ImportTransactionDetail có remainQuantity > 0
-        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
-        List<ProductSaleResponseDto> products;
-
-        if (!availableDetails.isEmpty()) {
-            products = availableDetails.stream()
-                    .map(productMapper::toDtoSale)
-                    .collect(Collectors.toList());
+        if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
+            stores = storeService.getAllStoreResponseDto();
+        }
+        // Nếu là STAFF thì chỉ trả về store của họ
+        else if (roles.contains("STAFF")) {
+            if (user.getStore() == null) {
+                throw new BadRequestException("Nhân viên chưa được phân công cửa hàng");
+            }
+            stores = List.of(storeMapper.toResponseDto(user.getStore()));
         } else {
-            products = productService.getAllProductSaleDto();
+            throw new BadRequestException("Người dùng không có quyền truy cập");
         }
 
+        log.info("Danh sách cửa hàng trả về (số lượng={}):", stores.size());
+        stores.forEach(store -> log.info("Store ID: {}, Name: {}, Address: {}",
+                store.getId(), store.getStoreName(), store.getStoreAddress()));
+        // Lấy sản phẩm từ ImportTransactionDetail có remainQuantity > 0
+        List<ProductSaleResponseDto> products = importTransactionDetailService.getAvailableProductsForSale();
 
         SaleTransactionCreateFormDataDto formData = new SaleTransactionCreateFormDataDto();
         formData.setCustomers(customers);
         formData.setStores(stores);
         formData.setProducts(products);
 
-        log.debug("Form data prepared: {} customers, {} stores, {} products, {} available details",
-                customers.size(), stores.size(), products.size(), availableDetails.size());
-
+        log.debug("Form data prepared: {} customers, {} stores, {} products",
+                customers.size(), stores.size(), products.size());
         return ResponseEntity.ok(formData);
     }
 

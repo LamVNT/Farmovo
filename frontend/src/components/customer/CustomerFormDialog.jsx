@@ -1,10 +1,34 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControl, InputLabel, Select, MenuItem, CircularProgress } from "@mui/material";
 import { customerService } from "../../services/customerService";
+import axios from "axios";
 
 const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", totalDebt: 0 });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", totalDebt: 0, role: "" });
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      setRolesLoading(true);
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/authorities/admin/roleList`, {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        setRoles(response.data.map(role => role.role));
+      } catch (error) {
+        console.error('Không thể lấy danh sách role:', error);
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
+    if (open) {
+      fetchRoles();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (mode === "edit" && customer) {
@@ -13,9 +37,10 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
         email: customer.email || "",
         phone: customer.phone || "",
         totalDebt: customer.totalDebt || 0,
+        role: customer.role || "",
       });
     } else {
-      setForm({ name: "", email: "", phone: "", totalDebt: 0 });
+      setForm({ name: "", email: "", phone: "", totalDebt: 0, role: "" });
     }
   }, [mode, customer, open]);
 
@@ -67,6 +92,29 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           fullWidth
           margin="normal"
         />
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Vai trò</InputLabel>
+          <Select
+            name="role"
+            value={form.role}
+            onChange={handleChange}
+            label="Vai trò"
+            disabled={rolesLoading}
+          >
+            {rolesLoading ? (
+              <MenuItem disabled>
+                <CircularProgress size={20} />
+                <span style={{ marginLeft: 8 }}>Đang tải...</span>
+              </MenuItem>
+            ) : (
+              roles.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {role}
+                </MenuItem>
+              ))
+            )}
+          </Select>
+        </FormControl>
         <TextField
           label="Nợ ban đầu"
           name="totalDebt"
@@ -75,6 +123,8 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           onChange={handleChange}
           fullWidth
           margin="normal"
+          InputProps={{ readOnly: true }}
+          disabled
         />
       </DialogContent>
       <DialogActions>

@@ -36,12 +36,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
 
 import importTransactionService from '../../services/importTransactionService';
-import { productService } from '../../services/productService';
-import { customerService } from '../../services/customerService';
 import { userService } from '../../services/userService';
 import { getCategories } from '../../services/categoryService';
-import { getZones } from '../../services/zoneService';
-import { getAllStores } from '../../services/storeService';
 import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 const ImportPage = () => {
@@ -128,31 +124,22 @@ const ImportPage = () => {
                 // Load current user
                 const currentUserData = await userService.getCurrentUser();
                 setCurrentUser(currentUserData);
-                // Không setSelectedUser nữa
 
-                // Load all users for dropdown (không cần nữa)
-                // const allUsers = await userService.getAllUsers();
-                // setUsers(allUsers);
+                // Load form data (includes all data filtered by user role)
+                const formData = await importTransactionService.getCreateFormData();
+                setSuppliers(formData.customers || []); // customers are suppliers in import
+                setProducts(formData.products || []);
+                setZones(formData.zones || []);
+                setStores(formData.stores || []); // stores are filtered by user role
 
-                // Load products
-                const productsData = await productService.getAllProducts();
-                setProducts(productsData);
-
-                // Load suppliers
-                const suppliersData = await customerService.getSuppliers();
-                setSuppliers(suppliersData);
+                // Auto-select store for STAFF users (if they have only one store)
+                if (formData.stores && formData.stores.length === 1) {
+                    setSelectedStore(formData.stores[0].id);
+                }
 
                 // Load categories
                 const categoriesData = await getCategories();
                 setCategories(categoriesData);
-
-                // Load zones
-                const zonesData = await getZones();
-                setZones(zonesData);
-
-                // Load stores
-                const storesData = await getAllStores();
-                setStores(storesData);
 
                 // Lấy mã phiếu nhập tiếp theo
                 const code = await importTransactionService.getNextCode();
@@ -175,8 +162,8 @@ const ImportPage = () => {
     // Function để refresh products sau khi tạo mới
     const refreshProducts = async () => {
         try {
-            const productsData = await productService.getAllProducts();
-            setProducts(productsData);
+            const formData = await importTransactionService.getCreateFormData();
+            setProducts(formData.products || []);
         } catch (error) {
             console.error('Failed to refresh products:', error);
         }
@@ -258,7 +245,11 @@ const ImportPage = () => {
     // Cập nhật filteredStores khi search hoặc focus
     useEffect(() => {
         if (storeSearch.trim() !== '') {
-            setFilteredStores(stores.filter(s => s.name?.toLowerCase().includes(storeSearch.toLowerCase())));
+            const filtered = stores.filter(s => 
+                s.storeName?.toLowerCase().includes(storeSearch.toLowerCase()) ||
+                s.storeAddress?.toLowerCase().includes(storeSearch.toLowerCase())
+            );
+            setFilteredStores(filtered);
         } else if (storeDropdownOpen) {
             setFilteredStores(stores.slice(0, 5));
         } else {
@@ -497,11 +488,19 @@ const ImportPage = () => {
     const handleSaveDraft = async () => {
         if (!selectedSupplier) {
             setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            return;
+        }
+
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
             return;
         }
 
         if (selectedProducts.length === 0) {
             setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
             return;
         }
 
@@ -513,7 +512,7 @@ const ImportPage = () => {
             const importData = {
                 name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
+                storeId: selectedStore,
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,
@@ -546,11 +545,19 @@ const ImportPage = () => {
     const handleComplete = async () => {
         if (!selectedSupplier) {
             setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            return;
+        }
+
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
             return;
         }
 
         if (selectedProducts.length === 0) {
             setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
             return;
         }
 
@@ -562,7 +569,7 @@ const ImportPage = () => {
             const importData = {
                 name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
+                storeId: selectedStore,
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,
@@ -952,8 +959,9 @@ const ImportPage = () => {
     const fetchSupplierDetails = async (supplierId) => {
         if (!supplierId) return null;
         try {
-            const supplier = await customerService.getCustomerById(supplierId);
-            setSupplierDetails(supplier);
+            // Tìm supplier từ danh sách đã load
+            const supplier = suppliers.find(s => s.id === supplierId);
+            setSupplierDetails(supplier || null);
         } catch (error) {
             setSupplierDetails(null);
         }
@@ -1016,7 +1024,7 @@ const ImportPage = () => {
             const importData = {
                 name: nextImportCode,
                 supplierId: selectedSupplier,
-                storeId: selectedStore || 1, // Use selectedStore if available, otherwise default
+                storeId: selectedStore,
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,

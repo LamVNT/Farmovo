@@ -18,8 +18,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static com.farmovo.backend.specification.DebtNoteSpecification.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,22 +38,19 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private final StoreRepository storeRepository;
     private final CustomerService customerService;
     private final S3Service s3Service;
+    private final com.farmovo.backend.mapper.DebtNoteMapper debtNoteMapper;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
 
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerId(Long customerId) {
-        if (customerId == null) {
-            throw new IllegalArgumentException("Customer ID không được để trống.");
-        }
+        validateCustomerId(customerId);
         logger.debug("Finding debt notes for customer ID: {}", customerId);
         try {
             customerService.getCustomerById(customerId);
-            List<DebtNote> debtNotes = debtNoteRepository.findAll().stream()
-                    .filter(debtNote -> debtNote.getCustomer().getId().equals(customerId)
-                            && debtNote.getDeletedAt() == null)
-                    .toList();
+            Specification<DebtNote> spec = defaultFilter(customerId);
+            List<DebtNote> debtNotes = debtNoteRepository.findAll(spec, Sort.by("debtDate").descending());
             List<DebtNoteResponseDto> result = debtNotes.stream()
                     .map(this::mapToDebtNoteResponseDto)
                     .collect(Collectors.toList());
@@ -69,7 +68,8 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     public List<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
-        return debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable)
+        Specification<DebtNote> spec = defaultFilter(customerId);
+        return debtNoteRepository.findAll(spec, pageable)
                 .getContent()
                 .stream()
                 .map(this::mapToDebtNoteResponseDto)
@@ -79,89 +79,58 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     public Page<DebtNoteResponseDto> getDebtNotesPage(Long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
-        Page<DebtNote> pageResult = debtNoteRepository.findByCustomerIdAndDeletedAtIsNull(customerId, pageable);
+        Specification<DebtNote> spec = defaultFilter(customerId);
+        Page<DebtNote> pageResult = debtNoteRepository.findAll(spec, pageable);
         return pageResult.map(this::mapToDebtNoteResponseDto);
     }
 
     @Override
+    public Page<DebtNoteResponseDto> searchDebtNotes(Long customerId, String fromSource, String debtType, Long storeId,
+                                                     LocalDateTime fromDate, LocalDateTime toDate, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
+
+        Specification<DebtNote> spec = Specification.allOf(
+                isNotDeleted(),
+                hasCustomer(customerId),
+                hasFromSource(fromSource),
+                hasDebtType(debtType),
+                hasStore(storeId),
+                createdBetween(fromDate, toDate)
+        );
+
+        Page<DebtNote> pageResult = debtNoteRepository.findAll(spec, pageable);
+        return pageResult.map(this::mapToDebtNoteResponseDto);
+    }
+
+
+    @Override
     @Transactional
     public DebtNoteResponseDto addDebtNote(DebtNoteRequestDto requestDto) {
-        DebtNoteValidation.validate(requestDto);
-        // Thêm validation cho debtType: chỉ chấp nhận '+' hoặc '-'
-        if (!"+".equals(requestDto.getDebtType()) && !"-".equals(requestDto.getDebtType())) {
-            throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
-        }
-        logger.debug("Adding debt note: {}", requestDto);
-        try {
-            Customer customer = customerRepository.findById(requestDto.getCustomerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + requestDto.getCustomerId()));
-
-            DebtNote debtNote = new DebtNote();
-            debtNote.setCustomer(customer);
-            BigDecimal debtAmount = requestDto.getDebtAmount().abs();  // Luôn abs để dương
-            debtNote.setDebtAmount(debtAmount);
-            debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : LocalDateTime.now());
-            debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : "");
-            debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : "");
-            debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : "");
-            debtNote.setFromSource(requestDto.getFromSource());
-            debtNote.setSourceId(requestDto.getSourceId());
-            debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
-            debtNote.setCreatedAt(LocalDateTime.now());
-            debtNote.setCreatedBy(1L);
-
-            debtNote = debtNoteRepository.save(debtNote);
-            logger.info("Successfully added debt note with ID: {} for customer ID: {}", debtNote.getId(), customer.getId());
-
-            // Tính tổng nợ mới sử dụng method tách
-            BigDecimal totalDebt = calculateTotalDebt(customer.getId());
-            customer.setTotalDebt(totalDebt != null ? totalDebt : BigDecimal.ZERO);
-            customerRepository.save(customer);
-            logger.debug("Updated total debt for customer ID: {} to: {}", customer.getId(), totalDebt);
-
-            return mapToDebtNoteResponseDto(debtNote);
-        } catch (IllegalArgumentException e) {
-            logger.error("Failed to add debt note. Error: {}", e.getMessage());
-            throw e;
-        }
+        validateDebtNoteRequest(requestDto);
+        Customer customer = getCustomerOrThrow(requestDto.getCustomerId());
+        DebtNote debtNote = mapRequestToEntity(requestDto, customer);
+        debtNote = debtNoteRepository.save(debtNote);
+        // Cập nhật total debt incrementally thay vì tính lại từ đầu
+        updateCustomerTotalDebtIncremental(customer.getId(), debtNote.getDebtAmount(), debtNote.getDebtType());
+        return mapToDebtNoteResponseDto(debtNote);
     }
 
     @Override
     @Transactional
     public DebtNoteResponseDto updateDebtNote(Long debtId, DebtNoteRequestDto requestDto) {
-        if (requestDto.getCustomerId() == null) {
-            throw new IllegalArgumentException("Customer ID không được để trống.");
-        }
+        validateCustomerId(requestDto.getCustomerId());
         logger.debug("Updating debt note ID: {} with data: {}", debtId, requestDto);
         try {
-            DebtNote debtNote = debtNoteRepository.findById(debtId)
-                    .orElseThrow(() -> new IllegalArgumentException("Debt note not found with ID: " + debtId));
-
+            DebtNote debtNote = getDebtNoteOrThrow(debtId);
             if (debtNote.getDeletedAt() != null) {
                 throw new IllegalStateException("Cannot update deleted debt note with ID: " + debtId);
             }
-
-            // Validation debtType nếu thay đổi
-            if (requestDto.getDebtType() != null && !"+".equals(requestDto.getDebtType()) && !"-".equals(requestDto.getDebtType())) {
-                throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
-            }
-
-            Customer customer = customerRepository.findById(requestDto.getCustomerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + requestDto.getCustomerId()));
-
-            debtNote.setCustomer(customer);
-            debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : debtNote.getDebtDate());
-            debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : debtNote.getDebtType());
-            debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : debtNote.getDebtDescription());
-            debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : debtNote.getDebtEvidences());
-            debtNote.setFromSource(requestDto.getFromSource());
-            debtNote.setSourceId(requestDto.getSourceId());
-            debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
-            debtNote.setUpdatedAt(LocalDateTime.now());
-
+            validateDebtTypeIfPresent(requestDto.getDebtType());
+            Customer customer = getCustomerOrThrow(requestDto.getCustomerId());
+            updateDebtNoteEntity(debtNote, requestDto, customer);
             debtNote = debtNoteRepository.save(debtNote);
+            // Không cập nhật tổng nợ ở update (nếu cần thì thêm hàm riêng)
             logger.info("Successfully updated debt note with ID: {}", debtId);
-
             return mapToDebtNoteResponseDto(debtNote);
         } catch (IllegalArgumentException | IllegalStateException e) {
             logger.error("Failed to update debt note ID: {}. Error: {}", debtId, e.getMessage());
@@ -171,135 +140,169 @@ public class DebtNoteServiceImpl implements DebtNoteService {
 
     @Override
     public BigDecimal getTotalDebtByCustomerId(Long customerId) {
-        if (customerId == null) {
-            throw new IllegalArgumentException("Customer ID không được để trống.");
-        }
-        logger.debug("Calculating total debt for customer ID: {}", customerId);
+        validateCustomerId(customerId);
+        logger.debug("Getting total debt for customer ID: {}", customerId);
         try {
-            BigDecimal totalDebt = calculateTotalDebt(customerId);
-            logger.info("Successfully calculated total debt: {} for customer ID: {}", totalDebt, customerId);
+            Customer customer = getCustomerOrThrow(customerId);
+            BigDecimal totalDebt = customer.getTotalDebt();
+            logger.info("Successfully retrieved total debt: {} for customer ID: {}", totalDebt, customerId);
             return totalDebt != null ? totalDebt : BigDecimal.ZERO;
         } catch (Exception e) {
-            logger.error("Failed to calculate total debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total debt: " + e.getMessage());
+            logger.error("Failed to get total debt for customer ID: {}. Error: {}", customerId, e.getMessage());
+            throw new IllegalArgumentException("Failed to get total debt: " + e.getMessage());
         }
     }
 
-    @Override
-    public BigDecimal getTotalImportDebtByCustomerId(Long customerId) {
-        if (customerId == null) {
-            throw new IllegalArgumentException("Customer ID không được để trống.");
+    /**
+     * Cập nhật total debt của customer dựa trên debt amount mới
+     * @param customerId ID của customer
+     * @param debtAmount Số tiền debt mới
+     * @param debtType Loại debt ('+' hoặc '-')
+     */
+    private void updateCustomerTotalDebtIncremental(Long customerId, BigDecimal debtAmount, String debtType) {
+        Customer customer = getCustomerOrThrow(customerId);
+        BigDecimal currentTotalDebt = customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO;
+        
+        BigDecimal newTotalDebt;
+        if ("+".equals(debtType)) {
+            // Import debt: tăng total debt
+            newTotalDebt = currentTotalDebt.add(debtAmount);
+        } else if ("-".equals(debtType)) {
+            // Sale debt: giảm total debt
+            newTotalDebt = currentTotalDebt.subtract(debtAmount);
+        } else {
+            logger.warn("Unknown debt type: {} for customer ID: {}", debtType, customerId);
+            return;
         }
-        logger.debug("Calculating total import debt for customer ID: {}", customerId);
-        try {
-            BigDecimal totalImport = debtNoteRepository.getTotalImportDebtByCustomerId(customerId);
-            return totalImport != null ? totalImport : BigDecimal.ZERO;
-        } catch (Exception e) {
-            logger.error("Failed to calculate total import debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total import debt: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public BigDecimal getTotalSaleDebtByCustomerId(Long customerId) {
-        if (customerId == null) {
-            throw new IllegalArgumentException("Customer ID không được để trống.");
-        }
-        logger.debug("Calculating total sale debt for customer ID: {}", customerId);
-        try {
-            BigDecimal totalSale = debtNoteRepository.getTotalSaleDebtByCustomerId(customerId);
-            return totalSale != null ? totalSale : BigDecimal.ZERO;
-        } catch (Exception e) {
-            logger.error("Failed to calculate total sale debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total sale debt: " + e.getMessage());
-        }
-    }
-
-    private BigDecimal calculateTotalDebt(Long customerId) {
-        BigDecimal importDebt = getTotalImportDebtByCustomerId(customerId);
-        BigDecimal saleDebt = getTotalSaleDebtByCustomerId(customerId);
-        BigDecimal total = importDebt.subtract(saleDebt);
-        logger.info("Tính tổng nợ cho customer {}: import (+) = {}, sale (-) = {}, total = {}", customerId, importDebt, saleDebt, total);
-        return total;
+        
+        customer.setTotalDebt(newTotalDebt);
+        customerRepository.save(customer);
+        logger.debug("Updated total debt for customer ID: {} from {} to {} (debtAmount: {}, debtType: {})", 
+                    customerId, currentTotalDebt, newTotalDebt, debtAmount, debtType);
     }
 
     @Override
     @Transactional
     public void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId) {
-        // Validation debtType
-        if (debtAmount == null) {
-            throw new IllegalArgumentException("Số tiền nợ (debtAmount) không được để trống.");
-        }
-        if (!"+".equals(debtType) && !"-".equals(debtType)) {
-            throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
-        }
+        validateDebtAmount(debtAmount);
+        validateDebtType(debtType);
         logger.debug("Creating debt note from transaction for customer ID: {}, source: {}, debtType: {}, sourceId: {}, storeId: {}", customerId, fromSource, debtType, sourceId, storeId);
         try {
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customerId));
-
-            DebtNote debtNote = new DebtNote();
-            debtNote.setCustomer(customer);
-            debtNote.setDebtAmount(debtAmount.abs());  // Thêm abs() để đảm bảo dương
-            debtNote.setDebtDate(LocalDateTime.now());
-            debtNote.setDebtType(debtType != null ? debtType : "AUTO");
-            debtNote.setDebtDescription("Tự động tạo từ " + fromSource + " ID: " + sourceId);
-            debtNote.setDebtEvidences("");
-            debtNote.setFromSource(fromSource);
-            debtNote.setSourceId(sourceId);
-            debtNote.setStore(storeRepository.findById(storeId)
-                    .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + storeId)));
-            debtNote.setCreatedAt(LocalDateTime.now());
-            debtNote.setCreatedBy(1L);
-
+            Customer customer = getCustomerOrThrow(customerId);
+            DebtNote debtNote = createDebtNoteEntityFromTransaction(customer, debtAmount, fromSource, debtType, sourceId, storeId);
             debtNote = debtNoteRepository.save(debtNote);
+            // Cập nhật total debt incrementally thay vì tính lại từ đầu
+            updateCustomerTotalDebtIncremental(customer.getId(), debtNote.getDebtAmount(), debtNote.getDebtType());
             logger.info("Successfully created debt note with ID: {} from {} ID: {}, store ID: {}", debtNote.getId(), fromSource, sourceId, storeId);
-
-            BigDecimal totalDebt = calculateTotalDebt(customer.getId());
-            customer.setTotalDebt(totalDebt != null ? totalDebt : BigDecimal.ZERO);
-            customerRepository.save(customer);
-            logger.debug("Updated total debt for customer ID: {} to: {}", customer.getId(), totalDebt);
         } catch (IllegalArgumentException e) {
             logger.error("Failed to create debt note from transaction. Error: {}", e.getMessage());
             throw e;
         }
     }
 
-    private DebtNoteResponseDto mapToDebtNoteResponseDto(DebtNote debtNote) {
-        String evidence = debtNote.getDebtEvidences();
-        String evidenceUrl = "";
-        if (evidence != null && !evidence.isEmpty()) {
-            String keyToUse = evidence;
-            if (evidence.startsWith("https://")) {
-                // Extract key từ URL public (bỏ domain)
-                keyToUse = evidence.replace("https://" + bucketName + ".s3.amazonaws.com/", "");
-            }
-            try {
-                evidenceUrl = s3Service.generatePresignedUrl(keyToUse);
-                logger.info("Generated pre-signed URL for evidence key '{}': {}", keyToUse, evidenceUrl);
-            } catch (Exception e) {
-                logger.error("Failed to generate pre-signed URL for '{}': {}", keyToUse, e.getMessage());
-                evidenceUrl = evidence;  // Fallback về evidence gốc
-            }
-        } else {
-            logger.info("Debt evidence is empty");
+    private void validateCustomerId(Long customerId) {
+        if (customerId == null) {
+            throw new IllegalArgumentException("Customer ID không được để trống.");
         }
-        return new DebtNoteResponseDto(
-                debtNote.getId(),
-                debtNote.getCustomer().getId(),
-                debtNote.getDebtAmount() != null ? debtNote.getDebtAmount() : BigDecimal.ZERO,
-                debtNote.getDebtDate() != null ? debtNote.getDebtDate() : LocalDateTime.now(),
-                debtNote.getStore() != null ? debtNote.getStore().getId() : null,
-                debtNote.getDebtType() != null ? debtNote.getDebtType() : "",
-                debtNote.getDebtDescription() != null ? debtNote.getDebtDescription() : "",
-                evidenceUrl != null ? evidenceUrl : "",
-                debtNote.getFromSource() != null ? debtNote.getFromSource() : "",
-                debtNote.getSourceId(),
-                debtNote.getCreatedAt() != null ? debtNote.getCreatedAt() : LocalDateTime.now(),
-                debtNote.getCreatedBy(),
-                debtNote.getUpdatedAt(),
-                debtNote.getDeletedAt(),
-                debtNote.getDeletedBy()
-        );
+    }
+
+    private void validateDebtNoteRequest(DebtNoteRequestDto requestDto) {
+        DebtNoteValidation.validate(requestDto);
+        validateDebtType(requestDto.getDebtType());
+    }
+
+    private void validateDebtType(String debtType) {
+        if (!"+".equals(debtType) && !"-".equals(debtType)) {
+            throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
+        }
+    }
+
+    private void validateDebtTypeIfPresent(String debtType) {
+        if (debtType != null && !"+".equals(debtType) && !"-".equals(debtType)) {
+            throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
+        }
+    }
+
+    private void validateDebtAmount(BigDecimal debtAmount) {
+        if (debtAmount == null) {
+            throw new IllegalArgumentException("Số tiền nợ (debtAmount) không được để trống.");
+        }
+    }
+
+    private Customer getCustomerOrThrow(Long customerId) {
+        return customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customerId));
+    }
+
+    private DebtNote getDebtNoteOrThrow(Long debtId) {
+        return debtNoteRepository.findById(debtId)
+                .orElseThrow(() -> new IllegalArgumentException("Debt note not found with ID: " + debtId));
+    }
+
+    private DebtNote mapRequestToEntity(DebtNoteRequestDto requestDto, Customer customer) {
+        DebtNote debtNote = new DebtNote();
+        debtNote.setCustomer(customer);
+        BigDecimal debtAmount = requestDto.getDebtAmount().abs();
+        debtNote.setDebtAmount(debtAmount);
+        debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : LocalDateTime.now());
+        debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : "");
+        debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : "");
+        debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : "");
+        debtNote.setFromSource(requestDto.getFromSource());
+        debtNote.setSourceId(requestDto.getSourceId());
+        debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
+        debtNote.setCreatedAt(LocalDateTime.now());
+        debtNote.setCreatedBy(1L);
+        return debtNote;
+    }
+
+    private void updateDebtNoteEntity(DebtNote debtNote, DebtNoteRequestDto requestDto, Customer customer) {
+        debtNote.setCustomer(customer);
+        debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : debtNote.getDebtDate());
+        debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : debtNote.getDebtType());
+        debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : debtNote.getDebtDescription());
+        debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : debtNote.getDebtEvidences());
+        debtNote.setFromSource(requestDto.getFromSource());
+        debtNote.setSourceId(requestDto.getSourceId());
+        debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
+        debtNote.setUpdatedAt(LocalDateTime.now());
+    }
+
+    private DebtNote createDebtNoteEntityFromTransaction(Customer customer, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId) {
+        DebtNote debtNote = new DebtNote();
+        debtNote.setCustomer(customer);
+        debtNote.setDebtAmount(debtAmount.abs());
+        debtNote.setDebtDate(LocalDateTime.now());
+        debtNote.setDebtType(debtType != null ? debtType : "AUTO");
+        debtNote.setDebtDescription("Tự động tạo từ " + fromSource + " ID: " + sourceId);
+        debtNote.setDebtEvidences("");
+        debtNote.setFromSource(fromSource);
+        debtNote.setSourceId(sourceId);
+        debtNote.setStore(storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + storeId)));
+        debtNote.setCreatedAt(LocalDateTime.now());
+        debtNote.setCreatedBy(1L);
+        return debtNote;
+    }
+
+    private String generateEvidenceUrl(String evidence) {
+        if (evidence == null || evidence.isEmpty()) return "";
+        String keyToUse = evidence;
+        if (evidence.startsWith("https://")) {
+            keyToUse = evidence.replace("https://" + bucketName + ".s3.amazonaws.com/", "");
+        }
+        try {
+            return s3Service.generatePresignedUrl(keyToUse);
+        } catch (Exception e) {
+            logger.error("Failed to generate pre-signed URL for '{}': {}", keyToUse, e.getMessage());
+            return evidence;
+        }
+    }
+
+    private DebtNoteResponseDto mapToDebtNoteResponseDto(DebtNote debtNote) {
+        DebtNoteResponseDto dto = debtNoteMapper.toResponseDto(debtNote);
+        // Thay thế đường dẫn evidence thành presigned URL
+        dto.setDebtEvidences(generateEvidenceUrl(debtNote.getDebtEvidences()));
+        return dto;
     }
 }

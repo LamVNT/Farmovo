@@ -25,6 +25,11 @@ public interface UserService {
 
     Optional<User> toggleUserStatus(Long id);
 
+    org.springframework.data.domain.Page<com.farmovo.backend.dto.response.UserResponseDto> searchUsers(String username, String email, Boolean status,
+                                                                               java.time.LocalDateTime fromDate,
+                                                                               java.time.LocalDateTime toDate,
+                                                                               org.springframework.data.domain.Pageable pageable);
+
     User convertToEntity(UserRequestDto dto);
 
     User convertToEntity(UserUpdateRequestDto dto);

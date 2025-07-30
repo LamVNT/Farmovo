@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Menu, MenuItem, IconButton, Checkbox, TextField, Button, Select, FormControl, InputLabel, CircularProgress, Alert, ListItemIcon, ListItemText } from '@mui/material';
 import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid';
 import {
@@ -79,6 +80,8 @@ const labelMap = {
 };
 
 const SaleTransactionPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -175,6 +178,15 @@ const SaleTransactionPage = () => {
             setLoading(false);
         }
     };
+
+    // Auto open detail dialog when URL has :id
+    useEffect(() => {
+        if (id) {
+            // Create minimal row object with id to reuse existing handler
+            handleViewDetail({ id: parseInt(id) });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
 
     useEffect(() => {
         loadTransactions();
@@ -884,6 +896,9 @@ const SaleTransactionPage = () => {
                     setSelectedTransaction(null);
                     setUserDetails(null);
                     setCustomerDetails(null);
+                    if (id) {
+                        navigate('/sale');
+                    }
                 }}
                 transaction={selectedTransaction}
                 formatCurrency={formatCurrency}

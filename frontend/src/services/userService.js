@@ -101,4 +101,18 @@ export const userService = {
             throw new Error(error.response?.data || 'Không thể cập nhật trạng thái người dùng');
         }
     },
+
+    // Paged search (page, size, username, email, status, fromDate, toDate)
+    getUsersPaged: async (params = {}) => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/users`, {
+                params,
+                withCredentials: true,
+            });
+            return response.data; // Expect PageResponse<UserResponseDto>
+        } catch (error) {
+            console.error('Error in getUsersPaged:', error.response?.data || error.message);
+            throw error;
+        }
+    },
 };

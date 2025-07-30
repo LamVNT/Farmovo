@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
     Dialog,
     DialogTitle,
@@ -18,9 +20,12 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AddDebtDialog from "./AddDebtDialog";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { formatCurrency } from "../../utils/formatters";
 
-const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, addDebtDialogProps, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange }) => {
+const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
     const [search, setSearch] = useState("");
+    const [localFromDate, setLocalFromDate] = useState(fromDate);
+    const [localToDate, setLocalToDate] = useState(toDate);
     const handleSearchChange = (e) => {
         setSearch(e.target.value);
     };
@@ -35,19 +40,18 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
         })
         : [];
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0 VND";
+        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
-            );
-        } else {
-            return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
             );
         }
+        return (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
+        );
     };
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
             <DialogTitle>Danh sách giao dịch nợ <span style={{fontWeight:400, fontSize:13, marginLeft:8}}>("-": khách đang nợ, "+": cửa hàng nợ)</span></DialogTitle>
             <DialogContent>
                 {/* Thông tin khách hàng, tổng nợ và nút thêm giao dịch nợ */}
@@ -72,7 +76,6 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                             onClose={onAddDialogClose}
                             customerId={customer.id}
                             onAdd={onAddDebtNote}
-                            {...addDebtDialogProps}
                         />
                     </>
                 )}
@@ -91,17 +94,37 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                         ),
                     }}
                 />
+
+                {/* Date range filter */}
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                        <DatePicker
+                            label="Từ ngày"
+                            value={localFromDate}
+                            onChange={(newVal) => setLocalFromDate(newVal)}
+                            slotProps={{ textField: { size: 'small' } }}
+                        />
+                        <DatePicker
+                            label="Đến ngày"
+                            value={localToDate}
+                            onChange={(newVal) => setLocalToDate(newVal)}
+                            slotProps={{ textField: { size: 'small' } }}
+                        />
+                        <Button variant="outlined" onClick={() => onDateFilterChange(localFromDate, localToDate)}>Lọc</Button>
+                        <Button variant="text" onClick={() => { setLocalFromDate(null); setLocalToDate(null); onDateFilterChange(null, null); }}>Tất cả</Button>
+                    </div>
+                </LocalizationProvider>
                 {/* Bảng giao dịch nợ */}
-                <div style={{ width: '100%', overflowX: 'auto' }}>
-                    <Table>
+                <div style={{ width: '100%' }}>
+                    <Table size="small">
                         <TableHead>
                             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                                 {/* <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell> */}
-                                <TableCell sx={{ fontWeight: 'bold' }}>Ngày giao dịch</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Loại nợ</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Mô tả</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Nguồn</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Ngày giao dịch</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Loại nợ</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Mô tả</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Nguồn</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -109,7 +132,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                 filteredNotes.map((note) => (
                                     <TableRow key={note.id || Math.random()}>
                                         {/* <TableCell>{note.id || "N/A"}</TableCell> */}
-                                        <TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
                                             {note.debtDate
                                                 ? new Date(note.debtDate).toLocaleString("vi-VN", {
                                                     dateStyle: "short",
@@ -117,10 +140,10 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                                 })
                                                 : "N/A"}
                                         </TableCell>
-                                        <TableCell>{note.debtType || "N/A"}</TableCell>
-                                        <TableCell>{note.debtDescription || "N/A"}</TableCell>
-                                        <TableCell>{note.fromSource || "N/A"}</TableCell>
-                                        <TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtType || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtDescription || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.fromSource || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
                                             <IconButton color="primary" onClick={() => onEdit(note)} disabled={!note.id}>
                                                 <VisibilityIcon />
                                             </IconButton>
@@ -145,6 +168,8 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                 onRowsPerPageChange={onDebtNotesRowsPerPageChange}
                 rowsPerPageOptions={[5, 10, 25]}
                 labelRowsPerPage="Số dòng mỗi trang"
+                // Đặt mặc định là 5 nếu rowsPerPage chưa được truyền vào
+                {...(debtNotesRowsPerPage == null ? { rowsPerPage: 5 } : {})}
             />
             <DialogActions>
                 <Button onClick={onClose} color="primary">
