@@ -7,7 +7,7 @@ import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.AuthorityRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
-import com.farmovo.backend.utils.InputUserValidation;
+import com.farmovo.backend.validator.InputUserValidation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
