@@ -9,7 +9,6 @@ import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.services.CustomerService;
-import com.farmovo.backend.services.impl.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import com.farmovo.backend.dto.response.CustomerResponseDto;
-import com.farmovo.backend.mapper.DebtNoteMapper;
 
 class DebtNoteServiceImplTest {
     @Mock
@@ -36,8 +34,6 @@ class DebtNoteServiceImplTest {
     private StoreRepository storeRepository;
     @Mock
     private CustomerService customerService;
-    @Mock
-    private S3Service s3Service;
 
     @Mock
     private com.farmovo.backend.mapper.DebtNoteMapper debtNoteMapper;
@@ -158,8 +154,6 @@ class DebtNoteServiceImplTest {
             note.setId(10L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("100"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         DebtNoteResponseDto result = debtNoteService.addDebtNote(requestDto);
         assertNotNull(result);
@@ -241,8 +235,10 @@ class DebtNoteServiceImplTest {
     @Test
     @DisplayName("getTotalDebtByCustomerId - success")
     void testGetTotalDebtByCustomerId_Success() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("200"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(new BigDecimal("50"));
+        Customer customer = new Customer();
+        customer.setId(1L);
+        customer.setTotalDebt(new BigDecimal("150"));
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
         BigDecimal total = debtNoteService.getTotalDebtByCustomerId(1L);
         assertEquals(new BigDecimal("150"), total);
     }
@@ -250,38 +246,8 @@ class DebtNoteServiceImplTest {
     @Test
     @DisplayName("getTotalDebtByCustomerId - repository throws")
     void testGetTotalDebtByCustomerId_RepositoryThrows() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenThrow(new RuntimeException("fail"));
+        when(customerRepository.findById(1L)).thenThrow(new RuntimeException("fail"));
         assertThrows(IllegalArgumentException.class, () -> debtNoteService.getTotalDebtByCustomerId(1L));
-    }
-
-    @Test
-    @DisplayName("getTotalImportDebtByCustomerId - success")
-    void testGetTotalImportDebtByCustomerId_Success() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("123"));
-        BigDecimal result = debtNoteService.getTotalImportDebtByCustomerId(1L);
-        assertEquals(new BigDecimal("123"), result);
-    }
-
-    @Test
-    @DisplayName("getTotalImportDebtByCustomerId - repository throws")
-    void testGetTotalImportDebtByCustomerId_RepositoryThrows() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenThrow(new RuntimeException("fail"));
-        assertThrows(IllegalArgumentException.class, () -> debtNoteService.getTotalImportDebtByCustomerId(1L));
-    }
-
-    @Test
-    @DisplayName("getTotalSaleDebtByCustomerId - success")
-    void testGetTotalSaleDebtByCustomerId_Success() {
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(new BigDecimal("321"));
-        BigDecimal result = debtNoteService.getTotalSaleDebtByCustomerId(1L);
-        assertEquals(new BigDecimal("321"), result);
-    }
-
-    @Test
-    @DisplayName("getTotalSaleDebtByCustomerId - repository throws")
-    void testGetTotalSaleDebtByCustomerId_RepositoryThrows() {
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenThrow(new RuntimeException("fail"));
-        assertThrows(IllegalArgumentException.class, () -> debtNoteService.getTotalSaleDebtByCustomerId(1L));
     }
 
     @Test
@@ -300,8 +266,6 @@ class DebtNoteServiceImplTest {
             note.setId(10L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(customerId)).thenReturn(new BigDecimal("100"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(customerId)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         assertDoesNotThrow(() -> debtNoteService.createDebtNoteFromTransaction(customerId, new BigDecimal("100"), "source", "+", 3L, storeId));
         verify(debtNoteRepository).save(any(DebtNote.class));
@@ -413,8 +377,6 @@ class DebtNoteServiceImplTest {
             note.setId(10L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("1000"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         DebtNoteResponseDto result = debtNoteService.addDebtNote(requestDto);
         assertNotNull(result);
@@ -450,8 +412,6 @@ class DebtNoteServiceImplTest {
             note.setId(11L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("100"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         DebtNoteResponseDto result = debtNoteService.addDebtNote(requestDto);
         assertNotNull(result);
@@ -516,8 +476,6 @@ class DebtNoteServiceImplTest {
             note.setId(12L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("1000"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         DebtNoteResponseDto result = debtNoteService.addDebtNote(requestDto);
         assertNotNull(result);
@@ -564,8 +522,6 @@ class DebtNoteServiceImplTest {
             note.setId(13L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("1000"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         DebtNoteResponseDto result = debtNoteService.addDebtNote(requestDto);
         assertNotNull(result);
@@ -755,8 +711,10 @@ class DebtNoteServiceImplTest {
     @Test
     @DisplayName("UTOT1 - getTotalDebtByCustomerId: valid (Pass)")
     void testGetTotalDebtByCustomerId_UTOT1() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("200"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(new BigDecimal("50"));
+        Customer customer = new Customer();
+        customer.setId(1L);
+        customer.setTotalDebt(new BigDecimal("150"));
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
         BigDecimal total = debtNoteService.getTotalDebtByCustomerId(1L);
         assertEquals(new BigDecimal("150"), total);
     }
@@ -771,57 +729,9 @@ class DebtNoteServiceImplTest {
     @Test
     @DisplayName("UTOT3 - getTotalDebtByCustomerId: customerId not found (Fail or zero)")
     void testGetTotalDebtByCustomerId_UTOT3() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(9999L)).thenReturn(null);
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(9999L)).thenReturn(null);
+        when(customerRepository.findById(9999L)).thenReturn(Optional.empty());
         BigDecimal total = debtNoteService.getTotalDebtByCustomerId(9999L);
         assertEquals(BigDecimal.ZERO, total);
-    }
-
-    // getTotalImportDebtByCustomerId / getTotalSaleDebtByCustomerId
-    @Test
-    @DisplayName("UIMP1 - getTotalImportDebtByCustomerId: valid (Pass)")
-    void testGetTotalImportDebtByCustomerId_UIMP1() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(1L)).thenReturn(new BigDecimal("123"));
-        BigDecimal result = debtNoteService.getTotalImportDebtByCustomerId(1L);
-        assertEquals(new BigDecimal("123"), result);
-    }
-
-    @Test
-    @DisplayName("UIMP2 - getTotalImportDebtByCustomerId: customerId null (Fail)")
-    void testGetTotalImportDebtByCustomerId_UIMP2() {
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> debtNoteService.getTotalImportDebtByCustomerId(null));
-        assertEquals("Customer ID không được để trống.", ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("UIMP3 - getTotalImportDebtByCustomerId: customerId not found (Fail or zero)")
-    void testGetTotalImportDebtByCustomerId_UIMP3() {
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(9999L)).thenReturn(null);
-        BigDecimal result = debtNoteService.getTotalImportDebtByCustomerId(9999L);
-        assertEquals(BigDecimal.ZERO, result);
-    }
-
-    @Test
-    @DisplayName("USAL1 - getTotalSaleDebtByCustomerId: valid (Pass)")
-    void testGetTotalSaleDebtByCustomerId_USAL1() {
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(1L)).thenReturn(new BigDecimal("321"));
-        BigDecimal result = debtNoteService.getTotalSaleDebtByCustomerId(1L);
-        assertEquals(new BigDecimal("321"), result);
-    }
-
-    @Test
-    @DisplayName("USAL2 - getTotalSaleDebtByCustomerId: customerId null (Fail)")
-    void testGetTotalSaleDebtByCustomerId_USAL2() {
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> debtNoteService.getTotalSaleDebtByCustomerId(null));
-        assertEquals("Customer ID không được để trống.", ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("USAL3 - getTotalSaleDebtByCustomerId: customerId not found (Fail or zero)")
-    void testGetTotalSaleDebtByCustomerId_USAL3() {
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(9999L)).thenReturn(null);
-        BigDecimal result = debtNoteService.getTotalSaleDebtByCustomerId(9999L);
-        assertEquals(BigDecimal.ZERO, result);
     }
 
     // createDebtNoteFromTransaction
@@ -841,8 +751,6 @@ class DebtNoteServiceImplTest {
             note.setId(10L);
             return note;
         });
-        when(debtNoteRepository.getTotalImportDebtByCustomerId(customerId)).thenReturn(new BigDecimal("1000"));
-        when(debtNoteRepository.getTotalSaleDebtByCustomerId(customerId)).thenReturn(BigDecimal.ZERO);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
         assertDoesNotThrow(() -> debtNoteService.createDebtNoteFromTransaction(customerId, new BigDecimal("1000"), "import", "+", 3L, storeId));
     }

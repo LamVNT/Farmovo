@@ -51,7 +51,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
         );
     };
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
             <DialogTitle>Danh sách giao dịch nợ <span style={{fontWeight:400, fontSize:13, marginLeft:8}}>("-": khách đang nợ, "+": cửa hàng nợ)</span></DialogTitle>
             <DialogContent>
                 {/* Thông tin khách hàng, tổng nợ và nút thêm giao dịch nợ */}
@@ -115,16 +115,16 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                     </div>
                 </LocalizationProvider>
                 {/* Bảng giao dịch nợ */}
-                <div style={{ width: '100%', overflowX: 'auto' }}>
-                    <Table>
+                <div style={{ width: '100%' }}>
+                    <Table size="small">
                         <TableHead>
                             <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                                 {/* <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell> */}
-                                <TableCell sx={{ fontWeight: 'bold' }}>Ngày giao dịch</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Loại nợ</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Mô tả</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Nguồn</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Ngày giao dịch</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Loại nợ</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Mô tả</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Nguồn</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -132,7 +132,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                 filteredNotes.map((note) => (
                                     <TableRow key={note.id || Math.random()}>
                                         {/* <TableCell>{note.id || "N/A"}</TableCell> */}
-                                        <TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
                                             {note.debtDate
                                                 ? new Date(note.debtDate).toLocaleString("vi-VN", {
                                                     dateStyle: "short",
@@ -140,10 +140,10 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                                 })
                                                 : "N/A"}
                                         </TableCell>
-                                        <TableCell>{note.debtType || "N/A"}</TableCell>
-                                        <TableCell>{note.debtDescription || "N/A"}</TableCell>
-                                        <TableCell>{note.fromSource || "N/A"}</TableCell>
-                                        <TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtType || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtDescription || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.fromSource || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
                                             <IconButton color="primary" onClick={() => onEdit(note)} disabled={!note.id}>
                                                 <VisibilityIcon />
                                             </IconButton>
@@ -168,6 +168,8 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                 onRowsPerPageChange={onDebtNotesRowsPerPageChange}
                 rowsPerPageOptions={[5, 10, 25]}
                 labelRowsPerPage="Số dòng mỗi trang"
+                // Đặt mặc định là 5 nếu rowsPerPage chưa được truyền vào
+                {...(debtNotesRowsPerPage == null ? { rowsPerPage: 5 } : {})}
             />
             <DialogActions>
                 <Button onClick={onClose} color="primary">

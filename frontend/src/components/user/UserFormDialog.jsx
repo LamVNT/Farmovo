@@ -154,7 +154,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     const handleRolesChange = (event, value) => {
         setForm((prev) => ({
             ...prev,
-            roles: value || [],
+            roles: value ? [value] : [], // Chỉ lưu 1 role trong array
         }));
     };
 
@@ -272,16 +272,15 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     )}
                 />
                 <Autocomplete
-                    multiple
                     options={roles}
                     getOptionLabel={(option) => option}
-                    value={form.roles || []}
+                    value={form.roles && form.roles.length > 0 ? form.roles[0] : null}
                     onChange={handleRolesChange}
                     renderInput={(params) => (
                         <TextField
                             {...params}
                             margin="dense"
-                            label="Roles *"
+                            label="Role *"
                             fullWidth
                             required
                         />

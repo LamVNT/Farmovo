@@ -110,7 +110,8 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         Customer customer = getCustomerOrThrow(requestDto.getCustomerId());
         DebtNote debtNote = mapRequestToEntity(requestDto, customer);
         debtNote = debtNoteRepository.save(debtNote);
-        updateCustomerTotalDebt(customer.getId());
+        // Cập nhật total debt incrementally thay vì tính lại từ đầu
+        updateCustomerTotalDebtIncremental(customer.getId(), debtNote.getDebtAmount(), debtNote.getDebtType());
         return mapToDebtNoteResponseDto(debtNote);
     }
 
@@ -140,49 +141,44 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     @Override
     public BigDecimal getTotalDebtByCustomerId(Long customerId) {
         validateCustomerId(customerId);
-        logger.debug("Calculating total debt for customer ID: {}", customerId);
+        logger.debug("Getting total debt for customer ID: {}", customerId);
         try {
-            BigDecimal totalDebt = calculateTotalDebt(customerId);
-            logger.info("Successfully calculated total debt: {} for customer ID: {}", totalDebt, customerId);
+            Customer customer = getCustomerOrThrow(customerId);
+            BigDecimal totalDebt = customer.getTotalDebt();
+            logger.info("Successfully retrieved total debt: {} for customer ID: {}", totalDebt, customerId);
             return totalDebt != null ? totalDebt : BigDecimal.ZERO;
         } catch (Exception e) {
-            logger.error("Failed to calculate total debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total debt: " + e.getMessage());
+            logger.error("Failed to get total debt for customer ID: {}. Error: {}", customerId, e.getMessage());
+            throw new IllegalArgumentException("Failed to get total debt: " + e.getMessage());
         }
     }
 
-    @Override
-    public BigDecimal getTotalImportDebtByCustomerId(Long customerId) {
-        validateCustomerId(customerId);
-        logger.debug("Calculating total import debt for customer ID: {}", customerId);
-        try {
-            BigDecimal totalImport = debtNoteRepository.getTotalImportDebtByCustomerId(customerId);
-            return totalImport != null ? totalImport : BigDecimal.ZERO;
-        } catch (Exception e) {
-            logger.error("Failed to calculate total import debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total import debt: " + e.getMessage());
+    /**
+     * Cập nhật total debt của customer dựa trên debt amount mới
+     * @param customerId ID của customer
+     * @param debtAmount Số tiền debt mới
+     * @param debtType Loại debt ('+' hoặc '-')
+     */
+    private void updateCustomerTotalDebtIncremental(Long customerId, BigDecimal debtAmount, String debtType) {
+        Customer customer = getCustomerOrThrow(customerId);
+        BigDecimal currentTotalDebt = customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO;
+        
+        BigDecimal newTotalDebt;
+        if ("+".equals(debtType)) {
+            // Import debt: tăng total debt
+            newTotalDebt = currentTotalDebt.add(debtAmount);
+        } else if ("-".equals(debtType)) {
+            // Sale debt: giảm total debt
+            newTotalDebt = currentTotalDebt.subtract(debtAmount);
+        } else {
+            logger.warn("Unknown debt type: {} for customer ID: {}", debtType, customerId);
+            return;
         }
-    }
-
-    @Override
-    public BigDecimal getTotalSaleDebtByCustomerId(Long customerId) {
-        validateCustomerId(customerId);
-        logger.debug("Calculating total sale debt for customer ID: {}", customerId);
-        try {
-            BigDecimal totalSale = debtNoteRepository.getTotalSaleDebtByCustomerId(customerId);
-            return totalSale != null ? totalSale : BigDecimal.ZERO;
-        } catch (Exception e) {
-            logger.error("Failed to calculate total sale debt for customer ID: {}. Error: {}", customerId, e.getMessage());
-            throw new IllegalArgumentException("Failed to calculate total sale debt: " + e.getMessage());
-        }
-    }
-
-    private BigDecimal calculateTotalDebt(Long customerId) {
-        BigDecimal importDebt = getTotalImportDebtByCustomerId(customerId);
-        BigDecimal saleDebt = getTotalSaleDebtByCustomerId(customerId);
-        BigDecimal total = importDebt.subtract(saleDebt);
-        logger.info("Tính tổng nợ cho customer {}: import (+) = {}, sale (-) = {}, total = {}", customerId, importDebt, saleDebt, total);
-        return total;
+        
+        customer.setTotalDebt(newTotalDebt);
+        customerRepository.save(customer);
+        logger.debug("Updated total debt for customer ID: {} from {} to {} (debtAmount: {}, debtType: {})", 
+                    customerId, currentTotalDebt, newTotalDebt, debtAmount, debtType);
     }
 
     @Override
@@ -195,7 +191,8 @@ public class DebtNoteServiceImpl implements DebtNoteService {
             Customer customer = getCustomerOrThrow(customerId);
             DebtNote debtNote = createDebtNoteEntityFromTransaction(customer, debtAmount, fromSource, debtType, sourceId, storeId);
             debtNote = debtNoteRepository.save(debtNote);
-            updateCustomerTotalDebt(customer.getId());
+            // Cập nhật total debt incrementally thay vì tính lại từ đầu
+            updateCustomerTotalDebtIncremental(customer.getId(), debtNote.getDebtAmount(), debtNote.getDebtType());
             logger.info("Successfully created debt note with ID: {} from {} ID: {}, store ID: {}", debtNote.getId(), fromSource, sourceId, storeId);
         } catch (IllegalArgumentException e) {
             logger.error("Failed to create debt note from transaction. Error: {}", e.getMessage());
@@ -240,14 +237,6 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     private DebtNote getDebtNoteOrThrow(Long debtId) {
         return debtNoteRepository.findById(debtId)
                 .orElseThrow(() -> new IllegalArgumentException("Debt note not found with ID: " + debtId));
-    }
-
-    private void updateCustomerTotalDebt(Long customerId) {
-        Customer customer = getCustomerOrThrow(customerId);
-        BigDecimal totalDebt = calculateTotalDebt(customerId);
-        customer.setTotalDebt(totalDebt != null ? totalDebt : BigDecimal.ZERO);
-        customerRepository.save(customer);
-        logger.debug("Updated total debt for customer ID: {} to: {}", customer.getId(), totalDebt);
     }
 
     private DebtNote mapRequestToEntity(DebtNoteRequestDto requestDto, Customer customer) {
