@@ -91,7 +91,7 @@ public class StoreController {
         try {
         StoreResponseDto dto = new StoreResponseDto();
         dto.setId(store.getId());
-            dto.setStoreAddress(store.getStoreName() != null ? store.getStoreName() : "");
+            dto.setStoreName(store.getStoreName() != null ? store.getStoreName() : "");
             dto.setStoreDescription(store.getStoreDescription() != null ? store.getStoreDescription() : "");
             dto.setStoreAddress(store.getStoreAddress() != null ? store.getStoreAddress() : "");
         dto.setCreateAt(store.getCreatedAt());
