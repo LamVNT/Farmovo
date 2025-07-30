@@ -1,11 +1,11 @@
 package com.farmovo.backend.specification;
 
+import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.ImportTransactionStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ImportTransactionSpecification {
@@ -75,4 +75,29 @@ public class ImportTransactionSpecification {
             }
         };
     }
+
+    public static Specification<ImportTransaction> buildSpecification(
+            String name,
+            String supplierName,
+            Long storeId,
+            Long staffId,
+            ImportTransactionStatus status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            BigDecimal minTotalAmount,
+            BigDecimal maxTotalAmount) {
+
+        return Specification.allOf(
+                isNotDeleted(),
+                hasName(name),
+                hasSupplierName(supplierName),
+                hasStore(storeId),
+                hasStaff(staffId),
+                hasStatus(status),
+                createdBetween(fromDate, toDate),
+                hasTotalAmountBetween(minTotalAmount, maxTotalAmount)
+        );
+    }
+
+
 }

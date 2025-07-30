@@ -68,9 +68,9 @@ class StoreControllerTest {
 
         storeResponseDto = new StoreResponseDto();
         storeResponseDto.setId(1L);
-        storeResponseDto.setName("Test Store");
-        storeResponseDto.setDescription("Description");
-        storeResponseDto.setAddress("Address");
+        storeResponseDto.setStoreName("Test Store");
+        storeResponseDto.setStoreDescription("Description");
+        storeResponseDto.setStoreAddress("Address");
         storeResponseDto.setCreateAt(store.getCreatedAt());
         storeResponseDto.setUpdateAt(store.getUpdatedAt());
     }
