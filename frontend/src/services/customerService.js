@@ -58,8 +58,8 @@ export const customerService = {
     },
 
 
-    createCustomer: async (customerDto, createdBy) => {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer?createdBy=${createdBy}`, customerDto, {
+    createCustomer: async (customerDto) => {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer`, customerDto, {
             withCredentials: true,
         });
         return response.data;
@@ -73,8 +73,7 @@ export const customerService = {
     },
 
     deleteCustomer: async (id, deletedBy) => {
-        const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}`, {
-            data: {deletedBy},
+        const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}?deletedBy=${deletedBy}`, {
             withCredentials: true,
         });
         return response.data;

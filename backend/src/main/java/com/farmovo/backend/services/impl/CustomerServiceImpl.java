@@ -116,7 +116,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setName(requestDto.getName());
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
-        customer.setTotalDebt(requestDto.getTotalDept());
+        customer.setTotalDebt(requestDto.getTotalDebt());
         if (requestDto.getIsSupplier() != null) {
             customer.setIsSupplier(requestDto.getIsSupplier());
         }
@@ -141,7 +141,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (requestDto.getName() == null || requestDto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Customer name is required");
         }
-        if (requestDto.getTotalDept() != null && requestDto.getTotalDept().compareTo(BigDecimal.ZERO) < 0) {
+        if (requestDto.getTotalDebt() != null && requestDto.getTotalDebt().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Total debt cannot be negative");
         }
     }

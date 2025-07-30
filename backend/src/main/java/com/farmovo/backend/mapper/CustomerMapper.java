@@ -23,8 +23,6 @@ public interface CustomerMapper {
     CustomerDto toDto(Customer customer);
 
     // Mapping request dto -> entity for create/update operations
-    @Mapping(target = "totalDebt", source = "totalDept")
-    @Mapping(target = "isSupplier", expression = "java(requestDto.getRole() != null && requestDto.getRole().equalsIgnoreCase(\"SUPPLIER\"))")
     @Mapping(target = "address", ignore = true) // not present in request dto
     @Mapping(target = "debtNotes", ignore = true)
     @Mapping(target = "importTransactions", ignore = true)
