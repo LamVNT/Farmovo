@@ -17,6 +17,7 @@ import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.farmovo.backend.specification.SaleTransactionSpecification;
 import com.farmovo.backend.validator.SaleTransactionValidator;
+import com.farmovo.backend.aop.LogStatusChange;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -212,6 +213,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
     @Override
     @Transactional
+    @LogStatusChange
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
             .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
@@ -222,6 +224,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
+    @LogStatusChange
     public void cancel(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));

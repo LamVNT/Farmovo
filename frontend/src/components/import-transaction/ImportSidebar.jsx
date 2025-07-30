@@ -237,7 +237,7 @@ const ImportSidebar = ({
                         size="small"
                         fullWidth
                         placeholder="Tìm cửa hàng..."
-                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || '')}
+                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
                         onChange={e => {
                             setStoreSearch(e.target.value);
                             setSelectedStore('');
@@ -285,9 +285,9 @@ const ImportSidebar = ({
                                     }}
                                     className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedStore) === String(store.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
                                 >
-                                    <span className="font-medium truncate max-w-[180px]">{store.name}</span>
-                                    {store.address && (
-                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.address}</span>
+                                    <span className="font-medium truncate max-w-[180px]">{store.storeName}</span>
+                                    {store.storeAddress && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.storeAddress}</span>
                                     )}
                                 </div>
                             ))}
@@ -705,7 +705,7 @@ const ImportSidebar = ({
                     <div className="space-y-4">
                         {/* Header */}
                         <div className="border-b border-gray-100 pb-3">
-                            <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredStore.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredStore.storeName}</h3>
                             <div className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
                                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                                 Cửa hàng
@@ -713,19 +713,19 @@ const ImportSidebar = ({
                         </div>
                         {/* Thông tin liên hệ */}
                         <div className="space-y-3">
-                            {hoveredStore.address && (
+                            {hoveredStore.storeAddress && (
                                 <div className="flex items-start group">
                                     <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 mt-0.5 group-hover:bg-orange-200 transition-colors">
                                         <span className="text-orange-600 text-sm">📍</span>
                                     </div>
-                                    <span className="text-sm text-gray-700 leading-relaxed">{hoveredStore.address}</span>
+                                    <span className="text-sm text-gray-700 leading-relaxed">{hoveredStore.storeAddress}</span>
                                 </div>
                             )}
                         </div>
                         {/* Thông tin mô tả */}
-                        {hoveredStore.description && (
+                        {hoveredStore.storeDescription && (
                             <div className="pt-3 border-t border-gray-100">
-                                <div className="text-xs text-gray-500">Mô tả: {hoveredStore.description}</div>
+                                <div className="text-xs text-gray-500">Mô tả: {hoveredStore.storeDescription}</div>
                             </div>
                         )}
                     </div>
