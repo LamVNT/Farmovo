@@ -11,7 +11,6 @@ import com.farmovo.backend.repositories.AuthorityRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.services.UserService;
-import com.farmovo.backend.utils.InputUserValidation;
 import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.validator.InputUserValidation;
 import org.apache.logging.log4j.LogManager;
