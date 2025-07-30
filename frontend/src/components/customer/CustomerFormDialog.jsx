@@ -75,6 +75,8 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           onChange={handleChange}
           fullWidth
           margin="normal"
+          InputProps={{ readOnly: true }}
+          disabled
         />
       </DialogContent>
       <DialogActions>

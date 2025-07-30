@@ -31,6 +31,7 @@ import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
+import EditPage from '../pages/import-transaction/EditPage';
 
 const router = createBrowserRouter([
     {
@@ -134,11 +135,31 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/import/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ImportTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: "/import/new",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <ImportPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/import/edit/:id',
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <EditPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -170,6 +191,16 @@ const router = createBrowserRouter([
     },
     {
         path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/:id",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>

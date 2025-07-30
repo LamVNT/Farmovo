@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 
 @Repository
-public interface DebtNoteRepository extends JpaRepository<DebtNote, Long> {
+public interface DebtNoteRepository extends JpaRepository<DebtNote, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<DebtNote> {
 
     // Query riêng cho import (debtType = '+', tính tăng nợ)
     @Query("""

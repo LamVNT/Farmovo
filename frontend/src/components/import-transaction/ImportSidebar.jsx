@@ -315,6 +315,30 @@ const ImportSidebar = ({
                 <div className="text-right w-32">{totalAmount.toLocaleString('vi-VN')} VND</div>
             </div>
 
+            {/* Tổng nợ hiện tại của nhà cung cấp */}
+            {selectedSupplier && (
+                <div className="flex justify-between items-center">
+                    <div className="font-semibold">Tổng nợ hiện tại</div>
+                    <div className={`text-right w-32 ${(() => {
+                        const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
+                        const totalDebt = supplier?.totalDebt || 0;
+                        return totalDebt > 0 ? 'text-red-600' : totalDebt < 0 ? 'text-green-600' : 'text-gray-600';
+                    })()}`}>
+                        {(() => {
+                            const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
+                            const totalDebt = supplier?.totalDebt || 0;
+                            if (totalDebt > 0) {
+                                return `+${totalDebt.toLocaleString('vi-VN')} VND (Nhà cung cấp nợ)`;
+                            } else if (totalDebt < 0) {
+                                return `-${Math.abs(totalDebt).toLocaleString('vi-VN')} VND (Cửa hàng nợ)`;
+                            } else {
+                                return `${totalDebt.toLocaleString('vi-VN')} VND (Không nợ)`;
+                            }
+                        })()}
+                    </div>
+                </div>
+            )}
+
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
                 <TextField

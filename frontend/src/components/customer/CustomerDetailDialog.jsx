@@ -1,5 +1,6 @@
 import React from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Stack } from "@mui/material";
+import { formatCurrency } from "../../utils/formatters";
 
 const CustomerDetailDialog = ({ open, onClose, customer }) => {
   if (!customer) return null;
@@ -11,7 +12,7 @@ const CustomerDetailDialog = ({ open, onClose, customer }) => {
           <Typography><b>Tên:</b> {customer.name}</Typography>
           <Typography><b>Email:</b> {customer.email}</Typography>
           <Typography><b>Số điện thoại:</b> {customer.phone}</Typography>
-          <Typography><b>Nợ:</b> {customer.totalDebt}</Typography>
+          <Typography><b>Nợ:</b> {formatCurrency(customer.totalDebt)}</Typography>
           <Typography><b>Nhà cung cấp:</b> {customer.isSupplier ? "Có" : "Không"}</Typography>
           <Typography><b>Địa chỉ:</b> {customer.address || "-"}</Typography>
         </Stack>
