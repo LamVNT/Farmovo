@@ -18,7 +18,7 @@ import java.util.List;
 public class ImportTransactionCreateFormDataDto {
     private List<CustomerDto> customers;  // dropdown nhà cung cấp
     private List<ProductDto> products;
-    private List<ZoneDto> zones;// dropdown sản phẩm
+    private List<ZoneResponseDto> zones;// dropdown sản phẩm
     private List<StoreRequestDto> stores;
 }
 

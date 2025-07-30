@@ -84,4 +84,13 @@ public class ZoneController {
         zoneService.deleteZone(id);
         return ResponseEntity.noContent().build();
     }
+
+
+    /// để get zone ở bên import nha
+    @GetMapping("/zones-by-store/{id}")
+    public ResponseEntity<List<ZoneResponseDto>> getZonesByStore(@PathVariable Long storeId) {
+        List<ZoneResponseDto> zones = zoneService.getZonesByStoreId(storeId);
+        return ResponseEntity.ok(zones);
+    }
+
 }
