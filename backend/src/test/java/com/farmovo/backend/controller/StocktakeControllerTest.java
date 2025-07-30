@@ -35,6 +35,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 class StocktakeControllerTest {
     @Mock
@@ -57,6 +58,7 @@ class StocktakeControllerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         mockJwt(null);
+        objectMapper.registerModule(new JavaTimeModule()); // Đăng ký hỗ trợ Java 8 time
         // Khởi tạo MockMvc thủ công mà không cần Spring context
         mockMvc = MockMvcBuilders.standaloneSetup(stocktakeController).build();
     }

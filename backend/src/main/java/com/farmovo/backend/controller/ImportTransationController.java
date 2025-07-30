@@ -5,24 +5,24 @@ import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.ImportTransactionNotFoundException;
-import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.jwt.JwtUtils;
+import com.farmovo.backend.mapper.StoreMapper;
 import com.farmovo.backend.models.ImportTransactionStatus;
+import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.*;
+import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/import-transaction")
@@ -37,24 +37,43 @@ public class ImportTransationController {
     private final StoreService storeService;
     private final ImportTransactionService importTransactionService;
     private final JwtUtils jwtUtils;
-
+    private final StoreMapper storeMapper;
+    private final JwtAuthenticationService jwtAuthenticationService;
 
     @GetMapping("/create-form-data")
-    public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData() {
+    public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData(HttpServletRequest request) {
         log.info("Getting create form data for import transaction");
 
-        List<CustomerDto> customers = customerService.getAllCustomerDto(); // Đã trả về đủ trường
+        // Lấy thông tin người dùng từ JWT
+        User user = jwtAuthenticationService.extractAuthenticatedUser(request);
+        List<String> roles = jwtAuthenticationService.getUserRoles(user);
+        List<CustomerDto> customers = customerService.getAllCustomerDto();
         List<ProductDto> products = productService.getAllProductDto();
         List<ZoneDto> zones = zoneService.getAllZoneDtos();
-        List<StoreRequestDto> stores = storeService.getAllStoreDto();
+        List<StoreRequestDto> stores;
+
+        if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
+            stores = storeService.getAllStoreDto();
+        }
+        // Nếu là STAFF thì chỉ trả về store của họ
+        else if (roles.contains("STAFF")) {
+            if (user.getStore() == null) {
+                throw new BadRequestException("Nhân viên chưa được phân công cửa hàng");
+            }
+            stores = List.of(storeMapper.toDto(user.getStore()));
+        } else {
+            throw new BadRequestException("Người dùng không có quyền truy cập");
+        }
 
         ImportTransactionCreateFormDataDto formData = new ImportTransactionCreateFormDataDto();
         formData.setCustomers(customers);
         formData.setProducts(products);
         formData.setZones(zones);
         formData.setStores(stores);
-        log.debug("Form data prepared: {} customers, {} products, {} zones",
-                customers.size(), products.size(), zones.size());
+
+        log.debug("Form data prepared: {} customers, {} products, {} zones, {} stores",
+                customers.size(), products.size(), zones.size(), stores.size());
+
         return ResponseEntity.ok(formData);
     }
 
@@ -125,16 +144,6 @@ public class ImportTransationController {
             throw new BadRequestException("Không thể đóng phiếu nhập hàng: " + e.getMessage());
         }
     }
-
-//    @GetMapping("/list-all")
-//    public ResponseEntity<List<ImportTransactionResponseDto>> listAllImportTransaction() {
-//        log.info("Getting all import transactions");
-//
-//        List<ImportTransactionResponseDto> transactions = importTransactionService.listAllImportTransaction();
-//
-//        log.debug("Retrieved {} import transactions", transactions.size());
-//        return ResponseEntity.ok(transactions);
-//    }
 
     @GetMapping("/list-all")
     public ResponseEntity<PageResponse<ImportTransactionResponseDto>> listAllImportTransaction(

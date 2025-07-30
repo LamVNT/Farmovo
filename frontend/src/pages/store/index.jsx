@@ -38,7 +38,7 @@ const Store = () => {
 
     const filteredStores = useMemo(() =>
         stores.filter(store =>
-            store.name.toLowerCase().includes(searchText.toLowerCase())
+            (store.storeName || "").toLowerCase().includes(searchText.toLowerCase())
         ), [searchText, stores]);
 
     const handleOpenCreate = () => {
@@ -50,9 +50,9 @@ const Store = () => {
     const handleOpenEdit = (store) => {
         setForm({
             id: store.id,
-            name: store.name,
-            address: store.address,
-            description: store.description || ""
+            name: store.storeName,
+            address: store.storeAddress,
+            description: store.storeDescription || ""
         });
         setEditMode(true);
         setOpenDialog(true);
@@ -127,7 +127,13 @@ const Store = () => {
                 </div>
             </div>
             <StoreTable
-                rows={filteredStores.map((row, idx) => ({ ...row, stt: idx + 1 }))}
+                rows={filteredStores.map((row, idx) => ({ 
+                    id: row.id, 
+                    stt: idx + 1,
+                    name: row.storeName,
+                    address: row.storeAddress,
+                    description: row.storeDescription
+                }))}
                 onEdit={handleOpenEdit}
                 onDelete={id => handleDeleteRequest(stores.find(s => s.id === id))}
             />
@@ -142,7 +148,7 @@ const Store = () => {
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
                 <DialogTitle fontWeight={700} fontSize={22} textAlign="center">Xác nhận xóa cửa hàng</DialogTitle>
                 <DialogContent sx={{ textAlign: 'center', fontSize: 18, py: 2 }}>
-                    Bạn có chắc chắn muốn xóa cửa hàng <b>{storeToDelete?.name}</b> không?<br/>
+                    Bạn có chắc chắn muốn xóa cửa hàng <b>{storeToDelete?.storeName}</b> không?<br/>
                     Hành động này không thể hoàn tác!
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>

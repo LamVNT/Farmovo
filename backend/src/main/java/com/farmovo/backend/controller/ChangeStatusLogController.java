@@ -1,0 +1,49 @@
+package com.farmovo.backend.controller;
+
+import com.farmovo.backend.dto.request.ChangeStatusLogFilterRequestDTO;
+import com.farmovo.backend.dto.request.PageResponse;
+import com.farmovo.backend.dto.response.ChangeStatusLogResponseDTO;
+import com.farmovo.backend.dto.response.SourceEntityInfo;
+import com.farmovo.backend.mapper.ChangeStatusLogMapper;
+import com.farmovo.backend.models.ChangeStatusLog;
+import com.farmovo.backend.services.ChangeStatusLogService;
+import com.farmovo.backend.services.SourceEntityResolverService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/change-statuslog")
+public class ChangeStatusLogController {
+
+    private final ChangeStatusLogMapper mapper;
+    private final ChangeStatusLogService changeStatusLogService;
+    private final SourceEntityResolverService sourceEntityResolverService;
+
+    @PostMapping("/list-all")
+    public ResponseEntity<PageResponse<ChangeStatusLogResponseDTO>> searchLogs(
+            @RequestBody ChangeStatusLogFilterRequestDTO filterRequest,
+            Pageable pageable) {
+        Page<ChangeStatusLog> entityPage = changeStatusLogService.getAllLogs(filterRequest, pageable);
+        Page<ChangeStatusLogResponseDTO> dtoPage = entityPage.map(mapper::toDto);
+        return ResponseEntity.ok(PageResponse.fromPage(dtoPage));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ChangeStatusLogResponseDTO> getById(@PathVariable Long id) {
+        ChangeStatusLogResponseDTO dto = changeStatusLogService.getChangeStatusLogById(id);
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/{id}/source")
+    public ResponseEntity<SourceEntityInfo> getSourceEntity(@PathVariable Long id) {
+        ChangeStatusLogResponseDTO log = changeStatusLogService.getChangeStatusLogById(id);
+        SourceEntityInfo sourceInfo = sourceEntityResolverService.resolveSourceEntity(
+                log.getModelName(), log.getModelID());
+        return ResponseEntity.ok(sourceInfo);
+    }
+}
+

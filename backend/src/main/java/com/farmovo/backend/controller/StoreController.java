@@ -33,7 +33,7 @@ public class StoreController {
         logger.info("Fetching all stores from table 'store'");
         try {
             List<Store> stores = storeService.getAllStores();
-            logger.info("Found {} stores", stores.size());
+                logger.info("Found {} stores", stores.size());
             return stores.stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
@@ -91,9 +91,9 @@ public class StoreController {
         try {
         StoreResponseDto dto = new StoreResponseDto();
         dto.setId(store.getId());
-            dto.setName(store.getStoreName() != null ? store.getStoreName() : "");
-            dto.setDescription(store.getStoreDescription() != null ? store.getStoreDescription() : "");
-            dto.setAddress(store.getStoreAddress() != null ? store.getStoreAddress() : "");
+            dto.setStoreName(store.getStoreName() != null ? store.getStoreName() : "");
+            dto.setStoreDescription(store.getStoreDescription() != null ? store.getStoreDescription() : "");
+            dto.setStoreAddress(store.getStoreAddress() != null ? store.getStoreAddress() : "");
         dto.setCreateAt(store.getCreatedAt());
         dto.setUpdateAt(store.getUpdatedAt());
         return dto;

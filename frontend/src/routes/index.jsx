@@ -127,7 +127,7 @@ const router = createBrowserRouter([
     {
         path: "/import",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <ImportTransactionPage/>
                 </MainLayout>
@@ -147,7 +147,7 @@ const router = createBrowserRouter([
     {
         path: "/import/new",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <ImportPage/>
                 </MainLayout>
