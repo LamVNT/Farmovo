@@ -27,61 +27,28 @@ public class ZoneController {
 
     @GetMapping
     public ResponseEntity<List<ZoneResponseDto>> getAllZones(HttpServletRequest request) {
-        try {
-            String token = jwtUtils.getJwtFromRequest(request);
-            if (token == null) {
-                // Nếu không có token, trả về tất cả zones
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-            
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            if (userId == null) {
-                // Nếu không lấy được userId, trả về tất cả zones
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-            
-            User user = userService.getUserById(userId).orElse(null);
-            if (user == null || user.getAuthorities() == null) {
-                // Nếu user không tồn tại hoặc không có authorities, trả về tất cả zones
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-            
+        String token = jwtUtils.getJwtFromRequest(request);
+        Long userId = jwtUtils.getUserIdFromJwtToken(token);
+        User user = userService.getUserById(userId).orElse(null);
+        if (user != null && user.getAuthorities() != null) {
             boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
             boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
-            
             if (isStaff && user.getStore() != null) {
                 return ResponseEntity.ok(zoneService.getZonesByStoreId(user.getStore().getId()));
             }
-            
             // OWNER hoặc quyền khác trả về toàn bộ zone
-            return ResponseEntity.ok(zoneService.getAllZones());
-        } catch (Exception e) {
-            // Nếu có lỗi, trả về tất cả zones
-            return ResponseEntity.ok(zoneService.getAllZones());
         }
+        return ResponseEntity.ok(zoneService.getAllZones());
     }
 
     @PostMapping
     public ResponseEntity<ZoneResponseDto> createZone(@Valid @RequestBody ZoneRequestDto request, HttpServletRequest httpRequest) {
-        try {
-            String token = jwtUtils.getJwtFromRequest(httpRequest);
-            if (token == null) {
-                return ResponseEntity.status(401).build(); // Unauthorized
-            }
-            
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            if (userId == null) {
-                return ResponseEntity.status(401).build(); // Unauthorized
-            }
-            
-            User user = userService.getUserById(userId).orElse(null);
-            if (user == null || user.getAuthorities() == null) {
-                return ResponseEntity.status(403).build(); // Forbidden
-            }
-            
+        String token = jwtUtils.getJwtFromRequest(httpRequest);
+        Long userId = jwtUtils.getUserIdFromJwtToken(token);
+        User user = userService.getUserById(userId).orElse(null);
+        if (user != null && user.getAuthorities() != null) {
             boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
             boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
-            
             if (isStaff) {
                 // Staff chỉ được tạo zone trong kho của mình
                 if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
@@ -89,33 +56,18 @@ public class ZoneController {
                 }
             }
             // Owner được tạo ở bất kỳ kho nào
-            return ResponseEntity.ok(zoneService.createZone(request));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build(); // Internal Server Error
         }
+        return ResponseEntity.ok(zoneService.createZone(request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ZoneResponseDto> updateZone(@PathVariable Long id, @Valid @RequestBody ZoneRequestDto request, HttpServletRequest httpRequest) {
-        try {
-            String token = jwtUtils.getJwtFromRequest(httpRequest);
-            if (token == null) {
-                return ResponseEntity.status(401).build(); // Unauthorized
-            }
-            
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            if (userId == null) {
-                return ResponseEntity.status(401).build(); // Unauthorized
-            }
-            
-            User user = userService.getUserById(userId).orElse(null);
-            if (user == null || user.getAuthorities() == null) {
-                return ResponseEntity.status(403).build(); // Forbidden
-            }
-            
+        String token = jwtUtils.getJwtFromRequest(httpRequest);
+        Long userId = jwtUtils.getUserIdFromJwtToken(token);
+        User user = userService.getUserById(userId).orElse(null);
+        if (user != null && user.getAuthorities() != null) {
             boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
             boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
-            
             if (isStaff) {
                 // Staff chỉ được cập nhật zone trong kho của mình
                 if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
@@ -123,19 +75,13 @@ public class ZoneController {
                 }
             }
             // Owner được cập nhật ở bất kỳ kho nào
-            return ResponseEntity.ok(zoneService.updateZone(id, request));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build(); // Internal Server Error
         }
+        return ResponseEntity.ok(zoneService.updateZone(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteZone(@Valid @PathVariable Long id) {
-        try {
-            zoneService.deleteZone(id);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build(); // Internal Server Error
-        }
+        zoneService.deleteZone(id);
+        return ResponseEntity.noContent().build();
     }
 }
