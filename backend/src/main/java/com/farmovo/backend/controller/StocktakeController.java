@@ -10,6 +10,7 @@ import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -29,7 +30,7 @@ public class StocktakeController {
 
     @PostMapping
     public ResponseEntity<StocktakeResponseDto> createStocktake(
-            @RequestBody StocktakeRequestDto requestDto,
+            @Valid @RequestBody StocktakeRequestDto requestDto,
             HttpServletRequest request) {
         Long userId = extractUserIdFromRequest(request);
         return ResponseEntity.ok(stocktakeService.createStocktake(requestDto, userId));
@@ -69,7 +70,7 @@ public class StocktakeController {
     @PutMapping("/{id}")
     public ResponseEntity<StocktakeResponseDto> updateStocktake(
             @PathVariable Long id,
-            @RequestBody StocktakeRequestDto requestDto) {
+            @Valid @RequestBody StocktakeRequestDto requestDto) {
         return ResponseEntity.ok(stocktakeService.updateStocktake(id, requestDto));
     }
 
