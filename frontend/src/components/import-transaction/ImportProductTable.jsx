@@ -184,6 +184,7 @@ const ImportProductTable = ({
                     }}
                 >
                     <MenuItem value=""><em>Chọn vị trí</em></MenuItem>
+                    {console.log('zones in ImportProductTable:', zones)}
                     {zones.map((zone) => (
                         <MenuItem key={zone.id} value={zone.id}>{zone.name || zone.zoneName}</MenuItem>
                     ))}

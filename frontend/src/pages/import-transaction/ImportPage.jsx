@@ -841,7 +841,17 @@ const ImportPage = () => {
                                 onChange={(e) => handleZoneChange(params.row.id, typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
                                 onClick={e => e.stopPropagation()}
                                 displayEmpty
-                                renderValue={() => null}
+                                renderValue={(selected) => {
+                                    // Đã xóa log để tránh vòng lặp
+                                    return selected && selected.length > 0
+                                        ? selected
+                                            .map(id => {
+                                                const zone = zones.find(z => String(z.id) === String(id));
+                                                return zone ? (zone.name || zone.zoneName) : id;
+                                            })
+                                            .join(', ')
+                                        : 'Chọn vị trí';
+                                }}
                                 sx={{
                                     position: 'absolute',
                                     left: 0,

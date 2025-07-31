@@ -18,6 +18,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +30,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class StocktakeServiceImplTest {
 
     @Mock
@@ -55,6 +58,7 @@ class StocktakeServiceImplTest {
     private Store store;
     private Stocktake stocktake;
     private ImportTransactionDetail importDetail;
+    private Product product;
 
     @BeforeEach
     void setup() {
@@ -64,6 +68,10 @@ class StocktakeServiceImplTest {
         store = createSampleStore();
         stocktake = createSampleStocktake();
         importDetail = createSampleImportDetail();
+        product = createSampleProduct();
+
+        // ✅ Bổ sung stub cần thiết cho product
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
     }
 
     private StocktakeRequestDto createSampleStocktakeRequest() {
@@ -97,7 +105,7 @@ class StocktakeServiceImplTest {
         s.setStatus(StocktakeStatus.DRAFT);
         s.setStore(store);
         s.setCreatedBy(1L);
-        s.setDetail("[]"); // Giả định detail ban đầu là rỗng
+        s.setDetail("[]");
         return s;
     }
 
@@ -109,6 +117,13 @@ class StocktakeServiceImplTest {
         d.setIsCheck(false);
         d.setZones_id("1");
         return d;
+    }
+
+    private Product createSampleProduct() {
+        Product p = new Product();
+        p.setId(1L);
+        p.setProductName("Gà");
+        return p;
     }
 
     @Test

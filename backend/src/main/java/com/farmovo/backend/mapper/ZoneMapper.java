@@ -26,6 +26,7 @@ public interface ZoneMapper {
     @Mapping(target = "store", expression = "java(mapStore(requestDto.getStoreId()))")
     Zone toEntity(ZoneRequestDto requestDto);
 
+
     List<ZoneDto> toDtoList(List<Zone> zones);
 
     @Mapping(target = "zoneName", source = "zoneName")
