@@ -47,6 +47,7 @@ import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -106,6 +107,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
 
+        /// status tạo ban đầu có thể là COMPLETE không
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Handling debt note for completed transaction");
             handleCompleteStatus(savedTransaction);
@@ -141,46 +143,12 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         saleTransactionRepository.save(transaction);
         log.info("Sale transaction with ID: {} updated successfully", id);
 
+        /// status tạo ban đầu có thể là COMPLETE không
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Handling debt note for completed transaction");
             handleCompleteStatus(transaction);
         }
     }
-
-    private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
-        log.info("Deducting stock from {} batches", items.size());
-
-        for (ProductSaleResponseDto item : items) {
-            log.debug("Processing batch ID: {}, product ID: {}, quantity: {}",
-                    item.getId(), item.getProId(), item.getQuantity());
-
-            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
-                    .orElseThrow(() -> {
-                        log.error("Batch not found with ID: {}", item.getId());
-                        return new ResourceNotFoundException("Batch not found with ID: " + item.getId());
-                    });
-
-            if (!batch.getProduct().getId().equals(item.getProId())) {
-                log.error("Batch ID: {} does not belong to product ID: {}", item.getId(), item.getProId());
-                throw new BadRequestException("Batch does not belong to selected product (productId=" + item.getProId() + ")");
-            }
-
-            if (batch.getRemainQuantity() < item.getQuantity()) {
-                log.error("Insufficient stock in batch ID: {}, available: {}, required: {}",
-                        item.getId(), batch.getRemainQuantity(), item.getQuantity());
-                throw new BadRequestException("Not enough stock in batch ID: " + item.getId() +
-                        " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
-            }
-
-            int oldQuantity = batch.getRemainQuantity();
-            batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
-            importTransactionDetailRepository.save(batch);
-
-            log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
-                    item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
-        }
-    }
-
 
     @Override
     public Page<SaleTransactionResponseDto> getAll(String name,
@@ -217,6 +185,18 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
             .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+
+        if (transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
+            log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "hoàn thành phiếu");
+        }
+        // Parse detail từ JSON để trừ stock
+        List<ProductSaleResponseDto> detailList = parseTransactionDetail(transaction.getDetail());
+        if (!detailList.isEmpty()) {
+            log.info("Transaction completed, deducting stock from {} batches", detailList.size());
+            deductStockFromBatch(detailList);
+        }
         transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
         handleCompleteStatus(transaction);
@@ -228,9 +208,56 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public void cancel(Long id) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
+
+        SaleTransactionStatus oldStatus = transaction.getStatus();
         transaction.setStatus(SaleTransactionStatus.CANCEL);
         // updatedAt sẽ tự động cập nhật nhờ @UpdateTimestamp
         saleTransactionRepository.save(transaction);
+
+        log.info("Sale transaction cancelled successfully. ID: {}, Old status: {}, New status: {}",
+                id, oldStatus, transaction.getStatus());
+    }
+
+    @Override
+    public void open(Long id) {
+        log.info("Opening Sale transaction with ID: {}", id);
+
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("SaleTransaction not found with id: " + id));
+
+        if (transaction.getStatus() != SaleTransactionStatus.DRAFT) {
+            log.warn("Attempted to open non-DRAFT transaction with ID: {}, current status: {}",
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "mở phiếu");
+        }
+
+        SaleTransactionStatus oldStatus = transaction.getStatus();
+        transaction.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
+        saleTransactionRepository.save(transaction);
+
+        log.info("Sale transaction opened successfully. ID: {}, Old status: {}, New status: {}",
+                id, oldStatus, transaction.getStatus());
+    }
+
+    @Override
+    public void close(Long id) {
+        log.info("Closing Sale transaction with ID: {}", id);
+
+        SaleTransaction transaction = saleTransactionRepository.findById(id)
+                .orElseThrow(() -> new com.farmovo.backend.exceptions.ResourceNotFoundException("SaleTransaction not found with id: " + id));
+
+        if (transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
+            log.warn("Attempted to close non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
+                    id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "đóng phiếu");
+        }
+
+        SaleTransactionStatus oldStatus = transaction.getStatus();
+        transaction.setStatus(SaleTransactionStatus.DRAFT);
+        saleTransactionRepository.save(transaction);
+
+        log.info("Sale transaction closed successfully. ID: {}, Old status: {}, New status: {}",
+                id, oldStatus, transaction.getStatus());
     }
 
     @Override
@@ -266,7 +293,6 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         log.debug("Retrieved sale transaction with ID: {}", id);
         return result;
     }
-
 
     @Override
     public byte[] exportPdf(Long id) {
@@ -379,20 +405,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             productTable.addCell(getCell("Thành tiền", boldFont));
 
             // Parse detail an toàn
-            java.util.List<ProductSaleResponseDto> detailList = new java.util.ArrayList<>();
-            try {
-                if (transaction.getDetail() != null && !transaction.getDetail().isEmpty()) {
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                    detailList = objectMapper.readValue(
-                    transaction.getDetail(),
-                        new TypeReference<java.util.List<ProductSaleResponseDto>>() {}
-            );
-                }
-            } catch (Exception e) {
-                detailList = new java.util.ArrayList<>();
-            }
+            List<ProductSaleResponseDto> detailList = parseTransactionDetail(transaction.getDetail());
+
 
             int index = 1;
             for (ProductSaleResponseDto d : detailList) {
@@ -545,5 +559,58 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             );
             log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
         }
+    }
+
+    private void deductStockFromBatch(List<ProductSaleResponseDto> items) {
+        log.info("Deducting stock from {} batches", items.size());
+
+        for (ProductSaleResponseDto item : items) {
+            log.debug("Processing batch ID: {}, product ID: {}, quantity: {}",
+                    item.getId(), item.getProId(), item.getQuantity());
+
+            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
+                    .orElseThrow(() -> {
+                        log.error("Batch not found with ID: {}", item.getId());
+                        return new ResourceNotFoundException("Batch not found with ID: " + item.getId());
+                    });
+
+            if (!batch.getProduct().getId().equals(item.getProId())) {
+                log.error("Batch ID: {} does not belong to product ID: {}", item.getId(), item.getProId());
+                throw new BadRequestException("Batch does not belong to selected product (productId=" + item.getProId() + ")");
+            }
+
+            if (batch.getRemainQuantity() < item.getQuantity()) {
+                log.error("Insufficient stock in batch ID: {}, available: {}, required: {}",
+                        item.getId(), batch.getRemainQuantity(), item.getQuantity());
+                throw new BadRequestException("Not enough stock in batch ID: " + item.getId() +
+                        " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
+            }
+
+            int oldQuantity = batch.getRemainQuantity();
+            batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
+            importTransactionDetailRepository.save(batch);
+
+            log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
+                    item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
+        }
+    }
+
+    private List<ProductSaleResponseDto> parseTransactionDetail(String detailJson) {
+        List<ProductSaleResponseDto> detailList = new ArrayList<>();
+        try {
+            if (detailJson != null && !detailJson.isEmpty()) {
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.registerModule(new JavaTimeModule());
+                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                detailList = mapper.readValue(
+                        detailJson,
+                        new TypeReference<List<ProductSaleResponseDto>>() {}
+                );
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse transaction detail JSON: {}", e.getMessage());
+            throw new BadRequestException("Không thể parse danh sách sản phẩm từ JSON.");
+        }
+        return detailList;
     }
 }

@@ -47,4 +47,8 @@ public interface SaleTransactionService {
     void complete(Long id);
 
     byte[] exportPdf(Long id);
+
+    void open(Long id);
+
+    void close(Long id);
 }
