@@ -48,14 +48,13 @@ class CustomerControllerTest {
 
     @Test
     void testCreateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", BigDecimal.ZERO, false);
         CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.createCustomer(any(CustomerRequestDto.class), eq(1L))).thenReturn(responseDto);
 
         mockMvc.perform(post("/api/customer")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto))
-                .param("createdBy", "1"))
+                .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("John Doe"));
@@ -109,7 +108,7 @@ class CustomerControllerTest {
 
     @Test
     void testUpdateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", BigDecimal.ZERO, false);
         CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.updateCustomer(eq(1L), any(CustomerRequestDto.class))).thenReturn(responseDto);
 

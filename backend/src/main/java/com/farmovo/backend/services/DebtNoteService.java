@@ -12,8 +12,6 @@ public interface DebtNoteService {
     DebtNoteResponseDto addDebtNote(DebtNoteRequestDto requestDto);
     DebtNoteResponseDto updateDebtNote(Long debtId, DebtNoteRequestDto requestDto);
     BigDecimal getTotalDebtByCustomerId(Long customerId);
-    BigDecimal getTotalImportDebtByCustomerId(Long customerId);  // Mới: Tổng nợ import (debtType = '+')
-    BigDecimal getTotalSaleDebtByCustomerId(Long customerId);    // Mới: Tổng nợ sale (debtType = '-')
     void createDebtNoteFromTransaction(Long customerId, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId);
     List<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, int page, int size);
     Page<DebtNoteResponseDto> getDebtNotesPage(Long customerId, int page, int size);

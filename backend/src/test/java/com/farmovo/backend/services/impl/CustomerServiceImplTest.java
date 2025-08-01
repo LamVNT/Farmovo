@@ -52,7 +52,7 @@ class CustomerServiceImplTest {
 
     @Test
     void testCreateCustomer() {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", BigDecimal.ZERO, false);
         Customer customer = new Customer();
         customer.setId(1L);
         customer.setName("John Doe");
@@ -113,7 +113,7 @@ class CustomerServiceImplTest {
         customer.setTotalDebt(BigDecimal.ZERO);
         when(customerRepository.findByIdAndActive(1L)).thenReturn(customer);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", BigDecimal.ZERO, false);
         CustomerResponseDto result = customerService.updateCustomer(1L, requestDto);
         assertEquals("John Updated", result.getName());
     }
@@ -139,7 +139,7 @@ class CustomerServiceImplTest {
     @Test
     void testUpdateCustomer_NotFound() {
         when(customerRepository.findByIdAndActive(1L)).thenReturn(null);
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", BigDecimal.ZERO, false);
         Exception exception = assertThrows(IllegalArgumentException.class, () -> customerService.updateCustomer(1L, requestDto));
         assertTrue(exception.getMessage().contains("Customer not found"));
     }
@@ -153,21 +153,21 @@ class CustomerServiceImplTest {
 
     @Test
     void testCreateCustomer_InvalidName() {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "", "john@example.com", "123456789", null, BigDecimal.ZERO, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "", "john@example.com", "123456789", BigDecimal.ZERO, false);
         Exception exception = assertThrows(IllegalArgumentException.class, () -> customerService.createCustomer(requestDto, 1L));
         assertTrue(exception.getMessage().contains("Customer name is required"));
     }
 
     @Test
     void testCreateCustomer_NegativeDebt() {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", null, new BigDecimal("-10"), false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", new BigDecimal("-10"), false);
         Exception exception = assertThrows(IllegalArgumentException.class, () -> customerService.createCustomer(requestDto, 1L));
         assertTrue(exception.getMessage().contains("Total debt cannot be negative"));
     }
 
     @Test
     void testCreateCustomer_PhoneInvalid_PassIfNoValidation() {
-        CustomerRequestDto dto = new CustomerRequestDto(null, "Cust", "email@test.com", "abc", null, BigDecimal.ZERO, false);
+        CustomerRequestDto dto = new CustomerRequestDto(null, "Cust", "email@test.com", "abc", BigDecimal.ZERO, false);
         Customer customer = new Customer();
         customer.setId(1L);
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
@@ -181,7 +181,7 @@ class CustomerServiceImplTest {
         existing.setId(1L);
         when(customerRepository.findByIdAndActive(1L)).thenReturn(existing);
         when(customerRepository.save(any(Customer.class))).thenReturn(existing);
-        CustomerRequestDto dto = new CustomerRequestDto(null, "New", "e@t.com", "0987654321", null, BigDecimal.ZERO, false);
+        CustomerRequestDto dto = new CustomerRequestDto(null, "New", "e@t.com", "0987654321", BigDecimal.ZERO, false);
         CustomerResponseDto resp = customerService.updateCustomer(1L, dto);
         assertEquals("New", resp.getName());
     }

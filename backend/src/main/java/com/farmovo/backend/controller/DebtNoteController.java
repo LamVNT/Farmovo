@@ -14,10 +14,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 import com.farmovo.backend.dto.request.PageResponse;
 import org.springframework.data.domain.Page;
 
@@ -35,7 +31,7 @@ public class DebtNoteController {
     public ResponseEntity<PageResponse<DebtNoteResponseDto>> getDebtNotes(
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String fromSource,
             @RequestParam(required = false) String debtType,
             @RequestParam(required = false) Long storeId,

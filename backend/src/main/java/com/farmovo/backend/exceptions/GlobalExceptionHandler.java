@@ -10,10 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+
 import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
@@ -219,7 +221,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex) {
+    public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 ex.getMessage(),
@@ -233,10 +235,23 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
         String message = "Tên danh mục đã tồn tại!";
         ErrorResponse error = new ErrorResponse(
-            LocalDateTime.now(),
-            message,
-            "Duplicate key",
-            request.getRequestURI()
+                LocalDateTime.now(),
+                message,
+                "Duplicate key",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        String errorMessage = ex.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                errorMessage,
+                "Validation error",
+                request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
