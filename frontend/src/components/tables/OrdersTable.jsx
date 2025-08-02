@@ -1,7 +1,5 @@
 import {DataGrid} from "@mui/x-data-grid";
-import {IconButton, TextField} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import {TextField} from "@mui/material";
 import {useState, useMemo} from "react";
 
 const OrdersTable = ({orders}) => {
@@ -23,59 +21,79 @@ const OrdersTable = ({orders}) => {
             headerName: 'Status',
             flex: 1,
             renderCell: (params) => {
-                const colorDot = params.value === 'Paid' ? 'bg-green-500'
-                    : params.value === 'Pending' ? 'bg-yellow-500'
-                        : 'bg-red-500';
-                const textColor = params.value === 'Paid' ? 'text-green-600'
-                    : params.value === 'Pending' ? 'text-yellow-600'
-                        : 'text-red-600';
+                const value = params.value;
+                let color = '';
+                let bg = '';
+                switch (value) {
+                    case 'Complete':
+                        color = 'text-green-700';
+                        bg = 'bg-green-500';
+                        break;
+                    case 'Cancel':
+                        color = 'text-red-700';
+                        bg = 'bg-red-100';
+                        break;
+                    case 'Draft':
+                        color = 'text-yellow-700';
+                        bg = 'bg-yellow-100';
+                        break;
+                    case 'Pending':
+                        color = 'text-blue-700';
+                        bg = 'bg-blue-100';
+                        break;
+                    case 'Processing':
+                        color = 'text-indigo-700';
+                        bg = 'bg-indigo-100';
+                        break;
+                    default:
+                        color = 'text-gray-700';
+                        bg = 'bg-gray-100';
+                }
                 return (
-                    <div className={`flex items-center gap-2 font-medium ${textColor}`}>
-                        <span className={`w-3 h-3 rounded-full ${colorDot}`}/>
-                        <span>{params.value}</span>
-                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${color}`}>{value}</span>
                 );
             }
         },
-        {
-            field: 'actions',
-            headerName: 'Actions',
-            flex: 1,
-            sortable: false,
-            renderCell: (params) => (
-                <>
-                    <IconButton onClick={() => alert("Edit row " + params.id)}><EditIcon color="primary"/></IconButton>
-                    <IconButton onClick={() => alert("Delete row " + params.id)}><DeleteIcon
-                        color="error"/></IconButton>
-                </>
-            )
-        }
+        // Đã loại bỏ cột actions cho bảng Dashboard
     ];
 
     return (
-        <div className="card my-4 shadow-md sm:rounded-lg bg-white p-5">
+        <div className="card my-4 shadow-lg rounded-2xl bg-gradient-to-br from-white via-indigo-50 to-indigo-100 p-5">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Recent Orders</h2>
+                <h2 className="text-xl font-bold text-indigo-700 drop-shadow-sm">Recent Orders</h2>
                 <TextField
-                    label="Search Orders"
+                    label="Tìm kiếm đơn hàng"
                     size="small"
                     value={searchOrder}
                     onChange={(e) => setSearchOrder(e.target.value)}
+                    sx={{ background: 'white', borderRadius: 2 }}
                 />
             </div>
-            <div style={{height: 400}}>
+            <div style={{height: 360}}>
                 <DataGrid
                     rows={filteredOrders}
                     columns={orderColumns}
                     pageSize={5}
                     rowsPerPageOptions={[5, 10]}
-                    checkboxSelection
                     disableSelectionOnClick
                     sx={{
-                        borderRadius: 2,
+                        borderRadius: 3,
+                        background: 'rgba(255,255,255,0.95)',
+                        boxShadow: '0 2px 12px 0 rgba(99,102,241,0.08)',
                         '& .MuiDataGrid-columnHeaders': {
-                            backgroundColor: '#f5f5f5',
+                            background: 'linear-gradient(90deg,#e0e7ff 0%,#f5f5f5 100%)',
                             fontWeight: 'bold',
+                            fontSize: 15,
+                            color: '#3730a3',
+                        },
+                        '& .MuiDataGrid-row': {
+                            transition: 'background 0.2s',
+                        },
+                        '& .MuiDataGrid-row:hover': {
+                            background: '#e0e7ff33',
+                        },
+                        '& .MuiDataGrid-cell': {
+                            fontSize: 14,
                         },
                     }}
                 />

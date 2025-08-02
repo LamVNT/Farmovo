@@ -34,14 +34,19 @@ const Header = () => {
 
     const context = useContext(MyContext);
 
-    return (
-        <header className={`w-full h-[auto] py-2 ${context.isSidebarOpen===true ? 'pl-64' : 'pl-5'} shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
-            <div className='part1'>
-                <Button className="!w-[40px] !h-[40px] !rounded-full !min-w-[40px] text-[22px] !text-[rgba(0,0,0,0.8)]"
-                        onClick={()=>context.setisSidebarOpen(!context.isSidebarOpen)}>
-                    <RiMenu2Line className="text-[22px] text-[rgba(0,0,0,0.8)]"/>
-                </Button>
-            </div>
+return (
+    <header className={`w-full h-[auto] py-2 shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
+
+        <div className='part1 flex items-center' style={{paddingLeft: context.isSidebarOpen ? 256 : 20, transition: 'padding-left 0.3s'}}> {/* 256px = 64 * 4 (pl-64) */}
+            <button
+                className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-indigo-100 transition-all mr-4"
+                style={{fontSize: 28, color: '#4f46e5', zIndex: 20}}
+                onClick={()=>context.setisSidebarOpen(!context.isSidebarOpen)}
+                title={context.isSidebarOpen ? 'Ẩn menu' : 'Hiện menu'}
+            >
+                <RiMenu2Line />
+            </button>
+        </div>
 
             <div className='part2 w-[40%] flex items-center justify-end gap-5'>
                 <IconButton aria-label="cart">
