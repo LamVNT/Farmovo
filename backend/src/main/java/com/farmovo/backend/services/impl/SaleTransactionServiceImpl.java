@@ -5,7 +5,9 @@ import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
+
 import java.io.FileOutputStream;
+
 import com.farmovo.backend.exceptions.TransactionStatusException;
 import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
@@ -39,6 +41,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -50,6 +53,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -216,7 +221,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     @LogStatusChange
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
-            .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+                .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
         transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
         handleCompleteStatus(transaction);
@@ -382,13 +387,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             java.util.List<ProductSaleResponseDto> detailList = new java.util.ArrayList<>();
             try {
                 if (transaction.getDetail() != null && !transaction.getDetail().isEmpty()) {
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.registerModule(new JavaTimeModule());
-            objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    objectMapper.registerModule(new JavaTimeModule());
+                    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                     detailList = objectMapper.readValue(
-                    transaction.getDetail(),
-                        new TypeReference<java.util.List<ProductSaleResponseDto>>() {}
-            );
+                            transaction.getDetail(),
+                            new TypeReference<java.util.List<ProductSaleResponseDto>>() {
+                            }
+                    );
                 }
             } catch (Exception e) {
                 detailList = new java.util.ArrayList<>();
@@ -545,5 +551,10 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             );
             log.info("Created debt note for sale transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
         }
+    }
+
+    @Override
+    public List<SaleTransaction> findRecentSales(PageRequest pageRequest) {
+        return saleTransactionRepository.findRecentSales(pageRequest);
     }
 }

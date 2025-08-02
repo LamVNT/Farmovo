@@ -27,4 +27,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, org.s
 
     @Query("SELECT c FROM Customer c WHERE c.name LIKE %:name% AND c.deletedAt IS NULL")
     Page<Customer> findByNameContainingIgnoreCaseAndActive(@Param("name") String name, Pageable pageable);
+
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.isSupplier = true AND c.deletedAt IS NULL")
+    long countSuppliers();
 }

@@ -11,14 +11,10 @@ import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.StoreMapper;
-import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.models.SaleTransactionStatus;
-import com.farmovo.backend.models.Store;
+import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.*;
-import com.farmovo.backend.models.User;
-import com.farmovo.backend.models.Authority;
 import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +39,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
 
 @RestController
 @RequestMapping("/api/sale-transactions")
@@ -167,7 +165,6 @@ public class SaleTransactionController {
     }
 
 
-
     @GetMapping("/{id}")
     public ResponseEntity<SaleTransactionResponseDto> getSaleTransactionById(@PathVariable Long id) {
         log.info("Getting sale transaction by ID: {}", id);
@@ -236,6 +233,31 @@ public class SaleTransactionController {
         headers.setContentDispositionFormData("attachment", "sale-transaction-" + id + ".pdf");
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/recent")
+    public List<SaleTransactionResponseDto> getRecentSales(@RequestParam(defaultValue = "5") int limit) {
+        return saleTransactionService.findRecentSales(org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(s -> {
+                    SaleTransactionResponseDto dto = new SaleTransactionResponseDto();
+                    dto.setId(s.getId());
+                    dto.setName(s.getName());
+                    dto.setTotalAmount(s.getTotalAmount());
+                    dto.setPaidAmount(s.getPaidAmount());
+                    dto.setSaleTransactionNote(s.getSaleTransactionNote());
+                    dto.setStatus(s.getStatus());
+                    dto.setSaleDate(s.getSaleDate());
+                    dto.setCustomerName(s.getCustomer() != null ? s.getCustomer().getName() : "");
+                    dto.setCustomerPhone(s.getCustomer() != null ? s.getCustomer().getPhone() : "");
+                    dto.setCustomerAddress(s.getCustomer() != null ? s.getCustomer().getAddress() : "");
+                    dto.setStoreName(s.getStore() != null ? s.getStore().getStoreName() : "");
+                    dto.setStoreAddress(s.getStore() != null ? s.getStore().getStoreAddress() : "");
+                    dto.setCreatedBy(s.getCreatedBy());
+                    // Không set detail để tránh vòng lặp
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }
 
