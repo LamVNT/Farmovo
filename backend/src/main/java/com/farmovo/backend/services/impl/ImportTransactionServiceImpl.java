@@ -550,6 +550,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         detail.setIsCheck(true);
         return detail;
     }
+
     private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {
         transaction.setSupplier(getSupplier(dto.getSupplierId()));
         transaction.setStore(getStore(dto.getStoreId()));
