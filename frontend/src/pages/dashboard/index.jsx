@@ -1,7 +1,8 @@
 import React, {useState, useMemo, useContext} from "react";
-import { MyContext } from "../../App.jsx";
+import {MyContext} from "../../App.jsx";
 import DashboardBoxes from "../../components/dashboard-boxes/index.jsx";
 import Button from "@mui/material/Button";
+import {Link} from "react-router-dom";
 import {FaPlus} from "react-icons/fa6";
 import RevenueLineChart from "../../components/charts/RevenueLineChart.jsx";
 import StockBarChart from "../../components/charts/StockBarChart.jsx";
@@ -9,9 +10,9 @@ import OrderStatusPieChart from "../../components/charts/OrderStatusPieChart.jsx
 import OrdersTable from "../../components/tables/OrdersTable.jsx";
 import ProductsTable from "../../components/tables/ProductsTable.jsx";
 import useDashboardSummary from "../../hooks/useDashboardSummary.js";
-import { userService } from "../../services/userService";
-import { useEffect } from "react";
-import { getStoreById } from "../../services/storeService";
+import {userService} from "../../services/userService";
+import {useEffect} from "react";
+import {getStoreById} from "../../services/storeService";
 import useRevenueTrend from "../../hooks/useRevenueTrend";
 import useStockByCategory from "../../hooks/useStockByCategory";
 import useTopProducts from "../../hooks/useTopProducts";
@@ -94,15 +95,23 @@ const Dashboard = () => {
     const to = today.toISOString().slice(0, 10);
     const from = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     // Lấy dữ liệu từ API
-    const { data: revenueData, loading: loadingRevenue, error: errorRevenue } = useRevenueTrend({ type, from, to });
-    const { data: stockData, loading: loadingStock, error: errorStock } = useStockByCategory();
-    const { data: topProducts, loading: loadingTopProducts, error: errorTopProducts } = useTopProducts({ from, to, limit: 5 });
-    const { data: topCustomers, loading: loadingTopCustomers, error: errorTopCustomers } = useTopCustomers({ from, to, limit: 5 });
-    const { data: recentImports, loading: loadingImports, error: errorImports } = useRecentImportTransactions(5);
-    const { data: recentSales, loading: loadingSales, error: errorSales } = useRecentSaleTransactions(5);
+    const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({type, from, to});
+    const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory();
+    const {data: topProducts, loading: loadingTopProducts, error: errorTopProducts} = useTopProducts({
+        from,
+        to,
+        limit: 5
+    });
+    const {data: topCustomers, loading: loadingTopCustomers, error: errorTopCustomers} = useTopCustomers({
+        from,
+        to,
+        limit: 5
+    });
+    const {data: recentImports, loading: loadingImports, error: errorImports} = useRecentImportTransactions(5);
+    const {data: recentSales, loading: loadingSales, error: errorSales} = useRecentSaleTransactions(5);
     // Map stockData để hiển thị tên category
-    const stockChartData = stockData.map(item => ({ name: item.category, stock: item.stock }));
-    const { summary, loading, error } = useDashboardSummary();
+    const stockChartData = stockData.map(item => ({name: item.category, stock: item.stock}));
+    const {summary, loading, error} = useDashboardSummary();
     const [user, setUser] = useState(null);
     const [storeName, setStoreName] = useState("");
 
@@ -125,7 +134,8 @@ const Dashboard = () => {
     // Header cải tiến
     return (
         <div className="p-5 bg-gray-100 min-h-screen">
-            <div className="w-full py-6 px-8 bg-gradient-to-r from-[#f8fafc] to-[#e0e7ff] rounded-xl shadow-lg flex items-center gap-8 mb-8 justify-between">
+            <div
+                className="w-full py-6 px-8 bg-gradient-to-r from-[#f8fafc] to-[#e0e7ff] rounded-xl shadow-lg flex items-center gap-8 mb-8 justify-between">
                 <div className="flex-1 pl-2">
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-2 drop-shadow-sm">
                         Hello,
@@ -137,7 +147,8 @@ const Dashboard = () => {
                     )}
                     <p className="text-lg text-gray-600 mt-3">Here’s what’s happening on your store today.</p>
                 </div>
-                <img src="/shop-illustration.webp" alt="Shop Illustration" className="w-64 h-auto rounded-2xl shadow-xl border border-indigo-100"/>
+                <img src="/shop-illustration.webp" alt="Shop Illustration"
+                     className="w-64 h-auto rounded-2xl shadow-xl border border-indigo-100"/>
             </div>
 
             {loading ? (
@@ -153,12 +164,16 @@ const Dashboard = () => {
                     expiringLots={summary?.expiringLots}
                 />
             )}
-            {error && <div className="text-red-600 text-center py-4">{error}</div>} {/* Đổi style trực tiếp thành class TailwindCSS */}
+            {error && <div
+                className="text-red-600 text-center py-4">{error}</div>} {/* Đổi style trực tiếp thành class TailwindCSS */}
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 mt-8">
-                <div className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
-                    <div className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📈</div>
+                <div
+                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    <div
+                        className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📈
+                    </div>
                     {loadingRevenue ? (
                         <div>Đang tải dữ liệu doanh thu...</div>
                     ) : errorRevenue ? (
@@ -167,8 +182,11 @@ const Dashboard = () => {
                         <RevenueLineChart data={revenueData} timeFilter={timeFilter} setTimeFilter={setTimeFilter}/>
                     )}
                 </div>
-                <div className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
-                    <div className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📊</div>
+                <div
+                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    <div
+                        className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📊
+                    </div>
                     {loadingStock ? (
                         <div>Đang tải dữ liệu tồn kho...</div>
                     ) : errorStock ? (
@@ -181,8 +199,11 @@ const Dashboard = () => {
 
             {/* Top Products & Top Customers Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
-                    <div className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">🥇</div>
+                <div
+                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    <div
+                        className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">🥇
+                    </div>
                     <h2 className="text-2xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
                         <span className="text-3xl">🏆</span> Top Sản phẩm bán chạy
                     </h2>
@@ -193,28 +214,31 @@ const Dashboard = () => {
                     ) : (
                         <table className="min-w-full text-left">
                             <thead>
-                                <tr className="text-indigo-700">
-                                    <th className="py-2 px-4">#</th>
-                                    <th className="py-2 px-4">Sản phẩm</th>
-                                    <th className="py-2 px-4">Nhóm</th>
-                                    <th className="py-2 px-4">Số lượng</th>
-                                </tr>
+                            <tr className="text-indigo-700">
+                                <th className="py-2 px-4">#</th>
+                                <th className="py-2 px-4">Sản phẩm</th>
+                                <th className="py-2 px-4">Nhóm</th>
+                                <th className="py-2 px-4">Số lượng</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {topProducts.map((item, idx) => (
-                                    <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
-                                        <td className="py-2 px-4 font-bold">{idx + 1}</td>
-                                        <td className="py-2 px-4 font-semibold">{item.productName}</td>
-                                        <td className="py-2 px-4">{item.category}</td>
-                                        <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
-                                    </tr>
-                                ))}
+                            {topProducts.map((item, idx) => (
+                                <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
+                                    <td className="py-2 px-4 font-bold">{idx + 1}</td>
+                                    <td className="py-2 px-4 font-semibold">{item.productName}</td>
+                                    <td className="py-2 px-4">{item.category}</td>
+                                    <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
+                                </tr>
+                            ))}
                             </tbody>
                         </table>
                     )}
                 </div>
-                <div className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
-                    <div className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">👑</div>
+                <div
+                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    <div
+                        className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">👑
+                    </div>
                     <h2 className="text-2xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
                         <span className="text-3xl">💎</span> Top Khách hàng mua nhiều nhất
                     </h2>
@@ -225,31 +249,40 @@ const Dashboard = () => {
                     ) : (
                         <table className="min-w-full text-left">
                             <thead>
-                                <tr className="text-indigo-700">
-                                    <th className="py-2 px-4">#</th>
-                                    <th className="py-2 px-4">Khách hàng</th>
-                                    <th className="py-2 px-4">Tổng tiền</th>
-                                    <th className="py-2 px-4">Số đơn</th>
-                                </tr>
+                            <tr className="text-indigo-700">
+                                <th className="py-2 px-4">#</th>
+                                <th className="py-2 px-4">Khách hàng</th>
+                                <th className="py-2 px-4">Tổng tiền</th>
+                                <th className="py-2 px-4">Số đơn</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {topCustomers.map((item, idx) => (
-                                    <tr key={item.customerName + idx} className="hover:bg-indigo-50 transition-all">
-                                        <td className="py-2 px-4 font-bold">{idx + 1}</td>
-                                        <td className="py-2 px-4 font-semibold">{item.customerName}</td>
-                                        <td className="py-2 px-4 text-indigo-700 font-bold">{item.totalAmount?.toLocaleString()}</td>
-                                        <td className="py-2 px-4">{item.orderCount}</td>
-                                    </tr>
-                                ))}
+                            {topCustomers.map((item, idx) => (
+                                <tr key={item.customerName + idx} className="hover:bg-indigo-50 transition-all">
+                                    <td className="py-2 px-4 font-bold">{idx + 1}</td>
+                                    <td className="py-2 px-4 font-semibold">{item.customerName}</td>
+                                    <td className="py-2 px-4 text-indigo-700 font-bold">{item.totalAmount?.toLocaleString()}</td>
+                                    <td className="py-2 px-4">{item.orderCount}</td>
+                                </tr>
+                            ))}
                             </tbody>
                         </table>
                     )}
                 </div>
             </div>
 
+
             {/* Latest Import Transactions */}
             <div className="bg-white p-8 rounded-lg shadow-md mb-8">
-                <h2 className="text-2xl font-bold mb-4">Latest Import Transactions</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold">Latest Import Transactions</h2>
+                    <Link to="/import" className="inline-block" style={{textDecoration: 'none'}}>
+                        <Button variant="contained" color="primary"
+                                className="!bg-green-600 hover:!bg-green-700 !rounded-full !shadow-md !capitalize">
+                            Xem Phiếu Nhập Hàng
+                        </Button>
+                    </Link>
+                </div>
                 {loadingImports ? (
                     <div>Đang tải...</div>
                 ) : errorImports ? (
@@ -263,13 +296,22 @@ const Dashboard = () => {
                         price: item.totalAmount,
                         created: item.importDate?.slice(0, 10),
                         status: item.status,
-                    }))} />
+                    }))}/>
                 )}
             </div>
 
+
             {/* Latest Sale Transactions */}
             <div className="bg-white p-8 rounded-lg shadow-md mb-8">
-                <h2 className="text-2xl font-bold mb-4">Latest Sale Transactions</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold">Latest Sale Transactions</h2>
+                    <Link to="/sale" className="inline-block" style={{textDecoration: 'none'}}>
+                        <Button variant="contained" color="primary"
+                                className="!bg-blue-600 hover:!bg-blue-700 !rounded-full !shadow-md !capitalize">
+                            Xem Phiếu Bán Hàng
+                        </Button>
+                    </Link>
+                </div>
                 {loadingSales ? (
                     <div>Đang tải...</div>
                 ) : errorSales ? (
@@ -283,7 +325,7 @@ const Dashboard = () => {
                         price: item.totalAmount,
                         created: item.saleDate?.slice(0, 10),
                         status: item.status,
-                    }))} />
+                    }))}/>
                 )}
             </div>
 
