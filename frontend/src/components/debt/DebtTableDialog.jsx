@@ -22,7 +22,7 @@ import AddDebtDialog from "./AddDebtDialog";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { formatCurrency } from "../../utils/formatters";
 
-const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
+const DebtTableDialog = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
     const [search, setSearch] = useState("");
     const [localFromDate, setLocalFromDate] = useState(fromDate);
     const [localToDate, setLocalToDate] = useState(toDate);
@@ -50,9 +50,22 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
             <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
         );
     };
+
+    const formatDebtType = (debtType) => {
+        if (debtType === "+") return "Cửa Hàng Nợ";
+        if (debtType === "-") return "Khách Hàng Nợ";
+        return debtType || "N/A";
+    };
+
+    const formatFromSource = (fromSource) => {
+        if (fromSource === "SALE") return "Đơn Bán";
+        if (fromSource === "IMPORT" || fromSource === "PURCHASE") return "Đơn Nhập";
+        if (fromSource === "MANUAL") return "Đơn tự nhập";
+        return fromSource || "N/A";
+    };
     return (
         <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-            <DialogTitle>Danh sách giao dịch nợ <span style={{fontWeight:400, fontSize:13, marginLeft:8}}>("-": khách đang nợ, "+": cửa hàng nợ)</span></DialogTitle>
+            <DialogTitle>Danh sách giao dịch nợ</DialogTitle>
             <DialogContent>
                 {/* Thông tin khách hàng, tổng nợ và nút thêm giao dịch nợ */}
                 {customer && (
@@ -68,7 +81,7 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                 onClick={onAddDebt}
                                 sx={{ mb: 2 }}
                             >
-                                Thêm giao dịch nợ
+                                Thêm phiếu thanh toán
                             </Button>
                         </div>
                         <AddDebtDialog
@@ -140,9 +153,9 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
                                                 })
                                                 : "N/A"}
                                         </TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtType || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{formatDebtType(note.debtType)}</TableCell>
                                         <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtDescription || "N/A"}</TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.fromSource || "N/A"}</TableCell>
+                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{formatFromSource(note.fromSource)}</TableCell>
                                         <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
                                             <IconButton color="primary" onClick={() => onEdit(note)} disabled={!note.id}>
                                                 <VisibilityIcon />
@@ -180,4 +193,4 @@ const DebtTable = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAd
     );
 };
 
-export default DebtTable;
+export default DebtTableDialog;

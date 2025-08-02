@@ -3,20 +3,24 @@ package com.farmovo.backend.mapper;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.models.User;
 import org.mapstruct.*;
-import org.mapstruct.factory.Mappers;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
+@Mapper(componentModel = "spring")
+@Component
 public interface UserMapper {
-
-    UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
     @Mapping(target = "storeId", source = "store.id")
     @Mapping(target = "storeName", source = "store.storeName")
+    @Mapping(target = "createdBy", source = "createdBy")
+    @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "updatedAt", source = "updatedAt")
+    @Mapping(target = "deletedAt", source = "deletedAt")
+    @Mapping(target = "deletedBy", source = "deletedBy")
     @Mapping(target = "roles", expression = "java(mapAuthorities(user.getAuthorities()))")
     UserResponseDto toResponseDto(User user);
 

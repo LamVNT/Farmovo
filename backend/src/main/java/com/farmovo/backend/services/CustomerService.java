@@ -6,6 +6,7 @@ import com.farmovo.backend.dto.response.CustomerResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CustomerService {
@@ -21,7 +22,8 @@ public interface CustomerService {
     Page<CustomerResponseDto> getCustomerPage(Pageable pageable, String search);
 
     Page<CustomerResponseDto> searchCustomers(String name, String phone, String email,
-                                              java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate,
+                                              Boolean isSupplier, Boolean debtOnly,
+                                              LocalDateTime fromDate, LocalDateTime toDate,
                                               Pageable pageable);
 
     List<CustomerResponseDto> searchCustomersByName(String name);

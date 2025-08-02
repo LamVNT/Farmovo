@@ -12,9 +12,9 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
     CustomerMapper INSTANCE = Mappers.getMapper(CustomerMapper.class);
-    @Mapping(target = "address", source = "address")
     @Mapping(target = "phone", source = "phone")
     @Mapping(target = "email", source = "email")
+    @Mapping(target = "address", source = "address")
     @Mapping(target = "totalDebt", source = "totalDebt")
     @Mapping(target = "createBy", source = "createdBy")
     @Mapping(target = "createAt", source = "createdAt")
@@ -23,7 +23,6 @@ public interface CustomerMapper {
     CustomerDto toDto(Customer customer);
 
     // Mapping request dto -> entity for create/update operations
-    @Mapping(target = "address", ignore = true) // not present in request dto
     @Mapping(target = "debtNotes", ignore = true)
     @Mapping(target = "importTransactions", ignore = true)
     @Mapping(target = "saleTransactions", ignore = true)

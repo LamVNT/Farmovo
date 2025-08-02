@@ -16,12 +16,14 @@ import {
     IconButton,
     Stack,
     ToggleButton,
-    ToggleButtonGroup
+    ToggleButtonGroup,
+    Tabs,
+    Tab
 } from "@mui/material";
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SearchIcon from '@mui/icons-material/Search';
-import DebtTable from "../../components/debt/DebtTable";
+import DebtTable from "../../components/debt/DebtTableDialog.jsx";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
 import DebtDetailDialog from "../../components/debt/DebtDetailDialog.jsx";
 import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
@@ -54,6 +56,7 @@ const DebtManagement = () => {
     const [customerRowsPerPage, setCustomerRowsPerPage] = useState(5);
     const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
     const [filterDebt, setFilterDebt] = useState(false);
+    const [activeTab, setActiveTab] = useState(0); // 0: Khách hàng nợ, 1: Cửa hàng nợ
 
     // Date filter for debt notes
     const [debtFromDate, setDebtFromDate] = useState(null);
@@ -124,15 +127,32 @@ const DebtManagement = () => {
         setCustomerRowsPerPage(parseInt(event.target.value, 10));
         setCustomerPage(0);
     };
-    // Lọc chỉ lấy khách hàng có tổng nợ khác 0
-    let nonZeroDebtCustomers = customers.filter(cust => cust.totalDebt !== 0 && cust.totalDebt !== null && cust.totalDebt !== undefined);
+    // Lọc khách hàng theo tab hiện tại
+    let filteredByTab = customers;
+    if (activeTab === 0) {
+        // Tab "Khách hàng nợ" - chỉ hiển thị khách hàng có nợ âm (khách đang nợ)
+        filteredByTab = customers.filter(cust => 
+            cust.totalDebt !== null && 
+            cust.totalDebt !== undefined && 
+            cust.totalDebt < 0
+        );
+    } else if (activeTab === 1) {
+        // Tab "Cửa hàng nợ" - chỉ hiển thị khách hàng có nợ dương (cửa hàng đang nợ)
+        filteredByTab = customers.filter(cust => 
+            cust.totalDebt !== null && 
+            cust.totalDebt !== undefined && 
+            cust.totalDebt > 0
+        );
+    }
+
     // Lọc theo loại khách hàng
-    let filteredByType = nonZeroDebtCustomers;
+    let filteredByType = filteredByTab;
     if (customerTypeFilter === 'supplier') {
         filteredByType = filteredByType.filter(cust => cust.isSupplier);
     } else if (customerTypeFilter === 'buyer') {
         filteredByType = filteredByType.filter(cust => !cust.isSupplier);
     }
+    
     const filteredCustomers = filteredByType.filter(cust => {
         const name = cust.name?.toLowerCase() || "";
         const phone = cust.phone?.toLowerCase() || "";
@@ -167,6 +187,11 @@ const DebtManagement = () => {
         return filters;
     };
 
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+        setCustomerPage(0); // Reset về trang đầu khi chuyển tab
+    };
+
     return (
         <Box p={3} bgcolor="#fff" borderRadius={2} boxShadow={1}>
             <Typography variant="h5" fontWeight={600} mb={2}>
@@ -178,9 +203,57 @@ const DebtManagement = () => {
                 </Typography>
             )}
 
+            {/* Tabs để phân chia loại nợ */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={activeTab} onChange={handleTabChange} aria-label="debt management tabs">
+                    <Tab 
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Khách hàng nợ</span>
+                                <Box sx={{ 
+                                    backgroundColor: 'red', 
+                                    color: 'white', 
+                                    borderRadius: '50%', 
+                                    width: 20, 
+                                    height: 20, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {customers.filter(cust => cust.totalDebt < 0).length}
+                                </Box>
+                            </Box>
+                        } 
+                    />
+                    <Tab 
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Cửa hàng nợ</span>
+                                <Box sx={{ 
+                                    backgroundColor: 'green', 
+                                    color: 'white', 
+                                    borderRadius: '50%', 
+                                    width: 20, 
+                                    height: 20, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {customers.filter(cust => cust.totalDebt > 0).length}
+                                </Box>
+                            </Box>
+                        } 
+                    />
+                </Tabs>
+            </Box>
+
             {/* Bảng danh sách khách hàng */}
             <Typography variant="h6" gutterBottom>
-                Danh sách khách hàng
+                Danh sách khách hàng {activeTab === 0 ? '(Khách hàng nợ)' : '(Cửa hàng nợ)'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" mb={2}>
                 <TextField
@@ -215,6 +288,7 @@ const DebtManagement = () => {
                             <TableCell sx={{ fontWeight: 'bold' }}>Tên</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Số điện thoại</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Địa chỉ</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Loại khách hàng</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Tổng nợ</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
                         </TableRow>
@@ -226,6 +300,18 @@ const DebtManagement = () => {
                                     <TableCell>{cust.name || "N/A"}</TableCell>
                                     <TableCell>{cust.phone || "N/A"}</TableCell>
                                     <TableCell>{cust.address || "N/A"}</TableCell>
+                                    <TableCell>
+                                        <span style={{
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            fontWeight: '500',
+                                            backgroundColor: cust.isSupplier ? '#e3f2fd' : '#f3e5f5',
+                                            color: cust.isSupplier ? '#1976d2' : '#7b1fa2'
+                                        }}>
+                                            {cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua'}
+                                        </span>
+                                    </TableCell>
                                     <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
                                     <TableCell>
                                         <IconButton color="primary" onClick={() => setSelectedCustomerId(cust.id)} disabled={!cust.id}>
@@ -236,7 +322,7 @@ const DebtManagement = () => {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5}>Không có khách hàng</TableCell>
+                                <TableCell colSpan={6}>Không có khách hàng</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -253,8 +339,10 @@ const DebtManagement = () => {
             </div>
 
             {/* Chú thích ký hiệu tổng nợ */}
-            <Typography variant="body2" color="text.secondary" align="right" sx={{ mt: 2 }}>
-                "-": khách đang nợ, "+": cửa hàng nợ
+            <Typography variant="body2" align="right" sx={{ mt: 2 }}>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>"-": khách đang nợ</span>
+                <span style={{ margin: '0 8px' }}>, </span>
+                <span style={{ color: 'green', fontWeight: 'bold' }}>"+": cửa hàng nợ</span>
             </Typography>
 
             {/* Chi tiết khách hàng và giao dịch nợ */}

@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, F
 import { customerService } from "../../services/customerService";
 
 const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", totalDebt: 0, isSupplier: false });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", totalDebt: 0, isSupplier: false });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -12,11 +12,12 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
         name: customer.name || "",
         email: customer.email || "",
         phone: customer.phone || "",
+        address: customer.address || "",
         totalDebt: customer.totalDebt || 0,
         isSupplier: customer.isSupplier || false,
       });
     } else {
-      setForm({ name: "", email: "", phone: "", totalDebt: 0, isSupplier: false });
+      setForm({ name: "", email: "", phone: "", address: "", totalDebt: 0, isSupplier: false });
     }
   }, [mode, customer, open]);
 
@@ -71,6 +72,17 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           onChange={handleChange}
           fullWidth
           margin="normal"
+        />
+        <TextField
+          label="Địa chỉ"
+          name="address"
+          value={form.address}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          multiline
+          rows={2}
+          placeholder="Nhập địa chỉ khách hàng..."
         />
         <TextField
           label="Nợ ban đầu"

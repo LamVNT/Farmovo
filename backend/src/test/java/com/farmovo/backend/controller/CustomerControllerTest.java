@@ -48,8 +48,8 @@ class CustomerControllerTest {
 
     @Test
     void testCreateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", BigDecimal.ZERO, false);
-        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, false);
+        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.createCustomer(any(CustomerRequestDto.class), eq(1L))).thenReturn(responseDto);
 
         mockMvc.perform(post("/api/customer")
@@ -62,7 +62,7 @@ class CustomerControllerTest {
 
     @Test
     void testGetCustomerById() throws Exception {
-        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
+        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.getCustomerById(1L)).thenReturn(responseDto);
 
         mockMvc.perform(get("/api/customer/admin/1"))
@@ -73,8 +73,8 @@ class CustomerControllerTest {
     @Test
     void testGetAllCustomers() throws Exception {
         List<CustomerResponseDto> customers = Arrays.asList(
-                new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false),
-                new CustomerResponseDto(2L, "Jane Smith", "jane@example.com", "987654321", null, BigDecimal.ZERO, 1L, null, null, null, null, false)
+                new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, 1L, null, null, null, null, false),
+                new CustomerResponseDto(2L, "Jane Smith", "jane@example.com", "987654321", "456 Oak Ave", BigDecimal.ZERO, 1L, null, null, null, null, false)
         );
         Mockito.when(customerService.getAllCustomers()).thenReturn(customers);
 
@@ -87,7 +87,7 @@ class CustomerControllerTest {
     @Test
     void testSearchCustomersByName() throws Exception {
         List<CustomerResponseDto> customers = Arrays.asList(
-                new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false)
+                new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, 1L, null, null, null, null, false)
         );
         Mockito.when(customerService.searchCustomersByName("John")).thenReturn(customers);
 
@@ -98,7 +98,7 @@ class CustomerControllerTest {
 
     @Test
     void testGetCustomerDetailsById() throws Exception {
-        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
+        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Doe", "john@example.com", "123456789", "123 Main St", BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.getCustomerById(1L)).thenReturn(responseDto);
 
         mockMvc.perform(get("/api/customer/details/1"))
@@ -108,8 +108,8 @@ class CustomerControllerTest {
 
     @Test
     void testUpdateCustomer() throws Exception {
-        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", BigDecimal.ZERO, false);
-        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Updated", "john@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, false);
+        CustomerRequestDto requestDto = new CustomerRequestDto(null, "John Updated", "john@example.com", "123456789", "456 Updated St", BigDecimal.ZERO, false);
+        CustomerResponseDto responseDto = new CustomerResponseDto(1L, "John Updated", "john@example.com", "123456789", "456 Updated St", BigDecimal.ZERO, 1L, null, null, null, null, false);
         Mockito.when(customerService.updateCustomer(eq(1L), any(CustomerRequestDto.class))).thenReturn(responseDto);
 
         mockMvc.perform(put("/api/customer/1")
@@ -137,8 +137,8 @@ class CustomerControllerTest {
     @Test
     void testGetSuppliers() throws Exception {
         List<CustomerResponseDto> suppliers = Arrays.asList(
-                new CustomerResponseDto(1L, "Supplier A", "supA@example.com", "123456789", null, BigDecimal.ZERO, 1L, null, null, null, null, true),
-                new CustomerResponseDto(2L, "Supplier B", "supB@example.com", "987654321", null, BigDecimal.ZERO, 1L, null, null, null, null, true)
+                new CustomerResponseDto(1L, "Supplier A", "supA@example.com", "123456789", "Supplier Address 1", BigDecimal.ZERO, 1L, null, null, null, null, true),
+                new CustomerResponseDto(2L, "Supplier B", "supB@example.com", "987654321", "Supplier Address 2", BigDecimal.ZERO, 1L, null, null, null, null, true)
         );
         Mockito.when(customerService.getAllCustomers()).thenReturn(suppliers);
         mockMvc.perform(get("/api/customer/suppliers"))
