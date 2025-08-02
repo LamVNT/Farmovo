@@ -39,6 +39,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
@@ -51,6 +52,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -612,5 +615,10 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             throw new BadRequestException("Không thể parse danh sách sản phẩm từ JSON.");
         }
         return detailList;
+    }
+
+    @Override
+    public List<SaleTransaction> findRecentSales(PageRequest pageRequest) {
+        return saleTransactionRepository.findRecentSales(pageRequest);
     }
 }

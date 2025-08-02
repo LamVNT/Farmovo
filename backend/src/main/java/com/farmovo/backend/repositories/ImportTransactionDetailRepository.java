@@ -38,10 +38,10 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
 
     // Lấy ImportTransactionDetail theo productId và có remainQuantity > 0
     List<ImportTransactionDetail> findByProductIdAndRemainQuantityGreaterThan(Long productId, Integer remainQuantity);
-    
+
     // Tìm lô theo tên chính xác
     ImportTransactionDetail findByName(String name);
-    
+
     // Tìm nhiều lô theo danh sách tên
     List<ImportTransactionDetail> findByNameIn(List<String> names);
 
@@ -66,4 +66,14 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
     // Lấy chi tiết ImportTransactionDetail theo zoneId
     @Query("SELECT i.id, i.product.id, i.product.productName, i.remainQuantity, i.zones_id, i.expireDate FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id LIKE %:zoneId%")
     List<Object[]> findDetailsByZoneId(@Param("zoneId") String zoneId);
+
+    @Query("SELECT i.product.category.categoryName, SUM(i.remainQuantity) FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 GROUP BY i.product.category.categoryName")
+    List<Object[]> getStockByCategory();
+
+    @Query("SELECT d.product.productName, d.product.category.categoryName, SUM(d.remainQuantity) as totalQty " +
+            "FROM ImportTransactionDetail d " +
+            "WHERE d.importTransaction.importDate BETWEEN :from AND :to " +
+            "GROUP BY d.product.id, d.product.productName, d.product.category.categoryName " +
+            "ORDER BY totalQty DESC")
+    List<Object[]> getTopProducts(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, org.springframework.data.domain.Pageable pageable);
 }

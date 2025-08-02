@@ -29,11 +29,14 @@ export const productService = {
 
     createProduct: async (productData) => {
         try {
+            console.log('Creating product with data:', productData);
             const response = await axios.post(`${API_URL}`, productData, {
                 withCredentials: true,
             });
+            console.log('Product created successfully:', response.data);
             return response.data;
         } catch (error) {
+            console.error('Error creating product:', error.response?.data);
             throw new Error(error.response?.data?.message || 'Không thể tạo sản phẩm');
         }
     },

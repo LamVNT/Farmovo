@@ -9,11 +9,54 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
     console.log('ProductTable received products:', products);
     if (products && products.length > 0) {
         console.log('First product sample:', products[0]);
+        console.log('Product codes:', products.map(p => p.productCode));
         console.log('Category names:', products.map(p => p.categoryName));
         console.log('Store names:', products.map(p => p.storeName));
     }
+
+    // Thêm STT vào products với index dựa trên vị trí thực tế
+    const productsWithStt = products && products.length > 0 ? products.map((product, index) => ({
+        ...product,
+        stt: index + 1
+    })) : [];
+    
+    console.log('Products with STT:', productsWithStt);
+
+
     const columns = [
-        { field: 'id', headerName: 'ID', width: 80 },
+        { 
+            field: 'stt', 
+            headerName: 'STT', 
+            width: 80,
+            renderCell: (params) => {
+                // Sử dụng index từ products array gốc
+                if (!products || !params.row) return <span style={{ fontWeight: 'bold', color: '#666' }}>-</span>;
+                const index = products.findIndex(p => p.id === params.row.id);
+                const stt = index >= 0 ? index + 1 : '';
+                return <span style={{ fontWeight: 'bold', color: '#666' }}>{stt}</span>;
+            },
+            sortable: false
+        },
+        { 
+            field: 'productCode', 
+            headerName: 'Mã sản phẩm', 
+            width: 120,
+            renderCell: (params) => {
+                const code = params.row.productCode;
+                return (
+                    <span style={{ 
+                        fontWeight: 'bold', 
+                        color: code ? '#1976d2' : '#999',
+                        backgroundColor: code ? '#e3f2fd' : '#f5f5f5',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem'
+                    }}>
+                        {code || 'N/A'}
+                    </span>
+                );
+            }
+        },
         { field: 'productName', headerName: 'Tên sản phẩm', width: 200 },
         { field: 'productDescription', headerName: 'Mô tả', width: 250 },
         { field: 'productQuantity', headerName: 'Số lượng', width: 120 },
@@ -74,12 +117,12 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
     return (
         <div style={{ height: 480, width: '100%' }}>
             <DataGrid
-                rows={products}
+                rows={productsWithStt}
                 columns={columns}
                 pageSize={10}
                 rowsPerPageOptions={[5, 10, 25, 50, 100]}
                 disableRowSelectionOnClick
-                getRowId={(row) => row.id}
+                getRowId={(row) => row.id || Math.random()}
                 initialState={{
                     sorting: {
                         sortModel: [],
@@ -87,6 +130,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => {
                 }}
                 sortingMode="server"
                 disableColumnSorting={true}
+                paginationMode="client"
                 sx={{
                     borderRadius: 3,
                     boxShadow: 3,

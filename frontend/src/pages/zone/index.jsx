@@ -27,7 +27,8 @@ const Zone = () => {
 
     // Frontend pagination
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(12);
+    // Thay đổi giá trị mặc định của rowsPerPage từ 12 thành 10
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     useEffect(() => {
         const fetch = async () => {
@@ -65,7 +66,13 @@ const Zone = () => {
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
-        setForm({ id: null, zoneName: "", zoneDescription: "", storeId: user?.storeId || "" });
+        const initialForm = { 
+            id: null, 
+            zoneName: "", 
+            zoneDescription: "", 
+            storeId: user?.roles?.includes("STAFF") ? user.storeId : null 
+        };
+        setForm(initialForm);
         setEditMode(false);
         setOpenDialog(true);
     };

@@ -296,6 +296,36 @@ const ImportSidebar = ({
                 </div>
             </div>
 
+            {/* Thông báo về zone filtering */}
+            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-green-700 font-medium">
+                            Khu vực sẽ được hiển thị theo cửa hàng: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
+                        </span>
+                    </div>
+                    <div className="mt-2 text-xs text-green-600">
+                        Vui lòng chọn cửa hàng để xem các khu vực tương ứng.
+                    </div>
+                </div>
+            )}
+
+            {/* Thông báo khi chưa chọn store */}
+            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span className="text-sm text-yellow-700 font-medium">
+                            Vui lòng chọn cửa hàng để xem khu vực
+                        </span>
+                    </div>
+                    <div className="mt-2 text-xs text-yellow-600">
+                        Khu vực sẽ được hiển thị dựa trên cửa hàng bạn chọn.
+                    </div>
+                </div>
+            )}
+
             <div>
                 <div className="font-semibold mb-1">Ghi chú</div>
                 <TextField
