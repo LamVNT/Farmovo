@@ -4,10 +4,7 @@ import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.dto.response.StoreResponseDto;
-import com.farmovo.backend.exceptions.ResourceNotFoundException;
-import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
-import com.farmovo.backend.exceptions.InsufficientStockException;
-import com.farmovo.backend.exceptions.BadRequestException;
+import com.farmovo.backend.exceptions.*;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.StoreMapper;
@@ -215,6 +212,41 @@ public class SaleTransactionController {
         saleTransactionService.complete(id);
         return ResponseEntity.ok("Completed");
     }
+
+    @PutMapping("/{id}/open")
+    public ResponseEntity<?> openSaleTransaction(@PathVariable Long id) {
+        log.info("Opening import transaction with ID: {}", id);
+
+        try {
+            saleTransactionService.open(id);
+            log.info("Sale transaction with ID: {} opened successfully", id);
+            return ResponseEntity.ok("Opened");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Sale transaction not found for opening: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error opening import transaction: {}", id, e);
+            throw new BadRequestException("Không thể mở phiếu ban hàng: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/close-transaction")
+    public ResponseEntity<?> closeSaleTransaction(@PathVariable Long id) {
+        log.info("Closing import transaction with ID: {}", id);
+
+        try {
+            saleTransactionService.close(id);
+            log.info("Sale transaction with ID: {} closed successfully", id);
+            return ResponseEntity.ok("Closed");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Sale transaction not found for closing: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error closing sale transaction: {}", id, e);
+            throw new BadRequestException("Không thể đóng phiếu nhập hàng: " + e.getMessage());
+        }
+    }
+
 
     @DeleteMapping("/sort-delete/{id}")
     public ResponseEntity<String> softDeleteSaleTransaction(@PathVariable Long id, HttpServletRequest request) {
