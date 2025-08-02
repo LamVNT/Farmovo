@@ -50,10 +50,13 @@ public class LoginController {
         User user = userRepository.findByUsername(loginRequest.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String jwtToken = jwtUtils.generateTokenWithUserId(userDetails, user.getId());
-        ////////////////
+        // Tính JWT expiry time dựa trên Remember Me choice
+        long jwtExpirationMs = loginRequest.isRememberMe() ? 
+            7L * 24 * 60 * 60 * 1000 : // 7 ngày nếu Remember Me
+            24L * 60 * 60 * 1000;       // 1 ngày nếu không Remember Me
 
-//        String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
+        String jwtToken = jwtUtils.generateTokenWithUserId(userDetails, user.getId(), jwtExpirationMs);
+        ////////////////
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
@@ -92,9 +95,4 @@ public class LoginController {
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body("Logged out successfully");
     }
-
-//    @GetMapping("/admin/listuser")
-//    public List<User> getAllUsers() {
-//        return userRepository.findAll();
-//    }
 }

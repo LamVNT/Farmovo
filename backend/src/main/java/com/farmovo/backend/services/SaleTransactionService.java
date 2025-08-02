@@ -51,4 +51,8 @@ public interface SaleTransactionService {
     byte[] exportPdf(Long id);
 
     List<SaleTransaction> findRecentSales(PageRequest pageRequest);
+
+    void open(Long id);
+
+    void close(Long id);
 }

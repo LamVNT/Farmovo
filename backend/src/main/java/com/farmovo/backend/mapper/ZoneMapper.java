@@ -33,7 +33,8 @@ public interface ZoneMapper {
     @Mapping(target = "zoneDescription", source = "zoneDescription")
     @Mapping(target = "createAt", source = "createdAt")
     @Mapping(target = "updateAt", source = "updatedAt")
-    @Mapping(target = "storeId", expression = "java(zone.getStore() != null ? zone.getStore().getId() : null)")
+    @Mapping(target = "storeId", source = "store.id")
+    @Mapping(target = "storeName", source = "store.storeName")
     ZoneResponseDto toResponseDto(Zone zone);
 
     @Named("mapStore")

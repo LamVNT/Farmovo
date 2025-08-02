@@ -19,9 +19,7 @@ public class ZoneValidation {
         if (zoneName.length() > 100) {
             throw new ValidationException("ZoneName must be < 101 characters");
         }
-        if (isZoneNameExist(zoneName)) {
-            throw new ValidationException("Zone name already exists.");
-        }
+        // Bỏ kiểm tra trùng tên vì zone name không còn unique
     }
 
     public static void validateZoneDescription (String zoneDescription) {
@@ -31,8 +29,8 @@ public class ZoneValidation {
             }
         }
     }
-    // Phương thức kiểm tra tên zone có tồn tại trong cơ sở dữ liệu không
-    private static boolean isZoneNameExist(String zoneName) {
-        return zoneRepository.findByZoneName(zoneName).isPresent();
-    }
+    // Phương thức này không còn cần thiết vì zone name không còn unique
+    // private static boolean isZoneNameExist(String zoneName) {
+    //     return zoneRepository.findByZoneName(zoneName).isPresent();
+    // }
 }

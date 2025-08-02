@@ -3,6 +3,7 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
+import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.ImportTransactionNotFoundException;
 import com.farmovo.backend.jwt.JwtUtils;
@@ -22,6 +23,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -57,11 +59,13 @@ public class ImportTransationController {
         List<String> roles = jwtAuthenticationService.getUserRoles(user);
         List<CustomerDto> customers = customerService.getAllCustomerDto();
         List<ProductDto> products = productService.getAllProductDto();
-        List<ZoneDto> zones = zoneService.getAllZoneDtos();
+        ////sửa từ ZoneDto thành ZoneResponseDto
+        List<ZoneResponseDto> zones;
         List<StoreRequestDto> stores;
 
         if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
             stores = storeService.getAllStoreDto();
+            zones = zoneService.getAllZones(); // Load tất cả zones cho MANAGER/ADMIN
         }
         // Nếu là STAFF thì chỉ trả về store của họ
         else if (roles.contains("STAFF")) {
@@ -69,6 +73,7 @@ public class ImportTransationController {
                 throw new BadRequestException("Nhân viên chưa được phân công cửa hàng");
             }
             stores = List.of(storeMapper.toDto(user.getStore()));
+            zones = zoneService.getZonesByStoreId(user.getStore().getId());
         } else {
             throw new BadRequestException("Người dùng không có quyền truy cập");
         }
