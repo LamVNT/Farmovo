@@ -59,8 +59,7 @@ public class ImportTransationController {
 
         if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
             stores = storeService.getAllStoreDto();
-            zones = new ArrayList<>(); // FE sẽ load zone sau khi chọn store
-            //  @GetMapping("/zones-by-store/{id}") bên ZoneController
+            zones = zoneService.getAllZones(); // Load tất cả zones cho MANAGER/ADMIN
         }
         // Nếu là STAFF thì chỉ trả về store của họ
         else if (roles.contains("STAFF")) {

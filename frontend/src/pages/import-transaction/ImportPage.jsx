@@ -71,6 +71,8 @@ const ImportPage = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [zones, setZones] = useState([]);
+    const [allZones, setAllZones] = useState([]); // Lưu tất cả zones
+    const [filteredZones, setFilteredZones] = useState([]); // Zones được filter theo store
     const [showSummaryDialog, setShowSummaryDialog] = useState(false);
     const [summaryData, setSummaryData] = useState(null);
     const [supplierDetails, setSupplierDetails] = useState(null);
@@ -98,8 +100,11 @@ const ImportPage = () => {
 
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
+    const [openDropdowns, setOpenDropdowns] = useState({});
+    const [isClient, setIsClient] = useState(false);
 
     const zoneSearchInputRef = useRef();
+    const selectRefs = useRef({});
 
     // Đơn vị tính mặc định cho sản phẩm mới
     const defaultUnit = 'quả';
@@ -129,7 +134,8 @@ const ImportPage = () => {
                 const formData = await importTransactionService.getCreateFormData();
                 setSuppliers(formData.customers || []); // customers are suppliers in import
                 setProducts(formData.products || []);
-                setZones(formData.zones || []);
+                setAllZones(formData.zones || []); // Lưu tất cả zones
+                setZones(formData.zones || []); // Zones hiện tại (có thể đã được filter theo store)
                 setStores(formData.stores || []); // stores are filtered by user role
 
                 // Auto-select store for STAFF users (if they have only one store)
@@ -256,6 +262,62 @@ const ImportPage = () => {
             setFilteredStores([]);
         }
     }, [stores, storeSearch, storeDropdownOpen]);
+
+    // Filter zones theo store được chọn
+    useEffect(() => {
+        if (selectedStore && allZones.length > 0) {
+            // Nếu là STAFF, zones đã được filter từ backend
+            if (currentUser?.roles?.includes('STAFF')) {
+                setZones(allZones);
+            } else {
+                // Nếu là MANAGER/ADMIN, filter zones theo store được chọn
+                const filtered = allZones.filter(zone => zone.storeId === selectedStore);
+                setZones(filtered);
+            }
+        } else {
+            setZones([]);
+        }
+
+        // Clear zone selection khi store thay đổi
+        setSelectedProducts(prev => prev.map(product => ({
+            ...product,
+            zoneIds: []
+        })));
+
+        // Clear error và highlight khi store được chọn
+        if (selectedStore) {
+            setError(null);
+            setHighlightStore(false);
+        }
+    }, [selectedStore, allZones, currentUser]);
+
+    // Set client-side rendering
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // Cleanup refs when component unmounts
+    useEffect(() => {
+        return () => {
+            selectRefs.current = {};
+            setOpenDropdowns({});
+        };
+    }, []);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            const isDropdownClick = event.target.closest('.MuiSelect-root') || event.target.closest('.MuiMenu-root');
+            if (!isDropdownClick) {
+                setOpenDropdowns({});
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const formatCurrency = (value) => {
         const number = Number(value);
@@ -792,17 +854,139 @@ const ImportPage = () => {
         columnVisibility['Zone'] && {
             field: 'zoneIds',
             headerName: 'Vị trí',
-            width: 260,
+            width: 240,
             renderCell: (params) => {
                 const selectedZoneIds = Array.isArray(params.row.zoneIds) ? params.row.zoneIds : [];
+                
+                // Kiểm tra nếu chưa chọn store và là MANAGER/ADMIN
+                if ((currentUser?.roles?.includes("MANAGER") || currentUser?.roles?.includes("ADMIN")) && !selectedStore) {
                 return (
-                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', position: 'relative' }}>
-                        {/* Vùng chip */}
-                        <div style={{ display: 'flex', flex: 1, alignItems: 'center', minHeight: 36, gap: 4, position: 'relative' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', minHeight: 36, cursor: 'pointer', width: '100%' }}>
-                                {selectedZoneIds.length === 0 ? (
-                                    <em className="text-gray-400">Chọn vị trí</em>
-                                ) : (
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            width: '100%',
+                            height: '100%',
+                            padding: '0 8px'
+                        }}>
+                            <span style={{ 
+                                color: '#856404', 
+                                fontSize: '0.75rem',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                backgroundColor: '#fff3cd',
+                                border: '1px solid #ffeaa7',
+                                borderRadius: '4px',
+                                padding: '4px 8px'
+                            }}>
+                                <span style={{ 
+                                    width: '4px', 
+                                    height: '4px', 
+                                    backgroundColor: '#f39c12', 
+                                    borderRadius: '50%',
+                                    flexShrink: 0
+                                }}></span>
+                                Chọn cửa hàng trước
+                            </span>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: '100%', 
+                        height: '100%',
+                        position: 'relative',
+                        padding: '0 8px'
+                    }}>
+                        {/* Vùng hiển thị zones đã chọn */}
+                        <div 
+                            style={{ 
+                                display: 'flex', 
+                                flex: 1, 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                height: '32px',
+                                gap: 4, 
+                                position: 'relative',
+                                padding: '0 8px',
+                                backgroundColor: selectedZoneIds.length > 0 ? '#f8f9fa' : '#ffffff',
+                                border: selectedZoneIds.length > 0 ? '1px solid #e9ecef' : '1px solid #dee2e6',
+                                borderRadius: '4px',
+                                transition: 'all 0.2s ease',
+                                overflow: 'hidden',
+                                maxWidth: '200px',
+                                cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                
+                                // Kiểm tra nếu là ADMIN/MANAGER và chưa chọn store
+                                const isAdminOrManager = currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN");
+                                if (isAdminOrManager && !selectedStore) {
+                                    setError('Vui lòng chọn cửa hàng trước khi chọn khu vực');
+                                    setHighlightStore(true);
+                                    return;
+                                }
+                                
+                                // Toggle dropdown state
+                                setOpenDropdowns(prev => ({
+                                    ...prev,
+                                    [params.row.id]: !prev[params.row.id]
+                                }));
+                            }}
+                        >
+                            {/* Text placeholder luôn hiển thị khi không có zone nào được chọn */}
+                            {selectedZoneIds.length === 0 && (
+                                <span style={{ 
+                                    color: '#6c757d', 
+                                    fontSize: '0.75rem',
+                                    fontStyle: 'italic',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    pointerEvents: 'none',
+                                    userSelect: 'none',
+                                    position: 'absolute',
+                                    left: '8px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    zIndex: 4
+                                }}>
+                                    <span style={{ 
+                                        width: '3px', 
+                                        height: '3px', 
+                                        backgroundColor: '#adb5bd', 
+                                        borderRadius: '50%',
+                                        flexShrink: 0
+                                    }}></span>
+                                    Chọn vị trí
+                                </span>
+                            )}
+                            
+                            <div style={{ 
+                                display: 'flex', 
+                                flexWrap: 'wrap', 
+                                gap: 2, 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                height: '24px', 
+                                cursor: 'pointer', 
+                                width: '100%',
+                                maxWidth: '160px',
+                                position: 'relative',
+                                zIndex: 3
+                            }}>
+                                {selectedZoneIds.length > 0 && (
                                     <>
                                         {selectedZoneIds.slice(0, 2).map((zoneId) => {
                                             const zone = zones.find(z => z.id === zoneId);
@@ -811,12 +995,27 @@ const ImportPage = () => {
                                                     key={zoneId}
                                                     label={zone.name || zone.zoneName}
                                                     size="small"
+                                                    onClick={(e) => e.stopPropagation()}
                                                     sx={{
-                                                        background: '#e3f0ff',
-                                                        color: '#1976d2',
-                                                        fontWeight: 600,
-                                                        borderRadius: 1.5,
-                                                        height: 24,
+                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        color: 'white',
+                                                        fontWeight: '600',
+                                                        borderRadius: '6px',
+                                                        height: '18px',
+                                                        fontSize: '0.65rem',
+                                                        maxWidth: '50px',
+                                                        '& .MuiChip-label': {
+                                                            padding: '0 4px',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        },
+                                                        '&:hover': {
+                                                            background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                                                            transform: 'translateY(-1px)',
+                                                            boxShadow: '0 2px 6px rgba(102, 126, 234, 0.3)'
+                                                        },
+                                                        transition: 'all 0.2s ease'
                                                     }}
                                                 />
                                             ) : null;
@@ -826,23 +1025,53 @@ const ImportPage = () => {
                                                 key={`more-${selectedZoneIds.length}`}
                                                 label={`+${selectedZoneIds.length - 2}`}
                                                 size="small"
-                                                sx={{ background: '#e3f0ff', color: '#1976d2', fontWeight: 600, borderRadius: 1.5, height: 24 }}
+                                                onClick={(e) => e.stopPropagation()}
+                                                sx={{ 
+                                                    background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                                                    color: '#d63384',
+                                                    fontWeight: '700',
+                                                    borderRadius: '6px',
+                                                    height: '18px',
+                                                    fontSize: '0.65rem',
+                                                    minWidth: '20px',
+                                                    '& .MuiChip-label': {
+                                                        padding: '0 3px'
+                                                    },
+                                                    '&:hover': {
+                                                        background: 'linear-gradient(135deg, #ffe4b5 0%, #fbb040 100%)',
+                                                        transform: 'translateY(-1px)',
+                                                        boxShadow: '0 2px 6px rgba(252, 182, 159, 0.3)'
+                                                    },
+                                                    transition: 'all 0.2s ease'
+                                                }}
                                             />
                                         )}
                                     </>
                                 )}
                             </div>
-                            {/* Select chỉ phủ lên vùng chip */}
+                            
+                            {/* Select dropdown */}
                             <Select
+                                ref={(el) => {
+                                    if (el) {
+                                        selectRefs.current[params.row.id] = el;
+                                    }
+                                }}
                                 size="small"
                                 variant="standard"
                                 multiple
+                                open={openDropdowns[params.row.id] || false}
+                                onOpen={() => setOpenDropdowns(prev => ({ ...prev, [params.row.id]: true }))}
+                                onClose={() => setOpenDropdowns(prev => ({ ...prev, [params.row.id]: false }))}
                                 value={selectedZoneIds}
-                                onChange={(e) => handleZoneChange(params.row.id, typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                                onChange={(e) => {
+                                    handleZoneChange(params.row.id, typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value);
+                                    // Don't close dropdown after selection to allow multiple selections
+                                }}
                                 onClick={e => e.stopPropagation()}
                                 displayEmpty
+                                disabled={(currentUser?.roles?.includes("MANAGER") || currentUser?.roles?.includes("ADMIN")) && !selectedStore}
                                 renderValue={(selected) => {
-                                    // Đã xóa log để tránh vòng lặp
                                     return selected && selected.length > 0
                                         ? selected
                                             .map(id => {
@@ -850,7 +1079,7 @@ const ImportPage = () => {
                                                 return zone ? (zone.name || zone.zoneName) : id;
                                             })
                                             .join(', ')
-                                        : 'Chọn vị trí';
+                                        : '';
                                 }}
                                 sx={{
                                     position: 'absolute',
@@ -858,53 +1087,147 @@ const ImportPage = () => {
                                     top: 0,
                                     width: '100%',
                                     height: '100%',
-                                    minWidth: 180,
+                                    minWidth: 160,
                                     padding: 0,
                                     background: 'transparent',
-                                    '& .MuiSelect-select': { padding: 0, height: '100%' },
-                                    '& .MuiInput-underline:before': { borderBottomColor: '#bcd0ee', borderBottomWidth: 2 },
-                                    '& .MuiInput-underline:after': { borderBottomColor: '#1976d2', borderBottomWidth: 2 },
-                                    '& .MuiInput-underline:hover:before': { borderBottomColor: '#1976d2' },
+                                    '& .MuiSelect-select': { 
+                                        padding: 0, 
+                                        height: '100%',
+                                        opacity: 0,
+                                        color: 'transparent'
+                                    },
+                                    '& .MuiInput-underline:before': { 
+                                        borderBottomColor: 'transparent' 
+                                    },
+                                    '& .MuiInput-underline:after': { 
+                                        borderBottomColor: 'transparent' 
+                                    },
+                                    '& .MuiInput-underline:hover:before': { 
+                                        borderBottomColor: 'transparent' 
+                                    },
                                     '& .MuiSelect-icon': {
-                                        right: 8,
+                                        right: 6,
                                         position: 'absolute',
                                         top: '50%',
                                         transform: 'translateY(-50%)',
                                         pointerEvents: 'auto',
+                                        color: '#6c757d',
+                                        transition: 'all 0.2s ease',
+                                        fontSize: '0.875rem',
+                                        zIndex: 2,
+                                        '&:hover': {
+                                            color: '#495057',
+                                            transform: 'translateY(-50%) scale(1.1)'
+                                        }
                                     },
                                     zIndex: 1,
                                     cursor: 'pointer',
+                                    '&:hover': {
+                                        '& .MuiSelect-icon': {
+                                            color: '#495057'
+                                        }
+                                    }
                                 }}
                                 MenuProps={{
                                     PaperProps: {
                                         style: {
-                                            maxHeight: 320,
-                                            minWidth: 220,
+                                            maxHeight: 280,
+                                            minWidth: 200,
                                             borderRadius: 12,
-                                            boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)',
+                                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                                            border: '1px solid #e9ecef',
                                             padding: 12,
                                         },
                                         sx: {
                                             '& .MuiMenu-list': {
                                                 display: 'grid',
-                                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                                gridTemplateColumns: 'repeat(2, 1fr)',
                                                 gap: 1,
+                                                padding: 0
                                             },
                                         },
                                     },
                                 }}
                             >
                                 {zones.map((zone) => (
-                                    <MenuItem key={zone.id} value={zone.id} style={{ borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px' }}>
-                                        <Checkbox checked={selectedZoneIds.includes(zone.id)} color="primary" size="small" style={{ padding: 2 }} onClick={e => e.stopPropagation()} />
-                                        <span className="font-medium text-xs truncate">{zone.name || zone.zoneName}</span>
+                                    <MenuItem 
+                                        key={zone.id} 
+                                        value={zone.id} 
+                                        style={{ 
+                                            borderRadius: 6, 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: 4, 
+                                            padding: '6px 8px',
+                                            margin: '1px 0',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <Checkbox 
+                                            checked={selectedZoneIds.includes(zone.id)} 
+                                            color="primary" 
+                                            size="small" 
+                                            style={{ 
+                                                padding: 1,
+                                                color: '#667eea'
+                                            }} 
+                                            onClick={e => e.stopPropagation()} 
+                                        />
+                                        <span style={{
+                                            fontSize: '0.8rem',
+                                            fontWeight: '500',
+                                            color: '#495057',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            maxWidth: '80px'
+                                        }}>
+                                            {zone.name || zone.zoneName}
+                                        </span>
                                     </MenuItem>
                                 ))}
                             </Select>
                         </div>
-                        {/* Icon con mắt nằm ngoài vùng Select, luôn bấm được */}
-                        <IconButton size="small" style={{ marginLeft: 8, color: '#1976d2', zIndex: 2 }} onClick={e => { e.stopPropagation(); setZonePopoverAnchor(e.currentTarget); setZonePopoverProductId(params.row.id); }}>
-                            <VisibilityIcon />
+                        
+                        {/* Icon xem chi tiết */}
+                        <IconButton 
+                            size="small" 
+                            style={{ 
+                                marginLeft: 6, 
+                                color: '#667eea',
+                                backgroundColor: '#f8f9fa',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '4px',
+                                width: '20px',
+                                height: '20px',
+                                zIndex: 2,
+                                transition: 'all 0.2s ease',
+                                flexShrink: 0
+                            }} 
+                            onClick={e => { 
+                                e.stopPropagation(); 
+                                
+                                // Kiểm tra nếu là ADMIN/MANAGER và chưa chọn store
+                                const isAdminOrManager = currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN");
+                                if (isAdminOrManager && !selectedStore) {
+                                    setError('Vui lòng chọn cửa hàng trước khi xem khu vực');
+                                    setHighlightStore(true);
+                                    return;
+                                }
+                                
+                                setZonePopoverAnchor(e.currentTarget); 
+                                setZonePopoverProductId(params.row.id); 
+                            }}
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: '#667eea',
+                                    color: 'white',
+                                    transform: 'translateY(-1px)',
+                                    boxShadow: '0 2px 6px rgba(102, 126, 234, 0.3)'
+                                }
+                            }}
+                        >
+                            <VisibilityIcon sx={{ fontSize: '0.75rem' }} />
                         </IconButton>
                     </div>
                 );
@@ -1158,6 +1481,7 @@ const ImportPage = () => {
                 </div>
 
                 <div style={{ height: 400, width: '100%' }}>
+                    {isClient ? (
                     <DataGrid
                         rows={selectedProducts}
                         columns={columns}
@@ -1166,7 +1490,54 @@ const ImportPage = () => {
                         disableSelectionOnClick
                         getRowId={(row) => row.id}
                         sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
-                    />
+                            componentsProps={{
+                                basePopper: {
+                                    sx: {
+                                        '& .MuiDataGrid-panel': {
+                                            '& .MuiDataGrid-panelContent': {
+                                                '& .MuiDataGrid-panelFooter': {
+                                                    display: 'none'
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }}
+                            disableColumnMenu={false}
+                            disableColumnFilter={false}
+                            disableColumnSelector={false}
+                            disableDensitySelector={false}
+                            disableColumnReorder={true}
+                            disableColumnResize={true}
+                            disableExtendRowFullWidth={true}
+                            disableIgnoreModificationsIfProcessingProps={true}
+                            disableRowSelectionOnClick={true}
+                            disableVirtualization={false}
+                            hideFooter={false}
+                            hideFooterPagination={false}
+                            hideFooterSelectedRowCount={false}
+                            loading={false}
+                            rowCount={selectedProducts.length}
+                            rowHeight={52}
+                            rowSpacingType="border"
+                            showCellVerticalBorder={false}
+                            showColumnVerticalBorder={false}
+                            columnVisibilityModel={columnVisibility}
+                            onColumnVisibilityModelChange={(newModel) => setColumnVisibility(newModel)}
+                        />
+                    ) : (
+                        <div style={{ 
+                            height: 400, 
+                            width: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px'
+                        }}>
+                            <div>Loading...</div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1355,14 +1726,74 @@ const ImportPage = () => {
                 onClose={() => { setZonePopoverAnchor(null); setZonePopoverProductId(null); }}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                PaperProps={{ sx: { p: 2, minWidth: 260, maxWidth: 400, maxHeight: 300, overflowY: 'auto', borderRadius: 3 } }}
+                PaperProps={{ 
+                    sx: { 
+                        p: 2, 
+                        minWidth: 260, 
+                        maxWidth: 380, 
+                        maxHeight: 300, 
+                        overflowY: 'auto', 
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                        border: '1px solid #e9ecef'
+                    } 
+                }}
             >
-                <div className="font-semibold mb-2 text-blue-700">Vị trí đã chọn</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '12px',
+                    paddingBottom: '8px',
+                    borderBottom: '1px solid #f8f9fa'
+                }}>
+                    <div style={{
+                        width: '6px',
+                        height: '6px',
+                        backgroundColor: '#667eea',
+                        borderRadius: '50%'
+                    }}></div>
+                    <span style={{
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        color: '#495057'
+                    }}>
+                        Vị trí đã chọn
+                    </span>
+                </div>
+                
+                <div style={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 6,
+                    minHeight: '32px',
+                    alignItems: 'center'
+                }}>
                     {(() => {
                         const product = selectedProducts.find(p => p.id === zonePopoverProductId);
                         if (!product || !Array.isArray(product.zoneIds) || product.zoneIds.length === 0) {
-                            return <span className="text-gray-400">Chưa chọn vị trí nào</span>;
+                            return (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    color: '#6c757d',
+                                    fontStyle: 'italic',
+                                    padding: '8px 12px',
+                                    backgroundColor: '#f8f9fa',
+                                    borderRadius: '6px',
+                                    border: '1px dashed #dee2e6',
+                                    fontSize: '0.8rem'
+                                }}>
+                                    <span style={{
+                                        width: '3px',
+                                        height: '3px',
+                                        backgroundColor: '#adb5bd',
+                                        borderRadius: '50%'
+                                    }}></span>
+                                    Chưa chọn vị trí nào
+                                </div>
+                            );
                         }
                         return product.zoneIds.map(zoneId => {
                             const zone = zones.find(z => z.id === zoneId);
@@ -1371,19 +1802,62 @@ const ImportPage = () => {
                                     key={zoneId}
                                     label={zone.name || zone.zoneName}
                                     size="small"
-                                    onDelete={() => handleRemoveZone(product.id, zoneId)}
+                                    onDelete={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveZone(product.id, zoneId);
+                                    }}
                                     sx={{
-                                        background: '#e3f0ff',
-                                        color: '#1976d2',
-                                        fontWeight: 600,
-                                        borderRadius: 1.5,
-                                        height: 24,
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: 'white',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        height: '24px',
+                                        fontSize: '0.75rem',
+                                        maxWidth: '120px',
+                                        '& .MuiChip-label': {
+                                            padding: '0 8px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        },
+                                        '&:hover': {
+                                            background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: '0 2px 6px rgba(102, 126, 234, 0.3)'
+                                        },
+                                        '& .MuiChip-deleteIcon': {
+                                            color: 'rgba(255, 255, 255, 0.8)',
+                                            fontSize: '0.875rem',
+                                            '&:hover': {
+                                                color: 'white'
+                                            }
+                                        },
+                                        transition: 'all 0.2s ease'
                                     }}
                                 />
                             ) : null;
                         });
                     })()}
                 </div>
+                
+                {(() => {
+                    const product = selectedProducts.find(p => p.id === zonePopoverProductId);
+                    if (product && Array.isArray(product.zoneIds) && product.zoneIds.length > 0) {
+                        return (
+                            <div style={{
+                                marginTop: '12px',
+                                paddingTop: '8px',
+                                borderTop: '1px solid #f8f9fa',
+                                fontSize: '0.7rem',
+                                color: '#6c757d',
+                                textAlign: 'center'
+                            }}>
+                                Nhấn vào dấu × để xóa vị trí
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
             </Popover>
         </div>
     );

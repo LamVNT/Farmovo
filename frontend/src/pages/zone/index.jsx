@@ -65,7 +65,13 @@ const Zone = () => {
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
-        setForm({ id: null, zoneName: "", zoneDescription: "", storeId: user?.storeId || "" });
+        const initialForm = { 
+            id: null, 
+            zoneName: "", 
+            zoneDescription: "", 
+            storeId: user?.roles?.includes("STAFF") ? user.storeId : null 
+        };
+        setForm(initialForm);
         setEditMode(false);
         setOpenDialog(true);
     };
