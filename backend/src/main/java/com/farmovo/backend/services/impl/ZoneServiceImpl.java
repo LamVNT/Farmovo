@@ -57,14 +57,16 @@ public class ZoneServiceImpl implements ZoneService {
     public ZoneResponseDto updateZone(Long id, ZoneRequestDto request) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new ZoneNotFoundException("Zone not found with id: " + id));
-        if (!zone.getZoneName().equals(request.getZoneName())) {
-            validateZoneName(request.getZoneName());  // Chỉ kiểm tra nếu tên zone thay đổi
-        }
-        validateZoneDescription(zone.getZoneDescription());
+        
+        // Validate zone name và description
+        validateZoneName(request.getZoneName());
+        validateZoneDescription(request.getZoneDescription());
+        
         // Cập nhật thông tin zone
         zone.setZoneName(request.getZoneName());
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
+        
         // Lưu lại và trả về kết quả
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
     }

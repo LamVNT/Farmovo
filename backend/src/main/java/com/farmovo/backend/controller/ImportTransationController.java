@@ -3,6 +3,7 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ImportTransactionCreateFormDataDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
+import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.ImportTransactionNotFoundException;
 import com.farmovo.backend.jwt.JwtUtils;
@@ -17,12 +18,20 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import com.farmovo.backend.models.ImportTransaction;
+import com.farmovo.backend.repositories.ImportTransactionRepository;
+
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/import-transaction")
@@ -39,6 +48,7 @@ public class ImportTransationController {
     private final JwtUtils jwtUtils;
     private final StoreMapper storeMapper;
     private final JwtAuthenticationService jwtAuthenticationService;
+    private final ImportTransactionRepository importTransactionRepository;
 
     @GetMapping("/create-form-data")
     public ResponseEntity<ImportTransactionCreateFormDataDto> getCreateFormData(HttpServletRequest request) {
@@ -49,11 +59,13 @@ public class ImportTransationController {
         List<String> roles = jwtAuthenticationService.getUserRoles(user);
         List<CustomerDto> customers = customerService.getAllCustomerDto();
         List<ProductDto> products = productService.getAllProductDto();
-        List<ZoneDto> zones = zoneService.getAllZoneDtos();
+        ////sửa từ ZoneDto thành ZoneResponseDto
+        List<ZoneResponseDto> zones;
         List<StoreRequestDto> stores;
 
         if (roles.contains("MANAGER") || roles.contains("ADMIN")) {
             stores = storeService.getAllStoreDto();
+            zones = zoneService.getAllZones(); // Load tất cả zones cho MANAGER/ADMIN
         }
         // Nếu là STAFF thì chỉ trả về store của họ
         else if (roles.contains("STAFF")) {
@@ -61,6 +73,7 @@ public class ImportTransationController {
                 throw new BadRequestException("Nhân viên chưa được phân công cửa hàng");
             }
             stores = List.of(storeMapper.toDto(user.getStore()));
+            zones = zoneService.getZonesByStoreId(user.getStore().getId());
         } else {
             throw new BadRequestException("Người dùng không có quyền truy cập");
         }
@@ -170,7 +183,7 @@ public class ImportTransationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CreateImportTransactionRequestDto> getImportTransactionById(@PathVariable Long id) {
-            log.info("Getting import transaction by ID: {}", id);
+        log.info("Getting import transaction by ID: {}", id);
 
         try {
             CreateImportTransactionRequestDto dto = importTransactionService.getImportTransactionById(id);
@@ -260,5 +273,27 @@ public class ImportTransationController {
                 .build());
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/recent")
+    public List<ImportTransactionResponseDto> getRecentImports(@RequestParam(defaultValue = "5") int limit) {
+        return importTransactionRepository.findRecentImports(org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(i -> {
+                    ImportTransactionResponseDto dto = new ImportTransactionResponseDto();
+                    dto.setId(i.getId());
+                    dto.setName(i.getName());
+                    dto.setTotalAmount(i.getTotalAmount());
+                    dto.setPaidAmount(i.getPaidAmount());
+                    dto.setImportTransactionNote(i.getImportTransactionNote());
+                    dto.setStatus(i.getStatus());
+                    dto.setImportDate(i.getImportDate());
+                    dto.setSupplierId(i.getSupplier() != null ? i.getSupplier().getId() : null);
+                    dto.setSupplierName(i.getSupplier() != null ? i.getSupplier().getName() : "");
+                    dto.setStoreId(i.getStore() != null ? i.getStore().getId() : null);
+                    dto.setStaffId(i.getStaff() != null ? i.getStaff().getId() : null);
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

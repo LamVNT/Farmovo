@@ -1,5 +1,6 @@
 package com.farmovo.backend.controller;
 
+import com.farmovo.backend.exceptions.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.farmovo.backend.dto.request.StocktakeRequestDto;
 import com.farmovo.backend.dto.response.MissingZoneDto;
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 class StocktakeControllerTest {
@@ -58,9 +60,11 @@ class StocktakeControllerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         mockJwt(null);
-        objectMapper.registerModule(new JavaTimeModule()); // Đăng ký hỗ trợ Java 8 time
-        // Khởi tạo MockMvc thủ công mà không cần Spring context
-        mockMvc = MockMvcBuilders.standaloneSetup(stocktakeController).build();
+        objectMapper.registerModule(new JavaTimeModule());
+
+        mockMvc = MockMvcBuilders.standaloneSetup(stocktakeController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     private void mockJwt(HttpServletRequest request) {

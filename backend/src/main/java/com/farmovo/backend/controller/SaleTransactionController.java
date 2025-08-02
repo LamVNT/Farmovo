@@ -4,21 +4,14 @@ import com.farmovo.backend.dto.request.*;
 import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.dto.response.StoreResponseDto;
-import com.farmovo.backend.exceptions.ResourceNotFoundException;
-import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
-import com.farmovo.backend.exceptions.InsufficientStockException;
-import com.farmovo.backend.exceptions.BadRequestException;
+import com.farmovo.backend.exceptions.*;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.mapper.StoreMapper;
-import com.farmovo.backend.models.ImportTransactionDetail;
-import com.farmovo.backend.models.SaleTransactionStatus;
-import com.farmovo.backend.models.Store;
+import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.services.*;
-import com.farmovo.backend.models.User;
-import com.farmovo.backend.models.Authority;
 import com.farmovo.backend.services.impl.JwtAuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +36,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
 
 @RestController
 @RequestMapping("/api/sale-transactions")
@@ -167,7 +162,6 @@ public class SaleTransactionController {
     }
 
 
-
     @GetMapping("/{id}")
     public ResponseEntity<SaleTransactionResponseDto> getSaleTransactionById(@PathVariable Long id) {
         log.info("Getting sale transaction by ID: {}", id);
@@ -216,6 +210,41 @@ public class SaleTransactionController {
         return ResponseEntity.ok("Completed");
     }
 
+    @PutMapping("/{id}/open")
+    public ResponseEntity<?> openSaleTransaction(@PathVariable Long id) {
+        log.info("Opening import transaction with ID: {}", id);
+
+        try {
+            saleTransactionService.open(id);
+            log.info("Sale transaction with ID: {} opened successfully", id);
+            return ResponseEntity.ok("Opened");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Sale transaction not found for opening: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error opening import transaction: {}", id, e);
+            throw new BadRequestException("Không thể mở phiếu ban hàng: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/close-transaction")
+    public ResponseEntity<?> closeSaleTransaction(@PathVariable Long id) {
+        log.info("Closing import transaction with ID: {}", id);
+
+        try {
+            saleTransactionService.close(id);
+            log.info("Sale transaction with ID: {} closed successfully", id);
+            return ResponseEntity.ok("Closed");
+        } catch (ImportTransactionNotFoundException e) {
+            log.error("Sale transaction not found for closing: {}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Error closing sale transaction: {}", id, e);
+            throw new BadRequestException("Không thể đóng phiếu nhập hàng: " + e.getMessage());
+        }
+    }
+
+
     @DeleteMapping("/sort-delete/{id}")
     public ResponseEntity<String> softDeleteSaleTransaction(@PathVariable Long id, HttpServletRequest request) {
         String token = jwtUtils.getJwtFromCookies(request);
@@ -236,6 +265,31 @@ public class SaleTransactionController {
         headers.setContentDispositionFormData("attachment", "sale-transaction-" + id + ".pdf");
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/recent")
+    public List<SaleTransactionResponseDto> getRecentSales(@RequestParam(defaultValue = "5") int limit) {
+        return saleTransactionService.findRecentSales(org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(s -> {
+                    SaleTransactionResponseDto dto = new SaleTransactionResponseDto();
+                    dto.setId(s.getId());
+                    dto.setName(s.getName());
+                    dto.setTotalAmount(s.getTotalAmount());
+                    dto.setPaidAmount(s.getPaidAmount());
+                    dto.setSaleTransactionNote(s.getSaleTransactionNote());
+                    dto.setStatus(s.getStatus());
+                    dto.setSaleDate(s.getSaleDate());
+                    dto.setCustomerName(s.getCustomer() != null ? s.getCustomer().getName() : "");
+                    dto.setCustomerPhone(s.getCustomer() != null ? s.getCustomer().getPhone() : "");
+                    dto.setCustomerAddress(s.getCustomer() != null ? s.getCustomer().getAddress() : "");
+                    dto.setStoreName(s.getStore() != null ? s.getStore().getStoreName() : "");
+                    dto.setStoreAddress(s.getStore() != null ? s.getStore().getStoreAddress() : "");
+                    dto.setCreatedBy(s.getCreatedBy());
+                    // Không set detail để tránh vòng lặp
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }
 

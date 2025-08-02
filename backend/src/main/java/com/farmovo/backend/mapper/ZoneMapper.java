@@ -26,13 +26,15 @@ public interface ZoneMapper {
     @Mapping(target = "store", expression = "java(mapStore(requestDto.getStoreId()))")
     Zone toEntity(ZoneRequestDto requestDto);
 
+
     List<ZoneDto> toDtoList(List<Zone> zones);
 
     @Mapping(target = "zoneName", source = "zoneName")
     @Mapping(target = "zoneDescription", source = "zoneDescription")
     @Mapping(target = "createAt", source = "createdAt")
     @Mapping(target = "updateAt", source = "updatedAt")
-    @Mapping(target = "storeId", expression = "java(zone.getStore() != null ? zone.getStore().getId() : null)")
+    @Mapping(target = "storeId", source = "store.id")
+    @Mapping(target = "storeName", source = "store.storeName")
     ZoneResponseDto toResponseDto(Zone zone);
 
     @Named("mapStore")

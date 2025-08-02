@@ -19,5 +19,6 @@ public class ZoneResponseDto {
     private LocalDateTime deleteAt;
     private Long deleteBy;
     private Long storeId;
+    private String storeName;
 }
 
