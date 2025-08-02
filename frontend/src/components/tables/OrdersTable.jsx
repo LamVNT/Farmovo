@@ -8,12 +8,27 @@ const OrdersTable = ({orders}) => {
     const [searchOrder, setSearchOrder] = useState("");
 
     const filteredOrders = useMemo(() =>
-        orders.filter(o =>
-            o.product.toLowerCase().includes(searchOrder.toLowerCase())
-        ), [searchOrder, orders]);
+        orders.filter(o => {
+            // Safely handle the product field - it might be an object or string
+            const productValue = typeof o.product === 'string' 
+                ? o.product 
+                : o.product?.name || o.product?.productName || o.product?.id || String(o.product || '');
+            
+            return productValue.toLowerCase().includes(searchOrder.toLowerCase());
+        }), [searchOrder, orders]);
 
     const orderColumns = [
-        {field: 'product', headerName: 'Order Id', flex: 1},
+        {
+            field: 'product', 
+            headerName: 'Product', 
+            flex: 1,
+            renderCell: (params) => {
+                const productValue = typeof params.value === 'string' 
+                    ? params.value 
+                    : params.value?.name || params.value?.productName || params.value?.id || String(params.value || '');
+                return productValue;
+            }
+        },
         {field: 'customer', headerName: 'Customer', flex: 1},
         {field: 'category', headerName: 'Category', flex: 1},
         {field: 'price', headerName: 'Price', flex: 1, type: 'number'},
