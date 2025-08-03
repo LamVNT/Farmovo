@@ -31,7 +31,7 @@ import {
     startOfYear, endOfYear
 } from "date-fns";
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import importTransactionService from "../../services/importTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
@@ -83,6 +83,8 @@ const labelMap = {
 };
 const ImportTransactionPage = () => {
     const navigate = useNavigate();
+    const { id } = useParams(); // Lấy ID từ URL params
+    const [searchParams] = useSearchParams(); // Lấy query params
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -136,6 +138,59 @@ const ImportTransactionPage = () => {
         onConfirm: null,
         actionType: ''
     });
+
+    // Kiểm tra URL params để tự động mở dialog chi tiết
+    useEffect(() => {
+        const viewParam = searchParams.get('view');
+        if (id && viewParam === 'detail') {
+            // Tự động mở dialog chi tiết cho transaction có ID này
+            handleAutoOpenDetail(parseInt(id));
+        }
+    }, [id, searchParams]);
+
+    // Hàm tự động mở dialog chi tiết
+    const handleAutoOpenDetail = async (transactionId) => {
+        try {
+            const transaction = await importTransactionService.getWithDetails(transactionId);
+            setSelectedTransaction(transaction);
+            setSelectedDetails(transaction.details);
+            
+            // Fetch thông tin supplier
+            if (transaction.supplierId) {
+                try {
+                    const supplier = await getCustomerById(transaction.supplierId);
+                    setSupplierDetails(supplier);
+                } catch (error) {
+                    setSupplierDetails(null);
+                }
+            }
+            
+            // Fetch thông tin user (người tạo)
+            if (transaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(transaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    setUserDetails(null);
+                }
+            }
+
+            // Fetch thông tin store
+            if (transaction.storeId) {
+                try {
+                    const store = await getStoreById(transaction.storeId);
+                    setStoreDetails(store);
+                } catch (error) {
+                    setStoreDetails(null);
+                }
+            }
+            
+            setOpenDetailDialog(true);
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
+            setError('Không thể tải chi tiết phiếu nhập');
+        }
+    };
 
     // Auto-dismiss error/success messages
     useEffect(() => {
