@@ -85,7 +85,7 @@ const DashboardReport = () => {
       )}
       <Grid container spacing={3}>
         {reportCards.map(card => (
-          <Grid item xs={12} sm={6} md={3} key={card.title}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={card.title}>
             <Card sx={{ p: 3, cursor: 'pointer', height: '100%' }} onClick={() => navigate(card.link)}>
               <Box display="flex" alignItems="center" mb={2}>
                 {card.icon}
