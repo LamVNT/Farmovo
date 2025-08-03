@@ -46,23 +46,7 @@ export const addDebtNote = async (debtNoteData) => {
 };
 
 
-export const updateDebtNote = async (debtId, debtNoteData) => {
-    console.log(`Updating debt note ID: ${debtId} with data:`, debtNoteData);
-    try {
-        const response = await axios.put(`${API_URL}/debt-note/${debtId}`, debtNoteData, {
-            withCredentials: true, // Sử dụng cookie để xác thực
-        });
-        console.log(`Successfully updated debt note with ID: ${debtId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error updating debt note ID: ${debtId}", {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data,
-        });
-        throw error;
-    }
-};
+
 
 
 export const getTotalDebtByCustomerId = async (customerId) => {

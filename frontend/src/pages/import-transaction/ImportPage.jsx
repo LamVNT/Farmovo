@@ -25,6 +25,7 @@ import { FaSearch } from 'react-icons/fa';
 import { MdKeyboardArrowDown, MdCategory } from 'react-icons/md';
 // Không cần import FiPlus nữa vì đã dùng Material-UI icons
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { DataGrid } from '@mui/x-data-grid';
 import { FaRegTrashCan } from "react-icons/fa6";
 import LockIcon from '@mui/icons-material/Lock';
@@ -34,6 +35,7 @@ import AddProductDialog from '../../components/import-transaction/AddProductDial
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 import importTransactionService from '../../services/importTransactionService';
 import { userService } from '../../services/userService';
@@ -41,6 +43,7 @@ import { getCategories } from '../../services/categoryService';
 import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 const ImportPage = () => {
+    const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -97,6 +100,7 @@ const ImportPage = () => {
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [filteredStores, setFilteredStores] = useState([]);
     const [zoneSearch, setZoneSearch] = useState('');
+    const [showBackConfirm, setShowBackConfirm] = useState(false);
 
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
@@ -1339,6 +1343,7 @@ const ImportPage = () => {
             supplier: suppliers.find(s => s.id === selectedSupplier) || {},
             store: stores.find(s => s.id === selectedStore) || {}, // Use selectedStore
             products: selectedProducts,
+            zones: zones, // Thêm zones để hiển thị trong summary
             totalAmount,
             paidAmount,
             note,
@@ -1386,6 +1391,37 @@ const ImportPage = () => {
             setLoading(false);
         }
     };
+
+    // Hàm xử lý quay lại
+    const handleBack = () => {
+        // Kiểm tra thực sự có thay đổi hay không
+        const hasChanges = (
+            selectedProducts.length > 0 || // Có sản phẩm được chọn
+            selectedSupplier || // Có nhà cung cấp được chọn
+            (note && note.trim() !== '') || // Có ghi chú
+            paidAmount > 0 // Có số tiền đã trả
+        );
+        
+        // Với role STAFF, selectedStore luôn có giá trị mặc định nên không cần kiểm tra
+        // Chỉ kiểm tra selectedStore nếu user có thể chọn nhiều cửa hàng (MANAGER/ADMIN)
+        const shouldCheckStore = currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN';
+        const hasStoreChanges = shouldCheckStore ? selectedStore : false;
+        
+        if (hasChanges || hasStoreChanges) {
+            setShowBackConfirm(true);
+        } else {
+            navigate('/import');
+        }
+    };
+
+    const handleConfirmBack = () => {
+        setShowBackConfirm(false);
+        navigate('/import');
+    };
+
+    const handleCancelBack = () => {
+        setShowBackConfirm(false);
+    };
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -1393,8 +1429,31 @@ const ImportPage = () => {
             {success && <Alert severity="success" className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
-                <div className="flex justify-between items-center mb-2">
-                    <div className="relative w-full max-w-2xl flex items-center gap-2">
+                {/* Header với navigation và search */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="text"
+                            startIcon={<ArrowBackIcon />}
+                            onClick={handleBack}
+                            sx={{
+                                color: '#1976d2',
+                                fontWeight: 600,
+                                fontSize: '1.1rem',
+                                textTransform: 'none',
+                                padding: '8px 16px',
+                                borderRadius: 2,
+                                '&:hover': {
+                                    backgroundColor: '#e3f0ff',
+                                    color: '#1565c0'
+                                }
+                            }}
+                        >
+                            Nhập hàng
+                        </Button>
+                        
+                        <div className="flex items-center gap-3">
+                            <div className="relative w-80">
                         <TextField
                             size="small"
                             fullWidth
@@ -1435,38 +1494,72 @@ const ImportPage = () => {
                                 },
                             }}
                         />
-                        <Tooltip title="Thêm từ nhóm hàng"><IconButton onClick={handleOpenCategoryDialog}><MdCategory /></IconButton></Tooltip>
-                        <Tooltip title="Tạo mới hàng hóa"><IconButton onClick={() => setOpenDialog(true)}><AddIcon /></IconButton></Tooltip>
-                        {(isSearchFocused || searchTerm.trim() !== '') && (
-                            <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
-                                {filteredProducts.length > 0 ? (
-                                    filteredProducts.map((product, index) => (
-                                        <div
-                                            key={product.id || index}
-                                            onClick={() => handleSelectProduct(product)}
-                                            onMouseEnter={() => setActiveIndex(index)}
-                                            onMouseLeave={() => setActiveIndex(-1)}
-                                            className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
-                                                ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
-                                            `}
-                                        >
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                                <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
-                                            </div>
-                                            {product.price && (
-                                                <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
-                                )}
                             </div>
-                        )}
+                            
+                            <Tooltip title="Thêm từ nhóm hàng">
+                                <IconButton 
+                                    onClick={handleOpenCategoryDialog}
+                                    sx={{
+                                        color: '#1976d2',
+                                        backgroundColor: '#f8f9fa',
+                                        '&:hover': {
+                                            backgroundColor: '#e3f0ff',
+                                            transform: 'scale(1.05)'
+                                        },
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <MdCategory />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Tạo mới hàng hóa">
+                                <IconButton 
+                                    onClick={() => setOpenDialog(true)}
+                                    sx={{
+                                        color: '#1976d2',
+                                        backgroundColor: '#f8f9fa',
+                                        '&:hover': {
+                                            backgroundColor: '#e3f0ff',
+                                            transform: 'scale(1.05)'
+                                        },
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <AddIcon />
+                                </IconButton>
+                            </Tooltip>
+                            
+                            {(isSearchFocused || searchTerm.trim() !== '') && (
+                                <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
+                                    {filteredProducts.length > 0 ? (
+                                        filteredProducts.map((product, index) => (
+                                            <div
+                                                key={product.id || index}
+                                                onClick={() => handleSelectProduct(product)}
+                                                onMouseEnter={() => setActiveIndex(index)}
+                                                onMouseLeave={() => setActiveIndex(-1)}
+                                                className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
+                                                    ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
+                                                `}
+                                            >
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                    <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                </div>
+                                                {product.price && (
+                                                    <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="ml-auto">
+                    <div className="flex items-center gap-2">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
                             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}><VisibilityIcon /></IconButton>
                         </Tooltip>
@@ -1859,6 +1952,72 @@ const ImportPage = () => {
                     return null;
                 })()}
             </Popover>
+
+            {/* Back Confirmation Dialog */}
+            <Dialog
+                open={showBackConfirm}
+                onClose={handleCancelBack}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ 
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    <ArrowBackIcon color="warning" />
+                    Xác nhận rời khỏi
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <div className="text-gray-700">
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div className="text-orange-600 text-2xl">⚠️</div>
+                            <div>
+                                <p className="font-semibold text-orange-800">Bạn có thay đổi chưa lưu</p>
+                                <p className="text-sm text-orange-700">Nếu rời khỏi, tất cả thay đổi sẽ bị mất</p>
+                            </div>
+                        </div>
+                        <p className="text-gray-600">
+                            Bạn có chắc chắn muốn rời khỏi trang này? Tất cả thay đổi chưa được lưu sẽ bị mất vĩnh viễn.
+                        </p>
+                    </div>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 1 }}>
+                    <Button 
+                        onClick={handleCancelBack}
+                        variant="outlined"
+                        sx={{
+                            borderColor: '#ddd',
+                            color: '#666',
+                            '&:hover': {
+                                borderColor: '#999',
+                                backgroundColor: '#f5f5f5'
+                            }
+                        }}
+                    >
+                        Ở lại
+                    </Button>
+                    <Button 
+                        onClick={handleConfirmBack}
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(45deg, #f57c00 30%, #ff9800 90%)',
+                            boxShadow: '0 3px 15px rgba(245, 124, 0, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #ef6c00 30%, #f57c00 90%)',
+                                boxShadow: '0 5px 20px rgba(245, 124, 0, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Rời khỏi
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

@@ -71,7 +71,7 @@ class UserControllerTest {
                 .username("john")
                 .fullName("John")
                 .status(true)
-                .createAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         Mockito.lenient().when(userMapper.toResponseDto(any(User.class))).thenReturn(responseDto);

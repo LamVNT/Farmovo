@@ -57,7 +57,7 @@ public class CustomerController {
             @RequestParam(required = false) String search
     ) {
         logger.info("Fetching customers with pagination (legacy), page: {}, size: {}, search: {}", page, size, search);
-        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<CustomerResponseDto> result = customerService.getCustomerPage(pageable, search);
         return ResponseEntity.ok(result);
     }
@@ -70,11 +70,13 @@ public class CustomerController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String email,
+            @RequestParam(required = false) Boolean isSupplier,
+            @RequestParam(required = false) Boolean debtOnly,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<CustomerResponseDto> pageResult = customerService.searchCustomers(name, phone, email, fromDate, toDate, pageable);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<CustomerResponseDto> pageResult = customerService.searchCustomers(name, phone, email, isSupplier, debtOnly, fromDate, toDate, pageable);
         return ResponseEntity.ok(com.farmovo.backend.dto.request.PageResponse.fromPage(pageResult));
     }
 

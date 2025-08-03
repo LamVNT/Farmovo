@@ -41,8 +41,8 @@ const CustomerManagementPage = () => {
       phone: undefined,
       email: undefined,
     };
-    if (filterSupplier !== "") filters.isSupplier = filterSupplier;
-    if (filterDebt) filters.debtOnly = true; // if backend supports
+    if (filterSupplier !== "") filters.isSupplier = filterSupplier === "true";
+    if (filterDebt) filters.debtOnly = true;
 
     fetchCustomers(filters);
   }, [search, filterSupplier, filterDebt, page, rowsPerPage, fetchCustomers]);
@@ -51,7 +51,13 @@ const CustomerManagementPage = () => {
   const handleFormClose = (refresh) => {
     setOpenForm(false);
     setSelectedCustomer(null);
-    if (refresh) fetchCustomers();
+    if (refresh) {
+      // Reset to first page when adding new customer to show it at the top
+      if (formMode === "add") {
+        setPage(0);
+      }
+      fetchCustomers();
+    }
   };
   const handleDetailClose = () => {
     setOpenDetail(false);
@@ -118,8 +124,8 @@ const CustomerManagementPage = () => {
             onChange={e => setFilterSupplier(e.target.value)}
           >
             <MenuItem value="">Tất cả</MenuItem>
-            <MenuItem value="true">Có</MenuItem>
-            <MenuItem value="false">Không</MenuItem>
+            <MenuItem value="true">Nhà cung cấp</MenuItem>
+            <MenuItem value="false">Khách mua</MenuItem>
           </Select>
         </FormControl>
         <FormControlLabel

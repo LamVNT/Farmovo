@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     Dialog,
     DialogTitle,
@@ -12,9 +12,10 @@ import {
     InputLabel,
     Typography,
     Box,
+    Autocomplete,
 } from "@mui/material";
 import { addDebtNote } from "../../services/debtService";
-import { uploadEvidence } from "../../services/storeService";
+import { uploadEvidence, getAllStores } from "../../services/storeService";
 
 const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     const [formData, setFormData] = useState({
@@ -24,7 +25,9 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
         debtType: "-",
         debtDescription: "",
         debtEvidences: "",
+        storeId: "",
     });
+    const [stores, setStores] = useState([]);
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [error, setError] = useState("");
@@ -51,6 +54,23 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             }
         }
     };
+
+    // Fetch stores when dialog opens
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                const storeData = await getAllStores();
+                setStores(storeData || []);
+            } catch (error) {
+                console.error("Failed to fetch stores:", error);
+                setError("Không thể tải danh sách cửa hàng");
+            }
+        };
+        
+        if (open) {
+            fetchStores();
+        }
+    }, [open]);
 
     const handleAddImageClick = () => {
         fileInputRef.current.click();
@@ -83,6 +103,8 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                 debtType: formData.debtType,
                 debtDescription: formData.debtDescription || "",
                 debtEvidences: debtEvidences || "",
+                storeId: formData.storeId || null,
+                fromSource: "MANUAL", // Đánh dấu là đơn tự nhập
             };
             const newDebtNote = await addDebtNote(data);
             onAdd(newDebtNote);
@@ -93,6 +115,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                 debtType: "-",
                 debtDescription: "",
                 debtEvidences: "",
+                storeId: "",
             });
             setFile(null);
             setPreviewUrl(null);
@@ -106,7 +129,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Chi tiết nợ</DialogTitle>
+            <DialogTitle>Thêm phiếu thanh toán</DialogTitle>
             <DialogContent>
                 {error && (
                     <Typography color="error" sx={{ mb: 2 }}>
@@ -141,8 +164,8 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                             required
                             label=""
                         >
-                            <MenuItem value="-">Khách hàng nợ</MenuItem>
-                            <MenuItem value="+">Cửa hàng nợ</MenuItem>
+                            <MenuItem value="-">Khách Hàng Nợ</MenuItem>
+                            <MenuItem value="+">Cửa Hàng Nợ</MenuItem>
                         </Select>
                     </FormControl>
                 </Box>
@@ -165,7 +188,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                 </Box>
                 <Box display="flex" alignItems="center" mb={2}>
                     <Box minWidth={120}>
-                        <Typography>Ngày lập phiếu</Typography>
+                        <Typography>Ngày tạo nợ</Typography>
                     </Box>
                     <TextField
                         margin="dense"
@@ -178,6 +201,64 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                         InputLabelProps={{ shrink: true }}
                         label=""
                         sx={{ ml: 2 }}
+                    />
+                </Box>
+                <Box display="flex" alignItems="flex-start" mb={2}>
+                    <Box minWidth={120} sx={{ mt: 1 }}>
+                        <Typography>Cửa hàng</Typography>
+                    </Box>
+                    <Autocomplete
+                        options={stores}
+                        getOptionLabel={(option) => option.storeName || ""}
+                        value={stores.find(store => store.id === formData.storeId) || null}
+                        onChange={(event, newValue) => {
+                            setFormData({
+                                ...formData,
+                                storeId: newValue ? newValue.id : ""
+                            });
+                            setError("");
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                margin="dense"
+                                placeholder="Tìm kiếm tên cửa hàng..."
+                                fullWidth
+                                sx={{ 
+                                    ml: 2,
+                                    minWidth: '400px',
+                                    '& .MuiInputBase-input': {
+                                        fontSize: '14px',
+                                        padding: '8px 12px'
+                                    }
+                                }}
+                            />
+                        )}
+                        renderOption={(props, option) => (
+                            <Box component="li" {...props} sx={{ py: 1 }}>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                        {option.storeName}
+                                    </Typography>
+                                    {option.storeAddress && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                            {option.storeAddress}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        noOptionsText="Không tìm thấy cửa hàng"
+                        clearOnBlur={false}
+                        selectOnFocus
+                        clearOnEscape
+                        sx={{
+                            minWidth: '400px',
+                            '& .MuiAutocomplete-popupIndicator': {
+                                marginRight: 1
+                            }
+                        }}
                     />
                 </Box>
                 <Button
@@ -210,7 +291,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             </DialogActions>
             <DialogActions sx={{ justifyContent: "flex-end" }}>
                 <Button onClick={() => { onClose(); setPreviewUrl(null); }} color="inherit">
-                    CLOSE
+                    Đóng
                 </Button>
             </DialogActions>
         </Dialog>
