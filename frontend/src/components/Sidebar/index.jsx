@@ -19,6 +19,7 @@ import {HiOutlineDocumentReport} from "react-icons/hi";
 import {FaBoxOpen, FaExclamationTriangle, FaClock} from "react-icons/fa";
 import FarmovoLogo from '../../assets/Farmovo.png';
 import {FaStore} from "react-icons/fa6";
+import {MdHistory} from "react-icons/md";
 
 
 const Sidebar = () => {
@@ -198,6 +199,15 @@ const Sidebar = () => {
                                 className="w-full !capitalize !justify-start flex gap-3 text-[14px]
                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
                                 <MdMap className="text-[20px]"/> <span>Khu vực</span>
+                            </Button>
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to="/change-status-log">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <MdHistory className="text-[20px]"/> <span>Lịch sử thay đổi</span>
                             </Button>
                         </Link>
                     </li>
