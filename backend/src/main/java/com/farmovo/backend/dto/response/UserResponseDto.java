@@ -17,11 +17,11 @@ public class UserResponseDto {
     private String fullName;
     private String username;
     private Boolean status;
-    private Long createBy;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
-    private LocalDateTime deleteAt;
-    private Long deleteBy;
+    private Long createdBy;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
     private Long storeId;
     private String storeName;
     private List<String> roles; // Thêm danh sách role

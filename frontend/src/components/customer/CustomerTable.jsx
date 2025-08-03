@@ -16,8 +16,9 @@ const CustomerTable = ({ customers, onEdit, onDelete, onDetail, page, pageCount,
             <TableCell sx={{ fontWeight: 'bold' }}>Tên</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Số điện thoại</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Địa chỉ</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Nợ</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Nhà cung cấp</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Vai Trò</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
           </TableRow>
         </TableHead>
@@ -27,8 +28,20 @@ const CustomerTable = ({ customers, onEdit, onDelete, onDetail, page, pageCount,
               <TableCell>{customer.name}</TableCell>
               <TableCell>{customer.email}</TableCell>
               <TableCell>{customer.phone}</TableCell>
+              <TableCell sx={{ maxWidth: 200 }}>
+                {customer.address ? (
+                  <div title={customer.address}>
+                    {customer.address.length > 30 
+                      ? customer.address.substring(0, 30) + '...' 
+                      : customer.address
+                    }
+                  </div>
+                ) : (
+                  <span style={{ color: '#999', fontStyle: 'italic' }}>Chưa có</span>
+                )}
+              </TableCell>
               <TableCell>{formatCurrency(customer.totalDebt)}</TableCell>
-              <TableCell>{customer.isSupplier ? "Có" : "Không"}</TableCell>
+              <TableCell>{customer.isSupplier ? "Nhà cung cấp" : "Khách mua"}</TableCell>
               <TableCell>
                 <IconButton color="primary" onClick={() => onDetail(customer)}><VisibilityIcon /></IconButton>
                 <IconButton color="warning" onClick={() => onEdit(customer)}><EditIcon /></IconButton>

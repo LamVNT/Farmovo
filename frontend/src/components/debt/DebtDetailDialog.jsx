@@ -26,7 +26,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                 const storeData = await getAllStores();
                 if (debtNote && debtNote.storeId) {
                     const store = storeData.find((s) => s.id === debtNote.storeId);
-                    setStoreName(store ? store.name : "");
+                    setStoreName(store ? store.storeName : "");
                 } else {
                     setStoreName("");
                 }
@@ -117,7 +117,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             margin="dense"
                             name="debtType"
                             fullWidth
-                            value={debtNote.debtType === "+" ? "Cửa hàng nợ" : "Khách hàng nợ"}
+                            value={debtNote.debtType === "+" ? "Cửa Hàng Nợ" : "Khách Hàng Nợ"}
                             disabled
                             label=""
                         />
@@ -191,7 +191,12 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             margin="dense"
                             name="fromSource"
                             fullWidth
-                            value={debtNote.fromSource || ""}
+                            value={(() => {
+                                if (debtNote.fromSource === "SALE") return "Đơn Bán";
+                                if (debtNote.fromSource === "IMPORT" || debtNote.fromSource === "PURCHASE") return "Đơn Nhập";
+                                if (debtNote.fromSource === "MANUAL") return "Đơn tự nhập";
+                                return debtNote.fromSource || "";
+                            })()}
                             disabled
                             label=""
                         />

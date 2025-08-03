@@ -114,36 +114,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         return mapToDebtNoteResponseDto(debtNote);
     }
 
-    @Override
-    @Transactional
-    public DebtNoteResponseDto updateDebtNote(Long debtId, DebtNoteRequestDto requestDto) {
-        validateCustomerId(requestDto.getCustomerId());
-        logger.debug("Updating debt note ID: {} with data: {}", debtId, requestDto);
-        try {
-            DebtNote debtNote = getDebtNoteOrThrow(debtId);
-            if (debtNote.getDeletedAt() != null) {
-                throw new IllegalStateException("Cannot update deleted debt note with ID: " + debtId);
-            }
-            validateDebtTypeIfPresent(requestDto.getDebtType());
-            Customer customer = getCustomerOrThrow(requestDto.getCustomerId());
-            
-            // Lưu thông tin cũ để tính toán lại totalDebt
-            BigDecimal oldAmount = debtNote.getDebtAmount();
-            String oldType = debtNote.getDebtType();
-            
-            updateDebtNoteEntity(debtNote, requestDto, customer);
-            debtNote = debtNoteRepository.save(debtNote);
-            
-            // Cập nhật totalDebt: trừ đi số tiền cũ và cộng thêm số tiền mới
-            updateCustomerTotalDebtForUpdate(customer.getId(), oldAmount, oldType, debtNote.getDebtAmount(), debtNote.getDebtType());
-            
-            logger.info("Successfully updated debt note with ID: {}", debtId);
-            return mapToDebtNoteResponseDto(debtNote);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            logger.error("Failed to update debt note ID: {}. Error: {}", debtId, e.getMessage());
-            throw e;
-        }
-    }
+
 
     @Override
     public BigDecimal getTotalDebtByCustomerId(Long customerId) {
@@ -198,11 +169,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         }
     }
 
-    private void validateDebtTypeIfPresent(String debtType) {
-        if (debtType != null && !"+".equals(debtType) && !"-".equals(debtType)) {
-            throw new IllegalArgumentException("Debt type must be '+' (import) or '-' (sale)");
-        }
-    }
+
 
     private void validateDebtAmount(BigDecimal debtAmount) {
         if (debtAmount == null) {
@@ -253,51 +220,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
                     customerId, currentTotalDebt, amountToAdd, newTotalDebt);
     }
 
-    /**
-     * Cập nhật totalDebt khi update debt note: trừ đi số tiền cũ và cộng thêm số tiền mới
-     * @param customerId ID của customer
-     * @param oldAmount Số tiền cũ
-     * @param oldType Loại nợ cũ
-     * @param newAmount Số tiền mới
-     * @param newType Loại nợ mới
-     */
-    private void updateCustomerTotalDebtForUpdate(Long customerId, BigDecimal oldAmount, String oldType, 
-                                                 BigDecimal newAmount, String newType) {
-        Customer customer = getCustomerOrThrow(customerId);
-        BigDecimal currentTotalDebt = customer.getTotalDebt() != null ? customer.getTotalDebt() : BigDecimal.ZERO;
-        
-        // Tính toán số tiền cần trừ đi (số tiền cũ)
-        BigDecimal amountToSubtract;
-        if ("+".equals(oldType)) {
-            // Import debt cũ: trừ đi
-            amountToSubtract = oldAmount;
-        } else if ("-".equals(oldType)) {
-            // Sale debt cũ: cộng lại (vì trước đó đã trừ)
-            amountToSubtract = oldAmount.negate();
-        } else {
-            amountToSubtract = BigDecimal.ZERO;
-        }
-        
-        // Tính toán số tiền cần cộng thêm (số tiền mới)
-        BigDecimal amountToAdd;
-        if ("+".equals(newType)) {
-            // Import debt mới: cộng thêm
-            amountToAdd = newAmount;
-        } else if ("-".equals(newType)) {
-            // Sale debt mới: trừ đi
-            amountToAdd = newAmount.negate();
-        } else {
-            amountToAdd = BigDecimal.ZERO;
-        }
-        
-        // Cập nhật totalDebt: trừ đi số tiền cũ + cộng thêm số tiền mới
-        BigDecimal newTotalDebt = currentTotalDebt.subtract(amountToSubtract).add(amountToAdd);
-        customer.setTotalDebt(newTotalDebt);
-        customerRepository.save(customer);
-        
-        logger.debug("Updated total debt for update - customer ID: {}: current={}, subtracted={}, added={}, new={}", 
-                    customerId, currentTotalDebt, amountToSubtract, amountToAdd, newTotalDebt);
-    }
+
 
     private DebtNote mapRequestToEntity(DebtNoteRequestDto requestDto, Customer customer) {
         DebtNote debtNote = new DebtNote();
@@ -316,17 +239,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         return debtNote;
     }
 
-    private void updateDebtNoteEntity(DebtNote debtNote, DebtNoteRequestDto requestDto, Customer customer) {
-        debtNote.setCustomer(customer);
-        debtNote.setDebtDate(requestDto.getDebtDate() != null ? requestDto.getDebtDate() : debtNote.getDebtDate());
-        debtNote.setDebtType(requestDto.getDebtType() != null ? requestDto.getDebtType() : debtNote.getDebtType());
-        debtNote.setDebtDescription(requestDto.getDebtDescription() != null ? requestDto.getDebtDescription() : debtNote.getDebtDescription());
-        debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : debtNote.getDebtEvidences());
-        debtNote.setFromSource(requestDto.getFromSource());
-        debtNote.setSourceId(requestDto.getSourceId());
-        debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
-        debtNote.setUpdatedAt(LocalDateTime.now());
-    }
+
 
     private DebtNote createDebtNoteEntityFromTransaction(Customer customer, BigDecimal debtAmount, String fromSource, String debtType, Long sourceId, Long storeId) {
         DebtNote debtNote = new DebtNote();

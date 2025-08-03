@@ -54,15 +54,7 @@ public class DebtNoteController {
         return ResponseEntity.status(HttpStatus.CREATED).body(debtNote);
     }
 
-    @PutMapping("/debt-note/{debtId}")
-    public ResponseEntity<DebtNoteResponseDto> updateDebtNote(
-            @PathVariable Long debtId,
-            @RequestBody DebtNoteRequestDto requestDto) {
-        logger.debug("Received request to update debt note ID: {} with data: {}", debtId, requestDto);
-        DebtNoteResponseDto debtNote = debtNoteService.updateDebtNote(debtId, requestDto);
-        logger.info("Successfully updated debt note with ID: {}", debtId);
-        return ResponseEntity.ok(debtNote);
-    }
+
 
     @GetMapping("/customer/{customerId}/total-debt")
     public ResponseEntity<BigDecimal> getTotalDebt(@PathVariable Long customerId) {

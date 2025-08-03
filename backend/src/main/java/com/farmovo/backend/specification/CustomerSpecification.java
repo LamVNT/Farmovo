@@ -37,4 +37,14 @@ public class CustomerSpecification {
             }
         };
     }
+
+    public static Specification<Customer> isSupplier(Boolean isSupplier) {
+        if (isSupplier == null) return null;
+        return (root, query, cb) -> cb.equal(root.get("isSupplier"), isSupplier);
+    }
+
+    public static Specification<Customer> hasDebt(Boolean debtOnly) {
+        if (debtOnly == null || !debtOnly) return null;
+        return (root, query, cb) -> cb.greaterThan(root.get("totalDebt"), 0);
+    }
 } 

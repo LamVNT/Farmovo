@@ -31,9 +31,9 @@ const UserManagement = () => {
         password: '',
         status: true,
         storeId: 1,
-        createBy: 1,
-        createAt: '',
-        updateAt: '',
+        createdBy: 1,
+        createdAt: '',
+        updatedAt: '',
         storeName: '',
         roles: [],
         email: '',
@@ -63,9 +63,9 @@ const UserManagement = () => {
             password: '',
             status: true,
             storeId: 1,
-            createBy: 1,
-            createAt: '',
-            updateAt: '',
+            createdBy: 1,
+            createdAt: '',
+            updatedAt: '',
             storeName: '',
             roles: [], // Reset roles khi tạo mới
             email: '',
@@ -82,9 +82,9 @@ const UserManagement = () => {
             password: '',
             status: user.status,
             storeId: user.storeId || 1, // Đảm bảo storeId từ dữ liệu
-            createBy: user.createBy || 1,
-            createAt: user.createAt || '',
-            updateAt: user.updateAt || '',
+            createdBy: user.createdBy || 1,
+            createdAt: user.createdAt || '',
+            updatedAt: user.updatedAt || '',
             storeName: user.storeName || '',
             roles: user.roles || [], // Lấy roles từ dữ liệu
             email: user.email || '',
@@ -122,51 +122,90 @@ const UserManagement = () => {
     };
 
     const handleSubmit = async () => {
+        // Validation
+        if (!form.fullName || form.fullName.trim() === '') {
+            alert('Họ tên không được để trống');
+            return;
+        }
+        if (!form.username || form.username.trim() === '') {
+            alert('Tên đăng nhập không được để trống');
+            return;
+        }
+        if (!editMode && (!form.password || form.password.trim() === '')) {
+            alert('Mật khẩu không được để trống khi tạo mới');
+            return;
+        }
+        if (!form.storeId) {
+            alert('Vui lòng chọn cửa hàng');
+            return;
+        }
+        if (!form.roles || form.roles.length === 0) {
+            alert('Vui lòng chọn role');
+            return;
+        }
+
         console.log('Sending userData:', form);
         const userData = {
-            fullName: form.fullName || undefined,
-            username: form.username || undefined,
-            password: form.password || undefined, // Bắt buộc khi tạo mới
+            fullName: form.fullName.trim(),
+            username: form.username.trim(),
+            password: form.password, // Bắt buộc khi tạo mới
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
-            email: form.email || undefined,
+            email: form.email ? form.email.trim() : null,
         };
         try {
             if (editMode) {
                 const updatedUser = await userService.updateUser(form.id, userData);
-                // Giữ nguyên thứ tự: thay thế phần tử đang chỉnh sửa
-                // setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))); // This line was removed as per the edit hint
+                // Refresh danh sách sau khi cập nhật
+                fetchUsers({
+                    page: page,
+                    size: rowsPerPage,
+                    username: searchText || undefined,
+                });
             } else {
                 const newUser = await userService.createUser(userData);
-                // Thêm vào cuối danh sách (hoặc đầu, tuỳ yêu cầu UI). Giữ thứ tự cũ với phần đã có.
-                // setUsers((prev) => [...prev, newUser]); // This line was removed as per the edit hint
+                // Refresh danh sách sau khi tạo mới và reset về trang đầu
+                fetchUsers({
+                    page: 0, // Reset về trang đầu
+                    size: rowsPerPage,
+                    username: searchText || undefined,
+                });
             }
             handleClose();
-            // setError(null); // This line was removed as per the edit hint
         } catch (error) {
             console.error('Lỗi:', error.message);
-            // setError(error.message); // This line was removed as per the edit hint
+            alert(`Lỗi: ${error.message}`);
         }
     };
 
     const handleToggleStatus = async (id) => {
         try {
             const updatedUser = await userService.toggleUserStatus(id);
-            // setUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u))); // This line was removed as per the edit hint
-            // setError(null); // This line was removed as per the edit hint
+            // Refresh danh sách sau khi toggle status
+            fetchUsers({
+                page: page,
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
         } catch (err) {
-            // setError(err.message); // This line was removed as per the edit hint
+            console.error('Lỗi toggle status:', err.message);
+            alert(`Lỗi: ${err.message}`);
         }
     };
 
     const handleUpdateStatus = async (id, status) => {
         try {
             const updatedUser = await userService.updateUserStatus(id, status);
-            // setUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u))); // This line was removed as per the edit hint
-            // setError(null); // This line was removed as per the edit hint
+            // Refresh danh sách sau khi update status
+            fetchUsers({
+                page: page,
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
         } catch (err) {
-            // setError(err.message); // This line was removed as per the edit hint
+            console.error('Lỗi update status:', err.message);
+            alert(`Lỗi: ${err.message}`);
         }
     };
 

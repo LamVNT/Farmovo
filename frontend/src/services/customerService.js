@@ -15,8 +15,7 @@ export const getCustomers = async (page = 0, size = 10, searchTerm = '') => {
     try {
         const params = {
             page: page,
-            size: size,
-            sort: 'name,asc'
+            size: size
         };
         
         if (searchTerm) {

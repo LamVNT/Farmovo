@@ -84,11 +84,13 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public Page<CustomerResponseDto> searchCustomers(String name, String phone, String email, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
+    public Page<CustomerResponseDto> searchCustomers(String name, String phone, String email, Boolean isSupplier, Boolean debtOnly, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
         Specification<Customer> spec = Specification.where(com.farmovo.backend.specification.CustomerSpecification.isNotDeleted())
                 .and(com.farmovo.backend.specification.CustomerSpecification.hasName(name))
                 .and(com.farmovo.backend.specification.CustomerSpecification.hasPhone(phone))
                 .and(com.farmovo.backend.specification.CustomerSpecification.hasEmail(email))
+                .and(com.farmovo.backend.specification.CustomerSpecification.isSupplier(isSupplier))
+                .and(com.farmovo.backend.specification.CustomerSpecification.hasDebt(debtOnly))
                 .and(com.farmovo.backend.specification.CustomerSpecification.createdBetween(fromDate, toDate));
 
         Page<Customer> pageResult = customerRepository.findAll(spec, pageable);
@@ -116,6 +118,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setName(requestDto.getName());
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
+        customer.setAddress(requestDto.getAddress());
         customer.setTotalDebt(requestDto.getTotalDebt());
         if (requestDto.getIsSupplier() != null) {
             customer.setIsSupplier(requestDto.getIsSupplier());

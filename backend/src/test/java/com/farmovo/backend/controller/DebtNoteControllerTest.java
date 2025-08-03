@@ -2,64 +2,57 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
-import com.farmovo.backend.exceptions.GlobalExceptionHandler;
 import com.farmovo.backend.services.DebtNoteService;
 import com.farmovo.backend.services.impl.S3Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = DebtNoteController.class, excludeAutoConfiguration = {org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class})
+@AutoConfigureMockMvc(addFilters = false)
 class DebtNoteControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @MockBean
     private DebtNoteService debtNoteService;
 
-    @Mock
+    @MockBean
     private S3Service s3Service;
 
-    @InjectMocks
-    private DebtNoteController debtNoteController;
+    
 
-    private ObjectMapper objectMapper = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-
-    @BeforeEach
-    void setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(debtNoteController)
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     @DisplayName("GET /api/debt/admin/customer/{customerId}/debt-notes - success")
     void testGetDebtNotes() throws Exception {
         DebtNoteResponseDto dto = new DebtNoteResponseDto(1L, 1L, new BigDecimal("100"), LocalDateTime.now(), 1L, "+", "desc", "", "", 2L, LocalDateTime.now(), 1L, null, null, null);
         Page<DebtNoteResponseDto> page = new PageImpl<>(List.of(dto));
-        Mockito.when(debtNoteService.searchDebtNotes(eq(1L), any(), any(), any(), any(), any(), eq(0), eq(10)))
-                .thenReturn(page);
+        Mockito.when(debtNoteService.getDebtNotesPage(eq(1L), eq(0), eq(10))).thenReturn(page);
 
         mockMvc.perform(get("/api/debt/admin/customer/1/debt-notes")
                         .param("page", "0")
@@ -71,8 +64,7 @@ class DebtNoteControllerTest {
     @Test
     @DisplayName("GET /api/debt/admin/customer/{customerId}/debt-notes - service throws")
     void testGetDebtNotes_ServiceThrows() throws Exception {
-        Mockito.when(debtNoteService.searchDebtNotes(anyLong(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenThrow(new RuntimeException("fail"));
+        Mockito.when(debtNoteService.getDebtNotesPage(anyLong(), anyInt(), anyInt())).thenThrow(new RuntimeException("fail"));
         mockMvc.perform(get("/api/debt/admin/customer/1/debt-notes"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("An unexpected error occurred: fail"));
@@ -104,31 +96,7 @@ class DebtNoteControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @Test
-    @DisplayName("PUT /api/debt/admin/debt-note/{debtId} - success")
-    void testUpdateDebtNote() throws Exception {
-        DebtNoteRequestDto requestDto = new DebtNoteRequestDto(1L, new BigDecimal("100"), LocalDateTime.now(), 1L, "+", "desc", "", "", 2L);
-        DebtNoteResponseDto responseDto = new DebtNoteResponseDto(1L, 1L, new BigDecimal("100"), LocalDateTime.now(), 1L, "+", "desc", "", "", 2L, LocalDateTime.now(), 1L, null, null, null);
 
-        Mockito.when(debtNoteService.updateDebtNote(eq(1L), any(DebtNoteRequestDto.class))).thenReturn(responseDto);
-
-        mockMvc.perform(put("/api/debt/admin/debt-note/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L));
-    }
-
-    @Test
-    @DisplayName("PUT /api/debt/admin/debt-note/{debtId} - not found")
-    void testUpdateDebtNote_NotFound() throws Exception {
-        DebtNoteRequestDto requestDto = new DebtNoteRequestDto();
-        Mockito.when(debtNoteService.updateDebtNote(eq(1L), any(DebtNoteRequestDto.class))).thenThrow(new IllegalArgumentException("Not found"));
-        mockMvc.perform(put("/api/debt/admin/debt-note/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().is4xxClientError());
-    }
 
     @Test
     @DisplayName("GET /api/debt/admin/customer/{customerId}/total-debt - success")
