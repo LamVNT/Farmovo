@@ -202,44 +202,13 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                            !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
-                            onClick={() => isOpenSubMenu(5)}
-                        >
-                            <HiOutlineDocumentReport className="text-[20px]"/> <span>Báo cáo</span>
-                            <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
-                                <FaAngleDown className={`transition-all ${submenuIndex === 5 ? 'rotate-180' : ''}`}/>
-                            </span>
-                        </Button>
-                        <Collapse isOpened={submenuIndex === 5}>
-                            <ul className="w-full">
-                                <li className="w-full">
-                                    <Link to="/reports/remain-by-product">
-                                        <Button
-                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaBoxOpen className="text-[16px]"/> Tồn kho theo sản phẩm
-                                        </Button>
-                                    </Link>
-                                </li>
-                                <li className="w-full">
-                                    <Link to="/reports/stocktake-diff">
-                                        <Button
-                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaExclamationTriangle className="text-[16px]"/> Sản phẩm sai lệch
-                                        </Button>
-                                    </Link>
-                                </li>
-                                <li className="w-full">
-                                    <Link to="/reports/expiring-lots">
-                                        <Button
-                                            className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                            <FaClock className="text-[16px]"/> Lô sắp hết hạn
-                                        </Button>
-                                    </Link>
-                                </li>
-                            </ul>
-                        </Collapse>
+                        <Link to="/reports/dashboard">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <HiOutlineDocumentReport className="text-[20px]"/> <span>Báo cáo</span>
+                            </Button>
+                        </Link>
                     </li>
                     <li>
                         <Button

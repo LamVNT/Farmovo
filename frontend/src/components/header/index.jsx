@@ -1,20 +1,21 @@
-import React,{ useContext, useState} from "react";
-import { RiMenu2Line } from "react-icons/ri"
+import React, {useContext, useState} from "react";
+import {RiMenu2Line} from "react-icons/ri"
 import Badge from '@mui/material/Badge';
-import  Button from '@mui/material/Button';
-import { styled } from '@mui/material/styles';
+import Button from '@mui/material/Button';
+import {styled} from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
-import { FaRegBell } from "react-icons/fa6";
-import { FaRegUser } from "react-icons/fa6";
-import { FaSignOutAlt } from "react-icons/fa";
+import {FaRegBell} from "react-icons/fa6";
+import {FaRegUser} from "react-icons/fa6";
+import {FaSignOutAlt} from "react-icons/fa";
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
-import { MyContext } from '../../App.jsx'
-import { Link } from "react-router-dom";
+import {MyContext} from '../../App.jsx'
+import {Link} from "react-router-dom";
+import {getStoreById} from '../../services/storeService';
 
 
-const StyledBadge = styled(Badge)(({ theme }) => ({
+const StyledBadge = styled(Badge)(({theme}) => ({
     '& .MuiBadge-badge': {
         right: -3,
         top: 13,
@@ -33,25 +34,55 @@ const Header = () => {
     };
 
     const context = useContext(MyContext);
+    const [storeName, setStoreName] = useState("");
+    const [user, setUser] = useState(null);
 
-return (
-    <header className={`w-full h-[auto] py-2 shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
+    React.useEffect(() => {
+        // Lấy user từ localStorage
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            const u = JSON.parse(userStr);
+            setUser(u);
+            // Ưu tiên lấy storeName trực tiếp
+            if (u?.storeName) setStoreName(u.storeName);
+            // Nếu không có, lấy theo storeId
+            else if (u?.storeId) {
+                getStoreById(u.storeId).then(store => {
+                    setStoreName(store.storeName || store.name || "");
+                }).catch(() => setStoreName(""));
+            }
+        }
+    }, []);
 
-        <div className='part1 flex items-center' style={{paddingLeft: context.isSidebarOpen ? 256 : 20, transition: 'padding-left 0.3s'}}> {/* 256px = 64 * 4 (pl-64) */}
-            <button
-                className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-indigo-100 transition-all mr-4"
-                style={{fontSize: 28, color: '#4f46e5', zIndex: 20}}
-                onClick={()=>context.setisSidebarOpen(!context.isSidebarOpen)}
-                title={context.isSidebarOpen ? 'Ẩn menu' : 'Hiện menu'}
-            >
-                <RiMenu2Line />
-            </button>
-        </div>
+    return (
+        <header
+            className={`w-full h-[auto] py-2 shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
+
+            <div className='part1 flex items-center' style={{
+                paddingLeft: context.isSidebarOpen ? 256 : 20,
+                transition: 'padding-left 0.3s'
+            }}> {/* 256px = 64 * 4 (pl-64) */}
+                <button
+                    className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-indigo-100 transition-all mr-4"
+                    style={{fontSize: 28, color: '#4f46e5', zIndex: 20}}
+                    onClick={() => context.setisSidebarOpen(!context.isSidebarOpen)}
+                    title={context.isSidebarOpen ? 'Ẩn menu' : 'Hiện menu'}
+                >
+                    <RiMenu2Line/>
+                </button>
+            </div>
+
+            <div className='flex-1 flex items-center justify-center'>
+                {/* Hiển thị tên kho nếu có */}
+                {storeName && (
+                    <span className="text-lg font-semibold text-indigo-700">{storeName}</span>
+                )}
+            </div>
 
             <div className='part2 w-[40%] flex items-center justify-end gap-5'>
                 <IconButton aria-label="cart">
                     <StyledBadge badgeContent={4} color="secondary">
-                        <FaRegBell />
+                        <FaRegBell/>
                     </StyledBadge>
                 </IconButton>
 
@@ -62,7 +93,7 @@ return (
                         <div className="relative">
                             <div className="rounded-full w-[30px] h-[30px] overflow-hidden cursor-pointer"
                                  onClick={handleClickMyAcc}>
-                                <img src="https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"
+                                <img src={user?.avatar || "https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"}
                                      className="w-full h-full object-cover"/>
                             </div>
 
@@ -106,25 +137,23 @@ return (
                                 <MenuItem onClick={handleCloseMyAcc} className="!bg-white">
                                     <div className="flex items-center gap-3">
                                         <div className="rounded-full w-[30px] h-[30px] overflow-hidden cursor-pointer">
-                                            <img src="https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"
-                                                 className="w-full h-full object-cover"/>
+                                            <img
+                                                src={user?.avatar || "https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"}
+                                                className="w-full h-full object-cover"/>
                                         </div>
-
                                         <div className="info">
-                                            <h3 className="text-[16px] font-[500] leading-5">Vu Nguyen Tung Lam</h3>
-                                            <p className="text-[13px] font-[400] opacity-70">admin@gmail.com</p>
+                                            <h3 className="text-[16px] font-[500] leading-5">{user?.fullName || user?.username || "User"}</h3>
+                                            <p className="text-[13px] font-[400] opacity-70">{user?.email || ""}</p>
                                         </div>
                                     </div>
                                 </MenuItem>
                                 <Divider/>
 
 
-
                                 <MenuItem component={Link} to="/profile" className="flex items-center gap-3">
-                                    <FaRegUser className="text-[16px]" />
+                                    <FaRegUser className="text-[16px]"/>
                                     <span className="text-[14px]">Profile</span>
                                 </MenuItem>
-
 
 
                                 <MenuItem onClick={handleCloseMyAcc} className="flex items-center gap-3">

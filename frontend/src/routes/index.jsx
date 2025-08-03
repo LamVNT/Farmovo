@@ -32,6 +32,7 @@ import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
+import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
 
 const router = createBrowserRouter([
     {
@@ -265,11 +266,53 @@ const router = createBrowserRouter([
     },
     {
         path: "/reports/stocktake-diff",
-        element: <StocktakeDiffReport/>,
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StocktakeDiffReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
     {
         path: "/reports/expiring-lots",
-        element: <ExpiringLotsReport/>,
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <ExpiringLotsReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/dashboard",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <DashboardReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/remain-summary",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <RemainSummaryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/inout-summary",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <InOutSummaryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
     {
         path: "/customers",
