@@ -10,10 +10,6 @@ import com.farmovo.backend.services.CategoryService;
 import com.farmovo.backend.validator.CategoryValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import com.farmovo.backend.specification.CategorySpecification;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -72,13 +68,5 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
         categoryRepository.delete(category);
-    }
-
-    @Override
-    public Page<CategoryResponseDto> searchCategories(String name, String description, Pageable pageable) {
-        Specification<Category> spec = Specification.where(CategorySpecification.isNotDeleted())
-                .and(CategorySpecification.hasName(name))
-                .and(CategorySpecification.hasDescription(description));
-        return categoryRepository.findAll(spec, pageable).map(categoryMapper::toResponseDto);
     }
 }

@@ -23,7 +23,8 @@ import {
     DialogTitle,
     DialogContent,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    TablePagination
 } from "@mui/material";
 import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -74,6 +75,9 @@ const CreateStocktakePage = () => {
     const [lots, setLots] = useState([]); // luôn khởi tạo là []
     // Khôi phục dữ liệu đã nhập từ localStorage nếu có (chỉ khi tạo mới, không phải editMode)
     const [confirmCompleteDialog, setConfirmCompleteDialog] = useState(false);
+    // 1. Thêm state phân trang
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -85,45 +89,28 @@ const CreateStocktakePage = () => {
         }
     }, []);
 
-    // Lấy danh sách lô khi filter hoặc products thay đổi
+    // Khi vào trang, fetch tất cả các lô thuộc kho user đăng nhập
     useEffect(() => {
-        // Nếu đang ở chế độ chỉnh sửa và chưa tải dữ liệu phiếu, bỏ qua việc tải lô theo filter
-        if (id && !dataLoaded) return;
-
-        if (products.length === 0) return; // Chỉ fetch lots khi đã có products
-        // Chỉ fetch lots khi có thao tác search hoặc lọc (zone/product/search)
-        // Nếu filter.product có giá trị thì vẫn fetch lots, không cần filter.zone
-        if (!filter.search && !filter.product && !filter.zone) {
-            setLots([]);
-            return;
-        }
+        if (products.length === 0) return;
         const fetchLots = async () => {
             setLoadingLots(true);
             try {
                 const params = new URLSearchParams();
                 if (filter.store) params.append('store', filter.store);
-                if (filter.zone) params.append('zone', filter.zone);
-                if (filter.product) params.append('product', filter.product);
-                if (filter.batchCode) params.append('batchCode', filter.batchCode);
-                if (filter.search) params.append('search', filter.search);
+                // Không filter zone, product, search nữa
                 const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
-                // Chuẩn hóa lại lots: đảm bảo có productId và zoneIds (có thể là mảng)
                 const lotsData = (res.data || []).map(lot => {
                     let zoneIds = lot.zoneIds || lot.zones_id || lot.zoneId || lot.zone_id || [];
                     if (typeof zoneIds === 'string') {
-                        zoneIds = zoneIds.split(',').map(z => z.trim()).filter(Boolean);
+                        zoneIds = zoneIds.split(',').map(z => Number(z.trim())).filter(Boolean);
                     }
                     if (!Array.isArray(zoneIds)) {
-                        zoneIds = zoneIds ? [zoneIds] : [];
+                        zoneIds = zoneIds ? [Number(zoneIds)] : [];
                     }
-                    // Map productId từ products dựa vào productName (so sánh trim, không phân biệt hoa thường)
                     let productId = lot.productId || lot.product?.id || lot.product_id || '';
                     if (!productId && lot.productName && products.length > 0) {
                         const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
                         if (found) productId = found.id;
-                    }
-                    if (!productId) {
-                        console.warn('[DEBUG] Không tìm thấy productId cho lô:', lot);
                     }
                     return {
                         ...lot,
@@ -132,11 +119,6 @@ const CreateStocktakePage = () => {
                         zoneId: zoneIds[0] || '',
                     };
                 });
-                // Log tất cả các lô bị thiếu productId
-                const missingProductIdLots = lotsData.filter(lot => !lot.productId);
-                if (missingProductIdLots.length > 0) {
-                    console.warn('[DEBUG] Các lô bị thiếu productId:', missingProductIdLots);
-                }
                 setLots(lotsData);
             } catch (err) {
                 setLots([]);
@@ -146,144 +128,10 @@ const CreateStocktakePage = () => {
             }
         };
         fetchLots();
-    }, [filter, products, id, dataLoaded]);
+    }, [products, filter.store]);
 
-    // Nếu có id trên URL, load dữ liệu phiếu kiểm kê (enrich lại từ API lots theo batchCode)
-    useEffect(() => {
-        if (id && !dataLoaded) {
-            getStocktakeById(id).then(data => {
-                if (!data) {
-                    console.error("Stocktake data is null/undefined!", data);
-                    setDataLoaded(true);
-                    return;
-                }
-                console.log("Stocktake data from API:", data);
-                setEditMode(true);
-                setStocktakeStatus(data.status);
-                setFilter(f => ({...f, store: data.storeId}));
-
-                // Lấy dữ liệu từ detail thay vì rawDetail
-                let detailData = data.detail || [];
-                console.log("Detail data before parsing:", detailData);
-
-                if (typeof detailData === 'string') {
-                    try {
-                        detailData = JSON.parse(detailData);
-                        console.log("Detail data after parsing:", detailData);
-                    } catch (e) {
-                        console.error("Error parsing detail data:", e);
-                        detailData = [];
-                    }
-                }
-
-                // Đảm bảo detailData là array
-                if (!Array.isArray(detailData)) {
-                    console.warn("detailData is not an array, converting to empty array");
-                    detailData = [];
-                }
-
-                const batchCodes = detailData.map(lot => lot.batchCode).filter(Boolean);
-                console.log("Batch codes extracted:", batchCodes); // Log các batchCode
-
-                if (batchCodes.length > 0) {
-                    // Thay đổi cách gọi API: gọi riêng lẻ cho từng batchCode và gộp kết quả
-                    console.log("Calling API for individual batch codes");
-
-                    // Tạo mảng các promise gọi API cho từng batchCode
-                    const batchPromises = batchCodes.map(code =>
-                        axios.get(`/import-details/stocktake-lot?batchCode=${code}`)
-                            .then(res => {
-                                console.log(`API response for batch code ${code}:`, res.data);
-                                return res.data;
-                            })
-                            .catch(err => {
-                                console.error(`Error fetching batch code ${code}:`, err);
-                                return [];
-                            })
-                    );
-
-                    // Đợi tất cả các promise hoàn thành
-                    Promise.all(batchPromises)
-                        .then(results => {
-                            // Gộp kết quả từ tất cả các API call
-                            const combinedLotsData = results.flat();
-                            console.log("Combined results from all API calls:", combinedLotsData);
-
-                            if (combinedLotsData.length > 0) {
-                                const enrichedLots = detailData.map(lot => {
-                                    const enrich = combinedLotsData.find(l => l.name === lot.batchCode);
-                                    console.log(`Matching for batch code ${lot.batchCode}:`, enrich ? "Found" : "Not found");
-
-                                    return {
-                                        ...enrich,
-                                        ...lot,
-                                        id: enrich?.id || lot.id,
-                                        batchCode: lot.batchCode || enrich?.name,
-                                        productId: lot.productId || enrich?.productId,
-                                        productName: lot.productName || enrich?.productName,
-                                        zones_id: enrich?.zonesId || enrich?.zones_id || lot.zones_id,
-                                        zoneName: enrich?.zoneName || lot.zoneName,
-                                        remain: enrich?.remainQuantity || lot.remain,
-                                        expireDate: enrich?.expireDate || lot.expireDate,
-                                    };
-                                });
-
-                                console.log("Final enriched lots:", enrichedLots);
-                                setSelectedLots(enrichedLots);
-                            } else {
-                                console.warn("All API calls returned empty data");
-                                setSelectedLots(detailData);
-                            }
-                        })
-                        .catch(err => {
-                            console.error("Error in batch API calls:", err);
-                            setSelectedLots(detailData);
-                        })
-                        .finally(() => {
-                            // Đánh dấu đã tải dữ liệu xong
-                            setDataLoaded(true);
-                        });
-                } else {
-                    console.log("No batch codes found, using detail data directly");
-                    setSelectedLots(detailData);
-                    // Đánh dấu đã tải dữ liệu xong
-                    setDataLoaded(true);
-                }
-            }).catch(err => {
-                console.error("Error fetching stocktake:", err);
-                // Đánh dấu đã tải dữ liệu (dù có lỗi) để không bị lặp lại
-                setDataLoaded(true);
-            });
-        }
-
-        // Hàm xử lý dữ liệu lô từ API
-        function processLotsData(detailData, lotsData) {
-            console.log("Processing lots data. Detail data:", detailData.length, "Lots data:", lotsData.length);
-
-            const enrichedLots = detailData.map(lot => {
-                const enrich = lotsData.find(l => l.name === lot.batchCode);
-                console.log(`Matching for batch code ${lot.batchCode}:`, enrich ? "Found" : "Not found");
-
-                return {
-                    ...enrich,
-                    ...lot,
-                    id: enrich?.id || lot.id,
-                    batchCode: lot.batchCode || enrich?.name,
-                    productId: lot.productId || enrich?.productId,
-                    productName: lot.productName || enrich?.productName,
-                    zones_id: enrich?.zonesId || enrich?.zones_id || lot.zones_id,
-                    zoneName: enrich?.zoneName || lot.zoneName,
-                    remain: enrich?.remainQuantity || lot.remain,
-                    expireDate: enrich?.expireDate || lot.expireDate,
-                };
-            });
-
-            console.log("Final enriched lots:", enrichedLots);
-            setSelectedLots(enrichedLots);
-        }
-    }, [id]);
-
-    // Xóa useEffect enrich selectedLots theo lots và rawDetail cũ (nếu còn)
+    // Xóa toàn bộ UI/logic Danh sách lô phù hợp, chỉ còn table Danh sách lô hàng (lots)
+    // Table này cho phép chọn nhiều lô, nhập số thực tế, ghi chú, ... như cũ
 
     // Luôn lưu selectedLots vào localStorage khi thay đổi (chỉ khi tạo mới, không phải editMode)
     useEffect(() => {
@@ -324,7 +172,7 @@ const CreateStocktakePage = () => {
 
     // Nhập số thực tế, ghi chú, tick isCheck
     const handleLotChange = (idx, field, value) => {
-        setSelectedLots(prev => prev.map((lot, i) => {
+        setLots(prev => prev.map((lot, i) => {
             if (i !== idx) return lot;
             let newLot = {...lot, [field]: value};
             if (field === 'real') {
@@ -337,11 +185,11 @@ const CreateStocktakePage = () => {
 
     // Validate và submit
     const handleSubmit = async (status) => {
-        if (!Array.isArray(selectedLots) || selectedLots.length === 0) {
+        if (!Array.isArray(lots) || lots.length === 0) {
             setSnackbar({isOpen: true, message: "Vui lòng chọn ít nhất một lô để kiểm kê!", severity: "error"});
             return;
         }
-        const missingProductIdLots = selectedLots.filter(lot => !lot.productId);
+        const missingProductIdLots = lots.filter(lot => !lot.productId);
         if (missingProductIdLots.length > 0) {
             setSnackbar({
                 isOpen: true,
@@ -351,7 +199,7 @@ const CreateStocktakePage = () => {
             console.warn('[DEBUG] Không thể submit, các lô thiếu productId:', missingProductIdLots);
             return;
         }
-        for (const lot of selectedLots) {
+        for (const lot of lots) {
             if (lot.real === '' || isNaN(Number(lot.real))) {
                 setSnackbar({
                     isOpen: true,
@@ -370,7 +218,7 @@ const CreateStocktakePage = () => {
             }
         }
         // Chuẩn hóa dữ liệu gửi backend: cần cả productId
-        const detail = selectedLots.map(lot => ({
+        const detail = lots.map(lot => ({
             batchCode: lot.name,
             zones_id: lot.zonesId,
             productId: lot.productId,
@@ -405,7 +253,7 @@ const CreateStocktakePage = () => {
                     severity: "success"
                 });
             }
-            setSelectedLots([]);
+            setLots([]);
             localStorage.removeItem('stocktake_create_selected_lots');
             navigate("/stocktake", {state: {successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!"}});
         } catch (err) {
@@ -439,7 +287,7 @@ const CreateStocktakePage = () => {
     return (
         <Box sx={{maxWidth: 1200, margin: "40px auto", background: "#fff", p: 4, borderRadius: 3, boxShadow: 2}}>
             <Typography variant="h5" fontWeight={700} mb={2}>Tạo phiếu kiểm kê mới</Typography>
-            <Box sx={{display: 'flex', gap: 2, mb: 2, alignItems: 'center'}}>
+            <Box sx={{display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap'}}>
                 <Box sx={{position: 'relative'}}>
                     <TextField
                         size="small"
@@ -451,12 +299,10 @@ const CreateStocktakePage = () => {
                         }}
                         onFocus={e => setShowSuggestions(!!filter.search)}
                         inputRef={el => setSearchAnchorEl(el)}
-                        sx={{minWidth: 250, width: 380}}
+                        sx={{minWidth: 250, width: 320}}
                         InputProps={{
                             endAdornment: (
-                                <IconButton size="small" onClick={() => setFilterDialogOpen(true)} sx={{mx: 0.5}}>
-                                    <FilterListIcon/>
-                                </IconButton>
+                                <></>
                             )
                         }}
                     />
@@ -507,54 +353,39 @@ const CreateStocktakePage = () => {
                         </ClickAwayListener>
                     </Popper>
                 </Box>
-                {/* ĐÃ DI CHUYỂN filter zone và sản phẩm vào dialog, ngoài này KHÔNG còn */}
+                {/* Bộ lọc Zone */}
+                <FormControl size="small" sx={{minWidth: 150}}>
+                    <InputLabel>Khu vực</InputLabel>
+                    <Select
+                        value={filter.zone}
+                        label="Khu vực"
+                        onChange={e => {
+                            setFilter(f => ({...f, zone: e.target.value}));
+                        }}
+                    >
+                        <MenuItem value="">Tất cả</MenuItem>
+                        {zones.map(z => <MenuItem key={z.id} value={z.id}>{z.zoneName}</MenuItem>)}
+                    </Select>
+                </FormControl>
+                {/* Bộ lọc Sản phẩm */}
+                <FormControl size="small" sx={{minWidth: 150}}>
+                    <InputLabel>Sản phẩm</InputLabel>
+                    <Select
+                        value={filter.product}
+                        label="Sản phẩm"
+                        onChange={e => {
+                            setFilter(f => ({...f, product: e.target.value, search: ''}));
+                        }}
+                    >
+                        <MenuItem value="">Tất cả</MenuItem>
+                        {products.map(p => (
+                            <MenuItem key={p.id} value={p.id}>{p.productName}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
             </Box>
-            {/* Chỉ hiển thị danh sách lô khi có thao tác search/lọc */}
-            {(filter.search || filter.zone || filter.product) && (
-                <>
-                    <Typography variant="subtitle1" fontWeight={600} mb={1}>Danh sách lô phù hợp</Typography>
-                    <TableContainer component={Paper} elevation={1}
-                                    sx={{mb: 2, borderRadius: 2, minWidth: isMobile ? '100%' : 700}}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow sx={{background: "#f5f5f5"}}>
-                                    <TableCell padding="checkbox"></TableCell>
-                                    <TableCell><b>Mã lô</b></TableCell>
-                                    {!isMobile && <TableCell><b>Khu vực</b></TableCell>}
-                                    <TableCell><b>Sản phẩm</b></TableCell>
-                                    <TableCell><b>Tồn kho</b></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {loadingLots ? (
-                                    <TableRow><TableCell colSpan={isMobile ? 4 : 5} align="center"><CircularProgress
-                                        size={24}/></TableCell></TableRow>
-                                ) : lots.length === 0 ? (
-                                    <TableRow><TableCell colSpan={isMobile ? 4 : 5} align="center">Không có lô phù
-                                        hợp</TableCell></TableRow>
-                                ) : lots.map((lot, idx) => (
-                                    <TableRow key={lot.id} hover>
-                                        <TableCell padding="checkbox">
-                                            <Checkbox
-                                                checked={Array.isArray(selectedLots) && selectedLots.some(l => l.id === lot.id)}
-                                                onChange={e => {
-                                                    if (e.target.checked) handleSelectLot(lot);
-                                                    else setSelectedLots(prev => prev.filter(l => l.id !== lot.id));
-                                                }}
-                                            />
-                                        </TableCell>
-                                        <TableCell>{lot.name}</TableCell>
-                                        {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
-                                        <TableCell>{lot.productName || lot.productId}</TableCell>
-                                        <TableCell>{lot.remainQuantity}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </>
-            )}
-            <Typography variant="subtitle1" fontWeight={600} mb={1}>Các lô đã chọn để kiểm kê</Typography>
+            {/* Không render bảng này nữa */}
+            <Typography variant="subtitle1" fontWeight={600} mb={1}>Danh sách lô hàng</Typography>
             <TableContainer component={Paper} elevation={1} sx={{mb: 2, borderRadius: 2}}>
                 <Table size="small">
                     <TableHead>
@@ -574,94 +405,125 @@ const CreateStocktakePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {(Array.isArray(selectedLots) ? selectedLots.length : 0) === 0 ? (
-                            <TableRow><TableCell colSpan={isMobile ? 5 : 12} align="center">Chưa có lô nào được
-                                chọn</TableCell></TableRow>
-                        ) : selectedLots.map((lot, idx) => (
-                            <TableRow
-                                key={(lot.batchCode || lot.name || 'row') + '-' + (lot.productId || '') + '-' + idx}
-                                hover>
-                                <TableCell>{idx + 1}</TableCell>
-                                <TableCell>{lot.name || lot.batchCode}</TableCell>
-                                {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
-                                <TableCell>{lot.productName || lot.productId}</TableCell>
-                                {!isMobile && <TableCell>{lot.remainQuantity}</TableCell>}
-                                {!isMobile &&
-                                    <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>}
-                                <TableCell>
-                                    <TextField
-                                        type="number"
-                                        size="small"
-                                        value={lot.real}
-                                        onChange={e => handleLotChange(idx, 'real', e.target.value)}
-                                        inputProps={{min: 0}}
-                                        fullWidth
-                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                    />
-                                </TableCell>
-                                {!isMobile && <TableCell>
-                                    <FormControl size="small" fullWidth>
-                                        <Select
-                                            multiple
-                                            value={Array.isArray(lot.zoneReal) ? lot.zoneReal : (lot.zoneReal ? lot.zoneReal.split(',') : [])}
-                                            onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
-                                            disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                            renderValue={selected => selected
-                                                .map(id => {
-                                                    const z = zones.find(z => z.id === id || z.id === Number(id));
-                                                    return z ? z.zoneName : id;
-                                                })
-                                                .join(', ')}
-                                        >
-                                            {zones.map(z => (
-                                                <MenuItem key={z.id} value={z.id}>
-                                                    <Checkbox
-                                                        checked={Array.isArray(lot.zoneReal) ? lot.zoneReal.indexOf(z.id) > -1 : false}/>
-                                                    <Typography>{z.zoneName}</Typography>
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </TableCell>}
-                                <TableCell sx={lot.diff !== 0 ? {background: '#ffeaea'} : {}}>{lot.diff}</TableCell>
-                                {!isMobile && <TableCell>
-                                    <Checkbox
-                                        checked={!!lot.isCheck}
-                                        onChange={e => handleLotChange(idx, 'isCheck', e.target.checked)}
-                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                    />
-                                </TableCell>}
-                                {!isMobile && <TableCell>
-                                    <TextField
-                                        size="small"
-                                        value={lot.note}
-                                        onChange={e => handleLotChange(idx, 'note', e.target.value)}
-                                        fullWidth
-                                        multiline
-                                        minRows={1}
-                                        maxRows={4}
-                                        inputProps={{maxLength: 255}}
-                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                    />
-                                </TableCell>}
-                                <TableCell align="center">
-                                    <Tooltip title="Xóa lô này khỏi phiếu kiểm kê">
-                                        <span>
-                                            <IconButton color="error" onClick={() => handleRemoveLot(lot.id)}
-                                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}>
-                                                <DeleteIcon/>
-                                            </IconButton>
-                                        </span>
-                                    </Tooltip>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {(lots.length === 0) ? (
+                            <TableRow><TableCell colSpan={isMobile ? 5 : 12} align="center">Chưa có lô nào</TableCell></TableRow>
+                        ) : (
+                            lots
+                                .filter(lot => {
+                                    // Áp dụng filter/search trực tiếp khi render
+                                    const matchSearch = !filter.search ||
+                                        (lot.name && lot.name.toLowerCase().includes(filter.search.toLowerCase())) ||
+                                        (lot.productName && lot.productName.toLowerCase().includes(filter.search.toLowerCase()));
+                                    const matchZone = !filter.zone || (lot.zoneIds && lot.zoneIds.includes(Number(filter.zone)));
+                                    const matchProduct = !filter.product || lot.productId === filter.product || lot.productId === Number(filter.product);
+                                    return matchSearch && matchZone && matchProduct;
+                                })
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((lot, idx) => (
+                                    <TableRow
+                                        key={(lot.batchCode || lot.name || 'row') + '-' + (lot.productId || '') + '-' + idx}
+                                        hover>
+                                        <TableCell>{idx + 1}</TableCell>
+                                        <TableCell>{lot.name || lot.batchCode}</TableCell>
+                                        {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
+                                        <TableCell>{lot.productName || lot.productId}</TableCell>
+                                        {!isMobile && <TableCell>{lot.remainQuantity}</TableCell>}
+                                        {!isMobile &&
+                                            <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>}
+                                        <TableCell>
+                                            <TextField
+                                                type="number"
+                                                size="small"
+                                                value={lot.real || ''}
+                                                onChange={e => handleLotChange(idx, 'real', e.target.value)}
+                                                inputProps={{min: 0}}
+                                                fullWidth
+                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                            />
+                                        </TableCell>
+                                        {!isMobile && <TableCell>
+                                            <FormControl size="small" fullWidth>
+                                                <Select
+                                                    multiple
+                                                    value={Array.isArray(lot.zoneReal) ? lot.zoneReal : (lot.zoneReal ? lot.zoneReal.split(',') : [])}
+                                                    onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
+                                                    disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                    renderValue={selected => selected
+                                                        .map(id => {
+                                                            const z = zones.find(z => z.id === id || z.id === Number(id));
+                                                            return z ? z.zoneName : id;
+                                                        })
+                                                        .join(', ')}
+                                                >
+                                                    {zones.map(z => (
+                                                        <MenuItem key={z.id} value={z.id}>
+                                                            <Checkbox
+                                                                checked={Array.isArray(lot.zoneReal) ? lot.zoneReal.indexOf(z.id) > -1 : false}/>
+                                                            <Typography>{z.zoneName}</Typography>
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </TableCell>}
+                                        <TableCell sx={lot.diff !== 0 ? {background: '#ffeaea'} : {}}>{lot.diff}</TableCell>
+                                        {!isMobile && <TableCell>
+                                            <Checkbox
+                                                checked={!!lot.isCheck}
+                                                onChange={e => handleLotChange(idx, 'isCheck', e.target.checked)}
+                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                            />
+                                        </TableCell>}
+                                        {!isMobile && <TableCell>
+                                            <TextField
+                                                size="small"
+                                                value={lot.note || ''}
+                                                onChange={e => handleLotChange(idx, 'note', e.target.value)}
+                                                fullWidth
+                                                multiline
+                                                minRows={1}
+                                                maxRows={4}
+                                                inputProps={{maxLength: 255}}
+                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                            />
+                                        </TableCell>}
+                                        <TableCell align="center">
+                                            <Tooltip title="Xóa lô này khỏi phiếu kiểm kê">
+                                                <span>
+                                                    <IconButton color="error" onClick={() => handleRemoveLot(lot.id)}
+                                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}>
+                                                        <DeleteIcon/>
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                        )}
                     </TableBody>
                 </Table>
+                <TablePagination
+                    component="div"
+                    count={lots.filter(lot => {
+                        const matchSearch = !filter.search ||
+                            (lot.name && lot.name.toLowerCase().includes(filter.search.toLowerCase())) ||
+                            (lot.productName && lot.productName.toLowerCase().includes(filter.search.toLowerCase()));
+                        const matchZone = !filter.zone || (lot.zoneIds && lot.zoneIds.includes(Number(filter.zone)));
+                        const matchProduct = !filter.product || lot.productId === filter.product || lot.productId === Number(filter.product);
+                        return matchSearch && matchZone && matchProduct;
+                    }).length}
+                    page={page}
+                    onPageChange={(e, newPage) => setPage(newPage)}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={e => {
+                        setRowsPerPage(parseInt(e.target.value, 10));
+                        setPage(0);
+                    }}
+                    rowsPerPageOptions={[10, 20, 50]}
+                />
             </TableContainer>
             <Box sx={{mt: 3, display: "flex", justifyContent: "flex-end", gap: 2, flexWrap: 'wrap'}}>
                 <Button onClick={() => {
-                    setSelectedLots([]);
+                    setLots([]);
                     localStorage.removeItem('stocktake_create_selected_lots');
                     navigate("/stocktake");
                 }}>Hủy</Button>
@@ -734,48 +596,6 @@ const CreateStocktakePage = () => {
                 message={snackbar.message}
                 severity={snackbar.severity}
             />
-            {/* Dialog bộ lọc nhóm hàng chỉ UI, không ảnh hưởng logic filter thực tế */}
-            <Dialog open={filterDialogOpen} onClose={() => setFilterDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{fontWeight: 700}}>Bộ lọc</DialogTitle>
-                <DialogContent>
-                    <Box sx={{display: 'flex', gap: 2, mb: 2}}>
-                        <FormControl size="small" sx={{minWidth: 150}}>
-                            <InputLabel>Khu vực</InputLabel>
-                            <Select
-                                value={filter.zone}
-                                label="Khu vực"
-                                onChange={e => {
-                                    // Khi chọn 'Tất cả', set zone về rỗng để hiển thị tất cả bản ghi
-                                    setFilter(f => ({...f, zone: e.target.value}));
-                                }}
-                            >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {zones.map(z => <MenuItem key={z.id} value={z.id}>{z.zoneName}</MenuItem>)}
-                            </Select>
-                        </FormControl>
-                        <FormControl size="small" sx={{minWidth: 150}}>
-                            <InputLabel>Sản phẩm</InputLabel>
-                            <Select
-                                value={filter.product}
-                                label="Sản phẩm"
-                                onChange={e => {
-                                    // Khi chọn sản phẩm, reset filter.search để ưu tiên lọc theo productId
-                                    setFilter(f => ({...f, product: e.target.value, search: ''}));
-                                }}
-                            >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {products.map(p => (
-                                    <MenuItem key={p.id} value={p.id}>{p.productName}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Box>
-                    <Box sx={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 2}}>
-                        <Button onClick={() => setFilterDialogOpen(false)} sx={{mr: 1}}>Bỏ qua</Button>
-                        <Button variant="contained" onClick={() => setFilterDialogOpen(false)}>Xong</Button>
-                    </Box>
-                </DialogContent>
-            </Dialog>
         </Box>
     );
 };

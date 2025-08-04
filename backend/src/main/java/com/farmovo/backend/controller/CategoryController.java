@@ -9,10 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -26,18 +22,6 @@ public class CategoryController {
     @GetMapping
     public ResponseEntity<List<CategoryResponseDto>> getAllCategories() {
         return ResponseEntity.ok(categoryService.getAllActiveCategories());
-    }
-
-    @GetMapping("/paged")
-    public ResponseEntity<Page<CategoryResponseDto>> getCategoriesPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String description
-    ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<CategoryResponseDto> result = categoryService.searchCategories(name, description, pageable);
-        return ResponseEntity.ok(result);
     }
 
     @PostMapping
