@@ -1,9 +1,9 @@
 import api from './axiosClient';
 
 const API_URL = '/categories';
-export const getCategories = async () => {
+export const getCategories = async (params = {}) => {
     try {
-        const response = await api.get(API_URL);
+        const response = await api.get(`${API_URL}/paged`, { params });
         return response.data;
     } catch (error) {
         console.error('Error fetching categories:', error);
