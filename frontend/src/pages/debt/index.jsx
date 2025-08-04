@@ -5,12 +5,6 @@ import {
     Typography,
     Button,
     Box,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    TablePagination,
     TextField,
     InputAdornment,
     IconButton,
@@ -20,6 +14,7 @@ import {
     Tabs,
     Tab
 } from "@mui/material";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SearchIcon from '@mui/icons-material/Search';
@@ -97,6 +92,17 @@ const DebtManagement = () => {
         fetchDebtNotes(selectedCustomerId);
     };
 
+    const handleOpenDebtTable = (custId) => {
+        if (custId === selectedCustomerId) {
+            setDebtTableOpen(true);
+            // optionally refetch
+            fetchDebtNotes(custId);
+        } else {
+            setSelectedCustomerId(custId);
+        }
+    };
+
+
     const handleViewDebtNote = (debtNote) => {
         if (debtNote) {
             setSelectedDebtNote(debtNote);
@@ -164,6 +170,34 @@ const DebtManagement = () => {
             address.includes(search)
         );
     });
+    // DataGrid columns definition
+    const columns = [
+        { field: 'name', headerName: 'Tên', flex: 1 },
+        { field: 'phone', headerName: 'Số điện thoại', flex: 1 },
+        { field: 'address', headerName: 'Địa chỉ', flex: 1.5 },
+        {
+            field: 'typeLabel', headerName: 'Loại khách hàng', flex: 1, renderCell: (params) => (
+                <span style={{
+                    padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500,
+                    backgroundColor: params.row.isSupplier ? '#e3f2fd' : '#f3e5f5',
+                    color: params.row.isSupplier ? '#1976d2' : '#7b1fa2'
+                }}>
+                    {params.value}
+                </span>
+            )
+        },
+        {
+            field: 'totalDebt', headerName: 'Tổng nợ', flex: 1, renderCell: (params) => formatTotalDebt(params.value)
+        },
+        {
+            field: 'actions', headerName: 'Hành động', flex: 0.6, sortable: false, filterable: false, renderCell: (params) => (
+                <IconButton color="primary" onClick={() => handleOpenDebtTable(params.row.id)} disabled={!params.row.id}>
+                    <VisibilityIcon />
+                </IconButton>
+            )
+        }
+    ];
+
     const paginatedCustomers = filteredCustomers.slice(customerPage * customerRowsPerPage, customerPage * customerRowsPerPage + customerRowsPerPage);
 
     const handleDebtNotesPageChange = (event, newPage) => {
@@ -281,7 +315,30 @@ const DebtManagement = () => {
                     <ToggleButton value="supplier">Nhà cung cấp</ToggleButton>
                 </ToggleButtonGroup>
             </Stack>
-            <div style={{ width: '100%', overflowX: 'auto' }}>
+            <div style={{ height: 520, width: '100%' }}>
+                <DataGrid
+                    rows={filteredCustomers.map((cust, idx) => ({
+                        id: cust.id || idx,
+                        name: cust.name || 'N/A',
+                        phone: cust.phone || 'N/A',
+                        address: cust.address || 'N/A',
+                        typeLabel: cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua',
+                        isSupplier: cust.isSupplier,
+                        totalDebt: cust.totalDebt,
+                    }))}
+                    columns={columns}
+                    pageSize={customerRowsPerPage}
+                    rowsPerPageOptions={[5,10,25,50,100]}
+                    pagination
+                    page={customerPage}
+                    onPageChange={(p)=>setCustomerPage(p)}
+                    onPageSizeChange={(n)=>{setCustomerRowsPerPage(n); setCustomerPage(0);}}
+                    components={{ Toolbar: GridToolbar }}
+                    sx={{ '& .MuiDataGrid-columnHeaders': { backgroundColor: '#e3f2fd', fontWeight:'bold' }, borderRadius:2, boxShadow:2 }}
+                />
+            </div>
+            {/* Legacy table removed */}
+                {/*
                 <Table>
                     <TableHead>
                         <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
@@ -314,7 +371,7 @@ const DebtManagement = () => {
                                     </TableCell>
                                     <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
                                     <TableCell>
-                                        <IconButton color="primary" onClick={() => setSelectedCustomerId(cust.id)} disabled={!cust.id}>
+                                        <IconButton color="primary" onClick={() => handleOpenDebtTable(cust.id)} disabled={!cust.id}>
                                             <VisibilityIcon />
                                         </IconButton>
                                     </TableCell>
@@ -336,7 +393,7 @@ const DebtManagement = () => {
                     onRowsPerPageChange={handleCustomerRowsPerPageChange}
                     rowsPerPageOptions={[5, 10, 25]}
                 />
-            </div>
+                */}
 
             {/* Chú thích ký hiệu tổng nợ */}
             <Typography variant="body2" align="right" sx={{ mt: 2 }}>

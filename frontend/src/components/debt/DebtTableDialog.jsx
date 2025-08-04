@@ -1,196 +1,273 @@
 import React, { useState } from "react";
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
+    Button,
     Table,
     TableBody,
     TableCell,
+    TableContainer,
     TableHead,
-    TableRow,
-    Button,
     TablePagination,
+    TableRow,
+    Paper,
+    IconButton,
+    Stack,
     TextField,
-    InputAdornment,
-    IconButton
+    Box,
+    Typography,
 } from "@mui/material";
-import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { useNavigate } from "react-router-dom";
+import ImageIcon from "@mui/icons-material/Image";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import AddDebtDialog from "./AddDebtDialog";
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { formatCurrency } from "../../utils/formatters";
 
-const DebtTableDialog = ({ open, onClose, debtNotes, onEdit, customer, totalDebt, onAddDebt, addDialogOpen, onAddDialogClose, onAddDebtNote, debtNotesPage, debtNotesRowsPerPage, debtNotesTotalPages, debtNotesTotalItems, onDebtNotesPageChange, onDebtNotesRowsPerPageChange, fromDate, toDate, onDateFilterChange }) => {
-    const [search, setSearch] = useState("");
-    const [localFromDate, setLocalFromDate] = useState(fromDate);
-    const [localToDate, setLocalToDate] = useState(toDate);
-    const handleSearchChange = (e) => {
-        setSearch(e.target.value);
-    };
-    const filteredNotes = debtNotes
-        ? debtNotes.filter(note => {
-            const desc = note.debtDescription?.toLowerCase() || "";
-            const type = note.debtType || "";
-            return (
-                desc.includes(search.toLowerCase()) ||
-                type.includes(search.toLowerCase())
-            );
-        })
-        : [];
-    const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
-        if (totalDebt < 0) {
-            return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
-            );
+const DebtTableDialog = ({
+    open,
+    onClose,
+    debtNotes = [],
+    onEdit,
+    customer,
+    totalDebt,
+    onAddDebt,
+    addDialogOpen,
+    onAddDialogClose,
+    onAddDebtNote,
+    debtNotesPage = 0,
+    debtNotesRowsPerPage = 10,
+    debtNotesTotalItems = 0,
+    onDebtNotesPageChange,
+    onDebtNotesRowsPerPageChange,
+    fromDate,
+    toDate,
+    onDateFilterChange,
+}) => {
+        const navigate = useNavigate();
+    // evidence dialog state
+    const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState(null);
+
+    const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
+    // Local state cho bộ lọc ngày
+    const [localFromDate, setLocalFromDate] = useState(fromDate || null);
+    const [localToDate, setLocalToDate] = useState(toDate || null);
+
+    const handleFilterApply = () => {
+        if (onDateFilterChange) {
+            onDateFilterChange(localFromDate, localToDate);
         }
-        return (
-            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
-        );
     };
 
-    const formatDebtType = (debtType) => {
-        if (debtType === "+") return "Cửa Hàng Nợ";
-        if (debtType === "-") return "Khách Hàng Nợ";
-        return debtType || "N/A";
+    const handleShowAll = () => {
+        setLocalFromDate(null);
+        setLocalToDate(null);
+        if (onDateFilterChange) {
+            onDateFilterChange(null, null);
+        }
     };
 
-    const formatFromSource = (fromSource) => {
-        if (fromSource === "SALE") return "Đơn Bán";
-        if (fromSource === "IMPORT" || fromSource === "PURCHASE") return "Đơn Nhập";
-        if (fromSource === "MANUAL") return "Đơn tự nhập";
-        return fromSource || "N/A";
+
+    const paginatedRows = debtNotes;
+
+    const handleViewEvidence = (note) => {
+        if (!note) return;
+        let pUrl = null;
+        if (note.debtEvidences) {
+            if (note.debtEvidences.startsWith("https://")) {
+                pUrl = note.debtEvidences;
+            } else if (/\.(jpg|jpeg|png|webp)$/i.test(note.debtEvidences)) {
+                pUrl = `${S3_BUCKET_URL}/${note.debtEvidences}`;
+            }
+        }
+        if (pUrl) {
+            setPreviewUrl(pUrl);
+            setEvidenceDialogOpen(true);
+        }
     };
+
+    const handleNavigateTransaction = (note) => {
+        if (!note?.sourceId || !note?.fromSource) return;
+        if (note.fromSource === 'SALE') {
+            navigate(`/sale/${note.sourceId}`);
+        } else if (note.fromSource === 'IMPORT' || note.fromSource === 'PURCHASE') {
+            navigate(`/import/${note.sourceId}`);
+        }
+    };
+
+    const formatDebtType = (type) => {
+        if (type === "+") return "Cửa hàng nợ";
+        if (type === "-") return "Khách hàng nợ";
+        return type;
+    };
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-            <DialogTitle>Danh sách giao dịch nợ</DialogTitle>
+        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+            <DialogTitle>
+                {`Danh sách phiếu nợ - ${customer?.name || "Khách hàng"}`}
+            </DialogTitle>
             <DialogContent>
-                {/* Thông tin khách hàng, tổng nợ và nút thêm giao dịch nợ */}
-                {customer && (
-                    <>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <div>
-                                <strong>Khách hàng:</strong> {customer.name || "N/A"}<br />
-                                <strong>Tổng nợ:</strong> {formatTotalDebt(totalDebt)}
-                            </div>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={onAddDebt}
-                                sx={{ mb: 2 }}
-                            >
-                                Thêm phiếu thanh toán
-                            </Button>
-                        </div>
-                        <AddDebtDialog
-                            open={addDialogOpen}
-                            onClose={onAddDialogClose}
-                            customerId={customer.id}
-                            onAdd={onAddDebtNote}
-                        />
-                    </>
-                )}
-                {/* Search bar ngoài bảng */}
-                <TextField
-                    placeholder="Tìm kiếm mô tả hoặc loại nợ..."
-                    value={search}
-                    onChange={handleSearchChange}
-                    fullWidth
-                    margin="normal"
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon />
-                            </InputAdornment>
-                        ),
-                    }}
-                />
-
-                {/* Date range filter */}
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={2}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                             label="Từ ngày"
                             value={localFromDate}
-                            onChange={(newVal) => setLocalFromDate(newVal)}
-                            slotProps={{ textField: { size: 'small' } }}
+                            onChange={(newValue) => setLocalFromDate(newValue)}
+                            renderInput={(params) => <TextField size="small" {...params} />}
                         />
                         <DatePicker
                             label="Đến ngày"
                             value={localToDate}
-                            onChange={(newVal) => setLocalToDate(newVal)}
-                            slotProps={{ textField: { size: 'small' } }}
+                            onChange={(newValue) => setLocalToDate(newValue)}
+                            renderInput={(params) => <TextField size="small" {...params} />}
                         />
-                        <Button variant="outlined" onClick={() => onDateFilterChange(localFromDate, localToDate)}>Lọc</Button>
-                        <Button variant="text" onClick={() => { setLocalFromDate(null); setLocalToDate(null); onDateFilterChange(null, null); }}>Tất cả</Button>
-                    </div>
-                </LocalizationProvider>
-                {/* Bảng giao dịch nợ */}
-                <div style={{ width: '100%' }}>
-                    <Table size="small">
+                    </LocalizationProvider>
+                    <Button variant="contained" onClick={handleFilterApply} sx={{ minWidth: 120 }}>
+                        Lọc
+                    </Button>
+                    <Button variant="outlined" onClick={handleShowAll} sx={{ minWidth: 120 }}>
+                        Tất cả
+                    </Button>
+                    <Box flexGrow={1} />
+                    <Button variant="contained" color="success" onClick={onAddDebt}>
+                        + Thêm phiếu
+                    </Button>
+                </Stack>
+
+                {/* Tổng nợ */}
+                <Typography variant="subtitle1" gutterBottom>
+                    Tổng nợ: <span style={{ color: totalDebt < 0 ? 'red' : totalDebt > 0 ? 'green' : undefined, fontWeight: 600 }}>
+                        {formatCurrency(totalDebt)}
+                    </span>
+                </Typography>
+
+                {/* Bảng phiếu nợ */}
+                <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 2 }}>
+                    <Table>
                         <TableHead>
-                            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                                {/* <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell> */}
-                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Ngày giao dịch</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Loại nợ</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Mô tả</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Nguồn</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', padding: '4px 8px', fontSize: 13 }}>Hành động</TableCell>
+                            <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                                <TableCell sx={{ fontWeight: "bold" }}>STT</TableCell>
+                                <TableCell sx={{ fontWeight: "bold" }}>Số tiền nợ</TableCell>
+                                <TableCell sx={{ fontWeight: "bold" }}>Loại nợ</TableCell>
+                                <TableCell sx={{ fontWeight: "bold" }}>Ngày giao dịch</TableCell>
+                                                                <TableCell sx={{ fontWeight: "bold" }}>Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredNotes && filteredNotes.length > 0 ? (
-                                filteredNotes.map((note) => (
-                                    <TableRow key={note.id || Math.random()}>
-                                        {/* <TableCell>{note.id || "N/A"}</TableCell> */}
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
-                                            {note.debtDate
-                                                ? new Date(note.debtDate).toLocaleString("vi-VN", {
-                                                    dateStyle: "short",
-                                                    timeStyle: "short",
-                                                })
-                                                : "N/A"}
+                            {paginatedRows && paginatedRows.length > 0 ? (
+                                paginatedRows.map((note, index) => (
+                                    <TableRow key={note.id || index} hover>
+                                        <TableCell>{debtNotesPage * debtNotesRowsPerPage + index + 1}</TableCell>
+                                        <TableCell>
+                                            <span style={{ color: note.debtAmount < 0 ? 'red' : note.debtAmount > 0 ? 'green' : undefined, fontWeight: 500 }}>
+                                                {formatCurrency(note.debtAmount)}
+                                            </span>
                                         </TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{formatDebtType(note.debtType)}</TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{note.debtDescription || "N/A"}</TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>{formatFromSource(note.fromSource)}</TableCell>
-                                        <TableCell sx={{ padding: '4px 8px', fontSize: 13 }}>
-                                            <IconButton color="primary" onClick={() => onEdit(note)} disabled={!note.id}>
-                                                <VisibilityIcon />
-                                            </IconButton>
+                                        <TableCell>{formatDebtType(note.debtType)}</TableCell>
+                                        <TableCell>{
+                                            note.debtDate ? new Date(note.debtDate).toLocaleString() : ""
+                                        }</TableCell>
+                                        <TableCell>
+                                            <Box display="flex" gap={1}>
+                                                {(() => {
+                                                    const hasEvidence = !!note.debtEvidences;
+                                                    return (
+                                                        <IconButton
+                                                            color="secondary"
+                                                            size="small"
+                                                            disabled={!hasEvidence}
+                                                            title={hasEvidence ? 'Xem bằng chứng' : 'Không có bằng chứng'}
+                                                            onClick={hasEvidence ? () => handleViewEvidence(note) : undefined}
+                                                        >
+                                                            <ImageIcon />
+                                                        </IconButton>
+                                                    );
+                                                })()}
+                                                {(() => {
+                                                    const canClick = note.sourceId && note.fromSource && (note.fromSource === 'SALE' || note.fromSource === 'IMPORT' || note.fromSource === 'PURCHASE');
+                                                    return (
+                                                        <IconButton
+                                                            color="primary"
+                                                            size="small"
+                                                            disabled={!canClick}
+                                                            title={canClick ? `Đi đến ${note.fromSource === 'SALE' ? 'bán hàng' : 'nhập hàng'} #${note.sourceId}` : 'Không có nguồn'}
+                                                            onClick={canClick ? () => handleNavigateTransaction(note) : undefined}
+                                                        >
+                                                            <OpenInNewIcon />
+                                                        </IconButton>
+                                                    );
+                                                })()}
+                                                <IconButton
+                                                    color="primary"
+                                                    size="small"
+                                                    title="Chi tiết"
+                                                    onClick={() => onEdit && onEdit(note)}
+                                                >
+                                                    <VisibilityIcon />
+                                                </IconButton>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6}>Không có giao dịch nợ</TableCell>
+                                    <TableCell colSpan={5} align="center">
+                                        Không có phiếu nợ
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                </TableContainer>
+
+                {/* Phân trang */}
+                <TablePagination
+                    component="div"
+                    count={debtNotesTotalItems}
+                    page={debtNotesPage}
+                    onPageChange={onDebtNotesPageChange}
+                    rowsPerPage={debtNotesRowsPerPage}
+                    onRowsPerPageChange={onDebtNotesRowsPerPageChange}
+                    rowsPerPageOptions={[5, 10, 25, 50]}
+                />
             </DialogContent>
-            <TablePagination
-                component="div"
-                count={debtNotesTotalItems}
-                page={debtNotesPage}
-                onPageChange={onDebtNotesPageChange}
-                rowsPerPage={debtNotesRowsPerPage}
-                onRowsPerPageChange={onDebtNotesRowsPerPageChange}
-                rowsPerPageOptions={[5, 10, 25]}
-                labelRowsPerPage="Số dòng mỗi trang"
-                // Đặt mặc định là 5 nếu rowsPerPage chưa được truyền vào
-                {...(debtNotesRowsPerPage == null ? { rowsPerPage: 5 } : {})}
-            />
             <DialogActions>
-                <Button onClick={onClose} color="primary">
-                    Đóng
-                </Button>
+                <Button onClick={onClose}>Đóng</Button>
             </DialogActions>
+
+            {/* Dialog thêm phiếu nợ */}
+            {addDialogOpen && (
+                <AddDebtDialog
+                    open={addDialogOpen}
+                    onClose={onAddDialogClose}
+                    customerId={customer?.id}
+                    onAdd={onAddDebtNote}
+                />
+            )}
+            
+            {evidenceDialogOpen && (
+                <Dialog open={evidenceDialogOpen} onClose={() => setEvidenceDialogOpen(false)} maxWidth="sm" fullWidth>
+                    <DialogTitle>Bằng chứng</DialogTitle>
+                    <DialogContent>
+                        {previewUrl ? (
+                            <img src={previewUrl} alt="Evidence" style={{ width: '100%', maxHeight: 400, borderRadius: 8 }} />
+                        ) : (
+                            <Typography>Không có bằng chứng</Typography>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setEvidenceDialogOpen(false)}>Đóng</Button>
+                    </DialogActions>
+                </Dialog>
+            )}
         </Dialog>
     );
 };
 
 export default DebtTableDialog;
+
