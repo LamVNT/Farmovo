@@ -91,44 +91,94 @@ const CreateStocktakePage = () => {
 
     // Khi vào trang, fetch tất cả các lô thuộc kho user đăng nhập
     useEffect(() => {
-        if (products.length === 0) return;
-        const fetchLots = async () => {
-            setLoadingLots(true);
-            try {
-                const params = new URLSearchParams();
-                if (filter.store) params.append('store', filter.store);
-                // Không filter zone, product, search nữa
-                const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
-                const lotsData = (res.data || []).map(lot => {
-                    let zoneIds = lot.zoneIds || lot.zones_id || lot.zoneId || lot.zone_id || [];
-                    if (typeof zoneIds === 'string') {
-                        zoneIds = zoneIds.split(',').map(z => Number(z.trim())).filter(Boolean);
-                    }
-                    if (!Array.isArray(zoneIds)) {
-                        zoneIds = zoneIds ? [Number(zoneIds)] : [];
-                    }
-                    let productId = lot.productId || lot.product?.id || lot.product_id || '';
-                    if (!productId && lot.productName && products.length > 0) {
-                        const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
-                        if (found) productId = found.id;
-                    }
-                    return {
-                        ...lot,
-                        productId,
-                        zoneIds,
-                        zoneId: zoneIds[0] || '',
-                    };
-                });
-                setLots(lotsData);
-            } catch (err) {
-                setLots([]);
-                console.error('[DEBUG] Lỗi khi fetch lots:', err);
-            } finally {
-                setLoadingLots(false);
-            }
-        };
-        fetchLots();
-    }, [products, filter.store]);
+        if (id) {
+            // Chế độ edit: lấy chi tiết phiếu kiểm kê
+            axios.get(`/stocktakes/${id}`)
+                .then(res => {
+                    const details = res.data.detail || [];
+                    // Map lại detail thành lots phù hợp với form
+                    const lotsData = details.map(d => ({
+                        ...d,
+                        name: d.batchCode || d.name,
+                        zonesId: Array.isArray(d.zones_id) ? d.zones_id.map(Number) : (d.zones_id ? d.zones_id.split(',').map(Number) : []),
+                        productId: d.productId || (products.find(p => p.productName.trim().toLowerCase() === (d.productName || '').trim().toLowerCase())?.id),
+                        real: d.real,
+                        remainQuantity: d.remain,
+                        zoneReal: Array.isArray(d.zoneReal) ? d.zoneReal : (d.zoneReal ? d.zoneReal.split(',').map(Number) : []),
+                        diff: d.diff,
+                        note: d.note,
+                        isCheck: d.isCheck,
+                        expireDate: d.expireDate,
+                        zoneName: d.zones_id
+                          ? (Array.isArray(d.zones_id)
+                              ? d.zones_id.map(zid => {
+                                  const zone = zones.find(z => z.id === Number(zid));
+                                  return zone ? zone.zoneName : zid;
+                                }).join(', ')
+                              : d.zones_id)
+                          : (d.zoneName || d.zoneId || ''),
+                    }));
+                    setLots(lotsData);
+                })
+                .catch(() => setSnackbar({isOpen: true, message: "Không lấy được chi tiết phiếu kiểm kê!", severity: "error"}));
+        } else {
+            // Chế độ tạo mới: logic fetch lots như hiện tại
+            const fetchLots = async () => {
+                setLoadingLots(true);
+                try {
+                    const params = new URLSearchParams();
+                    if (filter.store) params.append('store', filter.store);
+                    if (filter.zone) params.append('zone', filter.zone);
+                    if (filter.product) params.append('product', filter.product); // thêm dòng này
+                    const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
+                    const lotsData = (res.data || []).map(lot => {
+                        // Đảm bảo luôn có zonesId là mảng số
+                        let zonesId = lot.zonesId || lot.zoneIds || lot.zones_id || lot.zone_id || [];
+                        if (typeof zonesId === 'string') {
+                            try {
+                                // Thử parse JSON
+                                zonesId = JSON.parse(zonesId);
+                            } catch {
+                                // Nếu không phải JSON, tách bằng dấu phẩy
+                                zonesId = zonesId.split(',').map(z => Number(z.trim())).filter(Boolean);
+                            }
+                        }
+                        if (Array.isArray(zonesId)) {
+                            zonesId = zonesId.map(z => Number(z)).filter(Boolean);
+                        } else if (typeof zonesId === 'number') {
+                            zonesId = [zonesId];
+                        } else {
+                            zonesId = [];
+                        }
+                        let productId = lot.productId || lot.product_id;
+                        if (!productId && lot.productName && products.length > 0) {
+                            const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
+                            if (found) productId = found.id;
+                        }
+                        if (typeof productId === 'string' && productId !== '') productId = Number(productId);
+                        // Gán mặc định real = remainQuantity, zoneReal = zonesId
+                        const real = lot.remainQuantity;
+                        const diff = real - (Number(lot.remainQuantity) || 0);
+                        return {
+                            ...lot,
+                            zonesId,
+                            productId,
+                            real,
+                            zoneReal: Array.isArray(zonesId) ? zonesId : [],
+                            diff,
+                        };
+                    });
+                    setLots(lotsData);
+                } catch (err) {
+                    setLots([]);
+                    console.error('[DEBUG] Lỗi khi fetch lots:', err);
+                } finally {
+                    setLoadingLots(false);
+                }
+            };
+            fetchLots();
+        }
+    }, [id, products, filter.store, filter.zone, filter.product]);
 
     // Xóa toàn bộ UI/logic Danh sách lô phù hợp, chỉ còn table Danh sách lô hàng (lots)
     // Table này cho phép chọn nhiều lô, nhập số thực tế, ghi chú, ... như cũ
@@ -157,7 +207,8 @@ const CreateStocktakePage = () => {
                 ...lot,
                 productId: lot.productId || lot.product?.id || '',
                 zoneId: (lot.zoneIds && lot.zoneIds[0]) || lot.zoneId || lot.zone?.id || '',
-                real: '',
+                real: lot.remainQuantity, // sửa ở đây
+                zoneReal: lot.zoneIds || [lot.zoneId || lot.zone?.id].filter(Boolean), // thêm dòng này
                 note: '',
                 isCheck: false,
                 diff: 0
@@ -394,110 +445,99 @@ const CreateStocktakePage = () => {
                             <TableCell><b>Mã lô</b></TableCell>
                             {!isMobile && <TableCell><b>Khu vực</b></TableCell>}
                             <TableCell><b>Sản phẩm</b></TableCell>
-                            {!isMobile && <TableCell><b>Tồn kho</b></TableCell>}
                             {!isMobile && <TableCell><b>Hạn dùng</b></TableCell>}
+                            {!isMobile && <TableCell><b>Tồn kho</b></TableCell>}
                             <TableCell><b>Thực tế</b></TableCell>
                             {!isMobile && <TableCell><b>Khu vực thực tế</b></TableCell>}
                             <TableCell><b>Chênh lệch</b></TableCell>
                             {!isMobile && <TableCell><b>Đã kiểm</b></TableCell>}
                             {!isMobile && <TableCell><b>Ghi chú</b></TableCell>}
-                            <TableCell align="center"></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {(lots.length === 0) ? (
                             <TableRow><TableCell colSpan={isMobile ? 5 : 12} align="center">Chưa có lô nào</TableCell></TableRow>
                         ) : (
-                            lots
-                                .filter(lot => {
-                                    // Áp dụng filter/search trực tiếp khi render
-                                    const matchSearch = !filter.search ||
-                                        (lot.name && lot.name.toLowerCase().includes(filter.search.toLowerCase())) ||
-                                        (lot.productName && lot.productName.toLowerCase().includes(filter.search.toLowerCase()));
-                                    const matchZone = !filter.zone || (lot.zoneIds && lot.zoneIds.includes(Number(filter.zone)));
-                                    const matchProduct = !filter.product || lot.productId === filter.product || lot.productId === Number(filter.product);
-                                    return matchSearch && matchZone && matchProduct;
-                                })
-                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                .map((lot, idx) => (
-                                    <TableRow
-                                        key={(lot.batchCode || lot.name || 'row') + '-' + (lot.productId || '') + '-' + idx}
-                                        hover>
-                                        <TableCell>{idx + 1}</TableCell>
-                                        <TableCell>{lot.name || lot.batchCode}</TableCell>
-                                        {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
-                                        <TableCell>{lot.productName || lot.productId}</TableCell>
-                                        {!isMobile && <TableCell>{lot.remainQuantity}</TableCell>}
-                                        {!isMobile &&
-                                            <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>}
-                                        <TableCell>
-                                            <TextField
-                                                type="number"
-                                                size="small"
-                                                value={lot.real || ''}
-                                                onChange={e => handleLotChange(idx, 'real', e.target.value)}
-                                                inputProps={{min: 0}}
-                                                fullWidth
-                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                            />
-                                        </TableCell>
-                                        {!isMobile && <TableCell>
-                                            <FormControl size="small" fullWidth>
-                                                <Select
-                                                    multiple
-                                                    value={Array.isArray(lot.zoneReal) ? lot.zoneReal : (lot.zoneReal ? lot.zoneReal.split(',') : [])}
-                                                    onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
+                            <>
+                                {console.log('LOTS TO RENDER:', lots)}
+                                {lots
+                                    .filter(lot => {
+                                        const matchSearch = !filter.search ||
+                                            (lot.name && lot.name.toLowerCase().includes(filter.search.toLowerCase())) ||
+                                            (lot.productName && lot.productName.toLowerCase().includes(filter.search.toLowerCase()));
+                                        return matchSearch;
+                                    })
+                                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                    .map((lot, idx) => (
+                                        <TableRow
+                                            key={(lot.batchCode || lot.name || 'row') + '-' + (lot.productId || '') + '-' + idx}
+                                            hover>
+                                            <TableCell>{idx + 1}</TableCell>
+                                            <TableCell>{lot.name || lot.batchCode}</TableCell>
+                                            {!isMobile && <TableCell>{lot.zoneName || lot.zoneId}</TableCell>}
+                                            <TableCell>{lot.productName || lot.productId}</TableCell>
+                                            {!isMobile &&
+                                                <TableCell>{lot.expireDate ? new Date(lot.expireDate).toLocaleDateString("vi-VN") : ""}</TableCell>}
+                                            {!isMobile && <TableCell>{lot.remainQuantity}</TableCell>}
+                                            <TableCell>
+                                                <TextField
+                                                    type="number"
+                                                    size="small"
+                                                    value={lot.real || ''}
+                                                    onChange={e => handleLotChange(idx, 'real', e.target.value)}
+                                                    inputProps={{min: 0}}
+                                                    fullWidth
                                                     disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                                    renderValue={selected => selected
-                                                        .map(id => {
-                                                            const z = zones.find(z => z.id === id || z.id === Number(id));
-                                                            return z ? z.zoneName : id;
-                                                        })
-                                                        .join(', ')}
-                                                >
-                                                    {zones.map(z => (
-                                                        <MenuItem key={z.id} value={z.id}>
-                                                            <Checkbox
-                                                                checked={Array.isArray(lot.zoneReal) ? lot.zoneReal.indexOf(z.id) > -1 : false}/>
-                                                            <Typography>{z.zoneName}</Typography>
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                            </FormControl>
-                                        </TableCell>}
-                                        <TableCell sx={lot.diff !== 0 ? {background: '#ffeaea'} : {}}>{lot.diff}</TableCell>
-                                        {!isMobile && <TableCell>
-                                            <Checkbox
-                                                checked={!!lot.isCheck}
-                                                onChange={e => handleLotChange(idx, 'isCheck', e.target.checked)}
-                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                            />
-                                        </TableCell>}
-                                        {!isMobile && <TableCell>
-                                            <TextField
-                                                size="small"
-                                                value={lot.note || ''}
-                                                onChange={e => handleLotChange(idx, 'note', e.target.value)}
-                                                fullWidth
-                                                multiline
-                                                minRows={1}
-                                                maxRows={4}
-                                                inputProps={{maxLength: 255}}
-                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                            />
-                                        </TableCell>}
-                                        <TableCell align="center">
-                                            <Tooltip title="Xóa lô này khỏi phiếu kiểm kê">
-                                                <span>
-                                                    <IconButton color="error" onClick={() => handleRemoveLot(lot.id)}
-                                                                disabled={editMode && stocktakeStatus !== 'DRAFT'}>
-                                                        <DeleteIcon/>
-                                                    </IconButton>
-                                                </span>
-                                            </Tooltip>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                                />
+                                            </TableCell>
+                                            {!isMobile && <TableCell>
+                                                <FormControl size="small" fullWidth>
+                                                    <Select
+                                                        multiple
+                                                        value={Array.isArray(lot.zoneReal) ? lot.zoneReal : (lot.zoneReal ? lot.zoneReal.split(',') : [])}
+                                                        onChange={e => handleLotChange(idx, 'zoneReal', e.target.value)}
+                                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                        renderValue={selected => selected
+                                                            .map(id => {
+                                                                const z = zones.find(z => z.id === id || z.id === Number(id));
+                                                                return z ? z.zoneName : id;
+                                                            })
+                                                            .join(', ')}
+                                                    >
+                                                        {zones.map(z => (
+                                                            <MenuItem key={z.id} value={z.id}>
+                                                                <Checkbox
+                                                                    checked={Array.isArray(lot.zoneReal) ? lot.zoneReal.indexOf(z.id) > -1 : false}/>
+                                                                <Typography>{z.zoneName}</Typography>
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </TableCell>}
+                                            <TableCell sx={lot.diff !== 0 ? {background: '#ffeaea'} : {}}>{lot.diff}</TableCell>
+                                            {!isMobile && <TableCell>
+                                                <Checkbox
+                                                    checked={!!lot.isCheck}
+                                                    onChange={e => handleLotChange(idx, 'isCheck', e.target.checked)}
+                                                    disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                />
+                                            </TableCell>}
+                                            {!isMobile && <TableCell>
+                                                <TextField
+                                                    size="small"
+                                                    value={lot.note || ''}
+                                                    onChange={e => handleLotChange(idx, 'note', e.target.value)}
+                                                    fullWidth
+                                                    multiline
+                                                    minRows={1}
+                                                    maxRows={4}
+                                                    inputProps={{maxLength: 255}}
+                                                    disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                />
+                                            </TableCell>}
+                                        </TableRow>
+                                    ))}
+                            </>
                         )}
                     </TableBody>
                 </Table>
@@ -507,9 +547,7 @@ const CreateStocktakePage = () => {
                         const matchSearch = !filter.search ||
                             (lot.name && lot.name.toLowerCase().includes(filter.search.toLowerCase())) ||
                             (lot.productName && lot.productName.toLowerCase().includes(filter.search.toLowerCase()));
-                        const matchZone = !filter.zone || (lot.zoneIds && lot.zoneIds.includes(Number(filter.zone)));
-                        const matchProduct = !filter.product || lot.productId === filter.product || lot.productId === Number(filter.product);
-                        return matchSearch && matchZone && matchProduct;
+                        return matchSearch;
                     }).length}
                     page={page}
                     onPageChange={(e, newPage) => setPage(newPage)}
