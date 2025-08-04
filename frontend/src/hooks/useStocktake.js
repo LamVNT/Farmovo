@@ -35,23 +35,19 @@ export default function useStocktake(user, userRole) {
     const [zones, setZones] = useState([]);
     const [stores, setStores] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [total, setTotal] = useState(0);
 
     // Bộ lọc danh sách
     const [statusFilter, setStatusFilter] = useState("DRAFT");
     const [storeFilter, setStoreFilter] = useState(userStoreId || "");
     const [dateFilter, setDateFilter] = useState(() => {
         const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
-            today.getDate()
-        ).padStart(2, "0")}`;
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     });
     const [noteFilter, setNoteFilter] = useState("");
     const [codeFilter, setCodeFilter] = useState("");
-
-    // Trang / phân trang
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-
     // Loading trạng thái
     const [actionLoading, setActionLoading] = useState({});
     const [confirmDialog, setConfirmDialog] = useState({
@@ -120,21 +116,26 @@ export default function useStocktake(user, userRole) {
     }, [filteredStocktakes, page, rowsPerPage]);
 
     // ================== Load danh sách ==================
-    const loadStocktakeList = useCallback(async () => {
+    const loadStocktakeList = useCallback(async (params = {}) => {
         setLoading(true);
         try {
-            const params = {
+            const query = {
+                page,
+                size: rowsPerPage,
                 status: statusFilter,
                 note: noteFilter,
                 fromDate: dateFilter,
                 toDate: dateFilter,
+                ...params
             };
             if (userRole === "STAFF") {
-                params.storeId = userStoreId;
-                params.createdBy = userName;
+                query.storeId = userStoreId;
+                query.createdBy = userName;
             }
-            const res = await getStocktakeList(params);
-            setStocktakes(Array.isArray(res) ? res : []);
+            const res = await getStocktakeList(query);
+            setStocktakes(res.content || []);
+            setTotal(res.totalElements || 0);
+            setPage(res.number || 0);
         } catch (err) {
             console.error("Error loading stocktake list:", err);
             setSnackbar({
@@ -145,7 +146,7 @@ export default function useStocktake(user, userRole) {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, noteFilter, dateFilter, userRole, userStoreId, userName]);
+    }, [statusFilter, noteFilter, dateFilter, userRole, userStoreId, userName, page, rowsPerPage]);
 
     // ================== Load master data ==================
     const loadMasterData = useCallback(async () => {
@@ -305,6 +306,7 @@ export default function useStocktake(user, userRole) {
         setPage,
         rowsPerPage,
         setRowsPerPage,
+        total,
         actionLoading,
         setActionLoading,
         confirmDialog,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Menu, MenuItem, IconButton, Checkbox, TextField, Button, Select, FormControl, InputLabel, CircularProgress, Alert, ListItemIcon, ListItemText } from '@mui/material';
 import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid';
 import {
@@ -82,6 +82,7 @@ const labelMap = {
 const SaleTransactionPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams(); // Lấy query params
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -132,6 +133,48 @@ const SaleTransactionPage = () => {
     const [showFilter, setShowFilter] = useState(true);
     const [showFilterBtn, setShowFilterBtn] = useState(false);
     const mainAreaRef = useRef(null);
+
+    // Kiểm tra URL params để tự động mở dialog chi tiết
+    useEffect(() => {
+        const viewParam = searchParams.get('view');
+        if (id && viewParam === 'detail') {
+            // Tự động mở dialog chi tiết cho transaction có ID này
+            handleAutoOpenDetail(parseInt(id));
+        }
+    }, [id, searchParams]);
+
+    // Hàm tự động mở dialog chi tiết
+    const handleAutoOpenDetail = async (transactionId) => {
+        try {
+            const transaction = await saleTransactionService.getWithDetails(transactionId);
+            setSelectedTransaction(transaction);
+            
+            // Fetch thông tin customer
+            if (transaction.customerId) {
+                try {
+                    const customer = await getCustomerById(transaction.customerId);
+                    setCustomerDetails(customer);
+                } catch (error) {
+                    setCustomerDetails(null);
+                }
+            }
+            
+            // Fetch thông tin user (người tạo)
+            if (transaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(transaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    setUserDetails(null);
+                }
+            }
+            
+            setOpenDetailDialog(true);
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết phiếu bán:", error);
+            setError('Không thể tải chi tiết phiếu bán');
+        }
+    };
 
     const loadTransactions = async (params = {}) => {
         setLoading(true);
@@ -186,15 +229,6 @@ const SaleTransactionPage = () => {
             setLoading(false);
         }
     };
-
-    // Auto open detail dialog when URL has :id
-    useEffect(() => {
-        if (id) {
-            // Create minimal row object with id to reuse existing handler
-            handleViewDetail({ id: parseInt(id) });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
 
     useEffect(() => {
         loadTransactions();

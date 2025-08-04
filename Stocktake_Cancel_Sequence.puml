@@ -13,63 +13,80 @@ title Cancel StockTake - Sequence Diagram
 
 actor Staff
 participant ":StockTake Page" as UI
-participant ":StocktakeController" as CC
-participant ":StocktakeServiceImpl" as CS
-participant ":StocktakeRepository" as CR
-participant ":StocktakeMapper" as CM
+participant ":StocktakeController" as Controller
+participant ":StocktakeServiceImpl" as Service
+participant ":StocktakeRepository" as StocktakeRepo
+participant ":StocktakeMapper" as Mapper
 
+== Nhân viên hủy kiểm kê ==
 Staff -> UI: Nhấn "Hủy kiểm kê"
 activate Staff
 activate UI
-UI -> CC: PUT /api/stocktakes/{id}/cancel
-activate CC
-CC -> CS: cancelStocktake(id)
-activate CS
-CS -> CR: findById(id): Optional<Stocktake>
-activate CR
-CR --> CS: return Optional<Stocktake>
-deactivate CR
-alt Stocktake Not Found
-    CS --> CC: throw StocktakeNotFoundException
-    CC --> UI: return 404 Not Found {error message}
+
+UI -> Controller: PUT /api/stocktakes/{id}/cancel
+activate Controller
+Controller -> Service: cancelStocktake(id)
+activate Service
+
+Service -> StocktakeRepo: findById(id)
+activate StocktakeRepo
+StocktakeRepo --> Service: Optional<Stocktake>
+deactivate StocktakeRepo
+
+alt Không tìm thấy
+    Service --> Controller: throw StocktakeNotFoundException
+    Controller --> UI: 404 Not Found
     UI --> Staff: Hiển thị lỗi
-else Stocktake Found
-    CS -> CS: check status == DRAFT
-    alt Status Not Valid
-        CS --> CC: throw InvalidStatusException
-        CC --> UI: return 400 Bad Request {error message: "Only DRAFT can be cancelled"}
+    deactivate Service
+    deactivate Controller
+else Tìm thấy
+    Service -> Service: check status == DRAFT
+
+    alt Status không hợp lệ
+        Service --> Controller: throw InvalidStatusException
+        Controller --> UI: 400 Bad Request {"Only DRAFT can be cancelled"}
         UI --> Staff: Hiển thị lỗi
-    else Status Valid
-        CS -> CS: setStatus(CANCELLED), setUpdatedAt
-        CS -> CR: save(stocktake)
-        activate CR
-        alt Save Failed
-            CR --> CS: throw SaveException
-            CS --> CC: return 500 Internal Server Error
-            CC --> UI: return 500 Internal Server Error
+        deactivate Service
+        deactivate Controller
+    else Status hợp lệ
+        Service -> Service: setStatus(CANCELLED), setUpdatedAt
+        Service -> StocktakeRepo: save(stocktake)
+        activate StocktakeRepo
+
+        alt Lỗi khi lưu
+            StocktakeRepo --> Service: throw SaveException
+            Service --> Controller: 500 Internal Server Error
+            Controller --> UI: 500 Internal Server Error
             UI --> Staff: Hiển thị lỗi
-        else Save Success
-            CR --> CS: return Stocktake entity
-            deactivate CR
-            CS -> CM: toResponseDto(stocktake)
-            activate CM
-            CM --> CS: return StocktakeResponseDto
-            deactivate CM
-            CS --> CC: return StocktakeResponseDto
-            deactivate CS
-            CC --> UI: return 200 OK StocktakeResponseDto
-            UI --> Staff: Hiển thị kiểm kê với trạng thái CANCELLED
+            deactivate StocktakeRepo
+            deactivate Service
+            deactivate Controller
+        else Lưu thành công
+            StocktakeRepo --> Service: Stocktake
+            deactivate StocktakeRepo
+
+            Service -> Mapper: toResponseDto(stocktake)
+            activate Mapper
+            Mapper --> Service: StocktakeResponseDto
+            deactivate Mapper
+
+            Service --> Controller: StocktakeResponseDto
+            deactivate Service
+
+            Controller --> UI: 200 OK StocktakeResponseDto
+            UI --> Staff: Hiển thị trạng thái CANCELLED
+            deactivate Controller
         end
     end
 end
 
-deactivate CC
 deactivate UI
 deactivate Staff
 
 note right of UI
-    StocktakeResponseDto contains: id, stocktakeDate, detail, note, storeId, status
-    status: DRAFT, CANCELLED
+StocktakeResponseDto:
+- id, stocktakeDate, detail, note, storeId, status
+- status gồm: DRAFT, CANCELLED, COMPLETED
 end note
 
 @enduml

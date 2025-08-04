@@ -28,7 +28,7 @@ const Zone = () => {
     // Frontend pagination
     const [page, setPage] = useState(0);
     // Thay đổi giá trị mặc định của rowsPerPage từ 12 thành 10
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
 
     useEffect(() => {
         const fetch = async () => {
