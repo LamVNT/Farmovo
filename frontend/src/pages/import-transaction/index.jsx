@@ -1088,15 +1088,15 @@ const ImportTransactionPage = () => {
                         ) : (
                             <table style={tableStyles}>
                                 <colgroup>
-                                    <col style={{ width: 40 }} /> {/* Checkbox */}
-                                    <col style={{ width: 60 }} /> {/* STT */}
-                                    <col style={{ width: 160 }} /> {/* Tên phiếu nhập */}
-                                    <col style={{ width: 170 }} /> {/* Thời gian */}
-                                    <col style={{ width: 160 }} /> {/* Nhà cung cấp */}
-                                    <col style={{ width: 130 }} /> {/* Tổng tiền */}
-                                    <col style={{ width: 130 }} /> {/* Đã thanh toán */}
-                                    <col style={{ width: 120 }} /> {/* Trạng thái */}
-                                    <col style={{ width: 80 }} /> {/* Hành động */}
+                                    <col style={{ width: 40 }} />
+                                    <col style={{ width: 60 }} />
+                                    <col style={{ width: 160 }} />
+                                    <col style={{ width: 170 }} />
+                                    <col style={{ width: 160 }} />
+                                    <col style={{ width: 130 }} />
+                                    <col style={{ width: 130 }} />
+                                    <col style={{ width: 120 }} />
+                                    <col style={{ width: 80 }} />
                                 </colgroup>
                                 <thead>
                                     <tr>

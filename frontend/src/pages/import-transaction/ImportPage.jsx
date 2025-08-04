@@ -545,7 +545,7 @@ const ImportPage = () => {
     };
 
     const formatExpireDateForBackend = (dateStr) => {
-        if (!dateStr) return '';
+        if (!dateStr) return null;
         // Nếu đã có T, giữ nguyên
         if (dateStr.includes('T')) return dateStr;
         return dateStr + 'T00:00:00';
@@ -1358,6 +1358,44 @@ const ImportPage = () => {
         setLoading(true);
         setError(null);
         setSuccess(null);
+        
+        // Validate required fields
+        if (!selectedSupplier) {
+            setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            setLoading(false);
+            return;
+        }
+        
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
+            setLoading(false);
+            return;
+        }
+        
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
+            setLoading(false);
+            return;
+        }
+        
+        // Validate product data
+        for (let i = 0; i < selectedProducts.length; i++) {
+            const product = selectedProducts[i];
+            if (!product.productId) {
+                setError(`Sản phẩm thứ ${i + 1} không có ID hợp lệ`);
+                setLoading(false);
+                return;
+            }
+            if (!product.quantity || product.quantity <= 0) {
+                setError(`Sản phẩm "${product.name}" phải có số lượng lớn hơn 0`);
+                setLoading(false);
+                return;
+            }
+        }
+        
         try {
             const importData = {
                 name: nextImportCode,
@@ -1366,7 +1404,7 @@ const ImportPage = () => {
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,
-                createdBy: currentUser?.id, // Thêm dòng này
+                createdBy: currentUser?.id,
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -1378,6 +1416,8 @@ const ImportPage = () => {
                 })),
                 status: summaryData.status,
             };
+            
+            console.log('Sending import data:', importData);
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
@@ -1386,7 +1426,9 @@ const ImportPage = () => {
             setShowSummaryDialog(false);
             setSummaryData(null);
         } catch (err) {
-            setError('Không thể tạo phiếu nhập hàng');
+            console.error('Error creating import transaction:', err);
+            console.error('Error response:', err.response?.data);
+            setError('Không thể tạo phiếu nhập hàng: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -1453,47 +1495,87 @@ const ImportPage = () => {
                         </Button>
                         
                         <div className="flex items-center gap-3">
-                            <div className="relative w-80">
-                        <TextField
-                            size="small"
-                            fullWidth
-                            placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
-                            value={searchTerm}
-                            onChange={handleSearchChange}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
-                            variant="outlined"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500" />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{
-                                background: '#fff',
-                                borderRadius: 2,
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 2,
-                                    boxShadow: 'none',
-                                    '& fieldset': {
-                                        borderColor: '#bcd0ee',
-                                        borderWidth: 2,
-                                    },
-                                    '&:hover fieldset': {
-                                        borderColor: '#1976d2',
-                                    },
-                                    '&.Mui-focused fieldset': {
-                                        borderColor: '#1976d2',
-                                        boxShadow: '0 0 0 2px #e3f0ff',
-                                    },
-                                },
-                                '& input': {
-                                    fontWeight: 500,
-                                    fontSize: '1rem',
-                                },
-                            }}
-                        />
+                            <div className="relative w-96">
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    onFocus={() => setIsSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
+                                    variant="outlined"
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <FaSearch className="text-gray-500" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        background: '#fff',
+                                        borderRadius: 2,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: 2,
+                                            boxShadow: 'none',
+                                            '& fieldset': {
+                                                borderColor: '#bcd0ee',
+                                                borderWidth: 2,
+                                            },
+                                            '&:hover fieldset': {
+                                                borderColor: '#1976d2',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                borderColor: '#1976d2',
+                                                boxShadow: '0 0 0 2px #e3f0ff',
+                                            },
+                                        },
+                                        '& input': {
+                                            fontWeight: 500,
+                                            fontSize: '1rem',
+                                        },
+                                    }}
+                                />
+                                
+                                {/* Search Dropdown - Fixed positioning */}
+                                {(isSearchFocused || searchTerm.trim() !== '') && (
+                                    <div 
+                                        className="absolute top-full mt-1 left-0 right-0 z-50 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 9999,
+                                            marginTop: '4px',
+                                            minWidth: '384px'
+                                        }}
+                                    >
+                                        {filteredProducts.length > 0 ? (
+                                            filteredProducts.map((product, index) => (
+                                                <div
+                                                    key={product.id || index}
+                                                    onClick={() => handleSelectProduct(product)}
+                                                    onMouseEnter={() => setActiveIndex(index)}
+                                                    onMouseLeave={() => setActiveIndex(-1)}
+                                                    className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
+                                                        ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
+                                                    `}
+                                                >
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                        <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                    </div>
+                                                    {product.price && (
+                                                        <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             
                             <Tooltip title="Thêm từ nhóm hàng">
@@ -1528,34 +1610,6 @@ const ImportPage = () => {
                                     <AddIcon />
                                 </IconButton>
                             </Tooltip>
-                            
-                            {(isSearchFocused || searchTerm.trim() !== '') && (
-                                <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
-                                    {filteredProducts.length > 0 ? (
-                                        filteredProducts.map((product, index) => (
-                                            <div
-                                                key={product.id || index}
-                                                onClick={() => handleSelectProduct(product)}
-                                                onMouseEnter={() => setActiveIndex(index)}
-                                                onMouseLeave={() => setActiveIndex(-1)}
-                                                className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
-                                                    ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
-                                                `}
-                                            >
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                                    <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
-                                                </div>
-                                                {product.price && (
-                                                    <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -1575,14 +1629,14 @@ const ImportPage = () => {
 
                 <div style={{ height: 400, width: '100%' }}>
                     {isClient ? (
-                    <DataGrid
-                        rows={selectedProducts}
-                        columns={columns}
-                        pageSize={5}
-                        rowsPerPageOptions={[5]}
-                        disableSelectionOnClick
-                        getRowId={(row) => row.id}
-                        sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
+                        <DataGrid
+                            rows={selectedProducts}
+                            columns={columns}
+                            pageSize={5}
+                            rowsPerPageOptions={[5]}
+                            disableSelectionOnClick
+                            getRowId={(row) => row.id}
+                            sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
                             componentsProps={{
                                 basePopper: {
                                     sx: {
@@ -1610,7 +1664,6 @@ const ImportPage = () => {
                             hideFooterPagination={false}
                             hideFooterSelectedRowCount={false}
                             loading={false}
-                            rowCount={selectedProducts.length}
                             rowHeight={52}
                             rowSpacingType="border"
                             showCellVerticalBorder={false}
