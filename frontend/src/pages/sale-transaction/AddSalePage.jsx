@@ -138,7 +138,7 @@ const AddSalePage = () => {
         if (selectedProducts.length > 0) {
             setSelectedProducts(prev => prev.map(p => ({ ...p, unit })));
         }
-    }, [unit]);
+    }, [unit, setSelectedProducts]);
 
     // Handle click outside search dropdown
     useEffect(() => {
@@ -157,7 +157,7 @@ const AddSalePage = () => {
     // Force re-render DataGrid when selectedProducts changes
     useEffect(() => {
         setDataGridKey(prev => prev + 1);
-    }, [selectedProducts]);
+    }, [selectedProducts, setDataGridKey]);
 
     useEffect(() => {
         // Lấy danh sách batch (import transaction detail) còn hàng
@@ -170,12 +170,12 @@ const AddSalePage = () => {
             }
         };
         fetchBatches();
-    }, []);
+    }, [setBatches]);
 
     useEffect(() => {
         // Lấy mã phiếu tiếp theo
         saleTransactionService.getNextCode && saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
-    }, []);
+    }, [setNextCode]);
 
     // Gợi ý batch mới nhất khi focus hoặc search
     useEffect(() => {
@@ -214,7 +214,7 @@ const AddSalePage = () => {
         } else {
             setFilteredBatches([]);
         }
-    }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
+    }, [batches, searchTerm, isSearchFocused, selectedStore, stores, setFilteredBatches]);
 
     // Auto-dismiss error/success after 5s
     useEffect(() => {
@@ -228,7 +228,7 @@ const AddSalePage = () => {
             }, 5000);
             return () => clearTimeout(timer);
         }
-    }, [error, success]);
+    }, [error, success, setError, setSuccess]);
 
     // Validate before show summary (save draft or complete)
     const handleShowSummary = async (status) => {
@@ -306,7 +306,7 @@ const AddSalePage = () => {
                 price: (batch.unitSalePrice || 0) * 25,
                 quantity: 1,
                 remainQuantity: remainKhay,
-                batchCode: batch.batchCode,
+                batchCode: batch.batchCode || batch.name, // Sử dụng batch.name nếu không có batchCode
                 productCode: batch.productCode,
                 categoryName: batch.categoryName,
                 storeName: batch.storeName,
@@ -321,7 +321,7 @@ const AddSalePage = () => {
                 price: batch.unitSalePrice,
                 quantity: 1,
                 remainQuantity: batch.remainQuantity,
-                batchCode: batch.batchCode,
+                batchCode: batch.batchCode || batch.name, // Sử dụng batch.name nếu không có batchCode
                 productCode: batch.productCode,
                 categoryName: batch.categoryName,
                 storeName: batch.storeName,
@@ -381,7 +381,34 @@ const AddSalePage = () => {
             sortable: false,
             filterable: false,
         },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 250,
+            minWidth: 200,
+            renderCell: (params) => (
+                <div className="flex flex-col w-full">
+                    <div className="font-medium text-gray-900">{params.row.name}</div>
+                    {params.row.batchCode && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.batchCode}
+                        </div>
+                    )}
+                    {/* Hiển thị batchId nếu không có batchCode */}
+                    {!params.row.batchCode && params.row.batchId && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.batchId}
+                        </div>
+                    )}
+                    {/* Hiển thị id nếu không có batchCode và batchId */}
+                    {!params.row.batchCode && !params.row.batchId && params.row.id && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.id}
+                        </div>
+                    )}
+                </div>
+            )
+        },
         columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
         columnVisibility['Số lượng'] && {
             field: 'quantity',

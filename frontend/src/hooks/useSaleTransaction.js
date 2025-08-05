@@ -148,6 +148,7 @@ export const useSaleTransaction = () => {
                     remainQuantity: product.remainQuantity,
                     unitSalePrice: product.price,
                     batchId: product.id,
+                    batchCode: product.batchCode || product.name, // Thêm batchCode
                     productCode: product.productCode,
                     categoryName: product.categoryName,
                     storeName: product.storeName,
@@ -189,10 +190,21 @@ export const useSaleTransaction = () => {
         for (const selectedBatchData of selectedBatches) {
             const { batch, quantity, batchId } = selectedBatchData;
             
-            if (quantity > batch.remainQuantity) {
-                setError(`Số lượng vượt quá tồn kho cho batch ${batch.id}. Còn lại: ${batch.remainQuantity}`);
-                hasError = true;
-                break;
+            // Kiểm tra giới hạn dựa trên đơn vị
+            const unit = batch.unit || 'quả';
+            if (unit === 'khay') {
+                const maxKhay = Math.floor(batch.remainQuantity / 30);
+                if (quantity > maxKhay) {
+                    setError(`Số lượng khay vượt quá giới hạn cho batch ${batch.id}. Tối đa: ${maxKhay} khay (${batch.remainQuantity} quả)`);
+                    hasError = true;
+                    break;
+                }
+            } else {
+                if (quantity > batch.remainQuantity) {
+                    setError(`Số lượng vượt quá tồn kho cho batch ${batch.id}. Còn lại: ${batch.remainQuantity} quả`);
+                    hasError = true;
+                    break;
+                }
             }
             
             const existingIndex = selectedProducts.findIndex(item => item.batchId === batchId);
@@ -200,18 +212,32 @@ export const useSaleTransaction = () => {
                 const updatedDetail = [...selectedProducts];
                 const newQuantity = updatedDetail[existingIndex].quantity + quantity;
                 
-                if (newQuantity > batch.remainQuantity) {
-                    setError(`Tổng số lượng vượt quá tồn kho cho batch ${batch.id}. Còn lại: ${batch.remainQuantity}`);
-                    hasError = true;
-                    break;
+                // Kiểm tra giới hạn dựa trên đơn vị của sản phẩm hiện tại
+                const currentUnit = updatedDetail[existingIndex].unit || 'quả';
+                if (currentUnit === 'khay') {
+                    const maxKhay = Math.floor(batch.remainQuantity / 30);
+                    if (newQuantity > maxKhay) {
+                        setError(`Tổng số lượng khay vượt quá giới hạn cho batch ${batch.id}. Tối đa: ${maxKhay} khay (${batch.remainQuantity} quả)`);
+                        hasError = true;
+                        break;
+                    }
+                } else {
+                    if (newQuantity > batch.remainQuantity) {
+                        setError(`Tổng số lượng vượt quá tồn kho cho batch ${batch.id}. Còn lại: ${batch.remainQuantity} quả`);
+                        hasError = true;
+                        break;
+                    }
                 }
                 
                 updatedDetail[existingIndex].quantity = newQuantity;
-                updatedDetail[existingIndex].total = updatedDetail[existingIndex].price * newQuantity;
+                // Tính total dựa trên số lượng đã quy đổi về quả
+                const unit = updatedDetail[existingIndex].unit || 'quả';
+                updatedDetail[existingIndex].total = updatedDetail[existingIndex].price * (unit === 'khay' ? newQuantity * 30 : newQuantity);
                 setSelectedProducts(updatedDetail);
             } else {
                 const price = batch.unitSalePrice || 0;
-                const total = price * quantity;
+                const unit = batch.unit || 'quả';
+                const total = price * (unit === 'khay' ? quantity * 30 : quantity);
                 
                 const newItem = {
                     id: batch.id,
@@ -224,6 +250,7 @@ export const useSaleTransaction = () => {
                     remainQuantity: batch.remainQuantity,
                     unitSalePrice: batch.unitSalePrice,
                     batchId: batch.id,
+                    batchCode: batch.batchCode || batch.name, // Thêm batchCode
                     productCode: batch.productCode,
                     categoryName: batch.categoryName,
                     storeName: batch.storeName,
@@ -244,14 +271,27 @@ export const useSaleTransaction = () => {
             prev.map((p) => {
                 if (p.id === id) {
                     const newQuantity = Math.max(1, p.quantity + delta);
-                    if (newQuantity > p.remainQuantity) {
-                        setError(`Số lượng vượt quá tồn kho. Còn lại: ${p.remainQuantity}`);
-                        return p;
+                    
+                    // Kiểm tra giới hạn dựa trên đơn vị
+                    if (p.unit === 'khay') {
+                        // Nếu là khay, kiểm tra không vượt quá số khay tối đa có thể tạo
+                        const maxKhay = Math.floor(p.remainQuantity / 30);
+                        if (newQuantity > maxKhay) {
+                            setError(`Số lượng khay vượt quá giới hạn. Tối đa: ${maxKhay} khay (${p.remainQuantity} quả)`);
+                            return p;
+                        }
+                    } else {
+                        // Nếu là quả, kiểm tra không vượt quá tồn kho
+                        if (newQuantity > p.remainQuantity) {
+                            setError(`Số lượng vượt quá tồn kho. Còn lại: ${p.remainQuantity} quả`);
+                            return p;
+                        }
                     }
                     return {
                         ...p,
                         quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity,
+                        // Tính total dựa trên số lượng đã quy đổi về quả
+                        total: (p.price || 0) * (p.unit === 'khay' ? newQuantity * 30 : newQuantity),
                     };
                 }
                 return p;
@@ -266,14 +306,27 @@ export const useSaleTransaction = () => {
             prev.map((p) => {
                 if (p.id === id) {
                     const quantity = Math.max(1, newQuantity);
-                    if (quantity > p.remainQuantity) {
-                        setError(`Số lượng vượt quá tồn kho. Còn lại: ${p.remainQuantity}`);
-                        return p;
+                    
+                    // Kiểm tra giới hạn dựa trên đơn vị
+                    if (p.unit === 'khay') {
+                        // Nếu là khay, kiểm tra không vượt quá số khay tối đa có thể tạo
+                        const maxKhay = Math.floor(p.remainQuantity / 30);
+                        if (quantity > maxKhay) {
+                            setError(`Số lượng khay vượt quá giới hạn. Tối đa: ${maxKhay} khay (${p.remainQuantity} quả)`);
+                            return p;
+                        }
+                    } else {
+                        // Nếu là quả, kiểm tra không vượt quá tồn kho
+                        if (quantity > p.remainQuantity) {
+                            setError(`Số lượng vượt quá tồn kho. Còn lại: ${p.remainQuantity} quả`);
+                            return p;
+                        }
                     }
                     return {
                         ...p,
                         quantity,
-                        total: (p.price || 0) * quantity,
+                        // Tính total dựa trên số lượng đã quy đổi về quả
+                        total: (p.price || 0) * (p.unit === 'khay' ? quantity * 30 : quantity),
                     };
                 }
                 return p;
@@ -290,7 +343,8 @@ export const useSaleTransaction = () => {
                     ? {
                         ...p,
                         price: newPrice,
-                        total: newPrice * p.quantity,
+                        // Tính total dựa trên số lượng đã quy đổi về quả
+                        total: newPrice * (p.unit === 'khay' ? p.quantity * 30 : p.quantity),
                     }
                     : p
             )
