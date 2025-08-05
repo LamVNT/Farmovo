@@ -14,6 +14,7 @@ import {
     TableRow,
     Paper,
     Divider,
+    Tooltip,
 } from '@mui/material';
 import { FaPrint, FaCheck, FaTimes } from 'react-icons/fa';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -38,7 +39,7 @@ const ImportSummaryDialog = ({
         <Dialog 
             open={open} 
             onClose={onClose}
-            maxWidth="md"
+            maxWidth="lg"
             fullWidth
         >
             <DialogTitle className="flex justify-between items-center bg-gray-50">
@@ -103,39 +104,86 @@ const ImportSummaryDialog = ({
                 </Typography>
                 
                 <TableContainer component={Paper} className="mb-4">
-                    <Table size="small">
+                    <Table size="small" sx={{ minWidth: 900 }}>
                         <TableHead>
                             <TableRow className="bg-gray-100">
-                                <TableCell className="font-semibold">STT</TableCell>
-                                <TableCell className="font-semibold">Tên sản phẩm</TableCell>
-                                <TableCell className="font-semibold text-center">ĐVT</TableCell>
-                                <TableCell className="font-semibold text-center">Số lượng</TableCell>
-                                <TableCell className="font-semibold text-right">Đơn giá</TableCell>
-                                <TableCell className="font-semibold text-right">Thành tiền</TableCell>
+                                <TableCell className="font-semibold" sx={{ whiteSpace: 'nowrap' }}>STT</TableCell>
+                                <TableCell className="font-semibold" sx={{ whiteSpace: 'nowrap' }}>Tên sản phẩm</TableCell>
+                                <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>ĐVT</TableCell>
+                                <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Số lượng</TableCell>
+                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Đơn giá</TableCell>
+                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Giá bán</TableCell>
+                                <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Vị trí</TableCell>
+                                <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Ngày hết hạn</TableCell>
+                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Thành tiền</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {products && products.length > 0 ? products.map((product, index) => (
-                                <TableRow key={product.id || index} className="hover:bg-gray-50">
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>
-                                        <div>
-                                            <div className="font-medium">{product.name || product.productName || 'Chưa có'}</div>
-                                            <div className="text-xs text-gray-500">
-                                                Mã: {product.code || product.productCode || 'N/A'}
+                            {products && products.length > 0 ? products.map((product, index) => {
+                                const selectedZoneIds = Array.isArray(product.zoneIds) ? product.zoneIds : [];
+                                const zones = importData.zones || [];
+                                
+                                return (
+                                    <TableRow key={product.id || index} className="hover:bg-gray-50">
+                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{index + 1}</TableCell>
+                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                            <div>
+                                                <div className="font-medium">{product.name || product.productName || 'Chưa có'}</div>
+                                                <div className="text-xs text-gray-500">
+                                                    Mã: {product.code || product.productCode || 'N/A'}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">{product.unit || 'quả'}</TableCell>
-                                    <TableCell className="text-center">{product.quantity || product.importQuantity || 0}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(product.price || product.unitImportPrice || 0)}</TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        {formatCurrency((product.price || product.unitImportPrice || 0) * (product.quantity || product.importQuantity || 0))}
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
+                                        </TableCell>
+                                        <TableCell className="text-center" sx={{ whiteSpace: 'nowrap' }}>{product.unit || 'quả'}</TableCell>
+                                        <TableCell className="text-center" sx={{ whiteSpace: 'nowrap' }}>{product.quantity || product.importQuantity || 0}</TableCell>
+                                        <TableCell className="text-right" sx={{ whiteSpace: 'nowrap' }}>{formatCurrency(product.price || product.unitImportPrice || 0)}</TableCell>
+                                        <TableCell className="text-right" sx={{ whiteSpace: 'nowrap' }}>{formatCurrency(product.salePrice || product.unitSalePrice || 0)}</TableCell>
+                                        <TableCell className="text-center" sx={{ whiteSpace: 'nowrap' }}>
+                                            {selectedZoneIds.length > 0 ? (
+                                                <Tooltip title={selectedZoneIds.map(zoneId => {
+                                                    const zone = zones.find(z => z.id === zoneId);
+                                                    return zone ? (zone.name || zone.zoneName) : '';
+                                                }).filter(name => name).join(', ')}>
+                                                    <div className="flex gap-1 justify-center" style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                                        {selectedZoneIds.slice(0, 2).map((zoneId) => {
+                                                            const zone = zones.find(z => z.id === zoneId);
+                                                            return zone ? (
+                                                                <span
+                                                                    key={zoneId}
+                                                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex-shrink-0"
+                                                                >
+                                                                    {zone.name || zone.zoneName}
+                                                                </span>
+                                                            ) : null;
+                                                        })}
+                                                        {selectedZoneIds.length > 2 && (
+                                                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex-shrink-0">
+                                                                +{selectedZoneIds.length - 2}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </Tooltip>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">Chưa chọn</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center" sx={{ whiteSpace: 'nowrap' }}>
+                                            {product.expireDate ? (
+                                                <span className="text-sm">
+                                                    {new Date(product.expireDate).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">Chưa có</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold" sx={{ whiteSpace: 'nowrap' }}>
+                                            {formatCurrency((product.price || product.unitImportPrice || 0) * (product.quantity || product.importQuantity || 0))}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            }) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center">Không có sản phẩm</TableCell>
+                                    <TableCell colSpan={9} align="center">Không có sản phẩm</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

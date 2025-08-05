@@ -8,62 +8,69 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
+' Improved: Thêm UI, bỏ thao tác DB, alt lỗi rõ ràng, note về DTO
+
 title Create Category - Sequence Diagram
 
 actor User as U
-participant "CategoryController" as CC
-participant "CategoryService" as CS
-participant "CategoryMapper" as CM
-participant "CategoryValidator" as CV
-participant "CategoryRepository" as CR
-database "Database" as DB
+participant ":Category Page" as UI
+participant ":Create Category Dialog" as CUI
+participant ":CategoryController" as CC
+participant ":CategoryService" as CS
+participant ":CategoryValidator" as CV
+participant ":CategoryMapper" as CM
+participant ":CategoryRepository" as CR
 
 == Request Phase ==
-U -> CC: POST /api/categories\n{name, description}
+U -> UI: Truy cập Category Page
+activate U
+activate UI
+U -> UI: Nhấn "Tạo mới Category"
+UI -> CUI: Mở dialog tạo mới
+activate CUI
+CUI -> U: Hiển thị form nhập thông tin
+U -> CUI: Nhập name, description, nhấn "Lưu"
+CUI -> CC: POST /api/categories {name, description}
 activate CC
 
 CC -> CV: validate(requestDto)
 activate CV
-CV -> CV: validate name not empty
-CV -> CV: validate description length
 CV --> CC: validation result
-deactivate CV
+Deactivate CV
 
 alt Validation Failed
-    CC --> U: 400 Bad Request\n{error message}
+    CC --> CUI: 400 Bad Request {error message}
+    CUI --> U: Hiển thị lỗi
 else Validation Passed
     CC -> CS: createCategory(requestDto)
     activate CS
-    
     CS -> CM: toEntity(requestDto)
     activate CM
-    CM -> CM: map name -> categoryName
-    CM -> CM: map description -> categoryDescription
     CM --> CS: Category entity
     deactivate CM
-    
-    CS -> CS: setCreatedAt(LocalDateTime.now())
     CS -> CR: save(category)
     activate CR
-    CR -> DB: INSERT INTO categories
-    DB --> CR: saved category
     CR --> CS: Category entity
     deactivate CR
-    
     CS -> CM: toResponseDto(category)
     activate CM
-    CM -> CM: map categoryName -> name
-    CM -> CM: map categoryDescription -> description
-    CM -> CM: map createdAt -> createAt
     CM --> CS: CategoryResponseDto
     deactivate CM
-    
     CS --> CC: CategoryResponseDto
     deactivate CS
-    
-    CC --> U: 200 OK\nCategoryResponseDto
+    CC --> CUI: 200 OK CategoryResponseDto
+    CUI --> UI: Đóng dialog, cập nhật danh sách
+    UI --> U: Hiển thị category mới
 end
 
 deactivate CC
+Deactivate CUI
+Deactivate UI
+Deactivate U
+
+note right of CUI
+    requestDto: name, description
+    responseDto: id, name, description, createdAt
+end note
 
 @enduml 

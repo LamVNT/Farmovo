@@ -6,20 +6,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class StoreRequestDto {
-    @NotBlank(message = "Tên cửa hàng không được để trống")
-    @Size(max = 255, message = "Tên cửa hàng tối đa 255 ký tự")
+    private Long id;
     private String storeName;
-
-    @Size(max = 1000, message = "Mô tả tối đa 1000 ký tự")
     private String storeDescription;
-
-    @NotBlank(message = "Địa chỉ không được để trống")
-    @Size(max = 500, message = "Địa chỉ tối đa 500 ký tự")
     private String storeAddress;
-
-    private Long createdBy;
+    private Long createBy;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
+    private LocalDateTime deleteAt;
+    private Long deleteBy;
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Menu, MenuItem, IconButton, Checkbox, TextField, Button, Select, FormControl, InputLabel, CircularProgress, Alert, ListItemIcon, ListItemText } from '@mui/material';
 import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid';
 import {
@@ -79,6 +80,9 @@ const labelMap = {
 };
 
 const SaleTransactionPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams(); // Lấy query params
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -90,6 +94,7 @@ const SaleTransactionPage = () => {
     const [filter, setFilter] = useState({
         status: {
             draft: false,
+            waitingForApprove: false,
             complete: false,
             cancel: false,
         },
@@ -111,6 +116,13 @@ const SaleTransactionPage = () => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmType, setConfirmType] = useState(null);
     const [confirmRow, setConfirmRow] = useState(null);
+    const [confirmDialog, setConfirmDialog] = useState({
+        open: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        actionType: ''
+    });
 
     // Pagination states
     const [page, setPage] = useState(0);
@@ -121,6 +133,48 @@ const SaleTransactionPage = () => {
     const [showFilter, setShowFilter] = useState(true);
     const [showFilterBtn, setShowFilterBtn] = useState(false);
     const mainAreaRef = useRef(null);
+
+    // Kiểm tra URL params để tự động mở dialog chi tiết
+    useEffect(() => {
+        const viewParam = searchParams.get('view');
+        if (id && viewParam === 'detail') {
+            // Tự động mở dialog chi tiết cho transaction có ID này
+            handleAutoOpenDetail(parseInt(id));
+        }
+    }, [id, searchParams]);
+
+    // Hàm tự động mở dialog chi tiết
+    const handleAutoOpenDetail = async (transactionId) => {
+        try {
+            const transaction = await saleTransactionService.getWithDetails(transactionId);
+            setSelectedTransaction(transaction);
+            
+            // Fetch thông tin customer
+            if (transaction.customerId) {
+                try {
+                    const customer = await getCustomerById(transaction.customerId);
+                    setCustomerDetails(customer);
+                } catch (error) {
+                    setCustomerDetails(null);
+                }
+            }
+            
+            // Fetch thông tin user (người tạo)
+            if (transaction.createdBy) {
+                try {
+                    const user = await userService.getUserById(transaction.createdBy);
+                    setUserDetails(user);
+                } catch (error) {
+                    setUserDetails(null);
+                }
+            }
+            
+            setOpenDetailDialog(true);
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết phiếu bán:", error);
+            setError('Không thể tải chi tiết phiếu bán');
+        }
+    };
 
     const loadTransactions = async (params = {}) => {
         setLoading(true);
@@ -197,6 +251,7 @@ const SaleTransactionPage = () => {
     const getStatusKeys = () => {
         const keys = [];
         if (filter.status.draft) keys.push('DRAFT');
+        if (filter.status.waitingForApprove) keys.push('WAITING_FOR_APPROVE');
         if (filter.status.complete) keys.push('COMPLETE');
         if (filter.status.cancel) keys.push('CANCEL');
         return keys;
@@ -295,6 +350,45 @@ const SaleTransactionPage = () => {
         }
     };
 
+    const handleOpenTransaction = async () => {
+        if (selectedTransaction?.status === 'DRAFT') {
+            try {
+                await saleTransactionService.openTransaction(selectedTransaction.id);
+                setSuccess('Mở phiếu thành công!');
+                loadTransactions();
+            } catch (err) {
+                setError('Không thể mở phiếu. Vui lòng thử lại!');
+            }
+        }
+    };
+
+    const handleCloseTransaction = async () => {
+        if (selectedTransaction?.status === 'WAITING_FOR_APPROVE') {
+            try {
+                await saleTransactionService.closeTransaction(selectedTransaction.id);
+                setSuccess('Đóng phiếu thành công!');
+                loadTransactions();
+            } catch (err) {
+                setError('Không thể đóng phiếu. Vui lòng thử lại!');
+            }
+        }
+    };
+
+    const handleCancelTransaction = async () => {
+        if (selectedTransaction?.status === 'DRAFT' || selectedTransaction?.status === 'WAITING_FOR_APPROVE') {
+            try {
+                await saleTransactionService.cancel(selectedTransaction.id);
+                setSuccess('Hủy phiếu thành công!');
+                setSelectedTransaction(null);
+                setUserDetails(null);
+                setCustomerDetails(null);
+                loadTransactions();
+            } catch (err) {
+                setError('Không thể hủy phiếu. Vui lòng thử lại!');
+            }
+        }
+    };
+
     const handleConfirm = () => {
         setConfirmOpen(false);
         if (confirmType === 'complete') handleComplete(confirmRow);
@@ -321,6 +415,98 @@ const SaleTransactionPage = () => {
     };
 
     const handleDelete = () => {
+        handleActionClose();
+    };
+
+    const handleOpenTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận mở phiếu',
+                message: `Bạn có chắc chắn muốn mở phiếu bán hàng "${actionRow.name}" và chuyển sang trạng thái chờ phê duyệt?`,
+                onConfirm: async () => {
+                    try {
+                        await saleTransactionService.openTransaction(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Mở phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể mở phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'open'
+            });
+        }
+        handleActionClose();
+    };
+
+    const handleCloseTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận đóng phiếu',
+                message: `Bạn có chắc chắn muốn đóng phiếu bán hàng "${actionRow.name}" và quay về trạng thái nháp?`,
+                onConfirm: async () => {
+                    try {
+                        await saleTransactionService.closeTransaction(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Đóng phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'close'
+            });
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteTransactionMenu = async () => {
+        if (actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hoàn thành phiếu',
+                message: `Bạn có chắc chắn muốn hoàn thành phiếu bán hàng "${actionRow.name}"? Hành động này sẽ cập nhật tồn kho và tạo ghi chú nợ nếu cần.`,
+                onConfirm: async () => {
+                    try {
+                        await saleTransactionService.complete(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Hoàn thành phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'complete'
+            });
+        }
+        handleActionClose();
+    };
+
+    const handleCancelTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hủy phiếu',
+                message: `Bạn có chắc chắn muốn hủy phiếu bán hàng "${actionRow.name}"?`,
+                onConfirm: async () => {
+                    try {
+                        await saleTransactionService.cancel(actionRow.id);
+                        loadTransactions();
+                        setSuccess('Hủy phiếu thành công!');
+                    } catch (err) {
+                        setError('Không thể hủy phiếu. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'cancel'
+            });
+        }
         handleActionClose();
     };
 
@@ -375,6 +561,8 @@ const SaleTransactionPage = () => {
                 return { bg: '#10b981', text: '#fff' };
             case 'DRAFT':
                 return { bg: '#6b7280', text: '#fff' };
+            case 'WAITING_FOR_APPROVE':
+                return { bg: '#f59e0b', text: '#fff' };
             case 'CANCEL':
                 return { bg: '#ef4444', text: '#fff' };
             default:
@@ -388,6 +576,8 @@ const SaleTransactionPage = () => {
                 return 'Đã hoàn thành';
             case 'DRAFT':
                 return 'Nháp';
+            case 'WAITING_FOR_APPROVE':
+                return 'Chờ phê duyệt';
             case 'CANCEL':
                 return 'Đã hủy';
             default:
@@ -622,6 +812,22 @@ const SaleTransactionPage = () => {
                             <FormControlLabel
                                 control={
                                     <Checkbox
+                                        checked={filter.status.waitingForApprove}
+                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
+                                    />
+                                }
+                                label={
+                                    <span
+                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        Chờ phê duyệt
+                                    </span>
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
                                         checked={filter.status.complete}
                                         onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
                                     />
@@ -795,11 +1001,13 @@ const SaleTransactionPage = () => {
                                                         row.status === 'COMPLETE' ? '#e6f4ea' :
                                                         row.status === 'CANCEL' ? '#fde8e8' :
                                                         row.status === 'DRAFT' ? '#f3f4f6' :
+                                                        row.status === 'WAITING_FOR_APPROVE' ? '#fff7e0' :
                                                         '#fff7e0',
                                                       color:
                                                         row.status === 'COMPLETE' ? '#34a853' :
                                                         row.status === 'CANCEL' ? '#ef4444' :
                                                         row.status === 'DRAFT' ? '#6b7280' :
+                                                        row.status === 'WAITING_FOR_APPROVE' ? '#f59e0b' :
                                                         '#f59e0b',
                                                       borderRadius: 6,
                                                       padding: '2px 10px',
@@ -884,6 +1092,9 @@ const SaleTransactionPage = () => {
                     setSelectedTransaction(null);
                     setUserDetails(null);
                     setCustomerDetails(null);
+                    if (id) {
+                        navigate('/sale');
+                    }
                 }}
                 transaction={selectedTransaction}
                 formatCurrency={formatCurrency}
@@ -893,6 +1104,9 @@ const SaleTransactionPage = () => {
                 customerDetails={customerDetails}
                 onCancel={() => handleCancel(selectedTransaction)}
                 onComplete={() => handleComplete(selectedTransaction)}
+                onOpenTransaction={handleOpenTransaction}
+                onCloseTransaction={handleCloseTransaction}
+                loading={loading}
             />
 
             <Menu
@@ -918,6 +1132,37 @@ const SaleTransactionPage = () => {
                     <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
+                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleOpenTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                        <ListItemIcon><LockOpenIcon fontSize="small" /></ListItemIcon>
+                        <ListItemText primary="Mở phiếu" />
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCloseTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                        <ListItemIcon><SaveIcon fontSize="small" /></ListItemIcon>
+                        <ListItemText primary="Đóng phiếu" />
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                    <MenuItem onClick={handleCompleteTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText primary="Hoàn thành" />
+                    </MenuItem>
+                )}
+                
+                {/* Hiển thị nút "Hủy phiếu" cho các trạng thái DRAFT và WAITING_FOR_APPROVE */}
+                {(actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') && (
+                    <MenuItem onClick={handleCancelTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
+                        <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
+                        <ListItemText primary="Hủy phiếu" />
+                    </MenuItem>
+                )}
                 <MenuItem onClick={() => {
                     handleExportDetail(actionRow);
                     handleActionClose();
@@ -931,26 +1176,6 @@ const SaleTransactionPage = () => {
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất PDF" />
-                </MenuItem>
-                {actionRow && actionRow.status !== 'COMPLETE' && actionRow.status !== 'CANCEL' && (
-                    <MenuItem onClick={() => {
-                        setConfirmType('complete');
-                        setConfirmRow(actionRow);
-                        setConfirmOpen(true);
-                        handleActionClose();
-                    }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
-                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
-                        <ListItemText primary="Hoàn thành" />
-                    </MenuItem>
-                )}
-                <MenuItem onClick={() => {
-                    setConfirmType('cancel');
-                    setConfirmRow(actionRow);
-                    setConfirmOpen(true);
-                    handleActionClose();
-                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
-                    <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
-                    <ListItemText primary="Hủy phiếu" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
@@ -977,6 +1202,61 @@ const SaleTransactionPage = () => {
                 <DialogActions>
                     <Button onClick={() => setConfirmOpen(false)} color="inherit">Huỷ</Button>
                     <Button onClick={handleConfirm} color={confirmType === 'complete' ? 'success' : 'error'} variant="contained">
+                        Xác nhận
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog xác nhận cho các action WAITING_FOR_APPROVE */}
+            <Dialog
+                open={confirmDialog.open}
+                onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ 
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    {(() => {
+                        switch (confirmDialog.actionType) {
+                            case 'cancel':
+                                return <CancelIcon color="error" />;
+                            case 'open':
+                                return <LockOpenIcon color="primary" />;
+                            case 'close':
+                                return <SaveIcon color="warning" />;
+                            case 'complete':
+                                return <CheckIcon color="success" />;
+                            case 'delete':
+                                return <DeleteIcon color="error" />;
+                            default:
+                                return <CancelIcon />;
+                        }
+                    })()}
+                    {confirmDialog.title}
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <div className="text-gray-700">
+                        {confirmDialog.message}
+                    </div>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 1 }}>
+                    <Button 
+                        onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                        color="inherit"
+                    >
+                        Hủy
+                    </Button>
+                    <Button 
+                        onClick={confirmDialog.onConfirm}
+                        color={confirmDialog.actionType === 'complete' ? 'success' : 
+                               confirmDialog.actionType === 'open' ? 'primary' :
+                               confirmDialog.actionType === 'close' ? 'warning' : 'error'}
+                        variant="contained"
+                    >
                         Xác nhận
                     </Button>
                 </DialogActions>

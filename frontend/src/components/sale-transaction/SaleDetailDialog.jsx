@@ -16,6 +16,7 @@ import {
     Divider,
     Box,
     Chip,
+    CircularProgress,
 } from '@mui/material';
 import { FaTimes, FaFileExport } from 'react-icons/fa';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -24,6 +25,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import CancelIcon from '@mui/icons-material/Cancel';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import SaveIcon from '@mui/icons-material/Save';
 
 const SaleDetailDialog = ({
     open,
@@ -35,7 +38,10 @@ const SaleDetailDialog = ({
     customerDetails,
     onCancel,
     onComplete,
-    onExportPdf
+    onExportPdf,
+    onOpenTransaction, // Thêm prop mới
+    onCloseTransaction, // Thêm prop mới
+    loading = false, // Thêm prop loading
 }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmType, setConfirmType] = useState(null); // 'complete' | 'cancel'
@@ -64,7 +70,9 @@ const SaleDetailDialog = ({
                         CHI TIẾT PHIẾU BÁN HÀNG{transaction.name ? `: ${transaction.name}` : ''}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
+                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : 
+                         status === 'WAITING_FOR_APPROVE' ? '⏳ Chờ phê duyệt' :
+                         status === 'COMPLETE' ? '✅ Phiếu hoàn thành' : '❌ Phiếu đã hủy'}
                     </Typography>
                 </div>
                 <div className="text-right">
@@ -206,6 +214,56 @@ const SaleDetailDialog = ({
             </DialogContent>
 
             <DialogActions className="p-4 bg-gray-50">
+                {transaction.status === 'DRAFT' && onOpenTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="primary"
+                        onClick={onOpenTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Mở phiếu'}
+                    </Button>
+                )}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (
+                    <Button 
+                        variant="contained"
+                        color="secondary"
+                        onClick={onCloseTransaction}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Đóng phiếu'}
+                    </Button>
+                )}
+                {(transaction.status === 'DRAFT' || transaction.status === 'WAITING_FOR_APPROVE') && onCancel && (
+                    <Button 
+                        variant="contained"
+                        color="error"
+                        onClick={() => {
+                            setConfirmType('cancel');
+                            setConfirmOpen(true);
+                        }}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CancelIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Hủy phiếu'}
+                    </Button>
+                )}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onComplete && (
+                    <Button 
+                        variant="contained"
+                        color="success"
+                        onClick={() => {
+                            setConfirmType('complete');
+                            setConfirmOpen(true);
+                        }}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                    >
+                        {loading ? 'Đang xử lý...' : 'Hoàn thành'}
+                    </Button>
+                )}
                 <Button 
                     onClick={onExport} 
                     variant="outlined" 
@@ -226,36 +284,10 @@ const SaleDetailDialog = ({
                         Xuất PDF
                     </Button>
                 )}
-                {status !== 'COMPLETE' && status !== 'CANCEL' && (
-                    <Button
-                        onClick={() => {
-                            setConfirmType('complete');
-                            setConfirmOpen(true);
-                        }}
-                        variant="contained"
-                        color="success"
-                        startIcon={<CheckIcon />}
-                        sx={{ ml: 1 }}
-                    >
-                        Hoàn thành
-                    </Button>
-                )}
-                <Button
-                    onClick={() => {
-                        setConfirmType('cancel');
-                        setConfirmOpen(true);
-                    }}
-                    variant="outlined"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    sx={{ ml: 1 }}
-                    disabled={status === 'CANCEL'}
-                >
-                    Hủy phiếu
-                </Button>
                 <Button 
                     onClick={onClose} 
-                    variant="contained" 
+                    variant="outlined" 
+                    color="inherit"
                     startIcon={<FaTimes />}
                     sx={{ ml: 1 }}
                 >

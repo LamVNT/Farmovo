@@ -9,20 +9,24 @@ import {
     Box,
     Button,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { getAllStores } from "../../services/storeService";
+import { formatCurrency } from "../../utils/formatters";
 
 // S3 bucket info
 const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
 
 const DebtDetailDialog = ({ open, onClose, debtNote }) => {
+    const navigate = useNavigate();
     const [storeName, setStoreName] = useState("");
+    
     useEffect(() => {
         const fetchStores = async () => {
             try {
                 const storeData = await getAllStores();
                 if (debtNote && debtNote.storeId) {
                     const store = storeData.find((s) => s.id === debtNote.storeId);
-                    setStoreName(store ? store.name : "");
+                    setStoreName(store ? store.storeName : "");
                 } else {
                     setStoreName("");
                 }
@@ -32,6 +36,35 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
         };
         if (open && debtNote && debtNote.storeId) fetchStores();
     }, [open, debtNote]);
+
+    const handleSourceIdClick = () => {
+        if (!debtNote?.sourceId || !debtNote?.fromSource) {
+            console.log('Missing sourceId or fromSource:', { sourceId: debtNote?.sourceId, fromSource: debtNote?.fromSource });
+            return;
+        }
+
+        const sourceId = debtNote.sourceId;
+        const fromSource = debtNote.fromSource;
+
+        console.log('Navigating to transaction:', { sourceId, fromSource });
+
+        // Chuyển hướng dựa trên loại nguồn
+        if (fromSource === 'SALE') {
+            // Chuyển sang trang chi tiết sale transaction
+            console.log('Navigating to sale transaction:', sourceId);
+            navigate(`/sale/${sourceId}`);
+        } else if (fromSource === 'IMPORT' || fromSource === 'PURCHASE') {
+            // Chuyển sang trang chi tiết import transaction
+            console.log('Navigating to import transaction:', sourceId);
+            navigate(`/import/${sourceId}`);
+        } else {
+            console.log('Unknown source type:', fromSource);
+            return;
+        }
+        
+        // Đóng dialog hiện tại
+        onClose();
+    };
 
     if (!debtNote) return null;
 
@@ -55,6 +88,10 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
     console.log('debtNote.debtEvidences:', debtNote.debtEvidences);
     console.log('previewUrl:', previewUrl);
 
+    // Kiểm tra xem có thể click vào sourceId không
+    const canClickSourceId = debtNote.sourceId && debtNote.fromSource && 
+        (debtNote.fromSource === 'SALE' || debtNote.fromSource === 'PURCHASE' || debtNote.fromSource === 'IMPORT');
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Chi tiết giao dịch nợ</DialogTitle>
@@ -66,9 +103,9 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                         <TextField
                             margin="dense"
                             name="debtAmount"
-                            type="number"
+                            type="text"
                             fullWidth
-                            value={debtNote.debtAmount}
+                            value={formatCurrency(debtNote.debtAmount)}
                             disabled
                             InputLabelProps={{ shrink: true }}
                             label=""
@@ -80,7 +117,7 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             margin="dense"
                             name="debtType"
                             fullWidth
-                            value={debtNote.debtType === "+" ? "Cửa hàng nợ" : "Khách hàng nợ"}
+                            value={debtNote.debtType === "+" ? "Cửa Hàng Nợ" : "Khách Hàng Nợ"}
                             disabled
                             label=""
                         />
@@ -154,22 +191,55 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             margin="dense"
                             name="fromSource"
                             fullWidth
-                            value={debtNote.fromSource || ""}
+                            value={(() => {
+                                if (debtNote.fromSource === "SALE") return "Đơn Bán";
+                                if (debtNote.fromSource === "IMPORT" || debtNote.fromSource === "PURCHASE") return "Đơn Nhập";
+                                if (debtNote.fromSource === "MANUAL") return "Đơn tự nhập";
+                                return debtNote.fromSource || "";
+                            })()}
                             disabled
                             label=""
                         />
                     </Box>
                     <Box flex={1} display="flex" flexDirection="column">
                         <Typography variant="subtitle2">ID nguồn</Typography>
-                        <TextField
-                            margin="dense"
-                            name="sourceId"
-                            type="number"
-                            fullWidth
-                            value={debtNote.sourceId || ""}
-                            disabled
-                            label=""
-                        />
+                        {canClickSourceId ? (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={handleSourceIdClick}
+                                sx={{ 
+                                    mt: 1, 
+                                    textTransform: 'none',
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    borderColor: '#1976d2',
+                                    '&:hover': {
+                                        backgroundColor: '#e3f2fd',
+                                        borderColor: '#1565c0'
+                                    }
+                                }}
+                                fullWidth
+                                title={`Xem chi tiết ${debtNote.fromSource === 'SALE' ? 'phiếu bán hàng' : 'phiếu nhập hàng'} #${debtNote.sourceId}`}
+                            >
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <span>{debtNote.sourceId}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                                        ({debtNote.fromSource === 'SALE' ? 'Bán hàng' : 'Nhập hàng'})
+                                    </span>
+                                </Box>
+                            </Button>
+                        ) : (
+                            <TextField
+                                margin="dense"
+                                name="sourceId"
+                                type="number"
+                                fullWidth
+                                value={debtNote.sourceId || ""}
+                                disabled
+                                label=""
+                            />
+                        )}
                     </Box>
                 </Box>
             </DialogContent>

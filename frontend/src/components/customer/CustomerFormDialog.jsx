@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
 import { customerService } from "../../services/customerService";
 
 const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", totalDebt: 0 });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", totalDebt: 0, isSupplier: false });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -12,24 +12,30 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
         name: customer.name || "",
         email: customer.email || "",
         phone: customer.phone || "",
+        address: customer.address || "",
         totalDebt: customer.totalDebt || 0,
+        isSupplier: customer.isSupplier || false,
       });
     } else {
-      setForm({ name: "", email: "", phone: "", totalDebt: 0 });
+      setForm({ name: "", email: "", phone: "", address: "", totalDebt: 0, isSupplier: false });
     }
   }, [mode, customer, open]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setForm({ 
+      ...form, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
   };
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
       if (mode === "add") {
-        await customerService.createCustomer({ ...form, totalDept: form.totalDebt });
+        await customerService.createCustomer(form);
       } else if (mode === "edit" && customer) {
-        await customerService.updateCustomer(customer.id, { ...form, totalDept: form.totalDebt });
+        await customerService.updateCustomer(customer.id, form);
       }
       onClose(true);
     } catch (err) {
@@ -68,6 +74,17 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           margin="normal"
         />
         <TextField
+          label="Địa chỉ"
+          name="address"
+          value={form.address}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          multiline
+          rows={2}
+          placeholder="Nhập địa chỉ khách hàng..."
+        />
+        <TextField
           label="Nợ ban đầu"
           name="totalDebt"
           type="number"
@@ -75,6 +92,18 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
           onChange={handleChange}
           fullWidth
           margin="normal"
+          InputProps={{ readOnly: true }}
+          disabled
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              name="isSupplier"
+              checked={form.isSupplier}
+              onChange={handleChange}
+            />
+          }
+          label="Là nhà cung cấp"
         />
       </DialogContent>
       <DialogActions>

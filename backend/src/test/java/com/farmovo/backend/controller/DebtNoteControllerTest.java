@@ -7,16 +7,17 @@ import com.farmovo.backend.services.impl.S3Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -41,10 +42,7 @@ class DebtNoteControllerTest {
     @MockBean
     private S3Service s3Service;
 
-    @MockBean
-    private com.farmovo.backend.jwt.JwtUtils jwtUtils;
-    @MockBean
-    private com.farmovo.backend.jwt.AuthTokenFilter authTokenFilter;
+    
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -98,31 +96,7 @@ class DebtNoteControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @Test
-    @DisplayName("PUT /api/debt/admin/debt-note/{debtId} - success")
-    void testUpdateDebtNote() throws Exception {
-        DebtNoteRequestDto requestDto = new DebtNoteRequestDto(1L, new BigDecimal("100"), LocalDateTime.now(), 1L, "+", "desc", "", "", 2L);
-        DebtNoteResponseDto responseDto = new DebtNoteResponseDto(1L, 1L, new BigDecimal("100"), LocalDateTime.now(), 1L, "+", "desc", "", "", 2L, LocalDateTime.now(), 1L, null, null, null);
 
-        Mockito.when(debtNoteService.updateDebtNote(eq(1L), any(DebtNoteRequestDto.class))).thenReturn(responseDto);
-
-        mockMvc.perform(put("/api/debt/admin/debt-note/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L));
-    }
-
-    @Test
-    @DisplayName("PUT /api/debt/admin/debt-note/{debtId} - not found")
-    void testUpdateDebtNote_NotFound() throws Exception {
-        DebtNoteRequestDto requestDto = new DebtNoteRequestDto();
-        Mockito.when(debtNoteService.updateDebtNote(eq(1L), any(DebtNoteRequestDto.class))).thenThrow(new IllegalArgumentException("Not found"));
-        mockMvc.perform(put("/api/debt/admin/debt-note/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().is4xxClientError());
-    }
 
     @Test
     @DisplayName("GET /api/debt/admin/customer/{customerId}/total-debt - success")

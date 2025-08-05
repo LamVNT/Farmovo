@@ -4,10 +4,12 @@ import {FaPlus} from "react-icons/fa6";
 import CategoryFormDialog from "../../components/category/CategoryFormDialog";
 import CategoryTable from "../../components/category/CategoryTable";
 import {getCategories, createCategory, updateCategory, deleteCategory} from "../../services/categoryService";
+
 import TablePagination from '@mui/material/TablePagination';
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useCategory from "../../hooks/useCategory";
+
 
 const Category = () => {
     const {
@@ -107,7 +109,6 @@ const Category = () => {
                 onEdit={handleOpenEdit}
                 onDelete={handleDeleteCategory}
             />
-
             <CategoryFormDialog
                 open={openDialog}
                 onClose={() => setOpenDialog(false)}

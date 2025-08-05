@@ -20,6 +20,8 @@ public interface ZoneService {
     void deleteZone(Long id);
 
     List<Zone> getAllZoneEntities();
+
+    List<ZoneResponseDto> getZonesByStoreId(Long storeId);
 }
 
 

@@ -1,4 +1,4 @@
-package com.farmovo.backend.utils;
+package com.farmovo.backend.validator;
 
 import com.farmovo.backend.exceptions.InvalidStatusException;
 import org.springframework.stereotype.Component;
@@ -14,8 +14,11 @@ public class InputUserValidation {
         if (username == null || username.trim().isEmpty() || username.length() > 50) {
             throw new IllegalArgumentException("Account must be non-empty and not exceed 50 characters");
         }
-        if (password == null || password.trim().isEmpty() || password.length() > 64) {
-            throw new IllegalArgumentException("Password must be non-empty and not exceed 64 characters");
+        
+        // Validate password strength using PasswordValidator
+        PasswordValidator.PasswordValidationResult passwordResult = PasswordValidator.validatePassword(password);
+        if (!passwordResult.isValid()) {
+            throw new IllegalArgumentException("Password validation failed: " + passwordResult.getErrorMessage());
         }
     }
 
@@ -27,8 +30,13 @@ public class InputUserValidation {
         if (username != null && (!username.trim().isEmpty() && username.length() > 50)) {
             throw new IllegalArgumentException("Account must not exceed 50 characters if provided");
         }
-        if (password != null && (!password.trim().isEmpty() && password.length() > 64)) {
-            throw new IllegalArgumentException("Password must not exceed 64 characters if provided");
+        
+        // Validate password strength if provided
+        if (password != null && !password.trim().isEmpty()) {
+            PasswordValidator.PasswordValidationResult passwordResult = PasswordValidator.validatePassword(password);
+            if (!passwordResult.isValid()) {
+                throw new IllegalArgumentException("Password validation failed: " + passwordResult.getErrorMessage());
+            }
         }
     }
 

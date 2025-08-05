@@ -10,6 +10,9 @@ import com.farmovo.backend.services.CustomerService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -40,17 +43,11 @@ public class CustomerServiceImpl implements CustomerService {
         logger.info("Processing creation of customer: {}", requestDto.getName());
         validateRequest(requestDto);
 
-        Customer customer = new Customer();
-        customer.setName(requestDto.getName());
-        customer.setEmail(requestDto.getEmail());
-        customer.setPhone(requestDto.getPhone());
-        customer.setAddress(null); // Address not in request DTO, set to null
-        customer.setIsSupplier(requestDto.getIsSupplier() != null ? requestDto.getIsSupplier() : false);
-        customer.setTotalDebt(requestDto.getTotalDept());
+        Customer customer = customerMapper.toEntity(requestDto);
         customer.setCreatedBy(createdBy);
 
         Customer savedCustomer = customerRepository.save(customer);
-        return mapToResponseDto(savedCustomer);
+        return customerMapper.toResponseDto(savedCustomer);
     }
 
     @Override
@@ -69,6 +66,35 @@ public class CustomerServiceImpl implements CustomerService {
         return customerRepository.findAllActive().stream()
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<CustomerResponseDto> getCustomerPage(Pageable pageable, String search) {
+        logger.info("Fetching customers with pagination, page: {}, size: {}, search: {}",
+                   pageable.getPageNumber(), pageable.getPageSize(), search);
+
+        Page<Customer> page;
+        if (search != null && !search.trim().isEmpty()) {
+            page = customerRepository.findByNameContainingIgnoreCaseAndActive(search.trim(), pageable);
+        } else {
+            page = customerRepository.findAllActive(pageable);
+        }
+
+        return page.map(this::mapToResponseDto);
+    }
+
+    @Override
+    public Page<CustomerResponseDto> searchCustomers(String name, String phone, String email, Boolean isSupplier, Boolean debtOnly, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
+        Specification<Customer> spec = Specification.where(com.farmovo.backend.specification.CustomerSpecification.isNotDeleted())
+                .and(com.farmovo.backend.specification.CustomerSpecification.hasName(name))
+                .and(com.farmovo.backend.specification.CustomerSpecification.hasPhone(phone))
+                .and(com.farmovo.backend.specification.CustomerSpecification.hasEmail(email))
+                .and(com.farmovo.backend.specification.CustomerSpecification.isSupplier(isSupplier))
+                .and(com.farmovo.backend.specification.CustomerSpecification.hasDebt(debtOnly))
+                .and(com.farmovo.backend.specification.CustomerSpecification.createdBetween(fromDate, toDate));
+
+        Page<Customer> pageResult = customerRepository.findAll(spec, pageable);
+        return pageResult.map(this::mapToResponseDto);
     }
 
     @Override
@@ -92,13 +118,14 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setName(requestDto.getName());
         customer.setEmail(requestDto.getEmail());
         customer.setPhone(requestDto.getPhone());
-        customer.setTotalDebt(requestDto.getTotalDept());
+        customer.setAddress(requestDto.getAddress());
+        customer.setTotalDebt(requestDto.getTotalDebt());
         if (requestDto.getIsSupplier() != null) {
             customer.setIsSupplier(requestDto.getIsSupplier());
         }
 
         Customer updatedCustomer = customerRepository.save(customer);
-        return mapToResponseDto(updatedCustomer);
+        return customerMapper.toResponseDto(updatedCustomer);
     }
 
     @Override
@@ -117,26 +144,13 @@ public class CustomerServiceImpl implements CustomerService {
         if (requestDto.getName() == null || requestDto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Customer name is required");
         }
-        if (requestDto.getTotalDept() != null && requestDto.getTotalDept().compareTo(BigDecimal.ZERO) < 0) {
+        if (requestDto.getTotalDebt() != null && requestDto.getTotalDebt().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Total debt cannot be negative");
         }
     }
 
     private CustomerResponseDto mapToResponseDto(Customer customer) {
         logger.debug("Mapping customer to response DTO: {}", customer.getName());
-        CustomerResponseDto responseDto = new CustomerResponseDto();
-        responseDto.setId(customer.getId());
-        responseDto.setName(customer.getName());
-        responseDto.setEmail(customer.getEmail());
-        responseDto.setPhone(customer.getPhone());
-        responseDto.setAddress(customer.getAddress());
-        responseDto.setTotalDebt(customer.getTotalDebt());
-        responseDto.setCreateBy(customer.getCreatedBy());
-        responseDto.setCreateAt(customer.getCreatedAt());
-        responseDto.setUpdateAt(customer.getUpdatedAt());
-        responseDto.setDeleteAt(customer.getDeletedAt());
-        responseDto.setDeleteBy(customer.getDeletedBy());
-        responseDto.setIsSupplier(customer.getIsSupplier());
-        return responseDto;
+        return customerMapper.toResponseDto(customer);
     }
 }

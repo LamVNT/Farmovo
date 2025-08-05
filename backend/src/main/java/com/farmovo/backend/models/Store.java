@@ -30,6 +30,10 @@ public class Store extends Base {
     @Column(name = "store_address", length = 500)
     private String storeAddress;
 
+    public Store(Long id) {
+        this.id = id;
+    }
+
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<Product> products;
 
@@ -47,4 +51,7 @@ public class Store extends Base {
 
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
     private List<User> users;
+
+    @OneToMany(mappedBy = "store", cascade = CascadeType.ALL)
+    private List<Zone> zones;
 }

@@ -72,14 +72,19 @@ public class JwtUtils {
         return null;
     }
 
-    // ✅ Chỉ giữ 1 method generateTokenWithUserId
+    // ✅ Method với expiry time mặc định từ config
     public String generateTokenWithUserId(UserDetails userDetails, Long userId) {
+        return generateTokenWithUserId(userDetails, userId, jwtExpirationMs);
+    }
+
+    // ✅ Method với expiry time tùy chỉnh (cho Remember Me)
+    public String generateTokenWithUserId(UserDetails userDetails, Long userId, long expirationMs) {
         String username = userDetails.getUsername();
         return Jwts.builder()
                 .subject(username)
                 .claim("userId", userId)
                 .issuedAt(new Date())
-                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .expiration(new Date((new Date()).getTime() + expirationMs))
                 .signWith(key())
                 .compact();
     }

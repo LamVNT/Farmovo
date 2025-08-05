@@ -1,6 +1,5 @@
 package com.farmovo.backend.services.impl;
 
-
 import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
 import com.farmovo.backend.dto.response.ImportTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
@@ -46,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import com.farmovo.backend.aop.LogStatusChange;
 
 
 @Service
@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     private static final Logger log = LogManager.getLogger(ImportTransactionServiceImpl.class);
-
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final StoreRepository storeRepository;
@@ -62,8 +61,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     private final ImportTransactionMapper importTransactionMapper;
     private final ImportTransactionDetailValidator detailValidator;
     private final DebtNoteService debtNoteService;
-
-
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -84,6 +81,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.debug("Generated transaction code: {}", newName);
 
         ImportTransaction savedTransaction = importTransactionRepository.save(transaction);
+
         log.info("Import transaction created successfully. ID: {}, Code: {}, Total: {}, Paid: {}",
                 savedTransaction.getId(), savedTransaction.getName(), transaction.getTotalAmount(), transaction.getPaidAmount());
 
@@ -101,22 +99,51 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         ImportTransaction transaction = importTransactionRepository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Import transaction not found with ID: {}", id);
-                    return new ImportTransactionNotFoundException("Import transaction not found with ID: " + id);
+                    return new ImportTransactionNotFoundException("Không tìm thấy phiếu nhập hàng với ID: " + id);
                 });
 
+        // Kiểm tra trạng thái trước khi cho phép cập nhật
         if (transaction.getStatus() != ImportTransactionStatus.DRAFT) {
             log.warn("Attempted to update non-DRAFT transaction with ID: {}, current status: {}",
                     id, transaction.getStatus());
-            throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT", "cập nhật");
+            String statusMessage = getStatusVietnameseMessage(transaction.getStatus());
+            throw new TransactionStatusException(
+                statusMessage, 
+                "Nháp", 
+                "cập nhật phiếu nhập hàng"
+            );
         }
 
-        // Clear old details before adding new ones
-        int oldDetailsCount = transaction.getDetails().size();
-        transaction.getDetails().clear();
-        log.debug("Cleared {} old details from transaction", oldDetailsCount);
+        // Validate input data
+        if (dto.getDetails() == null || dto.getDetails().isEmpty()) {
+            log.warn("Attempted to update transaction with empty details, ID: {}", id);
+            throw new BadRequestException("Phiếu nhập hàng phải có ít nhất một sản phẩm");
+        }
 
-        mapDtoToTransaction(transaction, dto, false, null);
+        if (dto.getSupplierId() == null) {
+            log.warn("Attempted to update transaction without supplier, ID: {}", id);
+            throw new BadRequestException("Vui lòng chọn nhà cung cấp");
+        }
 
+        try {
+            // Initialize details list if it's null
+            if (transaction.getDetails() == null) {
+                transaction.setDetails(new ArrayList<>());
+            }
+            
+            // Clear old details and add new ones
+            transaction.getDetails().clear();
+            log.debug("Cleared old details from transaction");
+            
+            // Use the original createdBy for new details
+            Long userId = transaction.getCreatedBy();
+            mapDtoToTransaction(transaction, dto, false, userId);
+        } catch (Exception e) {
+            log.error("Error mapping DTO to transaction during update, ID: {}", id, e);
+            throw new BadRequestException("Lỗi khi cập nhật dữ liệu: " + e.getMessage());
+        }
+
+        // Save the transaction
         ImportTransaction savedTransaction = importTransactionRepository.save(transaction);
         log.info("Import transaction updated successfully with ID: {}", id);
 
@@ -124,98 +151,9 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         generateDetailCodes(savedTransaction);
     }
 
-    // --- Helper methods ---
-
-    private Customer getSupplier(Long id) {
-        return customerRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Supplier not found with ID: {}", id);
-                    return new ResourceNotFoundException("Supplier not found with ID: " + id);
-                });
-    }
-
-    private Store getStore(Long id) {
-        return storeRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Store not found with ID: {}", id);
-                    return new ResourceNotFoundException("Store not found with ID: " + id);
-                });
-    }
-
-    private User getStaff(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Staff not found with ID: {}", id);
-                    return new ResourceNotFoundException("Staff not found with ID: " + id);
-                });
-    }
-
-    private Product getProduct(Long id) {
-        return productRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Product not found with ID: {}", id);
-                    return new ResourceNotFoundException("Product not found with ID: " + id);
-                });
-    }
-
-    private ImportTransactionDetail buildDetail(ImportTransaction transaction, Product product,
-                                                CreateImportTransactionRequestDto.DetailDto dto) {
-        ImportTransactionDetail detail = new ImportTransactionDetail();
-        detail.setImportTransaction(transaction);
-        detail.setProduct(product);
-        detail.setImportQuantity(dto.getImportQuantity());
-        detail.setRemainQuantity(dto.getRemainQuantity());
-        detail.setExpireDate(dto.getExpireDate());
-        detail.setUnitImportPrice(dto.getUnitImportPrice());
-        detail.setUnitSalePrice(dto.getUnitSalePrice());
-
-        // Convert List<String> zones_id → String và set vào entity
-        String zonesIdStr = dto.getZones_id() == null ? null : String.join(",", dto.getZones_id());
-        detail.setZones_id(zonesIdStr);
-        log.debug("Đã set zones_id vào entity: {}", zonesIdStr);
-
-
-        // false là cần kiểm hàng
-        detail.setIsCheck(true);
-        return detail;
-    }
-
-    private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {
-        transaction.setSupplier(getSupplier(dto.getSupplierId()));
-        transaction.setStore(getStore(dto.getStoreId()));
-        transaction.setStaff(getStaff(dto.getStaffId()));
-        transaction.setImportTransactionNote(dto.getImportTransactionNote());
-        transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
-        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
-        if (isCreate && userId != null) transaction.setCreatedBy(userId);
-
-        List<ImportTransactionDetail> detailList = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
-            Product product = getProduct(d.getProductId());
-            detailValidator.validate(d);
-            ImportTransactionDetail detail = buildDetail(transaction, product, d);
-            BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
-            totalAmount = totalAmount.add(lineTotal);
-            detailList.add(detail);
-        }
-        transaction.setDetails(detailList);
-        transaction.setTotalAmount(totalAmount);
-        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
-    }
-
-    private void generateDetailCodes(ImportTransaction transaction) {
-        for (ImportTransactionDetail detail : transaction.getDetails()) {
-            if (detail.getName() == null || detail.getName().isEmpty()) {
-                String code = String.format("LH%06d", detail.getId());
-                detail.setName(code);
-            }
-        }
-        importTransactionRepository.save(transaction);
-    }
-
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void cancel(Long id) {
         log.info("Cancelling import transaction with ID: {}", id);
 
@@ -233,6 +171,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void open(Long id) {
         log.info("Opening import transaction with ID: {}", id);
 
@@ -253,45 +192,25 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 id, oldStatus, transaction.getStatus());
     }
 
+
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void complete(Long id) {
         log.info("Completing import transaction with ID: {}", id);
-
         ImportTransaction transaction = importTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ImportTransaction not found with id: " + id));
-
         if (transaction.getStatus() != ImportTransactionStatus.WAITING_FOR_APPROVE) {
-            log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
-                    id, transaction.getStatus());
-            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "hoàn thành phiếu");
+            log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}," +
+                            " current status: {}", id, transaction.getStatus());
+            throw new TransactionStatusException(transaction.getStatus().toString(),
+                    "WAITING_FOR_APPROVE", "hoàn thành phiếu");
         }
-
         ImportTransactionStatus oldStatus = transaction.getStatus();
         transaction.setStatus(ImportTransactionStatus.COMPLETE);
         importTransactionRepository.save(transaction);
-
-
-        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
-        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
-        BigDecimal rawDebtAmount = totalAmount.subtract(paidAmount);  // raw = total - paid
-        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
-            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
-            BigDecimal debtAmount = rawDebtAmount.abs();  // Luôn dương
-            debtNoteService.createDebtNoteFromTransaction(
-                    transaction.getSupplier().getId(),
-                    debtAmount,
-                    "IMPORT",
-                    debtType,
-                    transaction.getId(),
-                    transaction.getStore().getId()
-            );
-
-
-            log.info("Created debt note for import transaction ID: {} with debt amount: {} (type: {})", transaction.getId(), debtAmount, debtType);
-        }
-
-
+        //tạo công nợ
+        handleCompleteStatus(transaction);
         // Cập nhật số lượng sản phẩm khi hoàn thành phiếu nhập
         updateProductStockIfComplete(transaction);
 
@@ -299,8 +218,10 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 id, oldStatus, transaction.getStatus());
     }
 
+
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @LogStatusChange
     public void close(Long id) {
         log.info("Closing import transaction with ID: {}", id);
 
@@ -321,6 +242,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
                 id, oldStatus, transaction.getStatus());
     }
 
+
     @Override
     public List<CreateImportTransactionRequestDto> listAllImportTransaction1() {
         log.debug("Getting all import transactions (method 1)");
@@ -333,14 +255,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.debug("Retrieved {} import transactions", result.size());
         return result;
     }
-
-//    @Override
-//    public List<ImportTransactionResponseDto> listAllImportTransaction() {
-//        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
-//        return entities.stream()
-//                .map(importTransactionMapper::toResponseDto)
-//                .collect(Collectors.toList());
-//    }
 
     @Override
     public Page<ImportTransactionResponseDto> listAllImportTransaction(
@@ -358,16 +272,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         if (!pageable.getSort().isSorted()) {
             pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("importDate").descending());
         }
-        Specification<ImportTransaction> spec = Specification.allOf(
-                ImportTransactionSpecification.isNotDeleted(),
-                ImportTransactionSpecification.hasName(name),
-                ImportTransactionSpecification.hasSupplierName(supplierName),
-                ImportTransactionSpecification.hasStore(storeId),
-                ImportTransactionSpecification.hasStaff(staffId),
-                ImportTransactionSpecification.hasStatus(status),
-                ImportTransactionSpecification.createdBetween(fromDate, toDate),
-                ImportTransactionSpecification.hasTotalAmountBetween(minTotalAmount, maxTotalAmount)
-        );
+
+        Specification<ImportTransaction> spec =
+                ImportTransactionSpecification.buildSpecification(name, supplierName, storeId, staffId,
+                        status, fromDate, toDate,
+                        minTotalAmount, maxTotalAmount);
 
         Page<ImportTransaction> entityPage = importTransactionRepository.findAll(spec, pageable);
 
@@ -408,20 +317,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
         transaction.setDeletedAt(LocalDateTime.now());
         transaction.setDeletedBy(userId);
-
         importTransactionRepository.save(transaction);
-    }
-
-    private void updateProductStockIfComplete(ImportTransaction transaction) {
-        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
-            for (ImportTransactionDetail detail : transaction.getDetails()) {
-                Product product = detail.getProduct();
-                int updatedQuantity = product.getProductQuantity() + detail.getImportQuantity();
-                product.setProductQuantity(updatedQuantity);
-                productRepository.save(product); // Lưu lại thay đổi số lượng
-                log.info("Updated product quantity. productId={}, newQuantity={}", product.getId(), updatedQuantity);
-            }
-        }
     }
 
     @Override
@@ -602,6 +498,17 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         }
     }
 
+    private void updateProductStockIfComplete(ImportTransaction transaction) {
+        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE && transaction.getDetails() != null) {
+            for (ImportTransactionDetail detail : transaction.getDetails()) {
+                Product product = detail.getProduct();
+                int updatedQuantity = product.getProductQuantity() + detail.getImportQuantity();
+                product.setProductQuantity(updatedQuantity);
+                productRepository.save(product); // Lưu lại thay đổi số lượng
+                log.info("Updated product quantity. productId={}, newQuantity={}", product.getId(), updatedQuantity);
+            }
+        }
+    }
 
     private PdfPCell getCell(String text, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
@@ -616,5 +523,137 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     private String safe(String input) {
         return input == null ? "Chưa có" : input;
+    }
+    // --- Helper methods ---
+
+    private Customer getSupplier(Long id) {
+        return customerRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Supplier not found with ID: {}", id);
+                    return new ResourceNotFoundException("Supplier not found with ID: " + id);
+                });
+    }
+
+    private Store getStore(Long id) {
+        return storeRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Store not found with ID: {}", id);
+                    return new ResourceNotFoundException("Store not found with ID: " + id);
+                });
+    }
+
+    private User getStaff(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Staff not found with ID: {}", id);
+                    return new ResourceNotFoundException("Staff not found with ID: " + id);
+                });
+    }
+
+    private Product getProduct(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Product not found with ID: {}", id);
+                    return new ResourceNotFoundException("Product not found with ID: " + id);
+                });
+    }
+
+    private ImportTransactionDetail buildDetail(ImportTransaction transaction, Product product,
+                                                CreateImportTransactionRequestDto.DetailDto dto, Long userId) {
+        ImportTransactionDetail detail = new ImportTransactionDetail();
+        detail.setImportTransaction(transaction);
+        detail.setProduct(product);
+        detail.setImportQuantity(dto.getImportQuantity());
+        detail.setRemainQuantity(dto.getRemainQuantity());
+        detail.setExpireDate(dto.getExpireDate());
+        detail.setUnitImportPrice(dto.getUnitImportPrice());
+        detail.setUnitSalePrice(dto.getUnitSalePrice());
+
+        // Convert List<String> zones_id → String và set vào entity
+        String zonesIdStr = dto.getZones_id() == null ? null : String.join(",", dto.getZones_id());
+        detail.setZones_id(zonesIdStr);
+        log.debug("Đã set zones_id vào entity: {}", zonesIdStr);
+
+        // Set createdBy for detail
+        if (userId != null) {
+            detail.setCreatedBy(userId);
+        }
+
+        // false là cần kiểm hàng
+        detail.setIsCheck(true);
+        return detail;
+    }
+    private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {
+        transaction.setSupplier(getSupplier(dto.getSupplierId()));
+        transaction.setStore(getStore(dto.getStoreId()));
+        transaction.setStaff(getStaff(dto.getStaffId()));
+        transaction.setImportTransactionNote(dto.getImportTransactionNote());
+        transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
+        transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
+        if (isCreate && userId != null) transaction.setCreatedBy(userId);
+
+        // Initialize details list if it's null
+        if (transaction.getDetails() == null) {
+            transaction.setDetails(new ArrayList<>());
+        }
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
+            Product product = getProduct(d.getProductId());
+            detailValidator.validate(d);
+            ImportTransactionDetail detail = buildDetail(transaction, product, d, userId);
+            BigDecimal lineTotal = d.getUnitImportPrice().multiply(BigDecimal.valueOf(d.getImportQuantity()));
+            totalAmount = totalAmount.add(lineTotal);
+            transaction.getDetails().add(detail);
+        }
+        transaction.setTotalAmount(totalAmount);
+        transaction.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : BigDecimal.ZERO);
+    }
+
+    private void generateDetailCodes(ImportTransaction transaction) {
+        if (transaction.getDetails() != null) {
+            for (ImportTransactionDetail detail : transaction.getDetails()) {
+                if (detail.getName() == null || detail.getName().isEmpty()) {
+                    String code = String.format("LH%06d", detail.getId());
+                    detail.setName(code);
+                }
+            }
+            importTransactionRepository.save(transaction);
+        }
+    }
+
+    private void handleCompleteStatus(ImportTransaction transaction) {
+        BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal rawDebtAmount = totalAmount.subtract(paidAmount);  // raw = total - paid
+        if (rawDebtAmount.compareTo(BigDecimal.ZERO) != 0) {
+            String debtType = rawDebtAmount.compareTo(BigDecimal.ZERO) > 0 ? "+" : "-";
+            BigDecimal debtAmount = rawDebtAmount.abs();  // Luôn dương
+            debtNoteService.createDebtNoteFromTransaction(
+                    transaction.getSupplier().getId(),
+                    debtAmount,
+                    "IMPORT",
+                    debtType,
+                    transaction.getId(),
+                    transaction.getStore().getId()
+            );
+            log.info("Created debt note for import transaction ID: {} with debt amount: {} (type: {})",
+                    transaction.getId(), debtAmount, debtType);
+        }
+    }
+
+    private String getStatusVietnameseMessage(ImportTransactionStatus status) {
+        switch (status) {
+            case DRAFT:
+                return "Nháp";
+            case WAITING_FOR_APPROVE:
+                return "Chờ xử lý";
+            case COMPLETE:
+                return "Đã hoàn thành";
+            case CANCEL:
+                return "Đã hủy";
+            default:
+                return status.toString();
+        }
     }
 }

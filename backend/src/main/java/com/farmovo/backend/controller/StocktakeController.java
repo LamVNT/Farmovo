@@ -10,6 +10,7 @@ import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -17,6 +18,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/stocktakes")
@@ -29,7 +34,7 @@ public class StocktakeController {
 
     @PostMapping
     public ResponseEntity<StocktakeResponseDto> createStocktake(
-            @RequestBody StocktakeRequestDto requestDto,
+            @Valid @RequestBody StocktakeRequestDto requestDto,
             HttpServletRequest request) {
         Long userId = extractUserIdFromRequest(request);
         return ResponseEntity.ok(stocktakeService.createStocktake(requestDto, userId));
@@ -45,6 +50,22 @@ public class StocktakeController {
             HttpServletRequest request) {
         Long userId = extractUserIdFromRequest(request);
         return ResponseEntity.ok(stocktakeService.getAllStocktakes(storeId, status, note, fromDate, toDate, userId));
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<Page<StocktakeResponseDto>> getStocktakesPaged(
+            @RequestParam(required = false) String storeId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String note,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("stocktakeDate").descending());
+        Page<StocktakeResponseDto> result = stocktakeService.searchStocktakes(storeId, status, note, fromDate, toDate, userId, pageable);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{id}")
@@ -69,7 +90,7 @@ public class StocktakeController {
     @PutMapping("/{id}")
     public ResponseEntity<StocktakeResponseDto> updateStocktake(
             @PathVariable Long id,
-            @RequestBody StocktakeRequestDto requestDto) {
+            @Valid @RequestBody StocktakeRequestDto requestDto) {
         return ResponseEntity.ok(stocktakeService.updateStocktake(id, requestDto));
     }
 

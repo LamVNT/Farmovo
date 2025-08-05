@@ -188,10 +188,26 @@ const SaleProductDialog = ({
                 </Button>
                 <Button
                     variant="contained"
-                    color="primary"
-                    className="!bg-blue-600 hover:!bg-blue-700 rounded-lg px-6"
                     disabled={selectedBatches.length === 0 || selectedBatches.some(b => b.quantity < 1 || b.quantity > (b.batch?.remainQuantity || 0))}
                     onClick={handleAdd}
+                    sx={{
+                        background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                        boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                        '&:hover': {
+                            background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                            boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                            transform: 'translateY(-1px)'
+                        },
+                        '&:disabled': {
+                            background: '#ccc',
+                            boxShadow: 'none',
+                            transform: 'none'
+                        },
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        transition: 'all 0.2s ease',
+                        px: 3
+                    }}
                 >
                     Thêm ({selectedBatches.length})
                 </Button>

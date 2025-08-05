@@ -25,6 +25,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
@@ -80,6 +82,25 @@ public class StocktakeServiceImpl implements StocktakeService {
         return stocktakeRepository.findAll(spec).stream()
                 .map(this::buildStocktakeResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<StocktakeResponseDto> searchStocktakes(String storeId, String status, String note, String fromDate, String toDate, Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("User not found"));
+        String role = user.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("");
+        String effectiveStoreId = storeId;
+        if ("STAFF".equals(role)) {
+            if (user.getStore() == null) {
+                throw new ValidationException("User does not have a store assigned");
+            }
+            effectiveStoreId = String.valueOf(user.getStore().getId());
+        }
+        Specification<Stocktake> spec = buildStocktakeSpecification(effectiveStoreId, status, note, fromDate, toDate);
+        return stocktakeRepository.findAll(spec, pageable).map(this::buildStocktakeResponseDto);
     }
 
     @Override
@@ -329,22 +350,22 @@ public class StocktakeServiceImpl implements StocktakeService {
                                                                  String fromDate, String toDate) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            if (storeId != null) {
+            if (storeId != null && !storeId.isEmpty()) {
                 predicates.add(cb.equal(root.get("store").get("id"), Long.valueOf(storeId)));
             }
-            if (status != null) {
+            if (status != null && !status.isEmpty()) {
                 predicates.add(cb.equal(root.get("status"), StocktakeStatus.valueOf(status)));
             }
-            if (note != null) {
+            if (note != null && !note.isEmpty()) {
                 predicates.add(cb.like(root.get("stocktakeNote"), "%" + note + "%"));
             }
             java.time.ZoneId zone = java.time.ZoneId.systemDefault();
-            if (fromDate != null) {
+            if (fromDate != null && !fromDate.isEmpty()) {
                 java.time.LocalDate from = java.time.LocalDate.parse(fromDate);
                 java.time.Instant fromInstant = from.atStartOfDay(zone).toInstant();
                 predicates.add(cb.greaterThanOrEqualTo(root.get("stocktakeDate"), fromInstant));
             }
-            if (toDate != null) {
+            if (toDate != null && !toDate.isEmpty()) {
                 java.time.LocalDate to = java.time.LocalDate.parse(toDate);
                 java.time.Instant toInstant = to.atTime(23, 59, 59).atZone(zone).toInstant();
                 predicates.add(cb.lessThanOrEqualTo(root.get("stocktakeDate"), toInstant));

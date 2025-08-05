@@ -145,18 +145,6 @@ class SaleTransactionServiceImplTest {
         });
     }
 
-//    @Test
-//    void testGetAll_ShouldReturnList() {
-//        List<SaleTransaction> entities = List.of(new SaleTransaction());
-//        List<SaleTransactionResponseDto> dtos = List.of(new SaleTransactionResponseDto());
-//        when(saleTransactionRepository.findAllSaleActive()).thenReturn(entities);
-//        when(saleTransactionMapper.toResponseDtoList(entities, objectMapper)).thenReturn(dtos);
-//        List<SaleTransactionResponseDto> result = saleTransactionService.getAll();
-//        assertEquals(1, result.size());
-//        verify(saleTransactionRepository).findAllSaleActive();
-//        verify(saleTransactionMapper).toResponseDtoList(entities, objectMapper);
-//    }
-
     @Test
     void testComplete_ValidId_ShouldSetStatusAndCreateDebtNote() {
         Long id = 1L;

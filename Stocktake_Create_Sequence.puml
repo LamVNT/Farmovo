@@ -1,4 +1,4 @@
-@startuml Stocktake_Create_Sequence
+@startuml Create_StockTake_SequenceDiagram
 
 skinparam backgroundColor white
 skinparam sequenceArrowThickness 2
@@ -9,98 +9,99 @@ skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 skinparam actorBackgroundColor #FFD700
 
-title Create StockTake - Sequence Diagram
+title Create StockTake – Sequence Diagram (Load + Create)
 
 actor Staff
 participant ":StockTake Page" as UI
-participant ":Create StockTake Page" as CSUI
-participant ":StocktakeController" as CC
-participant ":StocktakeServiceImpl" as CS
-participant ":ProductRepository" as PR
-participant ":ZoneRepository" as ZR
-participant ":StocktakeValidator" as CV
-participant ":StocktakeMapper" as CM
-participant ":StocktakeRepository" as CR
+participant ":Create Stocktake UI" as CreateUI
+participant ":StocktakeController" as Controller
+participant ":StocktakeService" as Service
+participant ":ProductRepository" as ProductRepo
+participant ":ZoneRepository" as ZoneRepo
+participant ":StocktakeValidator" as Validator
+participant ":StocktakeMapper" as Mapper
+participant ":StocktakeRepository" as StocktakeRepo
 
-' Bước ban đầu: Staff truy cập StockTake Page và nhấn nút Create
+== A. Load dữ liệu ban đầu (load danh sách sản phẩm & khu vực) ==
+
 Staff -> UI: Truy cập StockTake Page
 activate Staff
 activate UI
-Staff -> UI: Nhấn "Create new StockTake"
-UI -> CSUI: Chuyển đến Create StockTake Page
+
+Staff -> UI: Nhấn "Tạo phiếu kiểm kê"
+UI -> CreateUI: Điều hướng sang Create Stocktake Page
 deactivate UI
-activate CSUI
+activate CreateUI
 
-' Create StockTake Page lấy dữ liệu
-CSUI -> CS: fetchProducts(storeId)
-activate CS
-CS -> PR: fetchProducts(storeId): List<ProductDTO>
-activate PR
-PR --> CS: return List<ProductDTO>
-deactivate PR
-CS --> CSUI: return List<ProductDTO>
-deactivate CS
-CSUI -> CS: fetchZones(storeId)
-activate CS
-CS -> ZR: fetchZones(storeId): List<ZoneDTO>
-activate ZR
-ZR --> CS: return List<ZoneDTO>
-deactivate ZR
-CS --> CSUI: return List<ZoneDTO>
-deactivate CS
-CSUI -> Staff: Hiển thị form với danh sách Products và Zones
-
-' Staff nhập thông tin và chọn Draft hoặc Hoàn thành
-alt Nhấn "Draft" hoặc "Hoàn thành"
-    Staff -> CSUI: Nhập thông tin, nhấn "Draft" hoặc "Hoàn thành"
-    CSUI -> CC: POST /api/stocktakes {requestDto, status=DRAFT|COMPLETED}
-    activate CC
-    CC -> CV: validate(stocktakeDate, detail, note, storeId, status)
-    activate CV
-    CV --> CC: return validation result
-    deactivate CV
-    alt Validation Failed
-        CC --> CSUI: return 400 Bad Request {error message}
-        CSUI --> Staff: Hiển thị lỗi
-    else Validation Passed
-        CC -> CS: createStockTake(requestDto, status)
-        activate CS
-        CS -> CM: toEntity(requestDto, status) «create»
-        activate CM
-        CM --> CS: return Stocktake entity
-        deactivate CM
-        CS -> CR: save(stocktake)
-        activate CR
-        alt Save Failed
-            CR --> CS: throw SaveException
-            CS --> CC: return 500 Internal Server Error
-            CC --> CSUI: return 500 Internal Server Error
-            CSUI --> Staff: Hiển thị lỗi
-        else Save Success
-            CR --> CS: return Stocktake entity
-            deactivate CR
-            CS -> CM: toResponseDto(stocktake)
-            activate CM
-            CM --> CS: return StocktakeResponseDto
-            deactivate CM
-            CS --> CC: return StocktakeResponseDto
-            deactivate CS
-            CC --> CSUI: return 200 OK StocktakeResponseDto
-            CSUI --> UI: Chuyển về StockTake Page với StocktakeResponseDto
-            deactivate CSUI
-            activate UI
-            UI --> Staff: Hiển thị kiểm kê với trạng thái DRAFT hoặc COMPLETED
-        end
-    end
-    deactivate CC
+group Gọi API lấy danh sách sản phẩm
+    CreateUI -> Controller: GET /api/products?storeId=xxx
+    activate Controller
+    Controller -> Service: getProductsByStore(storeId)
+    activate Service
+    Service -> ProductRepo: findByStoreId(storeId)
+    ProductRepo --> Service: List<ProductDTO>
+    Service --> Controller: List<ProductDTO>
+    deactivate Service
+    Controller --> CreateUI: List<ProductDTO>
+    deactivate Controller
 end
 
+group Gọi API lấy danh sách khu vực (zones)
+    CreateUI -> Controller: GET /api/zones?storeId=xxx
+    activate Controller
+    Controller -> Service: getZonesByStore(storeId)
+    activate Service
+    Service -> ZoneRepo: findByStoreId(storeId)
+    ZoneRepo --> Service: List<ZoneDTO>
+    Service --> Controller: List<ZoneDTO>
+    deactivate Service
+    Controller --> CreateUI: List<ZoneDTO>
+    deactivate Controller
+end
+
+CreateUI --> Staff: Hiển thị form tạo phiếu kiểm kê với danh sách sản phẩm và khu vực
+
+== B. Submit tạo mới StockTake (Draft hoặc Complete) ==
+
+Staff -> CreateUI: Nhập thông tin phiếu kiểm kê
+CreateUI -> Controller: POST /api/stocktakes {requestDto, status}
+activate Controller
+
+group Kiểm tra hợp lệ
+    Controller -> Validator: validate(requestDto)
+    activate Validator
+    Validator --> Controller: Validation OK
+    deactivate Validator
+end
+
+alt Validation Failed
+    Controller --> CreateUI: 400 Bad Request + Error message
+    CreateUI --> Staff: Hiển thị lỗi nhập liệu
+else Validation Passed
+    group Tạo mới StockTake
+        Controller -> Service: createStockTake(requestDto)
+        activate Service
+
+        Service -> Mapper: toEntity(requestDto)
+        Mapper --> Service: Stocktake entity
+
+        Service -> StocktakeRepo: save(stocktake)
+        StocktakeRepo --> Service: saved entity
+
+        Service -> Mapper: toResponseDto(stocktake)
+        Mapper --> Service: StocktakeResponseDto
+
+        Service --> Controller: StocktakeResponseDto
+        deactivate Service
+    end
+
+    Controller --> CreateUI: 201 Created + StocktakeResponseDto
+    CreateUI --> UI: Cập nhật trang StockTake
+    UI --> Staff: Thông báo tạo thành công phiếu kiểm kê (Draft hoặc Completed)
+end
+deactivate Controller
+deactivate CreateUI
 deactivate UI
 deactivate Staff
-
-note right of CSUI
-    requestDto contains: stocktakeDate, detail, note, storeId, status
-    status: DRAFT, COMPLETED
-end note
 
 @enduml

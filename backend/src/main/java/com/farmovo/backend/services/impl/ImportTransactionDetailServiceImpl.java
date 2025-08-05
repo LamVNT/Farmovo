@@ -215,6 +215,19 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         log.info("Confirmed update zonesId for id={}: new value={}", saved.getId(), saved.getZones_id());
     }
 
+    @Override
+    public List<ProductSaleResponseDto> getAvailableProductsForSale() {
+        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
+        if (!availableDetails.isEmpty()) {
+            return availableDetails.stream()
+                    .map(productMapper::toDtoSale)
+                    .toList();
+        } else {
+            return productService.getAllProductSaleDto();
+        }
+    }
+
+
     // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
     private ProductResponseDto enrichProductWithDetails(ProductResponseDto product, String zoneId) {
         List<ImportTransactionDetail> details = detailRepository.findByZoneId(zoneId);
@@ -257,8 +270,11 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
         }
         if (store != null && !store.isEmpty()) {
             Store s = Optional.ofNullable(row.getProduct()).map(Product::getStore).orElse(null);
-            if (s == null || !s.getStoreName().equalsIgnoreCase(store)) {
-                return false;
+            if (s == null) return false;
+            if (store.matches("\\d+")) { // Nếu là số, so sánh theo id
+                if (!String.valueOf(s.getId()).equals(store)) return false;
+            } else { // Nếu là chuỗi, so sánh theo tên
+                if (!s.getStoreName().equalsIgnoreCase(store)) return false;
             }
         }
         if (zone != null && !zone.isEmpty()) {
@@ -276,9 +292,16 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             }
         }
         if (product != null && !product.isEmpty()) {
-            String productName = Optional.ofNullable(row.getProduct()).map(Product::getProductName).orElse("");
-            if (!productName.toLowerCase().contains(product.toLowerCase())) {
-                return false;
+            Product prod = row.getProduct();
+            if (product.matches("\\d+")) { // Nếu là số, so sánh theo id
+                if (prod == null || !String.valueOf(prod.getId()).equals(product)) {
+                    return false;
+                }
+            } else { // Nếu là chuỗi, so sánh theo tên
+                String productName = prod != null ? prod.getProductName() : "";
+                if (!productName.toLowerCase().contains(product.toLowerCase())) {
+                    return false;
+                }
             }
         }
         if (isCheck != null && (row.getIsCheck() == null || !row.getIsCheck().equals(isCheck))) {
