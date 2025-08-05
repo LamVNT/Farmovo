@@ -764,6 +764,11 @@ const ImportPage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
@@ -800,6 +805,11 @@ const ImportPage = () => {
         columnVisibility['Giá bán'] && {
             field: 'salePrice',
             headerName: 'Giá bán',
+            renderHeader: () => (
+                <span>
+                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (

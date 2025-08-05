@@ -74,6 +74,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final DebtNoteService debtNoteService;
     private final SaleTransactionValidator saleTransactionValidator;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
@@ -107,6 +108,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
+            log.info("Transaction status is COMPLETE, deducting stock from products");
+            deductStockFromProduct(dto.getDetail());
         }
 
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
@@ -143,6 +146,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Updated transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
+            log.info("Updated transaction status is COMPLETE, deducting stock from products");
+            deductStockFromProduct(dto.getDetail());
         }
 
         saleTransactionRepository.save(transaction);
@@ -201,6 +206,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (!detailList.isEmpty()) {
             log.info("Transaction completed, deducting stock from {} batches", detailList.size());
             deductStockFromBatch(detailList);
+            log.info("Transaction completed, deducting stock from {} products", detailList.size());
+            deductStockFromProduct(detailList);
         }
         transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
@@ -606,6 +613,35 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
             log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
                     item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
+
+        }
+    }
+
+    private void deductStockFromProduct(List<ProductSaleResponseDto> items) {
+        log.info("Deducting stock from {} products", items.size());
+
+        for (ProductSaleResponseDto item : items) {
+            log.debug("Processing product ID: {}, quantity: {}", item.getProId(), item.getQuantity());
+
+            Product product = productRepository.findById(item.getProId())
+                    .orElseThrow(() -> {
+                        log.error("Product not found with ID: {}", item.getProId());
+                        return new ResourceNotFoundException("Product not found with ID: " + item.getProId());
+                    });
+
+            if (product.getProductQuantity() < item.getQuantity()) {
+                log.error("Insufficient stock in product ID: {}, available: {}, required: {}",
+                        item.getProId(), product.getProductQuantity(), item.getQuantity());
+                throw new BadRequestException("Not enough stock in product ID: " + item.getProId() +
+                        " (available=" + product.getProductQuantity() + ", required=" + item.getQuantity() + ")");
+            }
+
+            int oldProductQuantity = product.getProductQuantity();
+            product.setProductQuantity(product.getProductQuantity() - item.getQuantity());
+            productRepository.save(product);
+
+            log.info("Deducted {} units from product ID: {}, remaining: {} (was: {})",
+                    item.getQuantity(), item.getProId(), product.getProductQuantity(), oldProductQuantity);
         }
     }
 
