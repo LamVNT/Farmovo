@@ -1761,6 +1761,7 @@ const ImportPage = () => {
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
                 unit={defaultUnit}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}

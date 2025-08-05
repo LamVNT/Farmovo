@@ -72,7 +72,12 @@ const Sidebar = () => {
     return (
         <>
             <div
-                className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
+                className={`sidebar fixed top-0 left-0 bg-[#fff] border-r border-[rgba(0,0,0,0.1)] py-2 px-4 z-50`}
+                style={{ 
+                    height: 'calc(100vh - 20px)',
+                    width: context.isSidebarOpen ? '300px' : '0px',
+                    transition: 'width 0.3s ease'
+                }}>
                 <div className="py-2 w-full">
                     <Link to="/">
                         <img src={FarmovoLogo} alt="Farmovo Logo" className="w-[120px]"/>
