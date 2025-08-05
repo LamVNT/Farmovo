@@ -1,40 +1,46 @@
 import React, { useState, useEffect } from "react";
+import useDebtNotes from "../../hooks/useDebtNotes";
 import {
     Container,
     Typography,
     Button,
     Box,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    TablePagination,
     TextField,
     InputAdornment,
     IconButton,
     Stack,
     ToggleButton,
-    ToggleButtonGroup
+    ToggleButtonGroup,
+    Tabs,
+    Tab
 } from "@mui/material";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SearchIcon from '@mui/icons-material/Search';
-import DebtTable from "../../components/debt/DebtTable";
+import DebtTable from "../../components/debt/DebtTableDialog.jsx";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
 import DebtDetailDialog from "../../components/debt/DebtDetailDialog.jsx";
 import { getDebtNotesByCustomerId, getTotalDebtByCustomerId } from "../../services/debtService";
 import { getAllCustomers, getCustomerById } from "../../services/customerService";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { formatCurrency } from "../../utils/formatters";
 
 const DebtManagement = () => {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
     const [customer, setCustomer] = useState(null);
-    const [debtNotes, setDebtNotes] = useState([]);
-    const [debtNotesPage, setDebtNotesPage] = useState(0);
-    const [debtNotesRowsPerPage, setDebtNotesRowsPerPage] = useState(10);
-    const [debtNotesTotalPages, setDebtNotesTotalPages] = useState(0);
-    const [debtNotesTotalItems, setDebtNotesTotalItems] = useState(0);
-    const [totalDebt, setTotalDebt] = useState(null);
+    const {
+        debtNotes,
+        totalDebt,
+        page: debtNotesPage,
+        size: debtNotesRowsPerPage,
+        totalPages: debtNotesTotalPages,
+        totalItems: debtNotesTotalItems,
+        setPage: setDebtNotesPage,
+        setSize: setDebtNotesRowsPerPage,
+        fetchDebtNotes,
+    } = useDebtNotes();
     const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [debtTableOpen, setDebtTableOpen] = useState(false); // State cho modal DebtTable
@@ -44,6 +50,12 @@ const DebtManagement = () => {
     const [customerPage, setCustomerPage] = useState(0);
     const [customerRowsPerPage, setCustomerRowsPerPage] = useState(5);
     const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
+    const [filterDebt, setFilterDebt] = useState(false);
+    const [activeTab, setActiveTab] = useState(0); // 0: Khách hàng nợ, 1: Cửa hàng nợ
+
+    // Date filter for debt notes
+    const [debtFromDate, setDebtFromDate] = useState(null);
+    const [debtToDate, setDebtToDate] = useState(null);
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -60,47 +72,36 @@ const DebtManagement = () => {
 
     useEffect(() => {
         if (selectedCustomerId) {
-            const fetchCustomerData = async () => {
+            const load = async () => {
                 try {
                     setError("");
                     const customerData = await getCustomerById(selectedCustomerId);
                     setCustomer(customerData);
-
-                    const debtNotesData = await getDebtNotesByCustomerId(selectedCustomerId, debtNotesPage, debtNotesRowsPerPage);
-                    setDebtNotes(debtNotesData.content || []);
-                    setDebtNotesTotalPages(debtNotesData.totalPages || 0);
-                    setDebtNotesTotalItems(debtNotesData.totalItems || 0);
-
-                    try {
-                        const totalDebtData = await getTotalDebtByCustomerId(selectedCustomerId);
-                        setTotalDebt(totalDebtData || 0);
-                    } catch (error) {
-                        console.error("Failed to fetch total debt, continuing with other data:", error);
-                        setTotalDebt(0);
-                        setError("Không thể tải tổng nợ, nhưng dữ liệu khác vẫn được hiển thị");
-                    }
-
+                    await fetchDebtNotes(selectedCustomerId, buildDebtFilters());
                     setDebtTableOpen(true);
                 } catch (error) {
                     console.error("Failed to fetch customer data:", error);
                     setError("Không thể tải dữ liệu khách hàng: " + (error.response?.data?.message || error.message));
                 }
             };
-            fetchCustomerData();
+            load();
         }
-    }, [selectedCustomerId, debtNotesPage, debtNotesRowsPerPage]);
+    }, [selectedCustomerId, debtNotesPage, debtNotesRowsPerPage, fetchDebtNotes, debtFromDate, debtToDate]);
 
-    const handleAddDebtNote = (newDebtNote) => {
-        if (newDebtNote) {
-            setDebtNotes([...debtNotes, newDebtNote]);
-            getTotalDebtByCustomerId(selectedCustomerId)
-                .then((data) => setTotalDebt(data || 0))
-                .catch((error) => {
-                    console.error("Failed to refresh total debt:", error);
-                    setError("Không thể làm mới tổng nợ");
-                });
+    const handleAddDebtNote = () => {
+        fetchDebtNotes(selectedCustomerId);
+    };
+
+    const handleOpenDebtTable = (custId) => {
+        if (custId === selectedCustomerId) {
+            setDebtTableOpen(true);
+            // optionally refetch
+            fetchDebtNotes(custId);
+        } else {
+            setSelectedCustomerId(custId);
         }
     };
+
 
     const handleViewDebtNote = (debtNote) => {
         if (debtNote) {
@@ -110,16 +111,15 @@ const DebtManagement = () => {
     };
 
     const formatTotalDebt = (totalDebt) => {
-        if (totalDebt == null || totalDebt === 0) return "0 VND";
+        if (totalDebt == null || totalDebt === 0) return formatCurrency(0);
         if (totalDebt < 0) {
             return (
-                <span style={{ color: 'red', fontWeight: 'bold' }}>- {Math.abs(totalDebt)} VND <span style={{fontWeight:'normal', fontSize:12}}>(Khách đang nợ)</span></span>
-            );
-        } else {
-            return (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>+ {totalDebt} VND <span style={{fontWeight:'normal', fontSize:12}}>(Cửa hàng nợ)</span></span>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>- {formatCurrency(Math.abs(totalDebt))} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Khách đang nợ)</span></span>
             );
         }
+        return (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>+ {formatCurrency(totalDebt)} <span style={{ fontWeight: 'normal', fontSize: 12 }}>(Cửa hàng nợ)</span></span>
+        );
     };
 
     const handleCustomerSearchChange = (e) => {
@@ -133,15 +133,32 @@ const DebtManagement = () => {
         setCustomerRowsPerPage(parseInt(event.target.value, 10));
         setCustomerPage(0);
     };
-    // Lọc chỉ lấy khách hàng có tổng nợ khác 0
-    let nonZeroDebtCustomers = customers.filter(cust => cust.totalDebt !== 0 && cust.totalDebt !== null && cust.totalDebt !== undefined);
+    // Lọc khách hàng theo tab hiện tại
+    let filteredByTab = customers;
+    if (activeTab === 0) {
+        // Tab "Khách hàng nợ" - chỉ hiển thị khách hàng có nợ âm (khách đang nợ)
+        filteredByTab = customers.filter(cust => 
+            cust.totalDebt !== null && 
+            cust.totalDebt !== undefined && 
+            cust.totalDebt < 0
+        );
+    } else if (activeTab === 1) {
+        // Tab "Cửa hàng nợ" - chỉ hiển thị khách hàng có nợ dương (cửa hàng đang nợ)
+        filteredByTab = customers.filter(cust => 
+            cust.totalDebt !== null && 
+            cust.totalDebt !== undefined && 
+            cust.totalDebt > 0
+        );
+    }
+
     // Lọc theo loại khách hàng
-    let filteredByType = nonZeroDebtCustomers;
+    let filteredByType = filteredByTab;
     if (customerTypeFilter === 'supplier') {
         filteredByType = filteredByType.filter(cust => cust.isSupplier);
     } else if (customerTypeFilter === 'buyer') {
         filteredByType = filteredByType.filter(cust => !cust.isSupplier);
     }
+    
     const filteredCustomers = filteredByType.filter(cust => {
         const name = cust.name?.toLowerCase() || "";
         const phone = cust.phone?.toLowerCase() || "";
@@ -153,6 +170,34 @@ const DebtManagement = () => {
             address.includes(search)
         );
     });
+    // DataGrid columns definition
+    const columns = [
+        { field: 'name', headerName: 'Tên', flex: 1 },
+        { field: 'phone', headerName: 'Số điện thoại', flex: 1 },
+        { field: 'address', headerName: 'Địa chỉ', flex: 1.5 },
+        {
+            field: 'typeLabel', headerName: 'Loại khách hàng', flex: 1, renderCell: (params) => (
+                <span style={{
+                    padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500,
+                    backgroundColor: params.row.isSupplier ? '#e3f2fd' : '#f3e5f5',
+                    color: params.row.isSupplier ? '#1976d2' : '#7b1fa2'
+                }}>
+                    {params.value}
+                </span>
+            )
+        },
+        {
+            field: 'totalDebt', headerName: 'Tổng nợ', flex: 1, renderCell: (params) => formatTotalDebt(params.value)
+        },
+        {
+            field: 'actions', headerName: 'Hành động', flex: 0.6, sortable: false, filterable: false, renderCell: (params) => (
+                <IconButton color="primary" onClick={() => handleOpenDebtTable(params.row.id)} disabled={!params.row.id}>
+                    <VisibilityIcon />
+                </IconButton>
+            )
+        }
+    ];
+
     const paginatedCustomers = filteredCustomers.slice(customerPage * customerRowsPerPage, customerPage * customerRowsPerPage + customerRowsPerPage);
 
     const handleDebtNotesPageChange = (event, newPage) => {
@@ -161,6 +206,24 @@ const DebtManagement = () => {
     const handleDebtNotesRowsPerPageChange = (event) => {
         setDebtNotesRowsPerPage(parseInt(event.target.value, 10));
         setDebtNotesPage(0);
+    };
+
+    // Handle date filter change from DebtTable
+    const handleDateFilterChange = (from, to) => {
+        setDebtFromDate(from);
+        setDebtToDate(to);
+    };
+
+    const buildDebtFilters = () => {
+        const filters = {};
+        if (debtFromDate) filters.fromDate = debtFromDate.toISOString();
+        if (debtToDate) filters.toDate = debtToDate.toISOString();
+        return filters;
+    };
+
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+        setCustomerPage(0); // Reset về trang đầu khi chuyển tab
     };
 
     return (
@@ -174,9 +237,57 @@ const DebtManagement = () => {
                 </Typography>
             )}
 
+            {/* Tabs để phân chia loại nợ */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={activeTab} onChange={handleTabChange} aria-label="debt management tabs">
+                    <Tab 
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Khách hàng nợ</span>
+                                <Box sx={{ 
+                                    backgroundColor: 'red', 
+                                    color: 'white', 
+                                    borderRadius: '50%', 
+                                    width: 20, 
+                                    height: 20, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {customers.filter(cust => cust.totalDebt < 0).length}
+                                </Box>
+                            </Box>
+                        } 
+                    />
+                    <Tab 
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Cửa hàng nợ</span>
+                                <Box sx={{ 
+                                    backgroundColor: 'green', 
+                                    color: 'white', 
+                                    borderRadius: '50%', 
+                                    width: 20, 
+                                    height: 20, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {customers.filter(cust => cust.totalDebt > 0).length}
+                                </Box>
+                            </Box>
+                        } 
+                    />
+                </Tabs>
+            </Box>
+
             {/* Bảng danh sách khách hàng */}
             <Typography variant="h6" gutterBottom>
-                Danh sách khách hàng
+                Danh sách khách hàng {activeTab === 0 ? '(Khách hàng nợ)' : '(Cửa hàng nợ)'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" mb={2}>
                 <TextField
@@ -204,13 +315,37 @@ const DebtManagement = () => {
                     <ToggleButton value="supplier">Nhà cung cấp</ToggleButton>
                 </ToggleButtonGroup>
             </Stack>
-            <div style={{ width: '100%', overflowX: 'auto' }}>
+            <div style={{ height: 520, width: '100%' }}>
+                <DataGrid
+                    rows={filteredCustomers.map((cust, idx) => ({
+                        id: cust.id || idx,
+                        name: cust.name || 'N/A',
+                        phone: cust.phone || 'N/A',
+                        address: cust.address || 'N/A',
+                        typeLabel: cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua',
+                        isSupplier: cust.isSupplier,
+                        totalDebt: cust.totalDebt,
+                    }))}
+                    columns={columns}
+                    pageSize={customerRowsPerPage}
+                    rowsPerPageOptions={[5,10,25,50,100]}
+                    pagination
+                    page={customerPage}
+                    onPageChange={(p)=>setCustomerPage(p)}
+                    onPageSizeChange={(n)=>{setCustomerRowsPerPage(n); setCustomerPage(0);}}
+                    components={{ Toolbar: GridToolbar }}
+                    sx={{ '& .MuiDataGrid-columnHeaders': { backgroundColor: '#e3f2fd', fontWeight:'bold' }, borderRadius:2, boxShadow:2 }}
+                />
+            </div>
+            {/* Legacy table removed */}
+                {/*
                 <Table>
                     <TableHead>
                         <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                             <TableCell sx={{ fontWeight: 'bold' }}>Tên</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Số điện thoại</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Địa chỉ</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Loại khách hàng</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Tổng nợ</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
                         </TableRow>
@@ -222,9 +357,21 @@ const DebtManagement = () => {
                                     <TableCell>{cust.name || "N/A"}</TableCell>
                                     <TableCell>{cust.phone || "N/A"}</TableCell>
                                     <TableCell>{cust.address || "N/A"}</TableCell>
+                                    <TableCell>
+                                        <span style={{
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            fontWeight: '500',
+                                            backgroundColor: cust.isSupplier ? '#e3f2fd' : '#f3e5f5',
+                                            color: cust.isSupplier ? '#1976d2' : '#7b1fa2'
+                                        }}>
+                                            {cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua'}
+                                        </span>
+                                    </TableCell>
                                     <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
                                     <TableCell>
-                                        <IconButton color="primary" onClick={() => setSelectedCustomerId(cust.id)} disabled={!cust.id}>
+                                        <IconButton color="primary" onClick={() => handleOpenDebtTable(cust.id)} disabled={!cust.id}>
                                             <VisibilityIcon />
                                         </IconButton>
                                     </TableCell>
@@ -232,7 +379,7 @@ const DebtManagement = () => {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5}>Không có khách hàng</TableCell>
+                                <TableCell colSpan={6}>Không có khách hàng</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -246,11 +393,13 @@ const DebtManagement = () => {
                     onRowsPerPageChange={handleCustomerRowsPerPageChange}
                     rowsPerPageOptions={[5, 10, 25]}
                 />
-            </div>
+                */}
 
             {/* Chú thích ký hiệu tổng nợ */}
-            <Typography variant="body2" color="text.secondary" align="right" sx={{ mt: 2 }}>
-                "-": khách đang nợ, "+": cửa hàng nợ
+            <Typography variant="body2" align="right" sx={{ mt: 2 }}>
+                <span style={{ color: 'red', fontWeight: 'bold' }}>"-": khách đang nợ</span>
+                <span style={{ margin: '0 8px' }}>, </span>
+                <span style={{ color: 'green', fontWeight: 'bold' }}>"+": cửa hàng nợ</span>
             </Typography>
 
             {/* Chi tiết khách hàng và giao dịch nợ */}
@@ -272,6 +421,9 @@ const DebtManagement = () => {
                     debtNotesTotalItems={debtNotesTotalItems}
                     onDebtNotesPageChange={handleDebtNotesPageChange}
                     onDebtNotesRowsPerPageChange={handleDebtNotesRowsPerPageChange}
+                    fromDate={debtFromDate}
+                    toDate={debtToDate}
+                    onDateFilterChange={handleDateFilterChange}
                 />
             )}
             <DebtDetailDialog

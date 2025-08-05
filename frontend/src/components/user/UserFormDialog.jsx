@@ -43,13 +43,29 @@ function generateUsername(fullName, existingUsernames) {
     return username;
 }
 
-function generateRandomPassword(length = 5) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+function generateRandomPassword() {
+    // Tạo password đáp ứng yêu cầu validation
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    
+    let password = '';
+    
+    // Đảm bảo có ít nhất 1 ký tự từ mỗi loại
+    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length)); // 1 chữ hoa
+    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length)); // 1 chữ thường
+    password += digits.charAt(Math.floor(Math.random() * digits.length)); // 1 số
+    password += specialChars.charAt(Math.floor(Math.random() * specialChars.length)); // 1 ký tự đặc biệt
+    
+    // Thêm các ký tự ngẫu nhiên để đạt độ dài 12
+    const allChars = uppercase + lowercase + digits + specialChars;
+    for (let i = 4; i < 12; i++) {
+        password += allChars.charAt(Math.floor(Math.random() * allChars.length));
     }
-    return result;
+    
+    // Shuffle password để không có pattern dễ đoán
+    return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
 const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
@@ -66,7 +82,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                 });
-                setStores(response.data.map(store => ({ id: store.id, name: store.name })));
+                setStores(response.data.map(store => ({ id: store.id, name: store.storeName })));
             } catch (error) {
                 console.error('Không thể lấy danh sách cửa hàng:', error);
             } finally {
@@ -110,10 +126,17 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     useEffect(() => {
         if (!storesLoading && form.storeId && stores.length > 0) {
             const matchedStore = stores.find(store => store.id === form.storeId);
+            console.log('Debug store matching:', {
+                formStoreId: form.storeId,
+                formStoreName: form.storeName,
+                matchedStore,
+                storesCount: stores.length
+            });
             if (matchedStore && matchedStore.name !== form.storeName) {
-                // Nếu tìm thấy và name không khớp (hiếm), update form
+                // Nếu tìm thấy và name không khớp, update form với tên từ stores
                 setForm(prev => ({ ...prev, storeName: matchedStore.name }));
-            } else if (!matchedStore) {
+            } else if (!matchedStore && form.storeName) {
+                // Nếu không tìm thấy store trong list nhưng có storeName, tạo fallback object
                 console.warn(`Store ID ${form.storeId} not found in list. Using fallback name: ${form.storeName}`);
             }
         }
@@ -122,9 +145,18 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     useEffect(() => {
         if (open && !editMode) {
             // Khi mở dialog thêm mới, tự động sinh password
-            setForm(prev => ({ ...prev, password: generateRandomPassword(5) }));
+            setForm(prev => ({ ...prev, password: generateRandomPassword() }));
         }
     }, [open, editMode, setForm]);
+
+    // Debug effect to log form data
+    useEffect(() => {
+        if (editMode && form) {
+            console.log('UserFormDialog - Form data:', form);
+            console.log('UserFormDialog - createdAt:', form.createdAt);
+            console.log('UserFormDialog - updatedAt:', form.updatedAt);
+        }
+    }, [editMode, form]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -154,7 +186,7 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
     const handleRolesChange = (event, value) => {
         setForm((prev) => ({
             ...prev,
-            roles: value || [],
+            roles: value ? [value] : [], // Chỉ lưu 1 role trong array
         }));
     };
 
@@ -272,16 +304,15 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     )}
                 />
                 <Autocomplete
-                    multiple
                     options={roles}
                     getOptionLabel={(option) => option}
-                    value={form.roles || []}
+                    value={form.roles && form.roles.length > 0 ? form.roles[0] : null}
                     onChange={handleRolesChange}
                     renderInput={(params) => (
                         <TextField
                             {...params}
                             margin="dense"
-                            label="Roles *"
+                            label="Role *"
                             fullWidth
                             required
                         />
@@ -293,16 +324,17 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             margin="dense"
                             label="Ngày tạo"
                             fullWidth
-                            value={form.createAt ? new Date(form.createAt).toLocaleString('vi-VN') : 'N/A'}
+                            value={form.createdAt ? new Date(form.createdAt).toLocaleString('vi-VN') : 'N/A'}
                             disabled
                         />
                         <TextField
                             margin="dense"
                             label="Ngày cập nhật"
                             fullWidth
-                            value={form.updateAt ? new Date(form.updateAt).toLocaleString('vi-VN') : 'N/A'}
+                            value={form.updatedAt ? new Date(form.updatedAt).toLocaleString('vi-VN') : 'N/A'}
                             disabled
                         />
+
                     </>
                 )}
             </DialogContent>

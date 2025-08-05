@@ -14,6 +14,8 @@ public interface ZoneService {
     ZoneResponseDto updateZone(Long id, ZoneRequestDto request);
     void deleteZone(Long id);
     List<Zone> getAllZoneEntities();
+
+    List<ZoneResponseDto> getZonesByStoreId(Long storeId);
 }
 
 

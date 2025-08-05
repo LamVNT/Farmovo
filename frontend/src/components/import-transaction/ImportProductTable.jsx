@@ -89,6 +89,11 @@ const ImportProductTable = ({
         columnVisibility['Đơn giá'] && {
             field: 'unitImportPrice',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -126,6 +131,11 @@ const ImportProductTable = ({
         columnVisibility['Giá bán'] && {
             field: 'unitSalePrice',
             headerName: 'Giá bán',
+            renderHeader: () => (
+                <span>
+                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -184,6 +194,7 @@ const ImportProductTable = ({
                     }}
                 >
                     <MenuItem value=""><em>Chọn vị trí</em></MenuItem>
+                    {console.log('zones in ImportProductTable:', zones)}
                     {zones.map((zone) => (
                         <MenuItem key={zone.id} value={zone.id}>{zone.name || zone.zoneName}</MenuItem>
                     ))}

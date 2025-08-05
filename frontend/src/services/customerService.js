@@ -10,7 +10,44 @@ export const getAllCustomers = async () => {
     return response.data;
 };
 
+export const getCustomers = async (page = 0, size = 10, searchTerm = '') => {
+    console.log(`Fetching customers with page: ${page}, size: ${size}, search: ${searchTerm}`);
+    try {
+        const params = {
+            page: page,
+            size: size
+        };
+        
+        if (searchTerm) {
+            params.search = searchTerm;
+        }
+        
+        const response = await axios.get(`${API_URL}/admin/customerPage`, {
+            params: params,
+            withCredentials: true,
+        });
+        console.log(`Successfully fetched customers: ${response.data.content?.length || 0} items`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching customers:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
 export const customerService = {
+
+    getCustomersPaged: async (params = {}) => {
+        try {
+            const response = await axios.get(`${API_URL}/admin`, {
+                params,
+                withCredentials: true,
+            });
+            return response.data; // PageResponse
+        } catch (error) {
+            console.error('Error in getCustomersPaged:', error.response?.data || error.message);
+            throw error;
+        }
+    },
 
     getSuppliers: async () => {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/customer/suppliers`, {
@@ -20,8 +57,8 @@ export const customerService = {
     },
 
 
-    createCustomer: async (customerDto, createdBy) => {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer?createdBy=${createdBy}`, customerDto, {
+    createCustomer: async (customerDto) => {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer`, customerDto, {
             withCredentials: true,
         });
         return response.data;
@@ -35,8 +72,7 @@ export const customerService = {
     },
 
     deleteCustomer: async (id, deletedBy) => {
-        const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}`, {
-            data: {deletedBy},
+        const response = await axios.delete(`${import.meta.env.VITE_API_URL}/customer/${id}?deletedBy=${deletedBy}`, {
             withCredentials: true,
         });
         return response.data;

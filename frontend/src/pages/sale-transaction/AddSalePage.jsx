@@ -52,6 +52,9 @@ const AddSalePage = () => {
     // Thêm state cho đơn vị tính
     const [unit, setUnit] = useState('quả'); // Đơn vị tính mặc định
     
+    // Thêm state cho paidAmountInput
+    const [paidAmountInput, setPaidAmountInput] = useState('0');
+    
     // Column visibility state - moved up before useMemo
     const [columnVisibility, setColumnVisibility] = useState({
         STT: true,
@@ -75,7 +78,6 @@ const AddSalePage = () => {
         loading,
         error,
         success,
-        setSelectedProducts, // <-- thêm dòng này để sửa lỗi và cho phép cập nhật
         
         // Form states
         selectedCustomer,
@@ -109,6 +111,8 @@ const AddSalePage = () => {
         setShowSummaryDialog,
         setSummaryData,
         setPendingAction,
+        setSelectedProducts, // <-- thêm dòng này để sửa lỗi và cho phép cập nhật
+        setCustomers, // <-- thêm dòng này để cập nhật danh sách customers
         
         // Handlers
         handleSelectProduct,
@@ -134,7 +138,7 @@ const AddSalePage = () => {
         if (selectedProducts.length > 0) {
             setSelectedProducts(prev => prev.map(p => ({ ...p, unit })));
         }
-    }, [unit]);
+    }, [unit, setSelectedProducts]);
 
     // Handle click outside search dropdown
     useEffect(() => {
@@ -153,7 +157,7 @@ const AddSalePage = () => {
     // Force re-render DataGrid when selectedProducts changes
     useEffect(() => {
         setDataGridKey(prev => prev + 1);
-    }, [selectedProducts]);
+    }, [selectedProducts, setDataGridKey]);
 
     useEffect(() => {
         // Lấy danh sách batch (import transaction detail) còn hàng
@@ -166,17 +170,28 @@ const AddSalePage = () => {
             }
         };
         fetchBatches();
-    }, []);
+    }, [setBatches]);
 
     useEffect(() => {
         // Lấy mã phiếu tiếp theo
         saleTransactionService.getNextCode && saleTransactionService.getNextCode().then(setNextCode).catch(() => setNextCode(''));
-    }, []);
+    }, [setNextCode]);
 
     // Gợi ý batch mới nhất khi focus hoặc search
     useEffect(() => {
+        // Filter batches by selected store first
+        const storeFilteredBatches = batches.filter(batch => {
+            if (!selectedStore) return false;
+            const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+            if (!selectedStoreData) return false;
+            
+            // Check if batch belongs to the selected store
+            return batch.storeName === selectedStoreData.storeName || 
+                   batch.storeName === selectedStoreData.name;
+        });
+
         if (searchTerm.trim() !== '') {
-            const results = batches.filter(
+            const results = storeFilteredBatches.filter(
                 (b) =>
                     (b.batchCode && b.batchCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (b.productName && b.productName.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -190,7 +205,7 @@ const AddSalePage = () => {
             setFilteredBatches(results.slice(0, 10));
         } else if (isSearchFocused) {
             // Gợi ý 10 batch mới nhất khi chưa nhập gì
-            const sorted = [...batches].sort((a, b) => {
+            const sorted = [...storeFilteredBatches].sort((a, b) => {
                 const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
                 const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
                 return dateB - dateA;
@@ -199,7 +214,7 @@ const AddSalePage = () => {
         } else {
             setFilteredBatches([]);
         }
-    }, [batches, searchTerm, isSearchFocused]);
+    }, [batches, searchTerm, isSearchFocused, selectedStore, stores, setFilteredBatches]);
 
     // Auto-dismiss error/success after 5s
     useEffect(() => {
@@ -213,7 +228,7 @@ const AddSalePage = () => {
             }, 5000);
             return () => clearTimeout(timer);
         }
-    }, [error, success]);
+    }, [error, success, setError, setSuccess]);
 
     // Validate before show summary (save draft or complete)
     const handleShowSummary = async (status) => {
@@ -258,7 +273,18 @@ const AddSalePage = () => {
         if (value.trim() === '') {
             setFilteredBatches([]);
         } else {
-            const results = batches.filter(
+            // Filter batches by selected store first
+            const storeFilteredBatches = batches.filter(batch => {
+                if (!selectedStore) return false;
+                const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                if (!selectedStoreData) return false;
+                
+                // Check if batch belongs to the selected store
+                return batch.storeName === selectedStoreData.storeName || 
+                       batch.storeName === selectedStoreData.name;
+            });
+
+            const results = storeFilteredBatches.filter(
                 (b) =>
                     (b.batchCode && b.batchCode.toLowerCase().includes(value.toLowerCase())) ||
                     (b.productName && b.productName.toLowerCase().includes(value.toLowerCase()))
@@ -280,7 +306,7 @@ const AddSalePage = () => {
                 price: (batch.unitSalePrice || 0) * 25,
                 quantity: 1,
                 remainQuantity: remainKhay,
-                batchCode: batch.batchCode,
+                batchCode: batch.batchCode || batch.name, // Sử dụng batch.name nếu không có batchCode
                 productCode: batch.productCode,
                 categoryName: batch.categoryName,
                 storeName: batch.storeName,
@@ -295,7 +321,7 @@ const AddSalePage = () => {
                 price: batch.unitSalePrice,
                 quantity: 1,
                 remainQuantity: batch.remainQuantity,
-                batchCode: batch.batchCode,
+                batchCode: batch.batchCode || batch.name, // Sử dụng batch.name nếu không có batchCode
                 productCode: batch.productCode,
                 categoryName: batch.categoryName,
                 storeName: batch.storeName,
@@ -321,9 +347,22 @@ const AddSalePage = () => {
 
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
+        const filteredProducts = products.filter(product => {
+            // Filter by category
+            const categoryMatch = product.categoryId === category.id || product.category?.id === category.id;
+            if (!categoryMatch) return false;
+            
+            // Filter by selected store
+            if (!selectedStore) return false;
+            const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+            if (!selectedStoreData) return false;
+            
+            // Check if product belongs to the selected store
+            const storeMatch = product.storeName === selectedStoreData.storeName || 
+                              product.storeName === selectedStoreData.name;
+            
+            return categoryMatch && storeMatch;
+        });
         setCategoryProducts(filteredProducts);
     };
 
@@ -342,7 +381,34 @@ const AddSalePage = () => {
             sortable: false,
             filterable: false,
         },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 250,
+            minWidth: 200,
+            renderCell: (params) => (
+                <div className="flex flex-col w-full">
+                    <div className="font-medium text-gray-900">{params.row.name}</div>
+                    {params.row.batchCode && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.batchCode}
+                        </div>
+                    )}
+                    {/* Hiển thị batchId nếu không có batchCode */}
+                    {!params.row.batchCode && params.row.batchId && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.batchId}
+                        </div>
+                    )}
+                    {/* Hiển thị id nếu không có batchCode và batchId */}
+                    {!params.row.batchCode && !params.row.batchId && params.row.id && (
+                        <div className="text-xs text-gray-500 font-mono">
+                            Lô: {params.row.id}
+                        </div>
+                    )}
+                </div>
+            )
+        },
         columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
         columnVisibility['Số lượng'] && {
             field: 'quantity',
@@ -393,6 +459,11 @@ const AddSalePage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -637,13 +708,25 @@ const AddSalePage = () => {
                 highlightCustomer={highlightCustomer}
                 highlightStore={highlightStore}
                 highlightProducts={highlightProducts}
+                setCustomers={setCustomers}
+                paidAmountInput={paidAmountInput}
+                setPaidAmountInput={setPaidAmountInput}
             />
 
             {/* Product Selection Dialog */}
             <SaleProductDialog
                 open={showProductDialog}
                 onClose={() => setShowProductDialog(false)}
-                products={products}
+                products={products.filter(product => {
+                    // Filter products by selected store
+                    if (!selectedStore) return false;
+                    const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                    if (!selectedStoreData) return false;
+                    
+                    // Check if product belongs to the selected store
+                    return product.storeName === selectedStoreData.storeName || 
+                           product.storeName === selectedStoreData.name;
+                })}
                 selectedProduct={selectedProduct}
                 availableBatches={availableBatches}
                 selectedBatchesForDialog={[]}
@@ -694,8 +777,23 @@ const AddSalePage = () => {
                                     >
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-sm text-gray-500">
-                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
-                                </div>
+                                            {products.filter(p => {
+                                                // Filter by category
+                                                const categoryMatch = p.categoryId === category.id || p.category?.id === category.id;
+                                                if (!categoryMatch) return false;
+                                                
+                                                // Filter by selected store
+                                                if (!selectedStore) return false;
+                                                const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                                                if (!selectedStoreData) return false;
+                                                
+                                                // Check if product belongs to the selected store
+                                                const storeMatch = p.storeName === selectedStoreData.storeName || 
+                                                                  p.storeName === selectedStoreData.name;
+                                                
+                                                return categoryMatch && storeMatch;
+                                            }).length} sản phẩm
+                                        </div>
                                     </div>
                                 ))}
                                 </div>

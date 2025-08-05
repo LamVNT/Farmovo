@@ -31,6 +31,9 @@ import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
+import EditPage from '../pages/import-transaction/EditPage';
+import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
+import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -126,6 +129,16 @@ const router = createBrowserRouter([
     {
         path: "/import",
         element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <ImportTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/import/:id",
+        element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <ImportTransactionPage/>
@@ -136,9 +149,19 @@ const router = createBrowserRouter([
     {
         path: "/import/new",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <ImportPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/import/edit/:id',
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <EditPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -170,6 +193,16 @@ const router = createBrowserRouter([
     },
     {
         path: "/sale",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <SaleTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/:id",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
@@ -234,11 +267,53 @@ const router = createBrowserRouter([
     },
     {
         path: "/reports/stocktake-diff",
-        element: <StocktakeDiffReport/>,
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <StocktakeDiffReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
     {
         path: "/reports/expiring-lots",
-        element: <ExpiringLotsReport/>,
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <ExpiringLotsReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/dashboard",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <DashboardReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/remain-summary",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <RemainSummaryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/inout-summary",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <InOutSummaryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
     },
     {
         path: "/customers",
@@ -256,6 +331,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <Store/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/change-status-log",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+                <MainLayout>
+                    <ChangeStatusLogPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),

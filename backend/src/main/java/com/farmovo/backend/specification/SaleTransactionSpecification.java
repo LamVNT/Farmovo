@@ -93,6 +93,35 @@ public class SaleTransactionSpecification {
             return cb.equal(root.get("createdBy"), userId);
         };
     }
+
+    public static Specification<SaleTransaction> buildSpecification(
+            String name,
+            String customerName,
+            String storeName,
+            SaleTransactionStatus status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            BigDecimal minTotalAmount,
+            BigDecimal maxTotalAmount,
+            BigDecimal minPaidAmount,
+            BigDecimal maxPaidAmount,
+            String note,
+            Long createdBy) {
+
+        return Specification.allOf(
+                isNotDeleted(),
+                hasName(name),
+                hasCustomerName(customerName),
+                hasStoreName(storeName),
+                hasStatus(status),
+                hasSaleDateBetween(fromDate, toDate),
+                hasTotalAmountBetween(minTotalAmount, maxTotalAmount),
+                hasPaidAmountBetween(minPaidAmount, maxPaidAmount),
+                hasNote(note),
+                hasCreatedBy(createdBy)
+        );
+    }
+
 }
 
 

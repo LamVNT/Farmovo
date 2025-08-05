@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { getAllCustomers, customerService } from "../../services/customerService";
+import React, { useEffect, useState } from "react";
+import { customerService } from "../../services/customerService";
+import useCustomers from "../../hooks/useCustomers";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { Button, TextField, Select, MenuItem, FormControl, InputLabel, Stack, Checkbox, FormControlLabel, Typography, Box } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CustomerFormDialog from "../../components/customer/CustomerFormDialog";
@@ -9,7 +11,18 @@ import CustomerTable from "../../components/customer/CustomerTable";
 const PAGE_SIZE = 10;
 
 const CustomerManagementPage = () => {
-  const [customers, setCustomers] = useState([]);
+  const {
+    customers,
+    page,
+    size: rowsPerPage,
+    totalPages,
+    totalItems,
+    setPage,
+    setSize: setRowsPerPage,
+    fetchCustomers,
+    loading,
+    error
+  } = useCustomers();
   const [openForm, setOpenForm] = useState(false);
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -17,28 +30,34 @@ const CustomerManagementPage = () => {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
   const [filterDebt, setFilterDebt] = useState(false);
-  const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(PAGE_SIZE);
 
-  // Fetch all customers
-  const fetchCustomers = async () => {
-    try {
-      const data = await getAllCustomers(); // Đã trả về CustomerDto mới
-      setCustomers(data);
-    } catch (err) {
-      // handle error
-    }
-  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
 
+  // Fetch customers from server when filters/page change
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    const filters = {
+      name: search || undefined,
+      phone: undefined,
+      email: undefined,
+    };
+    if (filterSupplier !== "") filters.isSupplier = filterSupplier === "true";
+    if (filterDebt) filters.debtOnly = true;
+
+    fetchCustomers(filters);
+  }, [search, filterSupplier, filterDebt, page, rowsPerPage, fetchCustomers]);
 
   // Tự động cập nhật khi thêm/sửa/xóa
   const handleFormClose = (refresh) => {
     setOpenForm(false);
     setSelectedCustomer(null);
-    if (refresh) fetchCustomers();
+    if (refresh) {
+      // Reset to first page when adding new customer to show it at the top
+      if (formMode === "add") {
+        setPage(0);
+      }
+      fetchCustomers();
+    }
   };
   const handleDetailClose = () => {
     setOpenDetail(false);
@@ -46,28 +65,11 @@ const CustomerManagementPage = () => {
   };
 
   // Search, filter, pagination
-  const filteredCustomers = useMemo(() => {
-    let data = customers;
-    if (search) {
-      data = data.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
-    }
-    if (filterSupplier !== "") {
-      data = data.filter(c => c.isSupplier === (filterSupplier === "true"));
-    }
-    if (filterDebt) {
-      data = data.filter(c => c.totalDebt > 0);
-    }
-    return data;
-  }, [customers, search, filterSupplier, filterDebt]);
+  const pageCount = totalPages;
+  const pagedCustomers = customers; // server already paged
 
-  const pageCount = Math.ceil(filteredCustomers.length / rowsPerPage);
-  const pagedCustomers = useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    return filteredCustomers.slice(start, start + rowsPerPage);
-  }, [filteredCustomers, page, rowsPerPage]);
-
-  // Reset page về 1 khi filter/search thay đổi
-  useEffect(() => { setPage(1); }, [search, filterSupplier, filterDebt, rowsPerPage]);
+  // reset to first page when filters/size change
+  useEffect(() => { setPage(0); }, [search, filterSupplier, filterDebt, rowsPerPage]);
 
   const handleAdd = () => {
     setFormMode("add");
@@ -83,19 +85,25 @@ const CustomerManagementPage = () => {
     setSelectedCustomer(customer);
     setOpenDetail(true);
   };
-  const handleDelete = async (customer) => {
-    if (window.confirm("Bạn có chắc muốn xóa khách hàng này?")) {
-      try {
-        await customerService.deleteCustomer(customer.id, 1); // TODO: lấy deletedBy thực tế
-        fetchCustomers();
-      } catch (err) {
-        // handle error
-      }
+  const handleDeleteClick = (customer) => {
+    setCustomerToDelete(customer);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
+    try {
+      await customerService.deleteCustomer(customerToDelete.id, 1); // TODO: deletedBy real
+      fetchCustomers();
+    } catch (err) {
+      // handle error appropriately
+    } finally {
+      setConfirmOpen(false);
+      setCustomerToDelete(null);
     }
   };
   const handleRowsPerPageChange = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(1);
   };
 
   return (
@@ -116,8 +124,8 @@ const CustomerManagementPage = () => {
             onChange={e => setFilterSupplier(e.target.value)}
           >
             <MenuItem value="">Tất cả</MenuItem>
-            <MenuItem value="true">Có</MenuItem>
-            <MenuItem value="false">Không</MenuItem>
+            <MenuItem value="true">Nhà cung cấp</MenuItem>
+            <MenuItem value="false">Khách mua</MenuItem>
           </Select>
         </FormControl>
         <FormControlLabel
@@ -131,14 +139,14 @@ const CustomerManagementPage = () => {
       <CustomerTable
         customers={pagedCustomers}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={handleDeleteClick}
         onDetail={handleDetail}
-        page={page}
+        page={page+1}
         pageCount={pageCount}
         onPageChange={setPage}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={handleRowsPerPageChange}
-        totalCount={filteredCustomers.length}
+        totalCount={totalItems}
       />
       <CustomerFormDialog
         open={openForm}
@@ -150,6 +158,16 @@ const CustomerManagementPage = () => {
         open={openDetail}
         onClose={handleDetailClose}
         customer={selectedCustomer}
+      />
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xác nhận xóa"
+        content="Bạn có chắc muốn xóa khách hàng này?"
+        confirmText="Xóa"
+        cancelText="Hủy"
       />
     </Box>
   );

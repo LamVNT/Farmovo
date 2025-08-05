@@ -1,12 +1,26 @@
 import {useState, useEffect, useMemo} from 'react';
-import {TextField, Button} from '@mui/material';
+import {TextField, Button, Select, MenuItem, FormControl, InputLabel} from '@mui/material';
 import {FaPlus} from 'react-icons/fa6';
 import UserTable from '../../components/user/UserTable';
 import UserFormDialog from '../../components/user/UserFormDialog';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import {userService} from '../../services/userService';
+import useUsers from '../../hooks/useUsers';
 
 const UserManagement = () => {
-    const [users, setUsers] = useState([]);
+    const {
+        users,
+        page,
+        size: rowsPerPage,
+        totalPages,
+        totalItems,
+        setPage,
+        setSize: setRowsPerPage,
+        fetchUsers,
+        loading,
+        error,
+    } = useUsers();
+
     const [searchText, setSearchText] = useState('');
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -17,39 +31,29 @@ const UserManagement = () => {
         password: '',
         status: true,
         storeId: 1,
-        createBy: 1,
-        createAt: '',
-        updateAt: '',
+        createdBy: 1,
+        createdAt: '',
+        updatedAt: '',
         storeName: '',
         roles: [],
         email: '',
     });
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(false);
+    // error and loading already in hook
+    // Confirm dialog state
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
 
+    // Fetch users whenever searchText, page, rowsPerPage changes
     useEffect(() => {
-        const fetchUsers = async () => {
-            setLoading(true);
-            try {
-                const data = await userService.getAllUsers();
-                setUsers(data);
-                setError(null);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
+        const params = {
+            page: page,
+            size: rowsPerPage,
+            username: searchText || undefined,
         };
-        fetchUsers();
-    }, []);
+        fetchUsers(params);
+    }, [searchText, page, rowsPerPage]);
 
-    const filteredUsers = useMemo(() => {
-        return users.filter(
-            (user) =>
-                user.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-                user.username.toLowerCase().includes(searchText.toLowerCase())
-        );
-    }, [searchText, users]);
+    const filteredUsers = users; // backend already filtered
 
     const handleOpenCreate = () => {
         setForm({
@@ -59,9 +63,9 @@ const UserManagement = () => {
             password: '',
             status: true,
             storeId: 1,
-            createBy: 1,
-            createAt: '',
-            updateAt: '',
+            createdBy: 1,
+            createdAt: '',
+            updatedAt: '',
             storeName: '',
             roles: [], // Reset roles khi tạo mới
             email: '',
@@ -78,9 +82,9 @@ const UserManagement = () => {
             password: '',
             status: user.status,
             storeId: user.storeId || 1, // Đảm bảo storeId từ dữ liệu
-            createBy: user.createBy || 1,
-            createAt: user.createAt || '',
-            updateAt: user.updateAt || '',
+            createdBy: user.createdBy || 1,
+            createdAt: user.createdAt || '',
+            updatedAt: user.updatedAt || '',
             storeName: user.storeName || '',
             roles: user.roles || [], // Lấy roles từ dữ liệu
             email: user.email || '',
@@ -98,63 +102,110 @@ const UserManagement = () => {
         }));
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-            try {
-                await userService.deleteUser(id);
-                setUsers((prev) => prev.filter((u) => u.id !== id));
-                setError(null);
-            } catch (err) {
-                setError(err.message);
-            }
+    const handleDeleteClick = (id) => {
+        setUserToDelete(id);
+        setConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!userToDelete) return;
+        try {
+            await userService.deleteUser(userToDelete);
+            fetchUsers({ page, size: rowsPerPage, username: searchText || undefined });
+            // setError(null); // This line was removed as per the edit hint
+        } catch (err) {
+            // setError(err.message); // This line was removed as per the edit hint
+        } finally {
+            setConfirmOpen(false);
+            setUserToDelete(null);
         }
     };
 
     const handleSubmit = async () => {
+        // Validation
+        if (!form.fullName || form.fullName.trim() === '') {
+            alert('Họ tên không được để trống');
+            return;
+        }
+        if (!form.username || form.username.trim() === '') {
+            alert('Tên đăng nhập không được để trống');
+            return;
+        }
+        if (!editMode && (!form.password || form.password.trim() === '')) {
+            alert('Mật khẩu không được để trống khi tạo mới');
+            return;
+        }
+        if (!form.storeId) {
+            alert('Vui lòng chọn cửa hàng');
+            return;
+        }
+        if (!form.roles || form.roles.length === 0) {
+            alert('Vui lòng chọn role');
+            return;
+        }
+
         console.log('Sending userData:', form);
         const userData = {
-            fullName: form.fullName || undefined,
-            username: form.username || undefined,
-            password: form.password || undefined, // Bắt buộc khi tạo mới
+            fullName: form.fullName.trim(),
+            username: form.username.trim(),
+            password: form.password, // Bắt buộc khi tạo mới
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
-            email: form.email || undefined,
+            email: form.email ? form.email.trim() : null,
         };
         try {
             if (editMode) {
-                await userService.updateUser(form.id, userData);
+                const updatedUser = await userService.updateUser(form.id, userData);
+                // Refresh danh sách sau khi cập nhật
+                fetchUsers({
+                    page: page,
+                    size: rowsPerPage,
+                    username: searchText || undefined,
+                });
             } else {
-                await userService.createUser(userData);
+                const newUser = await userService.createUser(userData);
+                // Refresh danh sách sau khi tạo mới và reset về trang đầu
+                fetchUsers({
+                    page: 0, // Reset về trang đầu
+                    size: rowsPerPage,
+                    username: searchText || undefined,
+                });
             }
-            handleClose(); // Đóng dialog sau khi submit thành công
-            // Làm mới danh sách người dùng
-            const data = await userService.getAllUsers();
-            setUsers(data);
-            setError(null);
+            handleClose();
         } catch (error) {
             console.error('Lỗi:', error.message);
-            setError(error.message); // Hiển thị lỗi cho người dùng
+            alert(`Lỗi: ${error.message}`);
         }
     };
 
     const handleToggleStatus = async (id) => {
         try {
             const updatedUser = await userService.toggleUserStatus(id);
-            setUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u)));
-            setError(null);
+            // Refresh danh sách sau khi toggle status
+            fetchUsers({
+                page: page,
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
         } catch (err) {
-            setError(err.message);
+            console.error('Lỗi toggle status:', err.message);
+            alert(`Lỗi: ${err.message}`);
         }
     };
 
     const handleUpdateStatus = async (id, status) => {
         try {
             const updatedUser = await userService.updateUserStatus(id, status);
-            setUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u)));
-            setError(null);
+            // Refresh danh sách sau khi update status
+            fetchUsers({
+                page: page,
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
         } catch (err) {
-            setError(err.message);
+            console.error('Lỗi update status:', err.message);
+            alert(`Lỗi: ${err.message}`);
         }
     };
 
@@ -182,9 +233,14 @@ const UserManagement = () => {
                 <UserTable
                     users={filteredUsers}
                     onEdit={handleOpenEdit}
-                    onDelete={handleDelete}
+                    onDelete={handleDeleteClick}
                     onToggleStatus={handleToggleStatus}
-                    onUpdateStatus={handleUpdateStatus}
+                    page={page}
+                    pageCount={totalPages}
+                    onPageChange={setPage}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={(e)=>setRowsPerPage(parseInt(e.target.value,10))}
+                    totalCount={totalItems}
                 />
             )}
 
@@ -195,6 +251,15 @@ const UserManagement = () => {
                 form={form}
                 setForm={setForm}
                 editMode={editMode}
+            />
+            <ConfirmDialog
+                open={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Xác nhận xóa"
+                content="Bạn có chắc chắn muốn xóa người dùng này?"
+                confirmText="Xóa"
+                cancelText="Hủy"
             />
         </div>
     );

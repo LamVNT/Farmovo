@@ -13,6 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/customer")
@@ -24,10 +28,10 @@ public class CustomerController {
     private CustomerService customerService;
 
     @PostMapping
-    public ResponseEntity<CustomerResponseDto> createCustomer(@RequestBody CustomerRequestDto requestDto,
-                                                              @RequestParam Long createdBy) {
+    public ResponseEntity<CustomerResponseDto> createCustomer(@RequestBody CustomerRequestDto requestDto) {
         logger.info("Creating customer: {}", requestDto.getName());
-        CustomerResponseDto responseDto = customerService.createCustomer(requestDto, createdBy);
+        // TODO: Get createdBy from JWT token instead of parameter
+        CustomerResponseDto responseDto = customerService.createCustomer(requestDto, 1L); // Temporary hardcoded
         return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
 
@@ -44,6 +48,36 @@ public class CustomerController {
         return new ResponseEntity<>(customerService.getAllCustomers().stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList()), HttpStatus.OK);
+    }
+
+    @GetMapping("/admin/customerPage")
+    public ResponseEntity<Page<CustomerResponseDto>> getCustomerPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search
+    ) {
+        logger.info("Fetching customers with pagination (legacy), page: {}, size: {}, search: {}", page, size, search);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<CustomerResponseDto> result = customerService.getCustomerPage(pageable, search);
+        return ResponseEntity.ok(result);
+    }
+
+    // New paged search endpoint
+    @GetMapping("/admin")
+    public ResponseEntity<com.farmovo.backend.dto.request.PageResponse<CustomerResponseDto>> searchCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Boolean isSupplier,
+            @RequestParam(required = false) Boolean debtOnly,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<CustomerResponseDto> pageResult = customerService.searchCustomers(name, phone, email, isSupplier, debtOnly, fromDate, toDate, pageable);
+        return ResponseEntity.ok(com.farmovo.backend.dto.request.PageResponse.fromPage(pageResult));
     }
 
     @GetMapping("/search")

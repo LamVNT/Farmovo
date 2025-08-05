@@ -1,6 +1,7 @@
 package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.StoreRequestDto;
+import com.farmovo.backend.dto.response.StoreResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.mapper.StoreMapper;
 import com.farmovo.backend.models.Store;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class StoreServiceImpl implements StoreService {
@@ -85,13 +87,30 @@ public class StoreServiceImpl implements StoreService {
         store.setStoreName(dto.getStoreName());
         store.setStoreDescription(dto.getStoreDescription());
         store.setStoreAddress(dto.getStoreAddress());
-        store.setCreatedBy(dto.getCreatedBy());
+        store.setCreatedBy(dto.getCreateBy());
         return store;
     }
 
     @Override
     public List<StoreRequestDto> getAllStoreDto() {
-        return storeMapper.toDtoList(storeRepository.findAll());
+        List<Store> stores = storeRepository.findAll();
+        return stores.stream()
+                .map(storeMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<StoreResponseDto> getAllStoreResponseDto() {
+        return storeRepository.findAll().stream()
+                .map(store -> {
+                    StoreResponseDto dto = new StoreResponseDto();
+                    dto.setId(store.getId());
+                    dto.setStoreName(store.getStoreName());
+                    dto.setStoreDescription(store.getStoreDescription());
+                    dto.setStoreAddress(store.getStoreAddress());
+                    return dto;
+                })
+                .toList();
     }
 
 }

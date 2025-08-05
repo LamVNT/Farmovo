@@ -237,7 +237,7 @@ const ImportSidebar = ({
                         size="small"
                         fullWidth
                         placeholder="Tìm cửa hàng..."
-                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || '')}
+                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
                         onChange={e => {
                             setStoreSearch(e.target.value);
                             setSelectedStore('');
@@ -285,9 +285,9 @@ const ImportSidebar = ({
                                     }}
                                     className={`flex flex-col px-6 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150 hover:bg-blue-50 ${String(selectedStore) === String(store.id) ? 'bg-blue-100/70 text-blue-900 font-bold' : ''}`}
                                 >
-                                    <span className="font-medium truncate max-w-[180px]">{store.name}</span>
-                                    {store.address && (
-                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.address}</span>
+                                    <span className="font-medium truncate max-w-[180px]">{store.storeName}</span>
+                                    {store.storeAddress && (
+                                        <span className="text-xs text-gray-400 truncate max-w-[260px]">{store.storeAddress}</span>
                                     )}
                                 </div>
                             ))}
@@ -295,6 +295,36 @@ const ImportSidebar = ({
                     )}
                 </div>
             </div>
+
+            {/* Thông báo về zone filtering */}
+            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-green-700 font-medium">
+                            Khu vực sẽ được hiển thị theo cửa hàng: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
+                        </span>
+                    </div>
+                    <div className="mt-2 text-xs text-green-600">
+                        Vui lòng chọn cửa hàng để xem các khu vực tương ứng.
+                    </div>
+                </div>
+            )}
+
+            {/* Thông báo khi chưa chọn store */}
+            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span className="text-sm text-yellow-700 font-medium">
+                            Vui lòng chọn cửa hàng để xem khu vực
+                        </span>
+                    </div>
+                    <div className="mt-2 text-xs text-yellow-600">
+                        Khu vực sẽ được hiển thị dựa trên cửa hàng bạn chọn.
+                    </div>
+                </div>
+            )}
 
             <div>
                 <div className="font-semibold mb-1">Ghi chú</div>
@@ -314,6 +344,30 @@ const ImportSidebar = ({
                 <div className="font-semibold">Tổng tiền hàng</div>
                 <div className="text-right w-32">{totalAmount.toLocaleString('vi-VN')} VND</div>
             </div>
+
+            {/* Tổng nợ hiện tại của nhà cung cấp */}
+            {selectedSupplier && (
+                <div className="flex justify-between items-center">
+                    <div className="font-semibold">Tổng nợ hiện tại</div>
+                    <div className={`text-right w-32 ${(() => {
+                        const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
+                        const totalDebt = supplier?.totalDebt || 0;
+                        return totalDebt > 0 ? 'text-red-600' : totalDebt < 0 ? 'text-green-600' : 'text-gray-600';
+                    })()}`}>
+                        {(() => {
+                            const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
+                            const totalDebt = supplier?.totalDebt || 0;
+                            if (totalDebt > 0) {
+                                return `+${totalDebt.toLocaleString('vi-VN')} VND (Nhà cung cấp nợ)`;
+                            } else if (totalDebt < 0) {
+                                return `-${Math.abs(totalDebt).toLocaleString('vi-VN')} VND (Cửa hàng nợ)`;
+                            } else {
+                                return `${totalDebt.toLocaleString('vi-VN')} VND (Không nợ)`;
+                            }
+                        })()}
+                    </div>
+                </div>
+            )}
 
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
@@ -705,7 +759,7 @@ const ImportSidebar = ({
                     <div className="space-y-4">
                         {/* Header */}
                         <div className="border-b border-gray-100 pb-3">
-                            <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredStore.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-800 mb-1">{hoveredStore.storeName}</h3>
                             <div className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
                                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                                 Cửa hàng
@@ -713,19 +767,19 @@ const ImportSidebar = ({
                         </div>
                         {/* Thông tin liên hệ */}
                         <div className="space-y-3">
-                            {hoveredStore.address && (
+                            {hoveredStore.storeAddress && (
                                 <div className="flex items-start group">
                                     <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 mt-0.5 group-hover:bg-orange-200 transition-colors">
                                         <span className="text-orange-600 text-sm">📍</span>
                                     </div>
-                                    <span className="text-sm text-gray-700 leading-relaxed">{hoveredStore.address}</span>
+                                    <span className="text-sm text-gray-700 leading-relaxed">{hoveredStore.storeAddress}</span>
                                 </div>
                             )}
                         </div>
                         {/* Thông tin mô tả */}
-                        {hoveredStore.description && (
+                        {hoveredStore.storeDescription && (
                             <div className="pt-3 border-t border-gray-100">
-                                <div className="text-xs text-gray-500">Mô tả: {hoveredStore.description}</div>
+                                <div className="text-xs text-gray-500">Mô tả: {hoveredStore.storeDescription}</div>
                             </div>
                         )}
                     </div>

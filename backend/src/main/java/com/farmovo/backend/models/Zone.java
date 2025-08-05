@@ -20,10 +20,13 @@ public class Zone extends Base {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "zone_name", length = 100, unique = true, nullable = false)
+    @Column(name = "zone_name", length = 100, nullable = false)
     private String zoneName;
 
     @Column(name = "zone_description", length = 1000)
     private String zoneDescription;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
 }
