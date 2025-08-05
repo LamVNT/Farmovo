@@ -28,3 +28,7 @@ export const deleteStocktake = (id) => {
 export const checkMissingZones = (details) => {
     return axios.post('/stocktakes/check-missing-zones', details).then(res => res.data);
 };
+
+export const getStocktakeDiff = (stocktakeId) => {
+    return axios.get(`/reports/stocktake-diff?stocktakeId=${stocktakeId}`).then(res => res.data);
+};

@@ -607,10 +607,7 @@ const CreateStocktakePage = () => {
                 <DialogTitle>Xác nhận hoàn thành phiếu kiểm kê</DialogTitle>
                 <DialogContent>
                     <Typography>
-                        {userRole === 'STAFF'
-                            ? "Bạn có chắc chắn muốn hoàn thành phiếu kiểm kê này? Số lượng tồn kho sẽ được cập nhật theo số lượng thực tế đã nhập."
-                            : "Bạn có chắc chắn muốn hoàn thành và cân bằng kho theo số lượng thực tế không?"
-                        }
+                    Hoàn thành phiếu kiểm kê
                     </Typography>
                     <Box sx={{display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2}}>
                         <Button onClick={() => setConfirmCompleteDialog(false)}>Hủy</Button>

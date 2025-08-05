@@ -37,7 +37,7 @@ import { useSaleTransaction } from '../../hooks/useSaleTransaction';
 import { formatCurrency, isValidValue } from '../../utils/formatters';
 import saleTransactionService from '../../services/saleTransactionService';
 
-const AddSalePage = () => {
+const AddSalePage = (props) => {
     const searchRef = useRef(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [batches, setBatches] = useState([]);
@@ -133,12 +133,36 @@ const AddSalePage = () => {
     const [highlightStore, setHighlightStore] = useState(false);
     const [highlightProducts, setHighlightProducts] = useState(false);
 
+    // Thêm state riêng cho chế độ cân bằng kho
+    const [balanceModeInitialized, setBalanceModeInitialized] = useState(false);
+
+    // Khi ở chế độ cân bằng kho, khởi tạo dữ liệu đặc biệt (chỉ 1 lần)
+    useEffect(() => {
+        if (props.isBalanceStock && !balanceModeInitialized) {
+            if (props.initialProducts) setSelectedProducts(props.initialProducts);
+            if (props.initialNote) setNote(props.initialNote);
+            if (props.initialCustomer) setSelectedCustomer(props.initialCustomer);
+            setBalanceModeInitialized(true);
+        }
+    }, [props.isBalanceStock, props.initialProducts, props.initialNote, props.initialCustomer, balanceModeInitialized]);
+
     // Khi đổi đơn vị, cập nhật toàn bộ selectedProducts sang đơn vị mới
     useEffect(() => {
         if (selectedProducts.length > 0) {
             setSelectedProducts(prev => prev.map(p => ({ ...p, unit })));
         }
     }, [unit]);
+
+    // Khi khởi tạo selectedProducts, map unitSalePrice sang price nếu có
+    useEffect(() => {
+        if (props.isBalanceStock && props.initialProducts) {
+            setSelectedProducts(props.initialProducts.map(p => ({
+                ...p,
+                price: p.unitSalePrice || 0 // Đảm bảo có trường price cho DataGrid
+            })));
+        }
+        // eslint-disable-next-line
+    }, [props.isBalanceStock, props.initialProducts]);
 
     // Handle click outside search dropdown
     useEffect(() => {
@@ -337,135 +361,66 @@ const AddSalePage = () => {
     };
 
     // Memoized columns for DataGrid
-    const columns = useMemo(() => [
-        columnVisibility['STT'] && {
-            field: 'stt',
-            headerName: 'STT',
-            width: 80,
-            renderCell: (params) => params.row.stt,
-            sortable: false,
-            filterable: false,
-        },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', flex: 1 },
-        columnVisibility['ĐVT'] && { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
-        columnVisibility['Số lượng'] && {
-            field: 'quantity',
-            headerName: 'Số lượng',
-            width: 150,
-            renderCell: (params) => (
-                <div className="flex items-center justify-center h-full gap-1">
-                    <button 
-                        onClick={() => handleQuantityChange(params.row.id, -1)} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
-                    >
-                        –
-                    </button>
-                    <TextField
-                        size="small"
-                        type="number"
-                        variant="standard"
-                        value={params.row.quantity || 1}
-                        onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
-                        sx={{
-                            width: '60px',
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
-                        }}
-                    />
-                    <button 
-                        onClick={() => handleQuantityChange(params.row.id, 1)} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
-                    >
-                        +
-                    </button>
-                </div>
-            )
-        },
-        columnVisibility['Đơn giá'] && {
-            field: 'price',
-            headerName: 'Đơn giá',
-            width: 150,
-            renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
-                    <TextField
-                        size="small"
-                        type="number"
-                        variant="standard"
-                        value={params.row.price || 0}
-                        onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)}
-                        InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
-                        }}
-                        sx={{
-                            width: '100px',
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
-                        }}
-                    />
-                </div>
-            ),
-        },
-        columnVisibility['Thành tiền'] && {
-            field: 'total',
-            headerName: 'Thành tiền',
-            width: 150,
-            valueGetter: (params) => {
-                const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
-                const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
-            },
-            valueFormatter: (params) => formatCurrency(params.value || 0),
-            renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
-                const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
-                return (
-                    <div className="text-right w-full">
-                        {formatCurrency(total)}
+    const columns = useMemo(() => {
+        const baseCols = [
+            { field: 'stt', headerName: 'STT', width: 80, renderCell: (params) => params.row.stt },
+            // Chỉ hiển thị cột batchCode và zoneReal khi là phiếu cân bằng kho
+            ...(props.isBalanceStock ? [
+                { field: 'batchCode', headerName: 'Mã lô', width: 120 },
+            ] : []),
+            { field: 'name', headerName: 'Tên hàng', flex: 1 },
+            { field: 'unit', headerName: 'ĐVT', width: 80, renderCell: (params) => params.row.unit || unit },
+            {
+                field: 'quantity', headerName: 'Số lượng', width: 150,
+                renderCell: (params) => (
+                    <div className="flex items-center justify-center h-full gap-1">
+                        <button onClick={() => handleQuantityChange(params.row.id, -1)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">–</button>
+                        <TextField size="small" type="number" variant="standard" value={params.row.quantity || 1} onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)} sx={{ width: '60px', '& .MuiInput-underline:before': { borderBottomColor: 'transparent', }, '& .MuiInput-underline:after': { borderBottomColor: '#1976d2', }, '& .MuiInput-underline:hover:before': { borderBottomColor: 'transparent', }, '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': { display: 'none', }, '& input[type=number]': { MozAppearance: 'textfield', } }} />
+                        <button onClick={() => handleQuantityChange(params.row.id, 1)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium">+</button>
                     </div>
-                );
+                )
             },
-        },
-        {
-            field: 'actions',
-            headerName: '',
-            width: 60,
-            renderCell: (params) => (
-                <Tooltip title="Xóa">
-                    <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
-                        <FaRegTrashCan />
-                    </IconButton>
-                </Tooltip>
-            ),
-        },
-    ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, unit]);
+            {
+                field: 'price', headerName: 'Đơn giá', width: 150,
+                renderCell: (params) => (
+                    <TextField size="small" type="number" variant="standard" value={params.row.price || 0} onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)} InputProps={{ endAdornment: <span className="text-gray-500">VND</span>, }} sx={{ width: '100px', '& .MuiInput-underline:before': { borderBottomColor: 'transparent', }, '& .MuiInput-underline:after': { borderBottomColor: '#1976d2', }, '& .MuiInput-underline:hover:before': { borderBottomColor: 'transparent', }, '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': { display: 'none', }, '& input[type=number]': { MozAppearance: 'textfield', } }} />
+                )
+            },
+            {
+                field: 'total', headerName: 'Thành tiền', width: 150,
+                valueGetter: (params) => {
+                    const row = params?.row ?? {};
+                    const price = parseFloat(row.price) || 0;
+                    const quantity = parseInt(row.quantity) || 0;
+                    return price * quantity;
+                },
+                valueFormatter: (params) => formatCurrency(params.value || 0),
+                renderCell: (params) => {
+                    const price = parseFloat(params.row.price) || 0;
+                    const quantity = parseInt(params.row.quantity) || 0;
+                    const total = price * quantity;
+                    return (<div className="text-right w-full">{formatCurrency(total)}</div>);
+                },
+            },
+            // Chỉ hiển thị cột zoneReal khi là phiếu cân bằng kho
+            ...(props.isBalanceStock ? [
+                { field: 'zoneReal', headerName: 'Zone', width: 120, renderCell: (params) => <span>{params.row.zoneReal}</span> },
+            ] : []),
+        ];
+        // Chỉ render cột actions (xóa) nếu không phải balance mode
+        if (!props.isBalanceStock) {
+            baseCols.push({
+                field: 'actions', headerName: '', width: 60, renderCell: (params) => (
+                    <Tooltip title="Xóa">
+                        <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
+                            <FaRegTrashCan />
+                        </IconButton>
+                    </Tooltip>
+                ),
+            });
+        }
+        return baseCols;
+    }, [props.isBalanceStock, unit, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct]);
 
     const [invalidProductIds, setInvalidProductIds] = useState([]);
 
@@ -529,11 +484,14 @@ const AddSalePage = () => {
                             <MenuItem value="quả">quả</MenuItem>
                             <MenuItem value="khay">khay</MenuItem>
                         </Select>
-                        <Tooltip title="Thêm sản phẩm">
-                            <IconButton onClick={() => setShowProductDialog(true)}>
-                                <FiPlus />
-                            </IconButton>
-                        </Tooltip>
+                        {/* Ẩn nút thêm sản phẩm khi ở balance mode */}
+                        {!props.isBalanceStock && (
+                            <Tooltip title="Thêm sản phẩm">
+                                <IconButton onClick={() => setShowProductDialog(true)}>
+                                    <FiPlus />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                         {filteredBatches.length > 0 && isSearchFocused && (
                             <div className="absolute top-full mt-1 left-0 z-10 bg-white shadow-lg rounded-xl w-full max-h-96 overflow-y-auto text-sm" style={{boxShadow: '0 8px 32px 0 rgba(25, 118, 210, 0.10)'}}>
                                 {filteredBatches.map((batch, index) => {

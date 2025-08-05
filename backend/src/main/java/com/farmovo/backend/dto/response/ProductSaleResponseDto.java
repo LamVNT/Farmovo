@@ -22,6 +22,8 @@ public class ProductSaleResponseDto {
     private String categoryName;
     private String storeName;
     private String name; // mã lô hàng LH000000
+    private String batchCode; // Mã lô từ StockTake hoặc ImportTransactionDetail
+    private String zoneReal; // Zone thực tế từ StockTake
     private java.time.LocalDateTime createAt;
     private java.time.LocalDateTime expireDate;
 }

@@ -5,7 +5,9 @@ import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
+
 import java.io.FileOutputStream;
+
 import com.farmovo.backend.exceptions.TransactionStatusException;
 import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
@@ -187,7 +189,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     @LogStatusChange
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
-            .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+                .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
 
         if (transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
             log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
@@ -571,11 +573,20 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             log.debug("Processing batch ID: {}, product ID: {}, quantity: {}",
                     item.getId(), item.getProId(), item.getQuantity());
 
-            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
-                    .orElseThrow(() -> {
-                        log.error("Batch not found with ID: {}", item.getId());
-                        return new ResourceNotFoundException("Batch not found with ID: " + item.getId());
-                    });
+            ImportTransactionDetail batch = null;
+
+            if (item.getId() != null && String.valueOf(item.getId()).matches("\\d+")) {
+                batch = importTransactionDetailRepository.findById(item.getId()).orElse(null);
+            }
+
+            if (batch == null && item.getBatchCode() != null) {
+                batch = importTransactionDetailRepository.findByName(item.getBatchCode());
+            }
+
+            if (batch == null) {
+                throw new ResourceNotFoundException("Batch not found with ID or batchCode: " + item.getId() + " / " + item.getBatchCode());
+            }
+
 
             if (!batch.getProduct().getId().equals(item.getProId())) {
                 log.error("Batch ID: {} does not belong to product ID: {}", item.getId(), item.getProId());
@@ -607,7 +618,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                 mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                 detailList = mapper.readValue(
                         detailJson,
-                        new TypeReference<List<ProductSaleResponseDto>>() {}
+                        new TypeReference<List<ProductSaleResponseDto>>() {
+                        }
                 );
             }
         } catch (JsonProcessingException e) {

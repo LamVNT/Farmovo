@@ -13,7 +13,7 @@ const saleTransactionService = {
 
     async listPaged(params) {
         try {
-            const res = await api.get('/sale-transactions/list-all', { params });
+            const res = await api.get('/sale-transactions/list-all', {params});
             return res.data;
         } catch (error) {
             console.error('Error in listPaged:', error);
@@ -31,12 +31,24 @@ const saleTransactionService = {
         }
     },
 
+    // ➤ Phiếu bán thường
     async create(dto) {
         try {
             const res = await api.post('/sale-transactions/save', dto);
             return res.data;
         } catch (error) {
             console.error('Error in create:', error);
+            throw error;
+        }
+    },
+
+    // ✅ ➤ Phiếu từ kiểm kê (cân bằng kho)
+    async createFromBalance(dto) {
+        try {
+            const res = await api.post('/sale-transactions/save-from-balance', dto);
+            return res.data;
+        } catch (error) {
+            console.error('Error in createFromBalance:', error);
             throw error;
         }
     },
@@ -120,4 +132,10 @@ const saleTransactionService = {
     }
 };
 
-export default saleTransactionService; 
+export default saleTransactionService;
+
+// Export gọn nếu dùng ở component
+const createSaleTransaction = (dto) => saleTransactionService.create(dto);
+const createBalanceTransaction = (dto) => saleTransactionService.createFromBalance(dto);
+
+export {createSaleTransaction, createBalanceTransaction};

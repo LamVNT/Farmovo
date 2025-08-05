@@ -19,7 +19,7 @@ public class CreateSaleTransactionRequestDto {
     private Long storeId;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
-    private List<ProductSaleResponseDto> detail; // <-- thay vì String
+    private List<ProductSaleResponseDto> detail; // Mỗi dòng có batchCode, zoneReal nếu là phiếu cân bằng kho
     private String saleTransactionNote;
     private SaleTransactionStatus status;
     private LocalDateTime saleDate;
