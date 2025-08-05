@@ -57,9 +57,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         Stocktake stocktake = createStocktakeEntity(requestDto, userId, enriched);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         // GỘP LOGIC: Nếu tạo mới với status COMPLETED thì cân bằng kho luôn
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(savedStocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(savedStocktake);
+        // }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -120,9 +120,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         validateStatusTransition(stocktake.getStatus(), StocktakeStatus.valueOf(status), user);
         stocktake.setStatus(StocktakeStatus.valueOf(status));
         // ENRICH: Nếu chuyển sang COMPLETED thì cập nhật remainQuantity và isCheck cho ImportTransactionDetail
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(stocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(stocktake);
+        // }
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         return buildStocktakeResponseDto(savedStocktake);
     }
@@ -153,9 +153,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         updateStocktakeDetails(stocktake, rawDetails, requestDto);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         // GỘP LOGIC: Nếu cập nhật với status COMPLETED thì cân bằng kho luôn
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(savedStocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(savedStocktake);
+        // }
         return buildStocktakeResponseDto(savedStocktake);
     }
 

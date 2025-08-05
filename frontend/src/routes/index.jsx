@@ -34,6 +34,7 @@ import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
 import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
+import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 
 const router = createBrowserRouter([
     {
@@ -217,6 +218,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
                 <MainLayout>
                     <AddSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/balance/:stocktakeId",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+                <MainLayout>
+                    <BalanceSalePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
