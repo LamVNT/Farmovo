@@ -148,7 +148,7 @@ export const useSaleTransaction = () => {
                     remainQuantity: product.remainQuantity,
                     unitSalePrice: product.price,
                     batchId: product.id,
-                    batchCode: product.batchCode || product.name, // Thêm batchCode
+                    batchCode: product.batchCode, // Thêm batchCode
                     productCode: product.productCode,
                     categoryName: product.categoryName,
                     storeName: product.storeName,
@@ -250,7 +250,7 @@ export const useSaleTransaction = () => {
                     remainQuantity: batch.remainQuantity,
                     unitSalePrice: batch.unitSalePrice,
                     batchId: batch.id,
-                    batchCode: batch.batchCode || batch.name, // Thêm batchCode
+                    batchCode: batch.batchCode, // Thêm batchCode
                     productCode: batch.productCode,
                     categoryName: batch.categoryName,
                     storeName: batch.storeName,
