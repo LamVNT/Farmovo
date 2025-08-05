@@ -396,8 +396,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, p.quantity + delta),
-                        // Tính total dựa trên số lượng đã quy đổi về quả
-                        total: (p.price || 0) * (p.unit === 'khay' ? Math.max(1, p.quantity + delta) * 30 : Math.max(1, p.quantity + delta)),
+                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
                     }
                     : p
             )
@@ -411,8 +410,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         quantity: Math.max(1, newQuantity),
-                        // Tính total dựa trên số lượng đã quy đổi về quả
-                        total: (p.price || 0) * (p.unit === 'khay' ? Math.max(1, newQuantity) * 30 : Math.max(1, newQuantity)),
+                        total: (p.price || 0) * Math.max(1, newQuantity),
                     }
                     : p
             )
@@ -426,8 +424,7 @@ const ImportPage = () => {
                     ? {
                         ...p,
                         price: newPrice,
-                        // Tính total dựa trên số lượng đã quy đổi về quả
-                        total: newPrice * (p.unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0)),
+                        total: newPrice * (p.quantity || 0),
                     }
                     : p
             )
@@ -451,17 +448,21 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
-                    // Khi đổi đơn vị, số lượng luôn reset về 1
-                    let newQuantity = 1;
+                    let newQuantity = p.quantity;
+                    // Chuyển đổi số lượng khi đổi đơn vị
+                    if (newUnit === 'khay' && p.unit !== 'khay') {
+                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
+                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
+                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
+                        // Từ khay sang quả: nhân với 25
+                        newQuantity = (p.quantity || 1) * 25;
+                    }
                     
                     return {
                         ...p,
                         unit: newUnit,
                         quantity: newQuantity,
-                        // Đơn giá luôn tính theo quả, không thay đổi khi đổi đơn vị
-                        price: p.price, // Giữ nguyên đơn giá theo quả
-                        // Tính total dựa trên số lượng đã quy đổi về quả
-                        total: (p.price || 0) * (newUnit === 'khay' ? newQuantity * 30 : newQuantity)
+                        total: (p.price || 0) * newQuantity
                     };
                 }
                 return p;
@@ -848,24 +849,15 @@ const ImportPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
+                const price = parseFloat(row.price) || 0;
                 const quantity = parseInt(row.quantity) || 0;
-                const unit = row.unit || 'quả';
-                
-                // Quy đổi số lượng về quả để tính thành tiền
-                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
-                return price * quantityInQua;
+                return price * quantity;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
+                const price = parseFloat(params.row.price) || 0;
                 const quantity = parseInt(params.row.quantity) || 0;
-                const unit = params.row.unit || 'quả';
-                
-                // Quy đổi số lượng về quả để tính thành tiền
-                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
-                const total = price * quantityInQua;
-                
+                const total = price * quantity;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1328,15 +1320,7 @@ const ImportPage = () => {
     };
 
     // Tổng tiền hàng
-    const totalAmount = selectedProducts.reduce((sum, p) => {
-        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
-        const quantity = parseInt(p.quantity) || 0;
-        const unit = p.unit || 'quả';
-        
-        // Quy đổi số lượng về quả để tính tổng tiền
-        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
-        return sum + (price * quantityInQua);
-    }, 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
 
     // Xử lý mở dialog tổng kết
     const handleShowSummary = async (status) => {
