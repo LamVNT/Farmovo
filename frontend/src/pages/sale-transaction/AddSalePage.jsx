@@ -133,9 +133,10 @@ const AddSalePage = (props) => {
 
     useEffect(() => {
         if (props.isBalanceStock && props.initialProducts) {
-            setSelectedProducts(props.initialProducts.map(p => ({
+            setSelectedProducts(props.initialProducts.map((p, idx) => ({
                 ...p,
-                price: p.unitSalePrice || 0
+                price: p.unitSalePrice || 0,
+                id: p.id || p.batchId || `temp_${idx}_${Date.now()}` // Gán id hợp lệ
             })));
         }
     }, [props.isBalanceStock, props.initialProducts]);
@@ -670,7 +671,11 @@ const AddSalePage = (props) => {
                 <div style={{height: 400, width: '100%'}}>
                     <DataGrid
                         key={dataGridKey}
-                        rows={selectedProducts.map((row, idx) => ({...row, stt: idx + 1}))}
+                        rows={selectedProducts.map((row, idx) => ({
+                            ...row,
+                            stt: idx + 1,
+                            id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất
+                        }))}
                         columns={columns}
                         pageSize={5}
                         rowsPerPageOptions={[5]}

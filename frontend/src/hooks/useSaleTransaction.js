@@ -137,8 +137,9 @@ export const useSaleTransaction = (props = {}) => {
                 updatedProducts[existingIndex].total = updatedProducts[existingIndex].price * newQuantity;
                 setSelectedProducts(updatedProducts);
             } else {
+                const newId = product.id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 const newItem = {
-                    id: product.id,
+                    id: newId,
                     name: product.name,
                     unit: product.unit || 'quả',
                     price: product.price || 0,
@@ -153,7 +154,7 @@ export const useSaleTransaction = (props = {}) => {
                     categoryName: product.categoryName || '',
                     storeName: product.storeName || '',
                     createAt: product.createAt || getVNISOString(),
-                    zoneReal: product.zoneReal || '', // Thêm zoneReal nếu có
+                    zoneReal: product.zoneReal || '',
                 };
                 setSelectedProducts(prev => [...prev, newItem]);
             }
@@ -207,10 +208,11 @@ export const useSaleTransaction = (props = {}) => {
                 updatedDetail[existingIndex].total = updatedDetail[existingIndex].price * (currentUnit === 'khay' ? newQuantity * 30 : newQuantity);
                 setSelectedProducts(updatedDetail);
             } else {
+                const newId = batch.id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 const price = batch.unitSalePrice || 0;
                 const total = price * (unit === 'khay' ? quantity * 30 : quantity);
                 newProducts.push({
-                    id: batch.id,
+                    id: newId,
                     name: batch.productName || '',
                     unit: unit,
                     price,
@@ -402,18 +404,35 @@ export const useSaleTransaction = (props = {}) => {
                     categoryName: product.categoryName || '',
                     storeName: product.storeName || '',
                     createAt: now,
-                    ...(isBalanceStock ? {batchCode: product.batchCode || '', zoneReal: product.zoneReal || ''} : {}),
+                    batchCode: product.batchCode || '',
+                    zoneReal: product.zoneReal || '',
                 })),
             };
 
             validateData(saleData);
 
-            const saveFunction = isBalanceStock
-                ? saleTransactionService.createFromBalance
-                : saleTransactionService.create;
-
-            console.log('Sending data to:', isBalanceStock ? '/save-from-balance' : '/save', saleData);
-            await saveFunction(saleData);
+            if (isBalanceStock) {
+                // Chỉ giữ các trường cần thiết cho API cân bằng kho
+                saleData.detail = saleData.detail.map(item => ({
+                    id: item.id,
+                    proId: item.proId,
+                    productName: item.productName,
+                    productCode: item.productCode,
+                    remainQuantity: item.remainQuantity,
+                    quantity: item.quantity,
+                    unitSalePrice: item.unitSalePrice,
+                    categoryName: item.categoryName,
+                    storeName: item.storeName,
+                    createAt: item.createAt,
+                    batchCode: item.batchCode,
+                    zoneReal: item.zoneReal,
+                }));
+                console.log('Sending data to: /save-from-balance', saleData);
+                await saleTransactionService.createFromBalance(saleData);
+            } else {
+                console.log('Sending data to: /save', saleData);
+                await saleTransactionService.create(saleData);
+            }
 
             const successMessage = pendingAction === 'DRAFT'
                 ? 'Đã lưu phiếu bán hàng tạm thời!'
