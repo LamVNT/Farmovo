@@ -369,18 +369,31 @@ const SaleSidebar = ({
 
             {/* Cửa hàng */}
             <div>
-                <div className="font-semibold mb-1">Cửa hàng</div>
+                <div className="font-semibold mb-1 flex items-center gap-2">
+                    Cửa hàng
+                    {currentUser?.roles?.includes('STAFF') && (
+                        <Tooltip title="Cửa hàng được gán cố định cho nhân viên">
+                            <FaLock size={12} className="text-gray-500" />
+                        </Tooltip>
+                    )}
+                </div>
                 <div className="relative">
                     <TextField
                         size="small"
                         fullWidth
-                        placeholder="Tìm cửa hàng..."
+                        placeholder={currentUser?.roles?.includes('STAFF') ? "Cửa hàng được gán cố định" : "Tìm cửa hàng..."}
                         value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
                         onChange={e => {
-                            setStoreSearch(e.target.value);
-                            onStoreChange({ target: { value: '' } });
+                            if (!currentUser?.roles?.includes('STAFF')) {
+                                setStoreSearch(e.target.value);
+                                onStoreChange({ target: { value: '' } });
+                            }
                         }}
-                        onFocus={() => setStoreDropdownOpen(true)}
+                        onFocus={() => {
+                            if (!currentUser?.roles?.includes('STAFF')) {
+                                setStoreDropdownOpen(true);
+                            }
+                        }}
                         onBlur={() => {
                             if (!hoveredStore) {
                                 setStoreDropdownOpen(false);
@@ -390,9 +403,22 @@ const SaleSidebar = ({
                         }}
                         variant="outlined"
                         error={highlightStore}
-                        sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        disabled={currentUser?.roles?.includes('STAFF')}
+                        sx={{
+                            ...(highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}),
+                            ...(currentUser?.roles?.includes('STAFF') ? {
+                                '& .MuiInputBase-input': {
+                                    backgroundColor: '#f5f5f5',
+                                    color: '#666',
+                                    cursor: 'not-allowed'
+                                },
+                                '& .MuiOutlinedInput-root': {
+                                    backgroundColor: '#f5f5f5'
+                                }
+                            } : {})
+                        }}
                     />
-                    {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
+                    {!currentUser?.roles?.includes('STAFF') && (storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
                         <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                             onMouseLeave={() => {
                                 setHoveredStore(null);

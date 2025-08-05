@@ -50,9 +50,10 @@ export const useSaleTransaction = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Load current user
+                // Load current user and form data
+                let currentUserData = null;
                 try {
-                    const currentUserData = await userService.getCurrentUser();
+                    currentUserData = await userService.getCurrentUser();
                     setCurrentUser(currentUserData);
                 } catch (userError) {
                     console.warn('Could not load current user:', userError);
@@ -63,6 +64,18 @@ export const useSaleTransaction = () => {
                 setCustomers(formData.customers || []);
                 setStores(formData.stores || []);
                 setProducts(formData.products || []);
+
+                // Auto-select store for STAFF users
+                if (formData.stores && formData.stores.length === 1) {
+                    // If only one store available, select it
+                    setSelectedStore(formData.stores[0].id);
+                } else if (currentUserData?.storeId && formData.stores) {
+                    // If user has a specific store assigned, select it
+                    const userStore = formData.stores.find(store => store.id === currentUserData.storeId);
+                    if (userStore) {
+                        setSelectedStore(userStore.id);
+                    }
+                }
 
                 // Load categories and zones
                 const [categoriesData, zonesData] = await Promise.all([
@@ -104,24 +117,44 @@ export const useSaleTransaction = () => {
     const handleSelectProduct = useCallback(async (product, options = {}) => {
         // Nếu gọi từ AddSalePage (chọn lô), thêm luôn vào bảng, không bật dialog
         if (options.directAdd) {
-            // Tạo object sản phẩm từ batch
-            const newItem = {
-                id: product.id, // id của importtransactiondetail (batch)
-                name: product.name,
-                unit: product.unit || 'quả',
-                price: product.price,
-                quantity: product.quantity || 1,
-                total: (product.price || 0) * (product.quantity || 1),
-                productId: product.proId,
-                remainQuantity: product.remainQuantity,
-                unitSalePrice: product.price,
-                batchId: product.id,
-                productCode: product.productCode,
-                categoryName: product.categoryName,
-                storeName: product.storeName,
-                createAt: product.createAt,
-            };
-            setSelectedProducts(prev => [...prev, newItem]);
+            // Kiểm tra xem batch đã tồn tại chưa
+            const existingIndex = selectedProducts.findIndex(item => item.batchId === product.id);
+            
+            if (existingIndex >= 0) {
+                // Nếu batch đã tồn tại, tăng số lượng
+                const updatedProducts = [...selectedProducts];
+                const currentQuantity = updatedProducts[existingIndex].quantity;
+                const newQuantity = currentQuantity + (product.quantity || 1);
+                
+                // Kiểm tra xem có vượt quá tồn kho không
+                if (newQuantity > product.remainQuantity) {
+                    setError(`Tổng số lượng vượt quá tồn kho cho batch ${product.batchCode || product.id}. Còn lại: ${product.remainQuantity}`);
+                    return;
+                }
+                
+                updatedProducts[existingIndex].quantity = newQuantity;
+                updatedProducts[existingIndex].total = updatedProducts[existingIndex].price * newQuantity;
+                setSelectedProducts(updatedProducts);
+            } else {
+                // Nếu batch chưa tồn tại, thêm mới
+                const newItem = {
+                    id: product.id, // id của importtransactiondetail (batch)
+                    name: product.name,
+                    unit: product.unit || 'quả',
+                    price: product.price,
+                    quantity: product.quantity || 1,
+                    total: (product.price || 0) * (product.quantity || 1),
+                    productId: product.proId,
+                    remainQuantity: product.remainQuantity,
+                    unitSalePrice: product.price,
+                    batchId: product.id,
+                    productCode: product.productCode,
+                    categoryName: product.categoryName,
+                    storeName: product.storeName,
+                    createAt: product.createAt,
+                };
+                setSelectedProducts(prev => [...prev, newItem]);
+            }
             setError(null);
             return;
         }
@@ -137,7 +170,13 @@ export const useSaleTransaction = () => {
             }
         } catch (error) {
             console.error('Error loading batches:', error);
-            setError('Không thể tải danh sách batch');
+            if (error.response?.status === 404) {
+                setError('Sản phẩm không tồn tại hoặc không có batch khả dụng');
+            } else if (error.response?.status === 500) {
+                setError('Lỗi server, vui lòng thử lại sau');
+            } else {
+                setError('Không thể tải danh sách batch. Vui lòng kiểm tra kết nối mạng');
+            }
             setAvailableBatches([]);
         }
     }, [selectedProducts]);

@@ -179,8 +179,19 @@ const AddSalePage = () => {
 
     // Gợi ý batch mới nhất khi focus hoặc search
     useEffect(() => {
+        // Filter batches by selected store first
+        const storeFilteredBatches = batches.filter(batch => {
+            if (!selectedStore) return false;
+            const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+            if (!selectedStoreData) return false;
+            
+            // Check if batch belongs to the selected store
+            return batch.storeName === selectedStoreData.storeName || 
+                   batch.storeName === selectedStoreData.name;
+        });
+
         if (searchTerm.trim() !== '') {
-            const results = batches.filter(
+            const results = storeFilteredBatches.filter(
                 (b) =>
                     (b.batchCode && b.batchCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (b.productName && b.productName.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -194,7 +205,7 @@ const AddSalePage = () => {
             setFilteredBatches(results.slice(0, 10));
         } else if (isSearchFocused) {
             // Gợi ý 10 batch mới nhất khi chưa nhập gì
-            const sorted = [...batches].sort((a, b) => {
+            const sorted = [...storeFilteredBatches].sort((a, b) => {
                 const dateA = a.importDate ? new Date(a.importDate).getTime() : 0;
                 const dateB = b.importDate ? new Date(b.importDate).getTime() : 0;
                 return dateB - dateA;
@@ -203,7 +214,7 @@ const AddSalePage = () => {
         } else {
             setFilteredBatches([]);
         }
-    }, [batches, searchTerm, isSearchFocused]);
+    }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
 
     // Auto-dismiss error/success after 5s
     useEffect(() => {
@@ -262,7 +273,18 @@ const AddSalePage = () => {
         if (value.trim() === '') {
             setFilteredBatches([]);
         } else {
-            const results = batches.filter(
+            // Filter batches by selected store first
+            const storeFilteredBatches = batches.filter(batch => {
+                if (!selectedStore) return false;
+                const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                if (!selectedStoreData) return false;
+                
+                // Check if batch belongs to the selected store
+                return batch.storeName === selectedStoreData.storeName || 
+                       batch.storeName === selectedStoreData.name;
+            });
+
+            const results = storeFilteredBatches.filter(
                 (b) =>
                     (b.batchCode && b.batchCode.toLowerCase().includes(value.toLowerCase())) ||
                     (b.productName && b.productName.toLowerCase().includes(value.toLowerCase()))
@@ -325,9 +347,22 @@ const AddSalePage = () => {
 
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
+        const filteredProducts = products.filter(product => {
+            // Filter by category
+            const categoryMatch = product.categoryId === category.id || product.category?.id === category.id;
+            if (!categoryMatch) return false;
+            
+            // Filter by selected store
+            if (!selectedStore) return false;
+            const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+            if (!selectedStoreData) return false;
+            
+            // Check if product belongs to the selected store
+            const storeMatch = product.storeName === selectedStoreData.storeName || 
+                              product.storeName === selectedStoreData.name;
+            
+            return categoryMatch && storeMatch;
+        });
         setCategoryProducts(filteredProducts);
     };
 
@@ -397,6 +432,11 @@ const AddSalePage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -650,7 +690,16 @@ const AddSalePage = () => {
             <SaleProductDialog
                 open={showProductDialog}
                 onClose={() => setShowProductDialog(false)}
-                products={products}
+                products={products.filter(product => {
+                    // Filter products by selected store
+                    if (!selectedStore) return false;
+                    const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                    if (!selectedStoreData) return false;
+                    
+                    // Check if product belongs to the selected store
+                    return product.storeName === selectedStoreData.storeName || 
+                           product.storeName === selectedStoreData.name;
+                })}
                 selectedProduct={selectedProduct}
                 availableBatches={availableBatches}
                 selectedBatchesForDialog={[]}
@@ -701,8 +750,23 @@ const AddSalePage = () => {
                                     >
                                         <div className="font-medium">{category.name}</div>
                                         <div className="text-sm text-gray-500">
-                                            {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
-                                </div>
+                                            {products.filter(p => {
+                                                // Filter by category
+                                                const categoryMatch = p.categoryId === category.id || p.category?.id === category.id;
+                                                if (!categoryMatch) return false;
+                                                
+                                                // Filter by selected store
+                                                if (!selectedStore) return false;
+                                                const selectedStoreData = stores.find(s => String(s.id) === String(selectedStore));
+                                                if (!selectedStoreData) return false;
+                                                
+                                                // Check if product belongs to the selected store
+                                                const storeMatch = p.storeName === selectedStoreData.storeName || 
+                                                                  p.storeName === selectedStoreData.name;
+                                                
+                                                return categoryMatch && storeMatch;
+                                            }).length} sản phẩm
+                                        </div>
                                     </div>
                                 ))}
                                 </div>
