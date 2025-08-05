@@ -26,7 +26,7 @@ public class CreateImportTransactionRequestDto {
     private LocalDateTime importDate;
     private Long createdBy;
     private List<DetailDto> details;
-
+///list có 1 phần tử
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

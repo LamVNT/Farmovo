@@ -174,7 +174,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         detail.setZones_id(zonesIdStr);
         log.debug("Đã set zones_id vào entity: {}", zonesIdStr);
 
-
         // false là cần kiểm hàng
         detail.setIsCheck(true);
         return detail;
@@ -333,15 +332,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.debug("Retrieved {} import transactions", result.size());
         return result;
     }
-
-//    @Override
-//    public List<ImportTransactionResponseDto> listAllImportTransaction() {
-//        List<ImportTransaction> entities = importTransactionRepository.findAllImportActive();
-//        return entities.stream()
-//                .map(importTransactionMapper::toResponseDto)
-//                .collect(Collectors.toList());
-//    }
-
+    
     @Override
     public Page<ImportTransactionResponseDto> listAllImportTransaction(
             String name,
