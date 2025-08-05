@@ -593,6 +593,7 @@ const ImportSidebar = ({
             onClose={() => setShowAddSupplierDialog(false)}
             onSupplierAdded={handleSupplierAdded}
             currentUser={currentUser}
+            suppliers={suppliers}
         />
 
         {/* Popover hiển thị thông tin chi tiết nhà cung cấp */}

@@ -1,4 +1,4 @@
-import React, {useContext, useState} from "react";
+import React, {useContext, useState, useEffect} from "react";
 import {Link, useNavigate} from "react-router-dom"
 import Button from "@mui/material/Button";
 import {RxDashboard} from "react-icons/rx";
@@ -20,10 +20,14 @@ import {FaBoxOpen, FaExclamationTriangle, FaClock} from "react-icons/fa";
 import FarmovoLogo from '../../assets/Farmovo.png';
 import {FaStore} from "react-icons/fa6";
 import {MdHistory} from "react-icons/md";
+import { userService } from "../../services/userService";
 
 
 const Sidebar = () => {
     const [submenuIndex, setSubmenuIndex] = useState(null)
+    const [currentUser, setCurrentUser] = useState(null)
+    const [isStaff, setIsStaff] = useState(false)
+    
     const isOpenSubMenu = (index) => {
         if (submenuIndex === index) {
             setSubmenuIndex(null);
@@ -34,6 +38,24 @@ const Sidebar = () => {
 
     const navigate = useNavigate();
     const context = useContext(MyContext);
+
+    // Lấy thông tin user hiện tại và kiểm tra role
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const userData = await userService.getCurrentUser();
+                setCurrentUser(userData);
+                
+                // Kiểm tra role staff
+                const hasStaffRole = userData.roles && userData.roles.includes('ROLE_STAFF');
+                setIsStaff(hasStaffRole);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+        
+        fetchCurrentUser();
+    }, []);
 
     const handleLogout = async () => {
         try {
@@ -103,15 +125,17 @@ const Sidebar = () => {
                         </Collapse>
 
                     </li>
-                    <li>
-                        <Link to="/users">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FiUsers className="text-[20px]"/> <span>Người dùng</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    {!isStaff && (
+                        <li>
+                            <Link to="/users">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                     !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <FiUsers className="text-[20px]"/> <span>Người dùng</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    )}
                     <li>
                         <Link to="/customers">
                             <Button
@@ -131,40 +155,13 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                            !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
-                            onClick={() => isOpenSubMenu(3)}
-                        >
-                            <RiProductHuntLine className="text-[20px]"/> <span>Sản phẩm</span>
-                            <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
-            <FaAngleDown className={`transition-all ${submenuIndex === 3 ? 'rotate-180' : ''}`}/>
-        </span>
-                        </Button>
-                        <Collapse isOpened={submenuIndex === 3}>
-                            <ul className="w-full">
-                                <li className="w-full">
-                                    <Link to="/product">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
-                                            !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Danh
-                                            sách sản phẩm
-                                        </Button>
-                                    </Link>
-                                </li>
-                                <li className="w-full">
-                                    <Link to="/product/add">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
-                                         !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Thêm
-                                            sản phẩm
-                                        </Button>
-                                    </Link>
-                                </li>
-                            </ul>
-                        </Collapse>
+                        <Link to="/product">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <RiProductHuntLine className="text-[20px]"/> <span>Sản phẩm</span>
+                            </Button>
+                        </Link>
                     </li>
                     <li>
                         <Link to="/category">
@@ -175,15 +172,17 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    <li>
-                        <Link to="/store">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FaStore className="text-[20px]"/> <span>Cửa hàng</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    {!isStaff && (
+                        <li>
+                            <Link to="/store">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <FaStore className="text-[20px]"/> <span>Cửa hàng</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    )}
                     <li>
                         <Link to="/stocktake">
                             <Button
@@ -193,15 +192,17 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    <li>
-                        <Link to="/zone">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdMap className="text-[20px]"/> <span>Khu vực</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    {!isStaff && (
+                        <li>
+                            <Link to="/zone">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <MdMap className="text-[20px]"/> <span>Khu vực</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    )}
                     <li>
                         <Link to="/change-status-log">
                             <Button
