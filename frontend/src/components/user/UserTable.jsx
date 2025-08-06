@@ -45,7 +45,6 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus, page = 1, pageCoun
                         {/* <TableCell>ID</TableCell> */}
                         <TableCell>Họ tên</TableCell>
                         <TableCell>Tên đăng nhập</TableCell>
-                        <TableCell>Email</TableCell>
                         <TableCell>Trạng thái</TableCell>
                         <TableCell>Cửa hàng</TableCell>
                         <TableCell>Hành động</TableCell>
@@ -53,12 +52,18 @@ const UserTable = ({ users, onEdit, onDelete, onToggleStatus, page = 1, pageCoun
                 </TableHead>
                 <TableBody>
                     {pagedUsers.map((row) => (
-                        <TableRow key={row.id}>
+                                                <TableRow key={row.id}>
                             {/* <TableCell>{row.id}</TableCell> */}
                             <TableCell>{row.fullName}</TableCell>
                             <TableCell>{row.username}</TableCell>
-                            <TableCell>{row.email || 'N/A'}</TableCell>
-                            <TableCell>{row.status ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
+                            <TableCell>
+                                <span style={{
+                                    color: row.status ? '#4caf50' : '#9e9e9e',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {row.status ? 'Hoạt động' : 'Không hoạt động'}
+                                </span>
+                            </TableCell>
                             <TableCell>{row.storeName || 'N/A'}</TableCell>
                             <TableCell>
                                 <IconButton onClick={() => onEdit(row)}>

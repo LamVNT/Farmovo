@@ -68,12 +68,15 @@ function generateRandomPassword() {
     return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode, errors = {}, currentUserRole = null }) => {
     const [stores, setStores] = useState([]);
     const [roles, setRoles] = useState([]);
     const [storesLoading, setStoresLoading] = useState(true); // Thêm state loading cho stores
     const [allUsernames, setAllUsernames] = useState([]);
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Kiểm tra xem user hiện tại có phải là admin không
+    const isAdmin = currentUserRole && currentUserRole.includes('ROLE_ADMIN');
 
     useEffect(() => {
         const fetchStores = async () => {
@@ -217,6 +220,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.fullName || ''}
                     onChange={handleChange}
                     required
+                    error={!!errors.fullName}
+                    helperText={errors.fullName}
                 />
                 <TextField
                     margin="dense"
@@ -227,6 +232,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.email || ''}
                     onChange={handleChange}
                     required={false}
+                    error={!!errors.email}
+                    helperText={errors.email}
                 />
                 <TextField
                     margin="dense"
@@ -236,31 +243,38 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.username || ''}
                     onChange={handleChange}
                     required
+                    error={!!errors.username}
+                    helperText={errors.username}
                 />
-                <TextField
-                    margin="dense"
-                    label="Mật khẩu"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    fullWidth
-                    value={editMode ? (form.password || '******') : (form.password || '')}
-                    onChange={handleChange}
-                    required={!editMode}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    aria-label="toggle password visibility"
-                                    onClick={handleClickShowPassword}
-                                    onMouseDown={handleMouseDownPassword}
-                                    edge="end"
-                                >
-                                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                                </IconButton>
-                            </InputAdornment>
-                        ),
-                    }}
-                />
+                {isAdmin && (
+                    <TextField
+                        margin="dense"
+                        label="Mật khẩu"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        fullWidth
+                        value={form.password || ''}
+                        onChange={handleChange}
+                        required={!editMode}
+                        error={!!errors.password}
+                        helperText={editMode ? 'Để trống nếu không muốn thay đổi mật khẩu' : errors.password}
+                        placeholder={editMode ? 'Để trống nếu không muốn thay đổi' : ''}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        aria-label="toggle password visibility"
+                                        onClick={handleClickShowPassword}
+                                        onMouseDown={handleMouseDownPassword}
+                                        edge="end"
+                                    >
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                )}
                 <FormControlLabel
                     control={
                         <Checkbox
@@ -291,6 +305,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Cửa hàng *"
                             fullWidth
                             required
+                            error={!!errors.storeId}
+                            helperText={errors.storeId}
                             InputProps={{
                                 ...params.InputProps,
                                 endAdornment: (
@@ -315,6 +331,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Role *"
                             fullWidth
                             required
+                            error={!!errors.roles}
+                            helperText={errors.roles}
                         />
                     )}
                 />

@@ -3,8 +3,10 @@ package com.farmovo.backend.controller;
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
+import com.farmovo.backend.dto.response.AdminUserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.mapper.UserMapper;
+import com.farmovo.backend.mapper.AdminUserMapper;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
 import jakarta.validation.Valid;
@@ -32,11 +34,22 @@ public class UserController {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private AdminUserMapper adminUserMapper;
+
     @GetMapping("/admin/userList")
     public List<UserResponseDto> getAllUsers() {
         logger.info("Fetching all users");
         return userService.getAllUsers().stream()
                 .map(userMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("/admin/userListWithPassword")
+    public List<AdminUserResponseDto> getAllUsersWithPassword() {
+        logger.info("Fetching all users with password for admin");
+        return userService.getAllUsers().stream()
+                .map(adminUserMapper::toAdminResponseDto)
                 .collect(Collectors.toList());
     }
 
@@ -61,6 +74,14 @@ public class UserController {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
                 .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
+                .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
+    }
+
+    @GetMapping("/admin/{id}/withPassword")
+    public ResponseEntity<AdminUserResponseDto> getUserByIdWithPassword(@PathVariable Long id) {
+        logger.info("Fetching user with password for admin, id: {}", id);
+        return userService.getUserById(id)
+                .map(user -> ResponseEntity.ok(adminUserMapper.toAdminResponseDto(user)))
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
