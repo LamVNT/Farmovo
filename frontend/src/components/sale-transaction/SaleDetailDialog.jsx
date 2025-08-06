@@ -135,7 +135,11 @@ const SaleDetailDialog = ({
                                 <TableCell className="font-semibold">Tên sản phẩm</TableCell>
                                 <TableCell className="font-semibold text-center">ĐVT</TableCell>
                                 <TableCell className="font-semibold text-center">Số lượng</TableCell>
-                                <TableCell className="font-semibold text-right">Đơn giá</TableCell>
+                                <TableCell className="font-semibold text-right">
+                                    <span>
+                                        Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                                    </span>
+                                </TableCell>
                                 <TableCell className="font-semibold text-right">Thành tiền</TableCell>
                             </TableRow>
                         </TableHead>

@@ -10,9 +10,9 @@ import OrderStatusPieChart from "../../components/charts/OrderStatusPieChart.jsx
 import OrdersTable from "../../components/tables/OrdersTable.jsx";
 import ProductsTable from "../../components/tables/ProductsTable.jsx";
 import useDashboardSummary from "../../hooks/useDashboardSummary.js";
-import {userService} from "../../services/userService";
 import {useEffect} from "react";
 import {getStoreById} from "../../services/storeService";
+import { useAuth } from "../../contexts/AuthorizationContext";
 import useRevenueTrend from "../../hooks/useRevenueTrend";
 import useStockByCategory from "../../hooks/useStockByCategory";
 import useTopProducts from "../../hooks/useTopProducts";
@@ -112,22 +112,20 @@ const Dashboard = () => {
     // Map stockData để hiển thị tên category
     const stockChartData = stockData.map(item => ({name: item.category, stock: item.stock}));
     const {summary, loading, error} = useDashboardSummary();
-    const [user, setUser] = useState(null);
     const [storeName, setStoreName] = useState("");
+    const { user, isStaff } = useAuth();
 
     useEffect(() => {
-        userService.getCurrentUser().then(u => {
-            setUser(u);
-            if (u?.role === "STAFF") {
-                if (u.storeName) setStoreName(u.storeName);
-                else if (u.storeId) {
-                    getStoreById(u.storeId).then(store => {
-                        setStoreName(store.storeName || store.name || "");
-                    });
-                }
+        if (user && isStaff()) {
+            if (user.storeName) {
+                setStoreName(user.storeName);
+            } else if (user.storeId) {
+                getStoreById(user.storeId).then(store => {
+                    setStoreName(store.storeName || store.name || "");
+                });
             }
-        });
-    }, []);
+        }
+    }, [user, isStaff]);
 
 
     const context = useContext(MyContext);
@@ -142,7 +140,7 @@ const Dashboard = () => {
                         <br/>
                         <span className="text-indigo-700">{user ? user.fullName || user.username : "..."}</span>
                     </h1>
-                    {user?.role === "STAFF" && storeName && (
+                    {isStaff() && storeName && (
                         <p className="text-xl font-semibold text-indigo-600 mt-2">Kho: {storeName}</p>
                     )}
                     <p className="text-lg text-gray-600 mt-3">Here’s what’s happening on your store today.</p>

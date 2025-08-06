@@ -4,9 +4,9 @@ import { FaPlus } from 'react-icons/fa6';
 import ProductTable from '../../components/product/ProductTable';
 import ProductFormDialog from '../../components/product/ProductFormDialog';
 import { productService } from '../../services/productService';
-import { userService } from '../../services/userService';
 import { toast } from 'react-hot-toast';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const Product = () => {
     const [products, setProducts] = useState([]);
@@ -26,30 +26,24 @@ const Product = () => {
     const [loading, setLoading] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
-    const [currentUser, setCurrentUser] = useState(null);
-    const [isStaff, setIsStaff] = useState(false);
+    
+    const { user, isStaff, loading: authLoading } = useAuth();
 
     useEffect(() => {
         const fetchData = async () => {
+            if (authLoading) return; // Đợi auth loading xong
+            
             setLoading(true);
             try {
-                // Lấy thông tin user hiện tại
-                const userData = await userService.getCurrentUser();
-                setCurrentUser(userData);
-                
-                // Kiểm tra role staff
-                const hasStaffRole = userData.roles && userData.roles.includes('ROLE_STAFF');
-                setIsStaff(hasStaffRole);
-                
                 // Lấy tất cả sản phẩm
                 const data = await productService.getAllProducts();
                 console.log('Product page - fetched data:', data);
                 
                 // Nếu là staff, chỉ hiển thị sản phẩm của store của họ
                 let filteredData = data;
-                if (hasStaffRole && userData.storeId) {
-                    filteredData = data.filter(product => product.storeId === userData.storeId);
-                    console.log('Staff - filtered products for store:', userData.storeId, filteredData.length);
+                if (isStaff() && user?.storeId) {
+                    filteredData = data.filter(product => product.storeId === user.storeId);
+                    console.log('Staff - filtered products for store:', user.storeId, filteredData.length);
                 }
                 
                 if (filteredData && filteredData.length > 0) {
@@ -70,7 +64,7 @@ const Product = () => {
             }
         };
         fetchData();
-    }, []);
+    }, [authLoading, isStaff, user]);
 
     const filteredProducts = useMemo(() => {
         if (!Array.isArray(products)) return [];
@@ -150,7 +144,7 @@ const Product = () => {
         if (!productToDelete) return;
         
         // Kiểm tra quyền xóa cho staff
-        if (isStaff && currentUser?.storeId && productToDelete.storeId !== currentUser.storeId) {
+        if (isStaff() && user?.storeId && productToDelete.storeId !== user.storeId) {
             toast.error('Bạn không có quyền xóa sản phẩm này!');
             setConfirmOpen(false);
             setProductToDelete(null);
@@ -203,8 +197,8 @@ const Product = () => {
             // Refresh data với filter cho staff
             const data = await productService.getAllProducts();
             let filteredData = data;
-            if (isStaff && currentUser?.storeId) {
-                filteredData = data.filter(product => product.storeId === currentUser.storeId);
+            if (isStaff() && user?.storeId) {
+                filteredData = data.filter(product => product.storeId === user.storeId);
             }
             setProducts(filteredData);
         } catch (error) {
@@ -221,8 +215,8 @@ const Product = () => {
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800">Quản lý sản phẩm</h2>
                         <p className="text-gray-600 mt-1">
-                            {isStaff 
-                                ? `Quản lý danh sách sản phẩm của cửa hàng: ${currentUser?.storeName || 'N/A'}`
+                            {isStaff() 
+                                ? `Quản lý danh sách sản phẩm của cửa hàng: ${user?.storeName || 'N/A'}`
                                 : 'Quản lý danh sách sản phẩm trong hệ thống'
                             }
                         </p>
@@ -290,7 +284,7 @@ const Product = () => {
                     </div>
                 )}
                 
-                {isStaff && (
+                {isStaff() && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center">
                             <div className="flex-shrink-0">
@@ -300,7 +294,7 @@ const Product = () => {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-blue-700">
-                                    <strong>Thông báo:</strong> Bạn chỉ có thể xem và quản lý sản phẩm của cửa hàng <strong>{currentUser?.storeName || 'N/A'}</strong>
+                                    <strong>Thông báo:</strong> Bạn chỉ có thể xem và quản lý sản phẩm của cửa hàng <strong>{user?.storeName || 'N/A'}</strong>
                                 </p>
                             </div>
                         </div>

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api")
@@ -38,6 +39,7 @@ public class UserController {
     private AdminUserMapper adminUserMapper;
 
     @GetMapping("/admin/userList")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponseDto> getAllUsers() {
         logger.info("Fetching all users");
         return userService.getAllUsers().stream()
@@ -55,6 +57,7 @@ public class UserController {
 
     // New paged search endpoint
     @GetMapping("/admin/users")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<com.farmovo.backend.dto.request.PageResponse<UserResponseDto>> searchUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -70,6 +73,7 @@ public class UserController {
     }
 
     @GetMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
@@ -86,6 +90,7 @@ public class UserController {
     }
 
     @PostMapping("/admin/createUser")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto, Principal principal) {
         logger.info("Creating new user: {} by user: {}", dto.getUsername(), principal.getName());
         User user = userService.convertToEntity(dto);
@@ -94,6 +99,7 @@ public class UserController {
     }
 
     @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating user with id: {}", id);
         User user = userService.convertToEntity(dto);
@@ -103,6 +109,7 @@ public class UserController {
     }
 
     @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id, Principal principal) {
         logger.info("Deleting user with id: {} by user: {}", id, principal.getName());
         if (userService.deleteUser(id, principal)) {
@@ -113,6 +120,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDto> updateUserStatus(@PathVariable Long id, @RequestBody Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
         return userService.updateUserStatus(id, status)
@@ -121,6 +129,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/toggle-status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDto> toggleUserStatus(@PathVariable Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userService.toggleUserStatus(id)
@@ -128,7 +137,7 @@ public class UserController {
                 .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
-    @GetMapping("/staff/me")
+    @GetMapping("/users/me")
     public ResponseEntity<UserResponseDto> getCurrentUser(Principal principal) {
         logger.info("Fetching current user: {}", principal.getName());
         User user = userService.getUserByUsername(principal.getName())
@@ -136,7 +145,7 @@ public class UserController {
         return ResponseEntity.ok(userMapper.toResponseDto(user));
     }
 
-    @PutMapping("/staff/me")
+    @PutMapping("/users/me")
     public ResponseEntity<UserResponseDto> updateCurrentUser(Principal principal, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating current user: {}", principal.getName());
         if (dto.getPassword() != null) {
