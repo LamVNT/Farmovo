@@ -258,7 +258,12 @@ const UserManagement = () => {
                 handleClose();
             } catch (error) {
                 console.error('Lỗi:', error.message);
-                alert(`Lỗi: ${error.message}`);
+                // Parse error message to show specific validation errors
+                if (error.message.includes('Username already exists')) {
+                    setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
+                } else {
+                    alert(`Lỗi: ${error.message}`);
+                }
             }
         } else {
             // For create mode, show confirmation dialog
@@ -280,10 +285,20 @@ const UserManagement = () => {
             handleClose();
         } catch (error) {
             console.error('Lỗi:', error.message);
-            alert(`Lỗi: ${error.message}`);
+            // Parse error message to show specific validation errors
+            if (error.message.includes('Username already exists')) {
+                setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
+                setCreateConfirmOpen(false);
+                setUserToCreate(null);
+                setOpenDialog(true); // Reopen dialog to show error
+            } else {
+                alert(`Lỗi: ${error.message}`);
+            }
         } finally {
-            setCreateConfirmOpen(false);
-            setUserToCreate(null);
+            if (!error?.message?.includes('Username already exists')) {
+                setCreateConfirmOpen(false);
+                setUserToCreate(null);
+            }
         }
     };
 
@@ -360,6 +375,7 @@ const UserManagement = () => {
                 setForm={setForm}
                 editMode={editMode}
                 errors={formErrors}
+                formErrors={formErrors}
                 currentUserRole={currentUser?.roles}
             />
             <ConfirmDialog
