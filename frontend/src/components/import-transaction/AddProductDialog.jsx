@@ -20,7 +20,7 @@ import axios from 'axios';
 import DialogActions from '@mui/material/DialogActions';
 import { productService } from '../../services/productService.js';
 
-const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) => {
+const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, currentUser }) => {
     const [tab, setTab] = useState(0);
     const [product, setProduct] = useState({
         name: '',
@@ -50,10 +50,68 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                 .catch(() => setCategories([]));
             // Fetch stores
             axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, { withCredentials: true })
-                .then(res => setStores(res.data))
+                .then(res => {
+                    setStores(res.data);
+                })
                 .catch(() => setStores([]));
         }
     }, [open]);
+
+    // useEffect riêng để set store mặc định cho staff
+    useEffect(() => {
+        console.log('AddProductDialog - currentUser:', currentUser);
+        console.log('AddProductDialog - open:', open);
+        console.log('AddProductDialog - roles:', currentUser?.roles);
+        console.log('AddProductDialog - storeId:', currentUser?.storeId);
+        
+        // Kiểm tra cả ROLE_STAFF và STAFF, hoặc nếu có storeId thì coi như là staff
+        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF') || currentUser?.storeId;
+        console.log('AddProductDialog - isStaff:', isStaff);
+        
+        if (open && isStaff && currentUser?.storeId) {
+            console.log('AddProductDialog - Setting store for staff:', currentUser.storeId);
+            setProduct(prev => ({
+                ...prev,
+                store: currentUser.storeId
+            }));
+        }
+    }, [open, currentUser]);
+
+    // useEffect riêng để set store khi currentUser thay đổi
+    useEffect(() => {
+        if (currentUser?.storeId) {
+            console.log('AddProductDialog - currentUser changed, setting store:', currentUser.storeId);
+            setProduct(prev => ({
+                ...prev,
+                store: currentUser.storeId
+            }));
+        }
+    }, [currentUser?.storeId]);
+
+    // useEffect để set store khi stores được load
+    useEffect(() => {
+        if (stores.length > 0 && currentUser?.storeId && open) {
+            console.log('AddProductDialog - stores loaded, setting store:', currentUser.storeId);
+            setProduct(prev => ({
+                ...prev,
+                store: currentUser.storeId
+            }));
+        }
+    }, [stores, currentUser?.storeId, open]);
+
+    // Reset form khi mở dialog
+    useEffect(() => {
+        if (open) {
+            const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
+            setProduct({
+                name: '',
+                category: '',
+                store: isStaff && currentUser?.storeId ? currentUser.storeId : '',
+                description: '',
+            });
+            setTab(0);
+        }
+    }, [open, currentUser]);
 
     const handleChange = (field) => (e) => {
         const value = e.target.value;
@@ -71,7 +129,12 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
             return;
         }
         if (!product.store) {
-            alert('Vui lòng chọn cửa hàng');
+            const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF') || currentUser?.storeId;
+            if (isStaff) {
+                alert('Không thể xác định cửa hàng của bạn. Vui lòng liên hệ quản trị viên.');
+            } else {
+                alert('Vui lòng chọn cửa hàng');
+            }
             return;
         }
 
@@ -102,10 +165,11 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
     };
 
     const resetForm = () => {
+        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
         setProduct({
             name: '',
             category: '',
-            store: '',
+            store: isStaff && currentUser?.storeId ? currentUser.storeId : '',
             description: '',
         });
         setTab(0);
@@ -207,7 +271,7 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                                     variant="standard"
                                     fullWidth
                                 >
-                                    <MenuItem value="">---Lựa chọn---</MenuItem>
+                                    <MenuItem value="">Danh mục</MenuItem>
                                         {categories.map((cat) => (
                                             <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
                                         ))}
@@ -218,21 +282,24 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded }) =
                             </div>
 
                             <div className="flex items-end gap-2 w-1/2">
-                                    <Select
-                                        value={product.store}
-                                        onChange={handleChange('store')}
-                                        displayEmpty
+                                <Select
+                                    value={product.store}
+                                    onChange={handleChange('store')}
+                                    displayEmpty
                                     variant="standard"
                                     fullWidth
-                                    >
-                                        <MenuItem value="">---Cửa hàng---</MenuItem>
-                                        {stores.map((store) => (
-                                            <MenuItem key={store.id} value={store.id}>{store.name || store.storeName}</MenuItem>
-                                        ))}
-                                    </Select>
+                                    disabled={currentUser?.storeId ? true : false}
+                                >
+                                    <MenuItem value="">---Cửa hàng---</MenuItem>
+                                    {stores.map((store) => (
+                                        <MenuItem key={store.id} value={store.id}>{store.name || store.storeName}</MenuItem>
+                                    ))}
+                                </Select>
+                                {!currentUser?.storeId && (
                                     <IconButton size="small" onClick={() => setAddStoreOpen(true)}>
-                                    <AiOutlinePlus />
-                                </IconButton>
+                                        <AiOutlinePlus />
+                                    </IconButton>
+                                )}
                             </div>
                         </div>
                     </div>

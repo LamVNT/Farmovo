@@ -27,7 +27,7 @@ export const userService = {
 
     getCurrentUser: async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/staff/me`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/me`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -60,7 +60,7 @@ export const userService = {
 
     updateCurrentUser: async (userData) => {
         try {
-            const response = await axios.put(`${import.meta.env.VITE_API_URL}/staff/me`, userData, {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/me`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;

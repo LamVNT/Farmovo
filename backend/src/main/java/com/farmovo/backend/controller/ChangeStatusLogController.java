@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class ChangeStatusLogController {
     private final SourceEntityResolverService sourceEntityResolverService;
 
     @PostMapping("/list-all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponse<ChangeStatusLogResponseDTO>> searchLogs(
             @RequestBody ChangeStatusLogFilterRequestDTO filterRequest,
             Pageable pageable) {
@@ -33,12 +35,14 @@ public class ChangeStatusLogController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ChangeStatusLogResponseDTO> getById(@PathVariable Long id) {
         ChangeStatusLogResponseDTO dto = changeStatusLogService.getChangeStatusLogById(id);
         return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/{id}/source")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SourceEntityInfo> getSourceEntity(@PathVariable Long id) {
         ChangeStatusLogResponseDTO log = changeStatusLogService.getChangeStatusLogById(id);
         SourceEntityInfo sourceInfo = sourceEntityResolverService.resolveSourceEntity(

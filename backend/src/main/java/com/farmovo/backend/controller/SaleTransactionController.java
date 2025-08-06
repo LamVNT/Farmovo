@@ -137,6 +137,20 @@ public class SaleTransactionController {
         }
     }
 
+    @PostMapping("/save-from-balance")
+    public ResponseEntity<String> saveFromBalance(@RequestBody CreateSaleTransactionRequestDto dto, HttpServletRequest request) {
+        log.info("Creating BALANCE sale transaction");
+
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            saleTransactionService.save(dto, userId); // Giữ nguyên service hiện tại
+            return ResponseEntity.ok("Sale transaction (balance) saved successfully.");
+        } else {
+            throw new BadRequestException("Token không hợp lệ hoặc đã hết hạn");
+        }
+    }
+
     @GetMapping("/list-all")
     public ResponseEntity<PageResponse<SaleTransactionResponseDto>> listAllSaleTransactions(
             @RequestParam(required = false) String name,

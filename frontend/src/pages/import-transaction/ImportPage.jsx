@@ -391,43 +391,57 @@ const ImportPage = () => {
 
     const handleQuantityChange = (id, delta) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const newQuantity = Math.max(1, p.quantity + delta);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, p.quantity + delta),
-                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handleQuantityInputChange = (id, newQuantity) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const quantity = Math.max(1, newQuantity);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, newQuantity),
-                        total: (p.price || 0) * Math.max(1, newQuantity),
-                    }
-                    : p
-            )
+                        quantity: quantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handlePriceChange = (id, newPrice) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0);
+                    
+                    return {
                         ...p,
                         price: newPrice,
-                        total: newPrice * (p.quantity || 0),
-                    }
-                    : p
-            )
+                        total: newPrice * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
@@ -448,21 +462,14 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
-                    let newQuantity = p.quantity;
-                    // Chuyển đổi số lượng khi đổi đơn vị
-                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
-                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
-                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                        // Từ khay sang quả: nhân với 25
-                        newQuantity = (p.quantity || 1) * 25;
-                    }
+                    let newQuantity = 1; // Reset về 1 khi đổi đơn vị
+                    const quantityInQua = newUnit === 'khay' ? newQuantity * 30 : newQuantity;
                     
                     return {
                         ...p,
                         unit: newUnit,
                         quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity
+                        total: (p.price || 0) * quantityInQua
                     };
                 }
                 return p;
@@ -849,15 +856,23 @@ const ImportPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
+                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
+                const unit = row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                return price * quantityInQua;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
+                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
+                const unit = params.row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                const total = price * quantityInQua;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1320,7 +1335,15 @@ const ImportPage = () => {
     };
 
     // Tổng tiền hàng
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
+        const quantity = parseInt(p.quantity) || 0;
+        const unit = p.unit || 'quả';
+        
+        // Quy đổi số lượng về quả để tính thành tiền
+        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+        return sum + (price * quantityInQua);
+    }, 0);
 
     // Xử lý mở dialog tổng kết
     const handleShowSummary = async (status) => {
@@ -1738,6 +1761,7 @@ const ImportPage = () => {
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
                 unit={defaultUnit}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}

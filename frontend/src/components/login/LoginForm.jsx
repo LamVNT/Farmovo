@@ -3,6 +3,7 @@ import {useNavigate} from "react-router-dom";
 import {MyContext} from "../../App";
 import axios from "axios";
 import {userService} from "../../services/userService";
+import { useAuth } from "../../contexts/AuthorizationContext";
 
 const LoginForm = () => {
     const [username, setUsername] = useState("");
@@ -12,6 +13,7 @@ const LoginForm = () => {
     const [loading, setLoading] = useState(false);
     const {setIslogin} = useContext(MyContext);
     const navigate = useNavigate();
+    const { updateUser } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -25,11 +27,9 @@ const LoginForm = () => {
                 {withCredentials: true}
             );
 
-            // Sau khi đăng nhập thành công, lấy thông tin user chi tiết
-            const userDetail = await userService.getCurrentUser();
-            localStorage.setItem("user", JSON.stringify(userDetail));
-
             setIslogin(true);
+            // Update AuthorizationContext with new user data - this will also update localStorage
+            await updateUser();
             navigate("/");
         } catch (err) {
             console.error(err);

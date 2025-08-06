@@ -2,14 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, CircularProgress, Snackbar, Alert } from "@mui/material";
 import { customerService } from "../../services/customerService";
 
-const AddSupplierDialog = ({ open, onClose, onSupplierAdded, currentUser }) => {
+const AddSupplierDialog = ({ open, onClose, onSupplierAdded, currentUser, suppliers = [] }) => {
   const [form, setForm] = useState({ 
     name: "", 
     email: "", 
     phone: "", 
     address: "",
-    role: "SUPPLIER",
-    totalDept: 0,
+    totalDebt: 0,
     isSupplier: true
   });
   const [loading, setLoading] = useState(false);
@@ -22,8 +21,7 @@ const AddSupplierDialog = ({ open, onClose, onSupplierAdded, currentUser }) => {
         email: "", 
         phone: "", 
         address: "",
-        role: "SUPPLIER",
-        totalDept: 0,
+        totalDebt: 0,
         isSupplier: true
       });
     }
@@ -34,33 +32,62 @@ const AddSupplierDialog = ({ open, onClose, onSupplierAdded, currentUser }) => {
   };
 
   const handleSubmit = async () => {
+    console.log('Current suppliers for validation:', suppliers);
+    console.log('Form name to check:', form.name);
+    
     if (!form.name.trim()) {
       setSnackbar({ open: true, message: 'Vui lòng nhập tên nhà cung cấp', severity: 'error' });
+      return;
+    }
+    // Kiểm tra trùng tên
+    const isDuplicateName = suppliers.some(s => s.name && s.name.trim().toLowerCase() === form.name.trim().toLowerCase());
+    console.log('Is duplicate name:', isDuplicateName);
+    if (isDuplicateName) {
+      setSnackbar({ open: true, message: 'Tên nhà cung cấp đã tồn tại', severity: 'error' });
+      return;
+    }
+    // Kiểm tra trùng email (nếu có nhập)
+    if (form.email && suppliers.some(s => s.email && s.email.trim().toLowerCase() === form.email.trim().toLowerCase())) {
+      setSnackbar({ open: true, message: 'Email đã được sử dụng', severity: 'error' });
+      return;
+    }
+    // Kiểm tra trùng số điện thoại (nếu có nhập)
+    if (form.phone && suppliers.some(s => s.phone && s.phone.trim() === form.phone.trim())) {
+      setSnackbar({ open: true, message: 'Số điện thoại đã tồn tại', severity: 'error' });
+      return;
+    }
+    // Kiểm tra tổng nợ
+    if (parseFloat(form.totalDebt) < 0) {
+      setSnackbar({ open: true, message: 'Tổng nợ không được âm', severity: 'error' });
       return;
     }
 
     setLoading(true);
     try {
-      const createdBy = currentUser?.id || 1; // Fallback to 1 if no user
-      // Chỉ gửi các trường mà backend yêu cầu
+      // Chỉ gửi các trường mà backend yêu cầu theo CustomerRequestDto
       const requestData = {
         name: form.name,
-        email: form.email,
-        phone: form.phone,
-        role: form.role,
-        totalDept: form.totalDept,
-        isSupplier: form.isSupplier
+        email: form.email || null,
+        phone: form.phone || null,
+        address: form.address || null,
+        totalDebt: parseFloat(form.totalDebt) || 0,
+        isSupplier: form.isSupplier || true
       };
-      const newSupplier = await customerService.createCustomer(requestData, createdBy);
+      
+      console.log('Sending supplier data:', requestData);
+      const newSupplier = await customerService.createCustomer(requestData);
+      console.log('Supplier created successfully:', newSupplier);
       setSnackbar({ open: true, message: 'Thêm nhà cung cấp thành công', severity: 'success' });
       onSupplierAdded(newSupplier);
       onClose();
     } catch (error) {
-      setSnackbar({ 
-        open: true, 
-        message: 'Lỗi khi thêm nhà cung cấp: ' + (error.response?.data?.message || error.message), 
-        severity: 'error' 
-      });
+      let message = 'Lỗi khi thêm nhà cung cấp';
+      if (error.response?.data?.message) {
+        message = error.response.data.message;
+      } else if (error.message) {
+        message = error.message;
+      }
+      setSnackbar({ open: true, message, severity: 'error' });
     } finally {
       setLoading(false);
     }

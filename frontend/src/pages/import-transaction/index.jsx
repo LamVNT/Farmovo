@@ -45,6 +45,7 @@ import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
 import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
 import { getZones } from '../../services/zoneService';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const getRange = (key) => {
     const today = new Date();
@@ -85,6 +86,7 @@ const ImportTransactionPage = () => {
     const navigate = useNavigate();
     const { id } = useParams(); // Lấy ID từ URL params
     const [searchParams] = useSearchParams(); // Lấy query params
+    const { user, isStaff } = useAuth();
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -227,6 +229,11 @@ const ImportTransactionPage = () => {
                 query.fromDate = customDate[0].startDate.toISOString();
                 query.toDate = customDate[0].endDate.toISOString();
             }
+            // Filter by store for staff
+            if (isStaff() && user?.storeId) {
+                query.storeId = user.storeId;
+                console.log('Staff - filtering by store:', user.storeId);
+            }
             const data = await importTransactionService.listPaged(query);
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', data); // log API data
             setTransactions(data.content || []);
@@ -249,7 +256,7 @@ const ImportTransactionPage = () => {
     // Chỉ load lại khi page, pageSize, filter, customDate đổi
     useEffect(() => {
         loadTransactions();
-    }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate)]);
+    }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate), user?.storeId]);
 
 
 
@@ -879,6 +886,24 @@ const ImportTransactionPage = () => {
                     </Button>
                 </div>
             </div>
+            
+            {/* Thông báo cho staff */}
+            {isStaff() && user?.storeId && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-blue-700">
+                                <strong>Chú ý:</strong> Bạn chỉ có thể xem phiếu nhập hàng của cửa hàng: <strong>{user?.storeName || 'N/A'}</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div
                 className="flex flex-col lg:flex-row gap-4 mb-5"
