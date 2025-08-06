@@ -28,7 +28,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     @Autowired
@@ -50,12 +50,29 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
                         .requestMatchers("/api/signin").permitAll()
                         .requestMatchers("/api/logout").permitAll()
                         .requestMatchers("/api/zones").permitAll()
-                        .requestMatchers("/api/users/me", "/api/users").authenticated()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/staff/**").hasRole("STAFF")
+                        
+                        // Authenticated endpoints - method-level security sẽ handle phân quyền chi tiết
+                        .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers("/api/categories/**").authenticated()
+                        .requestMatchers("/api/products/**").authenticated()
+                        .requestMatchers("/api/customers/**").authenticated()
+                        .requestMatchers("/api/debts/**").authenticated()
+                        .requestMatchers("/api/stocktake/**").authenticated()
+                        .requestMatchers("/api/import-transactions/**").authenticated()
+                        .requestMatchers("/api/sale-transactions/**").authenticated()
+                        .requestMatchers("/api/reports/**").authenticated()
+                        .requestMatchers("/api/change-statuslog/**").authenticated()
+                        
+                        // Admin-only paths (backup security)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users").hasRole("ADMIN")
+                        .requestMatchers("/api/stores/**").hasRole("ADMIN")
+                        .requestMatchers("/api/zones/**").hasRole("ADMIN")
+                        
                         .anyRequest().authenticated()
                 )
 

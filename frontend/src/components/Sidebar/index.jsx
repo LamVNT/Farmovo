@@ -1,4 +1,4 @@
-import React, {useContext, useState, useEffect} from "react";
+import React, {useContext, useState} from "react";
 import {Link, useNavigate} from "react-router-dom"
 import Button from "@mui/material/Button";
 import {RxDashboard} from "react-icons/rx";
@@ -20,13 +20,12 @@ import {FaBoxOpen, FaExclamationTriangle, FaClock} from "react-icons/fa";
 import FarmovoLogo from '../../assets/Farmovo.png';
 import {FaStore} from "react-icons/fa6";
 import {MdHistory} from "react-icons/md";
-import { userService } from "../../services/userService";
+import PermissionGate, { AdminOnly } from "../PermissionGate.jsx";
+import { useAuth } from "../../contexts/AuthorizationContext";
 
 
 const Sidebar = () => {
     const [submenuIndex, setSubmenuIndex] = useState(null)
-    const [currentUser, setCurrentUser] = useState(null)
-    const [isStaff, setIsStaff] = useState(false)
     
     const isOpenSubMenu = (index) => {
         if (submenuIndex === index) {
@@ -38,33 +37,20 @@ const Sidebar = () => {
 
     const navigate = useNavigate();
     const context = useContext(MyContext);
-
-    // Lấy thông tin user hiện tại và kiểm tra role
-    useEffect(() => {
-        const fetchCurrentUser = async () => {
-            try {
-                const userData = await userService.getCurrentUser();
-                setCurrentUser(userData);
-                
-                // Kiểm tra role staff
-                const hasStaffRole = userData.roles && userData.roles.includes('ROLE_STAFF');
-                setIsStaff(hasStaffRole);
-            } catch (error) {
-                console.error('Error fetching current user:', error);
-            }
-        };
-        
-        fetchCurrentUser();
-    }, []);
+    const { logout } = useAuth();
 
     const handleLogout = async () => {
         try {
             await api.post("/logout", {}, {withCredentials: true}); // Gọi backend để xoá cookie
-            localStorage.removeItem("user"); // ✅ Gợi ý #4: Xoá user info
+            logout(); // Clear AuthorizationContext - this also clears localStorage
             context.setIslogin(false); // Cập nhật lại state
             navigate("/login"); // Chuyển hướng
         } catch (error) {
             console.error("Logout error:", error);
+            // Even if logout API fails, clear local state
+            logout();
+            context.setIslogin(false);
+            navigate("/login");
         }
     };
 
@@ -130,7 +116,7 @@ const Sidebar = () => {
                         </Collapse>
 
                     </li>
-                    {!isStaff && (
+                    <AdminOnly>
                         <li>
                             <Link to="/users">
                                 <Button
@@ -140,7 +126,7 @@ const Sidebar = () => {
                                 </Button>
                             </Link>
                         </li>
-                    )}
+                    </AdminOnly>
                     <li>
                         <Link to="/customers">
                             <Button
@@ -177,7 +163,7 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    {!isStaff && (
+                    <AdminOnly>
                         <li>
                             <Link to="/store">
                                 <Button
@@ -187,7 +173,7 @@ const Sidebar = () => {
                                 </Button>
                             </Link>
                         </li>
-                    )}
+                    </AdminOnly>
                     <li>
                         <Link to="/stocktake">
                             <Button
@@ -197,7 +183,7 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    {!isStaff && (
+                    <AdminOnly>
                         <li>
                             <Link to="/zone">
                                 <Button
@@ -207,16 +193,18 @@ const Sidebar = () => {
                                 </Button>
                             </Link>
                         </li>
-                    )}
-                    <li>
-                        <Link to="/change-status-log">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdHistory className="text-[20px]"/> <span>Lịch sử thay đổi</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    </AdminOnly>
+                    <AdminOnly>
+                        <li>
+                            <Link to="/change-status-log">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <MdHistory className="text-[20px]"/> <span>Lịch sử thay đổi</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    </AdminOnly>
                     <li>
                         <Link to="/reports/dashboard">
                             <Button
