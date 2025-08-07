@@ -25,6 +25,8 @@ public interface UserService {
 
     Optional<User> toggleUserStatus(Long id);
 
+    List<String> getAllUsernames();
+
     org.springframework.data.domain.Page<com.farmovo.backend.dto.response.UserResponseDto> searchUsers(String username, String email, Boolean status,
                                                                                java.time.LocalDateTime fromDate,
                                                                                java.time.LocalDateTime toDate,

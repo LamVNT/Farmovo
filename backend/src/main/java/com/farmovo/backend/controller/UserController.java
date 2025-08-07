@@ -2,6 +2,7 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
+import com.farmovo.backend.dto.request.SendLoginInfoRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.dto.response.AdminUserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
@@ -9,6 +10,7 @@ import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.mapper.AdminUserMapper;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
+import com.farmovo.backend.services.impl.EmailServiceImpl;
 import jakarta.validation.Valid;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,6 +40,9 @@ public class UserController {
     @Autowired
     private AdminUserMapper adminUserMapper;
 
+    @Autowired
+    private EmailServiceImpl emailService;
+
     @GetMapping("/admin/userList")
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponseDto> getAllUsers() {
@@ -45,6 +50,13 @@ public class UserController {
         return userService.getAllUsers().stream()
                 .map(userMapper::toResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/admin/allUsernames")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<String> getAllUsernames() {
+        logger.info("Fetching all usernames including soft deleted ones");
+        return userService.getAllUsernames();
     }
 
     @GetMapping("/admin/userListWithPassword")
@@ -158,6 +170,19 @@ public class UserController {
         return userService.updateUser(userId, user)
                 .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found"));
+    }
+
+    @PostMapping("/admin/send-login-info")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> sendLoginInfoEmail(@RequestBody SendLoginInfoRequestDto request) {
+        logger.info("Sending login info email to: {}", request.getEmail());
+        try {
+            emailService.sendLoginInfoEmail(request);
+            return ResponseEntity.ok("Email thông tin đăng nhập đã được gửi thành công!");
+        } catch (Exception e) {
+            logger.error("Error sending login info email: {}", e.getMessage());
+            return ResponseEntity.status(500).body("Lỗi khi gửi email: " + e.getMessage());
+        }
     }
 
     @ExceptionHandler(UserManagementException.class)
