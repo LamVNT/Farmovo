@@ -65,24 +65,24 @@ const StockTakeDetailPage = () => {
                 />
                 {/* Nút Cân bằng kho */}
                 {detail.status === 'COMPLETED' && hasDiff && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                    onClick={() => navigate(`/sale/balance/${detail.id}`)}
-                  >
-                    Cân bằng kho (Tạo phiếu bán)
-                  </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/sale/balance/${detail.id}`)}
+                    >
+                        Cân bằng kho (Tạo phiếu bán)
+                    </Button>
                 )}
             </Box>
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 2 : 6, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <Box>
-                    <Typography><b>Người tạo:</b> <span style={{color:'#1976d2'}}>{detail.createdByName || ''}</span></Typography>
+                    <Typography><b>Người tạo:</b> <span style={{ color: '#1976d2' }}>{detail.createdByName || ''}</span></Typography>
                     <Typography><b>Ngày tạo:</b> {detail.stocktakeDate ? new Date(detail.stocktakeDate).toLocaleString('vi-VN') : ''}</Typography>
                 </Box>
                 <Box>
-                    <Typography><b>Người cân bằng:</b> {detail.status === "COMPLETED" ? <span style={{color:'#388e3c'}}>{detail.createdByName || ''}</span> : <span style={{color:'#888'}}>Chưa có</span>}</Typography>
-                    <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{color:'#888'}}>Chưa có</span>}</Typography>
+                    <Typography><b>Người cân bằng:</b> {detail.status === "COMPLETED" ? <span style={{ color: '#388e3c' }}>{detail.createdByName || ''}</span> : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
+                    <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
                 </Box>
             </Box>
             {/* Bộ lọc tìm kiếm */}
@@ -138,22 +138,38 @@ const StockTakeDetailPage = () => {
                         ) : (
                             filteredDetails.map((d, idx) => (
                                 <TableRow key={(d.batchCode || d.name || 'row') + '-' + (d.productId || '') + '-' + idx} hover sx={d.diff !== 0 ? { background: '#ffeaea' } : {}}>
-                                    <TableCell sx={{color:'#1976d2', fontWeight:600}}>{d.batchCode || d.name}</TableCell>
+                                    <TableCell sx={{ color: '#1976d2', fontWeight: 600 }}>{d.batchCode || d.name}</TableCell>
                                     <TableCell><b>{products.find(p => p.id === d.productId)?.productName || d.productName || d.productId}</b></TableCell>
                                     {!isMobile && <TableCell>
-                                        {d.zones_id ? 
-                                            (Array.isArray(d.zones_id) ? 
+                                        {d.zones_id ?
+                                            (Array.isArray(d.zones_id) ?
                                                 d.zones_id.map(zid => {
                                                     const zone = zones.find(z => z.id === Number(zid));
                                                     return zone ? zone.zoneName : zid;
-                                                }).join(", ") 
+                                                }).join(", ")
                                                 : d.zones_id)
                                             : (d.zoneName || d.zoneId || '')
                                         }
                                     </TableCell>}
                                     <TableCell>{d.remain}</TableCell>
                                     <TableCell>{d.real}</TableCell>
-                                    {!isMobile && <TableCell>{d.zoneReal || ''}</TableCell>}
+                                    {!isMobile && <TableCell>{
+                                        // Hiển thị tên khu vực thực tế thay vì id
+                                        Array.isArray(d.zoneReal)
+                                            ? d.zoneReal.map(zid => {
+                                                const zone = zones.find(z => z.id === Number(zid));
+                                                return zone ? zone.zoneName : zid;
+                                            }).join(", ")
+                                            : typeof d.zoneReal === "string" && d.zoneReal.includes(",")
+                                                ? d.zoneReal.split(",").map(zid => {
+                                                    const zone = zones.find(z => z.id === Number(zid.trim()));
+                                                    return zone ? zone.zoneName : zid.trim();
+                                                }).join(", ")
+                                                : (function() {
+                                                    const zone = zones.find(z => z.id === Number(d.zoneReal));
+                                                    return zone ? zone.zoneName : (d.zoneReal || '');
+                                                })()
+                                    }</TableCell>}
                                     <TableCell>{d.diff}</TableCell>
                                     {!isMobile && <TableCell>{d.expireDate ? new Date(d.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>}
                                     {!isMobile && <TableCell>{d.isCheck ? 'Đã kiểm' : 'Chưa kiểm'}</TableCell>}
@@ -172,7 +188,7 @@ const StockTakeDetailPage = () => {
             </Box>
             <SnackbarAlert
                 open={snackbar.isOpen}
-                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                onClose={() => setSnackbar(prev => ({ ...prev, isOpen: false }))}
                 message={snackbar.message}
                 severity={snackbar.severity}
             />

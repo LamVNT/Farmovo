@@ -78,6 +78,7 @@ const CreateStocktakePage = () => {
     // 1. Thêm state phân trang
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [oldDetails, setOldDetails] = useState([]);
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -89,15 +90,64 @@ const CreateStocktakePage = () => {
         }
     }, []);
 
-    // Khi vào trang, fetch tất cả các lô thuộc kho user đăng nhập
+    // Hàm fetch lots theo filter, có merge dữ liệu cũ nếu ở chế độ update
+    const fetchLotsByFilter = async (filter, products, oldDetails = []) => {
+        setLoadingLots(true);
+        try {
+            const params = new URLSearchParams();
+            if (filter.store) params.append('store', filter.store);
+            if (filter.zone) params.append('zone', filter.zone);
+            if (filter.product) params.append('product', filter.product);
+            const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
+            const lotsData = (res.data || []).map(lot => {
+                // Đảm bảo luôn có zonesId là mảng số
+                let zonesId = lot.zonesId || lot.zoneIds || lot.zones_id || lot.zone_id || [];
+                if (typeof zonesId === 'string') {
+                    try { zonesId = JSON.parse(zonesId); } catch { zonesId = zonesId.split(',').map(z => Number(z.trim())).filter(Boolean); }
+                }
+                if (Array.isArray(zonesId)) zonesId = zonesId.map(z => Number(z)).filter(Boolean);
+                else if (typeof zonesId === 'number') zonesId = [zonesId];
+                else zonesId = [];
+                let productId = lot.productId || lot.product_id;
+                if (!productId && lot.productName && products.length > 0) {
+                    const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
+                    if (found) productId = found.id;
+                }
+                if (typeof productId === 'string' && productId !== '') productId = Number(productId);
+                // Merge dữ liệu cũ nếu có (dựa trên batchCode hoặc id)
+                const old = oldDetails.find(d => (d.batchCode || d.name) === (lot.batchCode || lot.name) || d.id === lot.id);
+                return {
+                    ...lot,
+                    zonesId,
+                    productId,
+                    real: old ? old.real : lot.remainQuantity,
+                    remainQuantity: lot.remainQuantity,
+                    zoneReal: old ? old.zoneReal : (Array.isArray(zonesId) ? zonesId : []),
+                    diff: old ? old.diff : 0,
+                    isCheck: old ? !!old.isCheck : false,
+                    note: old ? old.note : '',
+                    expireDate: lot.expireDate,
+                    name: lot.batchCode || lot.name,
+                    zoneName: lot.zoneName,
+                };
+            });
+            setLots(lotsData);
+        } catch (err) {
+            setLots([]);
+            console.error('[DEBUG] Lỗi khi fetch lots:', err);
+        } finally {
+            setLoadingLots(false);
+        }
+    };
+
+    // Khi vào trang, lấy chi tiết phiếu kiểm kê và fetch lots theo filter (nếu có id)
     useEffect(() => {
         if (id) {
-            // Chế độ edit: lấy chi tiết phiếu kiểm kê
             axios.get(`/stocktakes/${id}`)
                 .then(res => {
                     const details = res.data.detail || [];
                     // Map lại detail thành lots phù hợp với form
-                    const lotsData = details.map(d => ({
+                    const mappedDetails = details.map(d => ({
                         ...d,
                         name: d.batchCode || d.name,
                         zonesId: Array.isArray(d.zones_id) ? d.zones_id.map(Number) : (d.zones_id ? d.zones_id.split(',').map(Number) : []),
@@ -118,67 +168,23 @@ const CreateStocktakePage = () => {
                               : d.zones_id)
                           : (d.zoneName || d.zoneId || ''),
                     }));
-                    setLots(lotsData);
+                    setOldDetails(mappedDetails);
+                    fetchLotsByFilter(filter, products, mappedDetails);
                 })
                 .catch(() => setSnackbar({isOpen: true, message: "Không lấy được chi tiết phiếu kiểm kê!", severity: "error"}));
         } else {
-            // Chế độ tạo mới: logic fetch lots như hiện tại
-            const fetchLots = async () => {
-                setLoadingLots(true);
-                try {
-                    const params = new URLSearchParams();
-                    if (filter.store) params.append('store', filter.store);
-                    if (filter.zone) params.append('zone', filter.zone);
-                    if (filter.product) params.append('product', filter.product); // thêm dòng này
-                    const res = await axios.get(`/import-details/stocktake-lot?${params.toString()}`);
-                    const lotsData = (res.data || []).map(lot => {
-                        // Đảm bảo luôn có zonesId là mảng số
-                        let zonesId = lot.zonesId || lot.zoneIds || lot.zones_id || lot.zone_id || [];
-                        if (typeof zonesId === 'string') {
-                            try {
-                                // Thử parse JSON
-                                zonesId = JSON.parse(zonesId);
-                            } catch {
-                                // Nếu không phải JSON, tách bằng dấu phẩy
-                                zonesId = zonesId.split(',').map(z => Number(z.trim())).filter(Boolean);
-                            }
-                        }
-                        if (Array.isArray(zonesId)) {
-                            zonesId = zonesId.map(z => Number(z)).filter(Boolean);
-                        } else if (typeof zonesId === 'number') {
-                            zonesId = [zonesId];
-                        } else {
-                            zonesId = [];
-                        }
-                        let productId = lot.productId || lot.product_id;
-                        if (!productId && lot.productName && products.length > 0) {
-                            const found = products.find(p => p.productName.trim().toLowerCase() === lot.productName.trim().toLowerCase());
-                            if (found) productId = found.id;
-                        }
-                        if (typeof productId === 'string' && productId !== '') productId = Number(productId);
-                        // Gán mặc định real = remainQuantity, zoneReal = zonesId
-                        const real = lot.remainQuantity;
-                        const diff = real - (Number(lot.remainQuantity) || 0);
-                        return {
-                            ...lot,
-                            zonesId,
-                            productId,
-                            real,
-                            zoneReal: Array.isArray(zonesId) ? zonesId : [],
-                            diff,
-                        };
-                    });
-                    setLots(lotsData);
-                } catch (err) {
-                    setLots([]);
-                    console.error('[DEBUG] Lỗi khi fetch lots:', err);
-                } finally {
-                    setLoadingLots(false);
-                }
-            };
-            fetchLots();
+            fetchLotsByFilter(filter, products, []);
         }
+        // eslint-disable-next-line
     }, [id, products, filter.store, filter.zone, filter.product]);
+
+    // Khi filter thay đổi ở chế độ update, fetch lại lots và merge dữ liệu cũ
+    useEffect(() => {
+        if (id && oldDetails.length > 0) {
+            fetchLotsByFilter(filter, products, oldDetails);
+        }
+        // eslint-disable-next-line
+    }, [filter.zone, filter.product]);
 
     // Xóa toàn bộ UI/logic Danh sách lô phù hợp, chỉ còn table Danh sách lô hàng (lots)
     // Table này cho phép chọn nhiều lô, nhập số thực tế, ghi chú, ... như cũ
@@ -255,6 +261,14 @@ const CreateStocktakePage = () => {
                 setSnackbar({
                     isOpen: true,
                     message: `Vui lòng nhập số thực tế cho lô ${lot.name || lot.id}!`,
+                    severity: "error"
+                });
+                return;
+            }
+            if (Number(lot.real) > Number(lot.remainQuantity)) {
+                setSnackbar({
+                    isOpen: true,
+                    message: `Số thực tế của lô ${lot.name || lot.id} không được lớn hơn số tồn kho!`,
                     severity: "error"
                 });
                 return;

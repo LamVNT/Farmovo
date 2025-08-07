@@ -463,6 +463,9 @@ export const useSaleTransaction = (props = {}) => {
         setPendingAction(null);
     }, []);
 
+    // Comment luôn các chỗ khai báo, sử dụng setTotalAmount, totalAmount nếu có thể (ví dụ: const [totalAmount, setTotalAmount] = useState(0); và các chỗ return totalAmount)
+    // const [totalAmount, setTotalAmount] = useState(0);
+
     return {
         // States
         currentUser,

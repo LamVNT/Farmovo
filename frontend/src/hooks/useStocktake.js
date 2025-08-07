@@ -41,8 +41,12 @@ export default function useStocktake(user, userRole) {
 
     // Bộ lọc danh sách
     const [statusFilter, setStatusFilter] = useState("DRAFT");
-    const [storeFilter, setStoreFilter] = useState(userStoreId || "");
-    const [dateFilter, setDateFilter] = useState(() => {
+    const [storeFilter, setStoreFilter] = useState(""); // Mặc định rỗng cho Owner, tự động đặt cho Staff
+    const [fromDate, setFromDate] = useState(() => {
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    });
+    const [toDate, setToDate] = useState(() => {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     });
@@ -93,8 +97,8 @@ export default function useStocktake(user, userRole) {
             const matchesCode = !codeFilter || (st.name && st.name.toLowerCase().includes(codeFilter.toLowerCase()));
             const matchesStatus = !statusFilter || st.status === statusFilter;
             const matchesDate =
-                !dateFilter ||
-                (st.stocktakeDate && new Date(st.stocktakeDate).toISOString().slice(0, 10) === dateFilter);
+                !fromDate || !toDate ||
+                (st.stocktakeDate && new Date(st.stocktakeDate).toISOString().slice(0, 10) >= fromDate && new Date(st.stocktakeDate).toISOString().slice(0, 10) <= toDate);
             const matchesNote =
                 !noteFilter || (st.stocktakeNote && st.stocktakeNote.toLowerCase().includes(noteFilter.toLowerCase()));
 
@@ -109,7 +113,7 @@ export default function useStocktake(user, userRole) {
 
             return matchesCode && matchesStatus && matchesDate && matchesNote && matchesStore && matchesCreator;
         });
-    }, [stocktakes, codeFilter, statusFilter, dateFilter, noteFilter, userRole, userStoreId, userStoreName, storeFilter, userName]);
+    }, [stocktakes, codeFilter, statusFilter, fromDate, toDate, noteFilter, userRole, userStoreId, userStoreName, storeFilter, userName]);
 
     const paginatedStocktakes = useMemo(() => {
         return filteredStocktakes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -124,14 +128,11 @@ export default function useStocktake(user, userRole) {
                 size: rowsPerPage,
                 status: statusFilter,
                 note: noteFilter,
-                fromDate: dateFilter,
-                toDate: dateFilter,
-                ...params
+                fromDate: fromDate,
+                toDate: toDate,
+                ...(userRole === "OWNER" && storeFilter && {storeId: storeFilter}), // Lọc theo kho cho Owner
+                ...(userRole === "STAFF" && {storeId: userStoreId}), // Giới hạn theo kho cho Staff
             };
-            if (userRole === "STAFF") {
-                query.storeId = userStoreId;
-                query.createdBy = userName;
-            }
             const res = await getStocktakeList(query);
             setStocktakes(res.content || []);
             setTotal(res.totalElements || 0);
@@ -146,7 +147,7 @@ export default function useStocktake(user, userRole) {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, noteFilter, dateFilter, userRole, userStoreId, userName, page, rowsPerPage]);
+    }, [statusFilter, noteFilter, fromDate, toDate, userRole, userStoreId, storeFilter, page, rowsPerPage]);
 
     // ================== Load master data ==================
     const loadMasterData = useCallback(async () => {
@@ -277,12 +278,16 @@ export default function useStocktake(user, userRole) {
     }, [loadMasterData]);
 
     useEffect(() => {
-        if (userRole === "STAFF" && staffStoreId && !storeFilter) setStoreFilter(staffStoreId);
+        if (userRole === "STAFF" && staffStoreId && !storeFilter) {
+            setStoreFilter(staffStoreId);
+        } else if (userRole === "OWNER" && storeFilter) {
+            setStoreFilter(""); // Đặt lại storeFilter về rỗng cho Owner khi tải lại
+        }
     }, [userRole, staffStoreId, storeFilter]);
 
     useEffect(() => {
         setPage(0);
-    }, [statusFilter, storeFilter, dateFilter, noteFilter, codeFilter]);
+    }, [statusFilter, storeFilter, fromDate, toDate, noteFilter, codeFilter]);
 
     // ================== Return ==================
     return {
@@ -296,8 +301,10 @@ export default function useStocktake(user, userRole) {
         setStatusFilter,
         storeFilter,
         setStoreFilter,
-        dateFilter,
-        setDateFilter,
+        fromDate,
+        setFromDate,
+        toDate,
+        setToDate,
         noteFilter,
         setNoteFilter,
         codeFilter,
@@ -319,8 +326,6 @@ export default function useStocktake(user, userRole) {
         handleCancel,
         loadStocktakeList,
         loadMasterData,
-
-        // 👇 Thêm đầy đủ cho Create/Detail
         editMode,
         setEditMode,
         stocktakeStatus,
@@ -337,8 +342,6 @@ export default function useStocktake(user, userRole) {
         setRawDetail,
         dataLoaded,
         setDataLoaded,
-
-        // 👇 Thêm mới cho Detail page
         detail,
         setDetail,
         filter,

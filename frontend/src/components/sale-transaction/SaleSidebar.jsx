@@ -166,50 +166,61 @@ const SaleSidebar = ({
             <div>
                 <div className="font-semibold mb-1">Khách hàng</div>
                 <div className="relative">
-                    <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="Tìm khách hàng..."
-                        value={customerSearch || (customers.find(c => String(c.id) === String(selectedCustomer))?.name || customers.find(c => String(c.id) === String(selectedCustomer))?.customerName || '')}
-                        onChange={e => {
-                            setCustomerSearch(e.target.value);
-                            onCustomerChange({ target: { value: '' } });
-                        }}
-                        onFocus={() => setCustomerDropdownOpen(true)}
-                        onBlur={() => {
-                            if (!hoveredCustomer) {
-                                setCustomerDropdownOpen(false);
-                                setHoveredCustomer(null);
-                                setHoverCustomerAnchorEl(null);
-                            }
-                        }}
-                        variant="outlined"
-                        error={highlightCustomer}
-                        sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
-                        InputProps={{
-                            endAdornment: (
-                                <Tooltip title="Thêm khách hàng mới">
-                                    <IconButton 
-                                        size="small" 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowAddCustomerDialog(true);
-                                        }}
-                                        sx={{ 
-                                            color: '#1976d2',
-                                            '&:hover': { 
-                                                backgroundColor: '#e3f0ff',
-                                                transform: 'scale(1.1)'
-                                            },
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                    >
-                                        <AddIcon fontSize="small" />
-                                    </IconButton>
-                                </Tooltip>
-                            ),
-                        }}
-                    />
+                    {customers.length === 1 ? (
+                        <TextField
+                            size="small"
+                            fullWidth
+                            value={customers[0].name || customers[0].customerName || ''}
+                            disabled
+                            variant="outlined"
+                            sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        />
+                    ) : (
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Tìm khách hàng..."
+                            value={customerSearch || (customers.find(c => String(c.id) === String(selectedCustomer))?.name || customers.find(c => String(c.id) === String(selectedCustomer))?.customerName || '')}
+                            onChange={e => {
+                                setCustomerSearch(e.target.value);
+                                onCustomerChange({ target: { value: '' } });
+                            }}
+                            onFocus={() => setCustomerDropdownOpen(true)}
+                            onBlur={() => {
+                                if (!hoveredCustomer) {
+                                    setCustomerDropdownOpen(false);
+                                    setHoveredCustomer(null);
+                                    setHoverCustomerAnchorEl(null);
+                                }
+                            }}
+                            variant="outlined"
+                            error={highlightCustomer}
+                            sx={highlightCustomer ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                            InputProps={{
+                                endAdornment: (
+                                    <Tooltip title="Thêm khách hàng mới">
+                                        <IconButton 
+                                            size="small" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowAddCustomerDialog(true);
+                                            }}
+                                            sx={{ 
+                                                color: '#1976d2',
+                                                '&:hover': { 
+                                                    backgroundColor: '#e3f0ff',
+                                                    transform: 'scale(1.1)'
+                                                },
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            <AddIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                ),
+                            }}
+                        />
+                    )}
                     {(customerDropdownOpen || customerSearch.trim() !== '') && filteredCustomers.length > 0 && (
                         <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                             onMouseLeave={() => {

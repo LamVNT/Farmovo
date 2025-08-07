@@ -1,5 +1,5 @@
 // ======================= StockTakePage.jsx =======================
-import React, { useState, useMemo, useEffect } from "react";
+import React, {useState, useMemo, useEffect} from "react";
 import {
     Button,
     Table,
@@ -28,10 +28,13 @@ import {useNavigate} from "react-router-dom";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useStocktake from "../../hooks/useStocktake";
-import { debounce } from "lodash";
+import {debounce} from "lodash";
+import { DateRangePicker } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 
 const StockTakePage = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(localStorage.getItem("user")) || {}; // Thêm kiểm tra lỗi cho user
     const userRole = user?.roles?.[0];
     const {
         loading,
@@ -39,8 +42,10 @@ const StockTakePage = () => {
         setStatusFilter,
         storeFilter,
         setStoreFilter,
-        dateFilter,
-        setDateFilter,
+        fromDate,
+        setFromDate,
+        toDate,
+        setToDate,
         noteFilter,
         setNoteFilter,
         stocktakes,
@@ -55,6 +60,7 @@ const StockTakePage = () => {
         snackbar,
         setSnackbar,
         handleCancel,
+        stores, // Sử dụng stores từ useStocktake để hiển thị danh sách kho
     } = useStocktake(user, userRole);
 
     const navigate = useNavigate();
@@ -114,6 +120,34 @@ const StockTakePage = () => {
         return Array.isArray(details) && details.some(d => d.diff !== 0);
     }
 
+    // [Thay đổi] Đặt dateFilter mặc định là ngày hiện tại (06/08/2025) cho Owner
+    useEffect(() => {
+        if (userRole === "OWNER") {
+            const today = new Date();
+            const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            setFromDate(formattedDate);
+            setToDate(formattedDate);
+        }
+    }, [userRole, setFromDate, setToDate]);
+
+    const [dateRange, setDateRange] = useState([
+      {
+        startDate: new Date(),
+        endDate: new Date(),
+        key: 'selection',
+      },
+    ]);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    useEffect(() => {
+        if (dateRange[0].startDate && dateRange[0].endDate) {
+            const start = dateRange[0].startDate;
+            const end = dateRange[0].endDate;
+            setFromDate(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`);
+            setToDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`);
+        }
+    }, [dateRange, setFromDate, setToDate]);
+
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             <div className="bg-white rounded-lg shadow-lg p-6">
@@ -128,40 +162,78 @@ const StockTakePage = () => {
                             label="Lọc theo mã kiểm kê"
                             value={codeSearch}
                             onChange={e => setCodeSearch(e.target.value)}
-                            sx={{ minWidth: 150, background: '#fff', borderRadius: 2 }}
+                            sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
                         />
                         {userRole === "STAFF" && (
                             <TextField
                                 size="small"
                                 label="Kho"
                                 value={userStoreName}
-                                InputProps={{ readOnly: true }}
-                                sx={{ minWidth: 120, background: '#fff', borderRadius: 2 }}
+                                InputProps={{readOnly: true}}
+                                sx={{minWidth: 120, background: '#fff', borderRadius: 2}}
                             />
                         )}
-                        <TextField
+                        {userRole === "OWNER" && (
+                            <TextField
+                                size="small"
+                                select
+                                label="Kho"
+                                value={storeFilter || ""}
+                                onChange={e => setStoreFilter(e.target.value)}
+                                sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
+                            >
+                                <MenuItem value="">Tất cả</MenuItem>
+                                {stores.map((store) => (
+                                    <MenuItem key={store.id} value={store.id}>{store.name}</MenuItem>
+                                ))}
+                            </TextField>
+                        )}
+                        {/* Thay thế trường ngày bằng DateRangePicker */}
+                        <Box sx={{ position: 'relative', minWidth: 250 }}>
+                          <TextField
                             size="small"
-                            type="date"
-                            label="Ngày kiểm kê"
-                            value={dateFilter}
-                            onChange={e => setDateFilter(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ minWidth: 150, background: '#fff', borderRadius: 2 }}
-                        />
+                            label="Khoảng ngày kiểm kê"
+                            value={
+                              dateRange[0].startDate && dateRange[0].endDate
+                                ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
+                                : ''
+                            }
+                            onClick={() => setShowDatePicker(true)}
+                            readOnly
+                            sx={{ background: '#fff', borderRadius: 2, width: '100%' }}
+                          />
+                          {showDatePicker && (
+                            <Box sx={{ position: 'absolute', zIndex: 10, top: 45 }}>
+                              <DateRangePicker
+                                onChange={item => {
+                                  setDateRange([item.selection]);
+                                  setShowDatePicker(false);
+                                }}
+                                moveRangeOnFirstSelection={false}
+                                ranges={dateRange}
+                                maxDate={new Date()}
+                                locale={undefined}
+                              />
+                            </Box>
+                          )}
+                        </Box>
                         <TextField
                             size="small"
                             label="Lọc theo ghi chú"
                             value={noteSearch}
                             onChange={e => setNoteSearch(e.target.value)}
-                            sx={{ minWidth: 150, background: '#fff', borderRadius: 2 }}
+                            sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
                         />
                         <TextField
                             size="small"
                             select
                             label="Trạng thái"
                             value={statusFilter}
-                            onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
-                            sx={{ minWidth: 130, background: '#fff', borderRadius: 2 }}
+                            onChange={e => {
+                                setStatusFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            sx={{minWidth: 130, background: '#fff', borderRadius: 2}}
                         >
                             <MenuItem value="">Tất cả</MenuItem>
                             <MenuItem value="DRAFT">DRAFT</MenuItem>
@@ -170,8 +242,15 @@ const StockTakePage = () => {
                         </TextField>
                         <Button
                             variant="contained"
-                            startIcon={<AddIcon />}
-                            sx={{ borderRadius: 2, fontWeight: 600, px: 3, py: 1, textTransform: 'none', boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)' }}
+                            startIcon={<AddIcon/>}
+                            sx={{
+                                borderRadius: 2,
+                                fontWeight: 600,
+                                px: 3,
+                                py: 1,
+                                textTransform: 'none',
+                                boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                            }}
                             onClick={() => navigate('/stocktake/create')}
                         >
                             Tạo phiếu kiểm kê mới
@@ -182,16 +261,17 @@ const StockTakePage = () => {
                 {loading ? (
                     <div className="flex justify-center items-center py-12">
                         <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                            <div
+                                className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                             <p className="text-gray-600">Đang tải dữ liệu...</p>
                         </div>
                     </div>
                 ) : (
                     <div className="bg-white rounded-lg border border-gray-200">
-                        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, overflowX: 'auto' }}>
-                            <Table sx={{ minWidth: 900 }}>
+                        <TableContainer component={Paper} elevation={0} sx={{borderRadius: 2, overflowX: 'auto'}}>
+                            <Table sx={{minWidth: 900}}>
                                 <TableHead>
-                                    <TableRow sx={{ background: "#f5f5f5" }}>
+                                    <TableRow sx={{background: "#f5f5f5"}}>
                                         <TableCell><b>Mã Kiểm kho</b></TableCell>
                                         <TableCell><b>Ngày kiểm kê</b></TableCell>
                                         <TableCell><b>Ngày cân bằng</b></TableCell>
@@ -212,13 +292,13 @@ const StockTakePage = () => {
                                             <TableRow
                                                 key={st.id}
                                                 hover
-                                                sx={{ transition: "background 0.2s", ...(hasDiff(st) && { backgroundColor: "#ffeaea" }) }}
+                                                sx={{transition: "background 0.2s", ...(hasDiff(st) && {backgroundColor: "#ffeaea"})}}
                                             >
                                                 <TableCell>{st.name}</TableCell>
-                                                <TableCell>{st.stocktakeDate ? new Date(st.stocktakeDate).toLocaleString('vi-VN', { hour12: false }) : "-"}</TableCell>
+                                                <TableCell>{st.stocktakeDate ? new Date(st.stocktakeDate).toLocaleString('vi-VN', {hour12: false}) : "-"}</TableCell>
                                                 <TableCell>
                                                     {st.status === "COMPLETED" && st.updatedAt
-                                                        ? new Date(st.updatedAt).toLocaleString('vi-VN', { hour12: false })
+                                                        ? new Date(st.updatedAt).toLocaleString('vi-VN', {hour12: false})
                                                         : "-"}
                                                 </TableCell>
                                                 <TableCell>{st.storeName || st.storeId || "-"}</TableCell>
@@ -249,7 +329,7 @@ const StockTakePage = () => {
                                                                 disabled={actionLoading[st.id]}
                                                                 size="small"
                                                             >
-                                                                <VisibilityIcon />
+                                                                <VisibilityIcon/>
                                                             </IconButton>
                                                         </span>
                                                     </Tooltip>
@@ -269,7 +349,7 @@ const StockTakePage = () => {
                                                                     disabled={actionLoading[st.id]}
                                                                     size="small"
                                                                 >
-                                                                    <CancelIcon />
+                                                                    <CancelIcon/>
                                                                 </IconButton>
                                                             </span>
                                                         </Tooltip>
@@ -289,19 +369,22 @@ const StockTakePage = () => {
                     page={page}
                     onPageChange={(e, newPage) => setPage(newPage)}
                     rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                    onRowsPerPageChange={e => {
+                        setRowsPerPage(parseInt(e.target.value, 10));
+                        setPage(0);
+                    }}
                     rowsPerPageOptions={[5, 10, 20, 50]}
                 />
                 <ConfirmDialog
                     open={confirmDialog.isOpen}
-                    onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                    onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
                     onConfirm={confirmDialog.onConfirm}
                     title={confirmDialog.title}
                     content={confirmDialog.content}
                 />
                 <SnackbarAlert
                     open={snackbar.isOpen}
-                    onClose={() => setSnackbar(prev => ({ ...prev, isOpen: false }))}
+                    onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
                     message={snackbar.message}
                     severity={snackbar.severity}
                 />

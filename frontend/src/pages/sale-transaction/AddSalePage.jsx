@@ -529,7 +529,21 @@ const AddSalePage = (props) => {
             field: 'zoneReal',
             headerName: 'Zone',
             width: 120,
-            renderCell: (params) => <span>{params.row.zoneReal}</span>,
+            renderCell: (params) => {
+                const { row } = params;
+                // zones lấy từ hook useSaleTransaction
+                // row.zoneReal có thể là mảng, chuỗi phân cách phẩy, hoặc số
+                const zonesList = Array.isArray(row.zoneReal)
+                    ? row.zoneReal
+                    : typeof row.zoneReal === 'string' && row.zoneReal.includes(',')
+                        ? row.zoneReal.split(',').map(z => z.trim())
+                        : [row.zoneReal];
+                const zoneNames = zonesList.map(zid => {
+                    const zone = zones.find(z => z.id === Number(zid));
+                    return zone ? zone.zoneName : zid;
+                }).join(', ');
+                return <span>{zoneNames}</span>;
+            },
         }] : []),
         !props.isBalanceStock && {
             field: 'actions',
@@ -544,6 +558,15 @@ const AddSalePage = (props) => {
             ),
         },
     ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, handleUnitChange, props.isBalanceStock]);
+
+    // Lấy khách lẻ từ danh sách customers nếu có
+    const khachLe = customers.find(c => c.name === 'Khách lẻ') || null;
+
+    useEffect(() => {
+        if (props.isBalanceStock && khachLe) {
+            setSelectedCustomer(khachLe.id);
+        }
+    }, [props.isBalanceStock, khachLe]);
 
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -692,7 +715,7 @@ const AddSalePage = (props) => {
             </div>
             <SaleSidebar
                 currentUser={currentUser}
-                customers={customers}
+                customers={props.isBalanceStock && khachLe ? [khachLe] : customers}
                 stores={stores}
                 selectedCustomer={selectedCustomer}
                 selectedStore={selectedStore}

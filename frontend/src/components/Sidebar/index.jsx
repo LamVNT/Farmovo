@@ -99,6 +99,13 @@ const Sidebar = () => {
                                         </Button>
                                     </Link>
                                 </li>
+                                <li className="w-full">
+                                    <Link to="/balance">
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <span className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Phiếu cân bằng
+                                        </Button>
+                                    </Link>
+                                </li>
                             </ul>
                         </Collapse>
 

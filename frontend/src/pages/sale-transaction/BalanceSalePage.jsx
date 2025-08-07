@@ -10,12 +10,15 @@ const BalanceSalePage = () => {
     const [diffProducts, setDiffProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [batches, setBatches] = useState([]);
-
+    // Lấy khách lẻ từ danh sách customers nếu có
+    const [customers, setCustomers] = useState([]);
     useEffect(() => {
         saleTransactionService.getCreateFormData && saleTransactionService.getCreateFormData().then(data => {
             setBatches(data.products || []);
+            setCustomers(data.customers || []);
         });
     }, []);
+    const khachLe = customers.find(c => c.name === 'Khách lẻ') || null;
 
     useEffect(() => {
         if (stocktakeId) {
@@ -27,13 +30,15 @@ const BalanceSalePage = () => {
                         return {
                             ...d,
                             id: d.importTransactionDetailId || d.id || null, // đảm bảo là Long hoặc null
-                            name: d.productName || d.name || '',
+                            name: d.productName || d.name || (batch ? batch.productName : ''),
                             quantity: Math.abs(d.diff),
                             batchCode: d.batchCode,
                             zoneReal: d.zoneReal,
-                            productName: d.productName,
+                            productName: d.productName || d.name || (batch ? batch.productName : ''),
                             productId: d.productId,
-                            unitSalePrice: batch ? batch.unitSalePrice : 0
+                            unitSalePrice: batch ? batch.unitSalePrice : 0,
+                            price: batch ? batch.unitSalePrice : 0,
+                            total: (batch ? batch.unitSalePrice : 0) * Math.abs(d.diff)
                         };
                     }));
                 })
@@ -52,7 +57,7 @@ const BalanceSalePage = () => {
             isBalanceStock
             initialProducts={diffProducts}
             initialNote="Cân bằng kho"
-            initialCustomer={{id: null, name: 'Khách lẻ'}}
+            initialCustomer={khachLe}
             onSuccess={handleSuccess}
             // Gọi đúng API saleTransactionService.createFromBalance
             onSubmit={saleTransactionService.createFromBalance}
