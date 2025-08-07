@@ -58,9 +58,11 @@ export const customerService = {
 
 
     createCustomer: async (customerDto) => {
+        console.log('customerService.createCustomer called with:', customerDto);
         const response = await axios.post(`${import.meta.env.VITE_API_URL}/customer`, customerDto, {
             withCredentials: true,
         });
+        console.log('customerService.createCustomer response:', response.data);
         return response.data;
     },
 

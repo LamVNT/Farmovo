@@ -42,6 +42,40 @@ const UserManagement = () => {
     // Confirm dialog state
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
+    const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
+    const [userToCreate, setUserToCreate] = useState(null);
+    const [stores, setStores] = useState([]);
+    const [formErrors, setFormErrors] = useState({});
+    const [currentUser, setCurrentUser] = useState(null);
+
+    // Fetch current user info
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const response = await userService.getCurrentUser();
+                setCurrentUser(response);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+        fetchCurrentUser();
+    }, []);
+
+    // Fetch stores for confirmation dialog
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/storeList`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                setStores(data);
+            } catch (error) {
+                console.error('Error fetching stores:', error);
+            }
+        };
+        fetchStores();
+    }, []);
 
     // Fetch users whenever searchText, page, rowsPerPage changes
     useEffect(() => {
@@ -70,31 +104,73 @@ const UserManagement = () => {
             roles: [], // Reset roles khi tạo mới
             email: '',
         });
+        setFormErrors({}); // Clear errors when opening create dialog
         setEditMode(false);
         setOpenDialog(true);
     };
 
-    const handleOpenEdit = (user) => {
-        setForm({
-            id: user.id,
-            fullName: user.fullName,
-            username: user.username,
-            password: '',
-            status: user.status,
-            storeId: user.storeId || 1, // Đảm bảo storeId từ dữ liệu
-            createdBy: user.createdBy || 1,
-            createdAt: user.createdAt || '',
-            updatedAt: user.updatedAt || '',
-            storeName: user.storeName || '',
-            roles: user.roles || [], // Lấy roles từ dữ liệu
-            email: user.email || '',
-        });
+    const handleOpenEdit = async (user) => {
+        // Nếu là admin, lấy thông tin user với password
+        if (currentUser && currentUser.roles && currentUser.roles.includes('ROLE_ADMIN')) {
+            try {
+                const userWithPassword = await userService.getUserByIdWithPassword(user.id);
+                setForm({
+                    id: userWithPassword.id,
+                    fullName: userWithPassword.fullName,
+                    username: userWithPassword.username,
+                    password: userWithPassword.password || '',
+                    status: userWithPassword.status,
+                    storeId: userWithPassword.storeId || 1,
+                    createdBy: userWithPassword.createdBy || 1,
+                    createdAt: userWithPassword.createdAt || '',
+                    updatedAt: userWithPassword.updatedAt || '',
+                    storeName: userWithPassword.storeName || '',
+                    roles: userWithPassword.roles || [],
+                    email: userWithPassword.email || '',
+                });
+            } catch (error) {
+                console.error('Error fetching user with password:', error);
+                // Fallback to original user data
+                setForm({
+                    id: user.id,
+                    fullName: user.fullName,
+                    username: user.username,
+                    password: '',
+                    status: user.status,
+                    storeId: user.storeId || 1,
+                    createdBy: user.createdBy || 1,
+                    createdAt: user.createdAt || '',
+                    updatedAt: user.updatedAt || '',
+                    storeName: user.storeName || '',
+                    roles: user.roles || [],
+                    email: user.email || '',
+                });
+            }
+        } else {
+            // Staff không thể xem password
+            setForm({
+                id: user.id,
+                fullName: user.fullName,
+                username: user.username,
+                password: '',
+                status: user.status,
+                storeId: user.storeId || 1,
+                createdBy: user.createdBy || 1,
+                createdAt: user.createdAt || '',
+                updatedAt: user.updatedAt || '',
+                storeName: user.storeName || '',
+                roles: user.roles || [],
+                email: user.email || '',
+            });
+        }
+        setFormErrors({}); // Clear errors when opening edit dialog
         setEditMode(true);
         setOpenDialog(true);
     };
 
     const handleClose = () => {
         setOpenDialog(false);
+        setFormErrors({}); // Clear errors when closing dialog
         // Reset form nếu cần
         setForm((prev) => ({
             ...prev,
@@ -122,25 +198,33 @@ const UserManagement = () => {
     };
 
     const handleSubmit = async () => {
+        // Clear previous errors
+        setFormErrors({});
+        
         // Validation
+        const errors = {};
+        
         if (!form.fullName || form.fullName.trim() === '') {
-            alert('Họ tên không được để trống');
-            return;
+            errors.fullName = 'Họ tên không được để trống';
         }
         if (!form.username || form.username.trim() === '') {
-            alert('Tên đăng nhập không được để trống');
-            return;
+            errors.username = 'Tên đăng nhập không được để trống';
         }
+        // Chỉ validate password cho admin hoặc khi tạo mới
+        const isAdmin = currentUser && currentUser.roles && currentUser.roles.includes('ROLE_ADMIN');
         if (!editMode && (!form.password || form.password.trim() === '')) {
-            alert('Mật khẩu không được để trống khi tạo mới');
-            return;
+            errors.password = 'Mật khẩu không được để trống khi tạo mới';
         }
         if (!form.storeId) {
-            alert('Vui lòng chọn cửa hàng');
-            return;
+            errors.storeId = 'Vui lòng chọn cửa hàng';
         }
         if (!form.roles || form.roles.length === 0) {
-            alert('Vui lòng chọn role');
+            errors.roles = 'Vui lòng chọn role';
+        }
+        
+        // If there are validation errors, show them and return
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
             return;
         }
 
@@ -148,14 +232,22 @@ const UserManagement = () => {
         const userData = {
             fullName: form.fullName.trim(),
             username: form.username.trim(),
-            password: form.password, // Bắt buộc khi tạo mới
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
             email: form.email ? form.email.trim() : null,
         };
-        try {
-            if (editMode) {
+
+        // Only include password if it's provided (for create mode) or if user wants to change it (for edit mode)
+        if (!editMode) {
+            userData.password = form.password; // Required for new users
+        } else if (form.password && form.password.trim() !== '') {
+            userData.password = form.password; // Only include if user wants to change password
+        }
+
+        if (editMode) {
+            // For edit mode, proceed directly
+            try {
                 const updatedUser = await userService.updateUser(form.id, userData);
                 // Refresh danh sách sau khi cập nhật
                 fetchUsers({
@@ -163,19 +255,50 @@ const UserManagement = () => {
                     size: rowsPerPage,
                     username: searchText || undefined,
                 });
-            } else {
-                const newUser = await userService.createUser(userData);
-                // Refresh danh sách sau khi tạo mới và reset về trang đầu
-                fetchUsers({
-                    page: 0, // Reset về trang đầu
-                    size: rowsPerPage,
-                    username: searchText || undefined,
-                });
+                handleClose();
+            } catch (error) {
+                console.error('Lỗi:', error.message);
+                // Parse error message to show specific validation errors
+                if (error.message.includes('Username already exists')) {
+                    setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
+                } else {
+                    alert(`Lỗi: ${error.message}`);
+                }
             }
+        } else {
+            // For create mode, show confirmation dialog
+            setUserToCreate(userData);
+            setCreateConfirmOpen(true);
+        }
+    };
+
+    const handleConfirmCreate = async () => {
+        if (!userToCreate) return;
+        try {
+            const newUser = await userService.createUser(userToCreate);
+            // Refresh danh sách sau khi tạo mới và reset về trang đầu
+            fetchUsers({
+                page: 0, // Reset về trang đầu
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
             handleClose();
         } catch (error) {
             console.error('Lỗi:', error.message);
-            alert(`Lỗi: ${error.message}`);
+            // Parse error message to show specific validation errors
+            if (error.message.includes('Username already exists')) {
+                setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
+                setCreateConfirmOpen(false);
+                setUserToCreate(null);
+                setOpenDialog(true); // Reopen dialog to show error
+            } else {
+                alert(`Lỗi: ${error.message}`);
+            }
+        } finally {
+            if (!error?.message?.includes('Username already exists')) {
+                setCreateConfirmOpen(false);
+                setUserToCreate(null);
+            }
         }
     };
 
@@ -251,6 +374,9 @@ const UserManagement = () => {
                 form={form}
                 setForm={setForm}
                 editMode={editMode}
+                errors={formErrors}
+                formErrors={formErrors}
+                currentUserRole={currentUser?.roles}
             />
             <ConfirmDialog
                 open={confirmOpen}
@@ -259,6 +385,15 @@ const UserManagement = () => {
                 title="Xác nhận xóa"
                 content="Bạn có chắc chắn muốn xóa người dùng này?"
                 confirmText="Xóa"
+                cancelText="Hủy"
+            />
+            <ConfirmDialog
+                open={createConfirmOpen}
+                onClose={() => setCreateConfirmOpen(false)}
+                onConfirm={handleConfirmCreate}
+                title="Xác nhận tạo người dùng"
+                content={`Bạn có chắc chắn muốn tạo người dùng mới với thông tin sau?\n\nHọ tên: ${userToCreate?.fullName}\nTên đăng nhập: ${userToCreate?.username}\nEmail: ${userToCreate?.email || 'N/A'}\nCửa hàng: ${stores.find(s => s.id === userToCreate?.storeId)?.storeName || 'N/A'}\nRole: ${userToCreate?.roles?.join(', ')}\nTrạng thái: ${userToCreate?.status ? 'Hoạt động' : 'Không hoạt động'}`}
+                confirmText="Tạo"
                 cancelText="Hủy"
             />
         </div>

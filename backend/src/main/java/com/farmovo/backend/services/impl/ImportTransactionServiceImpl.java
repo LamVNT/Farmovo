@@ -126,6 +126,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         }
 
         try {
+            // Initialize details list if it's null
+            if (transaction.getDetails() == null) {
+                transaction.setDetails(new ArrayList<>());
+            }
+            
             // Clear old details and add new ones
             transaction.getDetails().clear();
             log.debug("Cleared old details from transaction");
@@ -494,7 +499,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     }
 
     private void updateProductStockIfComplete(ImportTransaction transaction) {
-        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE) {
+        if (transaction.getStatus() == ImportTransactionStatus.COMPLETE && transaction.getDetails() != null) {
             for (ImportTransactionDetail detail : transaction.getDetails()) {
                 Product product = detail.getProduct();
                 int updatedQuantity = product.getProductQuantity() + detail.getImportQuantity();
@@ -588,6 +593,11 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);
         if (isCreate && userId != null) transaction.setCreatedBy(userId);
 
+        // Initialize details list if it's null
+        if (transaction.getDetails() == null) {
+            transaction.setDetails(new ArrayList<>());
+        }
+
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (CreateImportTransactionRequestDto.DetailDto d : dto.getDetails()) {
             Product product = getProduct(d.getProductId());
@@ -602,13 +612,15 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     }
 
     private void generateDetailCodes(ImportTransaction transaction) {
-        for (ImportTransactionDetail detail : transaction.getDetails()) {
-            if (detail.getName() == null || detail.getName().isEmpty()) {
-                String code = String.format("LH%06d", detail.getId());
-                detail.setName(code);
+        if (transaction.getDetails() != null) {
+            for (ImportTransactionDetail detail : transaction.getDetails()) {
+                if (detail.getName() == null || detail.getName().isEmpty()) {
+                    String code = String.format("LH%06d", detail.getId());
+                    detail.setName(code);
+                }
             }
+            importTransactionRepository.save(transaction);
         }
-        importTransactionRepository.save(transaction);
     }
 
     private void handleCompleteStatus(ImportTransaction transaction) {

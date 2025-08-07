@@ -9,12 +9,19 @@ const MainLayout = ({children}) => {
     return (
         <section className="main">
             <Header/>
-            <div className="contentMain flex">
+            <div className="contentMain flex" style={{ paddingTop: '100px' }}>
                 <div
-                    className={`overflow-hidden sidebarWrapper ${isSidebarOpen ? 'w-[18%]' : 'w-[0px] opacity-0'} transition-all`}>
+                    className={`overflow-hidden sidebarWrapper transition-all`}
+                    style={{
+                        width: isSidebarOpen ? '300px' : '0px',
+                        opacity: isSidebarOpen ? 1 : 0
+                    }}>
                     <Sidebar/>
                 </div>
-                <div className={`contentRight py-4 px-5 ${isSidebarOpen ? 'w-[82%]' : 'w-[100%]'} transition-all`}>
+                <div className={`contentRight py-4 px-5 transition-all`}
+                    style={{
+                        width: isSidebarOpen ? 'calc(100% - 300px)' : '100%'
+                    }}>
                     {children}
                 </div>
             </div>

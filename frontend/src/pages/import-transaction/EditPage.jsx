@@ -468,29 +468,57 @@ const EditPage = () => {
 
     const handleQuantityChange = (id, delta) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const newQuantity = Math.max(1, p.quantity + delta);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, p.quantity + delta),
-                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handlePriceChange = (id, newPrice) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0);
+                    
+                    return {
                         ...p,
                         price: newPrice,
-                        total: newPrice * (p.quantity || 0),
-                    }
-                    : p
-            )
+                        total: newPrice * quantityInQua,
+                    };
+                }
+                return p;
+            })
+        );
+    };
+
+    const handleUnitChange = (id, newUnit) => {
+        setSelectedProducts((prev) =>
+            prev.map((p) => {
+                if (p.id === id) {
+                    let newQuantity = 1; // Reset về 1 khi đổi đơn vị
+                    const quantityInQua = newUnit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
+                        ...p,
+                        unit: newUnit,
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua
+                    };
+                }
+                return p;
+            })
         );
     };
 
@@ -810,7 +838,7 @@ const EditPage = () => {
                         size="small"
                         value={params.row.unit || 'quả'}
                         onChange={(e) => {
-                            // Handle unit change logic here
+                            handleUnitChange(params.row.id, e.target.value);
                         }}
                         onClick={e => e.stopPropagation()}
                         sx={{
@@ -870,6 +898,11 @@ const EditPage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -902,6 +935,11 @@ const EditPage = () => {
         columnVisibility['Giá bán'] && {
             field: 'salePrice',
             headerName: 'Giá bán',
+            renderHeader: () => (
+                <span>
+                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             renderCell: (params) => (
                 <div className="flex items-center justify-center h-full">
@@ -937,15 +975,23 @@ const EditPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
+                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
+                const unit = row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                return price * quantityInQua;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
+                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
+                const unit = params.row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                const total = price * quantityInQua;
                 return (
                     <div className="text-right w-full font-semibold text-green-600">
                         {formatCurrency(total)}
@@ -1402,7 +1448,15 @@ const EditPage = () => {
     ].filter(Boolean);
 
     // Calculate total
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
+        const quantity = parseInt(p.quantity) || 0;
+        const unit = p.unit || 'quả';
+        
+        // Quy đổi số lượng về quả để tính thành tiền
+        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+        return sum + (price * quantityInQua);
+    }, 0);
 
     if (loading) {
         return (

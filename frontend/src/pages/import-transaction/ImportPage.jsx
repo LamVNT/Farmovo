@@ -391,43 +391,57 @@ const ImportPage = () => {
 
     const handleQuantityChange = (id, delta) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const newQuantity = Math.max(1, p.quantity + delta);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, p.quantity + delta),
-                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handleQuantityInputChange = (id, newQuantity) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const quantity = Math.max(1, newQuantity);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, newQuantity),
-                        total: (p.price || 0) * Math.max(1, newQuantity),
-                    }
-                    : p
-            )
+                        quantity: quantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handlePriceChange = (id, newPrice) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0);
+                    
+                    return {
                         ...p,
                         price: newPrice,
-                        total: newPrice * (p.quantity || 0),
-                    }
-                    : p
-            )
+                        total: newPrice * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
@@ -448,21 +462,14 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
-                    let newQuantity = p.quantity;
-                    // Chuyển đổi số lượng khi đổi đơn vị
-                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
-                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
-                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                        // Từ khay sang quả: nhân với 25
-                        newQuantity = (p.quantity || 1) * 25;
-                    }
+                    let newQuantity = 1; // Reset về 1 khi đổi đơn vị
+                    const quantityInQua = newUnit === 'khay' ? newQuantity * 30 : newQuantity;
                     
                     return {
                         ...p,
                         unit: newUnit,
                         quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity
+                        total: (p.price || 0) * quantityInQua
                     };
                 }
                 return p;
@@ -545,7 +552,7 @@ const ImportPage = () => {
     };
 
     const formatExpireDateForBackend = (dateStr) => {
-        if (!dateStr) return '';
+        if (!dateStr) return null;
         // Nếu đã có T, giữ nguyên
         if (dateStr.includes('T')) return dateStr;
         return dateStr + 'T00:00:00';
@@ -764,6 +771,11 @@ const ImportPage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
@@ -800,6 +812,11 @@ const ImportPage = () => {
         columnVisibility['Giá bán'] && {
             field: 'salePrice',
             headerName: 'Giá bán',
+            renderHeader: () => (
+                <span>
+                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
@@ -839,15 +856,23 @@ const ImportPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
+                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
+                const unit = row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                return price * quantityInQua;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
+                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
+                const unit = params.row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                const total = price * quantityInQua;
                 return (
                     <div className="text-right w-full">
                         {formatCurrency(total)}
@@ -1310,7 +1335,15 @@ const ImportPage = () => {
     };
 
     // Tổng tiền hàng
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
+        const quantity = parseInt(p.quantity) || 0;
+        const unit = p.unit || 'quả';
+        
+        // Quy đổi số lượng về quả để tính thành tiền
+        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+        return sum + (price * quantityInQua);
+    }, 0);
 
     // Xử lý mở dialog tổng kết
     const handleShowSummary = async (status) => {
@@ -1358,6 +1391,44 @@ const ImportPage = () => {
         setLoading(true);
         setError(null);
         setSuccess(null);
+        
+        // Validate required fields
+        if (!selectedSupplier) {
+            setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            setLoading(false);
+            return;
+        }
+        
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
+            setLoading(false);
+            return;
+        }
+        
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
+            setLoading(false);
+            return;
+        }
+        
+        // Validate product data
+        for (let i = 0; i < selectedProducts.length; i++) {
+            const product = selectedProducts[i];
+            if (!product.productId) {
+                setError(`Sản phẩm thứ ${i + 1} không có ID hợp lệ`);
+                setLoading(false);
+                return;
+            }
+            if (!product.quantity || product.quantity <= 0) {
+                setError(`Sản phẩm "${product.name}" phải có số lượng lớn hơn 0`);
+                setLoading(false);
+                return;
+            }
+        }
+        
         try {
             const importData = {
                 name: nextImportCode,
@@ -1366,7 +1437,7 @@ const ImportPage = () => {
                 staffId: currentUser?.id || 1,
                 importTransactionNote: note,
                 paidAmount: paidAmount,
-                createdBy: currentUser?.id, // Thêm dòng này
+                createdBy: currentUser?.id,
                 details: selectedProducts.map(product => ({
                     productId: product.productId,
                     importQuantity: product.quantity,
@@ -1378,6 +1449,8 @@ const ImportPage = () => {
                 })),
                 status: summaryData.status,
             };
+            
+            console.log('Sending import data:', importData);
             await importTransactionService.create(importData);
             setSuccess('Tạo phiếu nhập hàng thành công!');
             setSelectedProducts([]);
@@ -1386,7 +1459,9 @@ const ImportPage = () => {
             setShowSummaryDialog(false);
             setSummaryData(null);
         } catch (err) {
-            setError('Không thể tạo phiếu nhập hàng');
+            console.error('Error creating import transaction:', err);
+            console.error('Error response:', err.response?.data);
+            setError('Không thể tạo phiếu nhập hàng: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -1453,47 +1528,87 @@ const ImportPage = () => {
                         </Button>
                         
                         <div className="flex items-center gap-3">
-                            <div className="relative w-80">
-                        <TextField
-                            size="small"
-                            fullWidth
-                            placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
-                            value={searchTerm}
-                            onChange={handleSearchChange}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
-                            variant="outlined"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500" />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{
-                                background: '#fff',
-                                borderRadius: 2,
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 2,
-                                    boxShadow: 'none',
-                                    '& fieldset': {
-                                        borderColor: '#bcd0ee',
-                                        borderWidth: 2,
-                                    },
-                                    '&:hover fieldset': {
-                                        borderColor: '#1976d2',
-                                    },
-                                    '&.Mui-focused fieldset': {
-                                        borderColor: '#1976d2',
-                                        boxShadow: '0 0 0 2px #e3f0ff',
-                                    },
-                                },
-                                '& input': {
-                                    fontWeight: 500,
-                                    fontSize: '1rem',
-                                },
-                            }}
-                        />
+                            <div className="relative w-96">
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    onFocus={() => setIsSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
+                                    variant="outlined"
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <FaSearch className="text-gray-500" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        background: '#fff',
+                                        borderRadius: 2,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: 2,
+                                            boxShadow: 'none',
+                                            '& fieldset': {
+                                                borderColor: '#bcd0ee',
+                                                borderWidth: 2,
+                                            },
+                                            '&:hover fieldset': {
+                                                borderColor: '#1976d2',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                borderColor: '#1976d2',
+                                                boxShadow: '0 0 0 2px #e3f0ff',
+                                            },
+                                        },
+                                        '& input': {
+                                            fontWeight: 500,
+                                            fontSize: '1rem',
+                                        },
+                                    }}
+                                />
+                                
+                                {/* Search Dropdown - Fixed positioning */}
+                                {(isSearchFocused || searchTerm.trim() !== '') && (
+                                    <div 
+                                        className="absolute top-full mt-1 left-0 right-0 z-50 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 9999,
+                                            marginTop: '4px',
+                                            minWidth: '384px'
+                                        }}
+                                    >
+                                        {filteredProducts.length > 0 ? (
+                                            filteredProducts.map((product, index) => (
+                                                <div
+                                                    key={product.id || index}
+                                                    onClick={() => handleSelectProduct(product)}
+                                                    onMouseEnter={() => setActiveIndex(index)}
+                                                    onMouseLeave={() => setActiveIndex(-1)}
+                                                    className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
+                                                        ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
+                                                    `}
+                                                >
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                        <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                    </div>
+                                                    {product.price && (
+                                                        <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             
                             <Tooltip title="Thêm từ nhóm hàng">
@@ -1528,34 +1643,6 @@ const ImportPage = () => {
                                     <AddIcon />
                                 </IconButton>
                             </Tooltip>
-                            
-                            {(isSearchFocused || searchTerm.trim() !== '') && (
-                                <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-96 max-w-xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200">
-                                    {filteredProducts.length > 0 ? (
-                                        filteredProducts.map((product, index) => (
-                                            <div
-                                                key={product.id || index}
-                                                onClick={() => handleSelectProduct(product)}
-                                                onMouseEnter={() => setActiveIndex(index)}
-                                                onMouseLeave={() => setActiveIndex(-1)}
-                                                className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
-                                                    ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
-                                                `}
-                                            >
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                                    <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
-                                                </div>
-                                                {product.price && (
-                                                    <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -1575,14 +1662,14 @@ const ImportPage = () => {
 
                 <div style={{ height: 400, width: '100%' }}>
                     {isClient ? (
-                    <DataGrid
-                        rows={selectedProducts}
-                        columns={columns}
-                        pageSize={5}
-                        rowsPerPageOptions={[5]}
-                        disableSelectionOnClick
-                        getRowId={(row) => row.id}
-                        sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
+                        <DataGrid
+                            rows={selectedProducts}
+                            columns={columns}
+                            pageSize={5}
+                            rowsPerPageOptions={[5]}
+                            disableSelectionOnClick
+                            getRowId={(row) => row.id}
+                            sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
                             componentsProps={{
                                 basePopper: {
                                     sx: {
@@ -1610,7 +1697,6 @@ const ImportPage = () => {
                             hideFooterPagination={false}
                             hideFooterSelectedRowCount={false}
                             loading={false}
-                            rowCount={selectedProducts.length}
                             rowHeight={52}
                             rowSpacingType="border"
                             showCellVerticalBorder={false}
@@ -1675,6 +1761,7 @@ const ImportPage = () => {
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
                 unit={defaultUnit}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}

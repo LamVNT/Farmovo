@@ -938,16 +938,26 @@ const SaleTransactionPage = () => {
                         ) : (
                             <table style={tableStyles}>
                                 <colgroup>
-                                    <col style={{ width: 40 }} /> {/* Checkbox */}
-                                    <col style={{ width: 60 }} /> {/* STT */}
-                                    <col style={{ width: 160 }} /> {/* Mã phiếu bán */}
-                                    <col style={{ width: 160 }} /> {/* Khách hàng */}
-                                    <col style={{ width: 150 }} /> {/* Cửa hàng */}
-                                    <col style={{ width: 170 }} /> {/* Thời gian */}
-                                    <col style={{ width: 130 }} /> {/* Tổng tiền */}
-                                    <col style={{ width: 130 }} /> {/* Đã thanh toán */}
-                                    <col style={{ width: 120 }} /> {/* Trạng thái */}
-                                    <col style={{ width: 80 }} /> {/* Hành động */}
+                                    {/* Checkbox */}
+                                    <col style={{ width: 40 }} />
+                                    {/* STT */}
+                                    <col style={{ width: 60 }} />
+                                    {/* Mã phiếu bán */}
+                                    <col style={{ width: 160 }} />
+                                    {/* Khách hàng */}
+                                    <col style={{ width: 160 }} />
+                                    {/* Cửa hàng */}
+                                    <col style={{ width: 150 }} />
+                                    {/* Thời gian */}
+                                    <col style={{ width: 170 }} />
+                                    {/* Tổng tiền */}
+                                    <col style={{ width: 130 }} />
+                                    {/* Đã thanh toán */}
+                                    <col style={{ width: 130 }} />
+                                    {/* Trạng thái */}
+                                    <col style={{ width: 120 }} />
+                                    {/* Hành động */}
+                                    <col style={{ width: 80 }} />
                                 </colgroup>
                                 <thead>
                                     <tr>

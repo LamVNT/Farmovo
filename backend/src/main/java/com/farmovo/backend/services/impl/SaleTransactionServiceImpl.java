@@ -5,7 +5,9 @@ import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.SaleTransactionResponseDto;
 import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.exceptions.SaleTransactionNotFoundException;
+
 import java.io.FileOutputStream;
+
 import com.farmovo.backend.exceptions.TransactionStatusException;
 import com.farmovo.backend.exceptions.CustomerNotFoundException;
 import com.farmovo.backend.exceptions.StoreNotFoundException;
@@ -73,6 +75,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final SaleTransactionValidator saleTransactionValidator;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
         log.debug("Getting product response details for product ID: {}", productId);
@@ -105,6 +108,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
+            log.info("Transaction status is COMPLETE, deducting stock from products");
+            deductStockFromProduct(dto.getDetail());
         }
 
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
@@ -141,6 +146,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Updated transaction status is COMPLETE, deducting stock from batches");
             deductStockFromBatch(dto.getDetail());
+            log.info("Updated transaction status is COMPLETE, deducting stock from products");
+            deductStockFromProduct(dto.getDetail());
         }
 
         saleTransactionRepository.save(transaction);
@@ -187,7 +194,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     @LogStatusChange
     public void complete(Long id) {
         var transaction = saleTransactionRepository.findById(id)
-            .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
+                .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
 
         if (transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
             log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
@@ -199,6 +206,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         if (!detailList.isEmpty()) {
             log.info("Transaction completed, deducting stock from {} batches", detailList.size());
             deductStockFromBatch(detailList);
+            log.info("Transaction completed, deducting stock from {} products", detailList.size());
+            deductStockFromProduct(detailList);
         }
         transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
@@ -571,11 +580,20 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
             log.debug("Processing batch ID: {}, product ID: {}, quantity: {}",
                     item.getId(), item.getProId(), item.getQuantity());
 
-            ImportTransactionDetail batch = importTransactionDetailRepository.findById(item.getId())
-                    .orElseThrow(() -> {
-                        log.error("Batch not found with ID: {}", item.getId());
-                        return new ResourceNotFoundException("Batch not found with ID: " + item.getId());
-                    });
+            ImportTransactionDetail batch = null;
+
+            if (item.getId() != null && String.valueOf(item.getId()).matches("\\d+")) {
+                batch = importTransactionDetailRepository.findById(item.getId()).orElse(null);
+            }
+
+            if (batch == null && item.getBatchCode() != null) {
+                batch = importTransactionDetailRepository.findByName(item.getBatchCode());
+            }
+
+            if (batch == null) {
+                throw new ResourceNotFoundException("Batch not found with ID or batchCode: " + item.getId() + " / " + item.getBatchCode());
+            }
+
 
             if (!batch.getProduct().getId().equals(item.getProId())) {
                 log.error("Batch ID: {} does not belong to product ID: {}", item.getId(), item.getProId());
@@ -589,13 +607,41 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                         " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
             }
 
-            // Trừ số lượng trong batch (ImportTransactionDetail)
             int oldQuantity = batch.getRemainQuantity();
             batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
             importTransactionDetailRepository.save(batch);
 
             log.info("Deducted {} units from batch ID: {}, remaining: {} (was: {})",
                     item.getQuantity(), item.getId(), batch.getRemainQuantity(), oldQuantity);
+
+        }
+    }
+
+    private void deductStockFromProduct(List<ProductSaleResponseDto> items) {
+        log.info("Deducting stock from {} products", items.size());
+
+        for (ProductSaleResponseDto item : items) {
+            log.debug("Processing product ID: {}, quantity: {}", item.getProId(), item.getQuantity());
+
+            Product product = productRepository.findById(item.getProId())
+                    .orElseThrow(() -> {
+                        log.error("Product not found with ID: {}", item.getProId());
+                        return new ResourceNotFoundException("Product not found with ID: " + item.getProId());
+                    });
+
+            if (product.getProductQuantity() < item.getQuantity()) {
+                log.error("Insufficient stock in product ID: {}, available: {}, required: {}",
+                        item.getProId(), product.getProductQuantity(), item.getQuantity());
+                throw new BadRequestException("Not enough stock in product ID: " + item.getProId() +
+                        " (available=" + product.getProductQuantity() + ", required=" + item.getQuantity() + ")");
+            }
+
+            int oldProductQuantity = product.getProductQuantity();
+            product.setProductQuantity(product.getProductQuantity() - item.getQuantity());
+            productRepository.save(product);
+
+            log.info("Deducted {} units from product ID: {}, remaining: {} (was: {})",
+                    item.getQuantity(), item.getProId(), product.getProductQuantity(), oldProductQuantity);
         }
     }
 
@@ -608,7 +654,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                 mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                 detailList = mapper.readValue(
                         detailJson,
-                        new TypeReference<List<ProductSaleResponseDto>>() {}
+                        new TypeReference<List<ProductSaleResponseDto>>() {
+                        }
                 );
             }
         } catch (JsonProcessingException e) {

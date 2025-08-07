@@ -6,6 +6,7 @@ import {Toaster} from "react-hot-toast";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
+import { AuthorizationProvider } from './contexts/AuthorizationContext';
 
 const MyContext = createContext();
 
@@ -27,9 +28,10 @@ function App() {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
-            <MyContext.Provider value={values}>
-                <RouterProvider router={router} />
-                <Toaster
+            <AuthorizationProvider>
+                <MyContext.Provider value={values}>
+                    <RouterProvider router={router} />
+                    <Toaster
                     position="top-center"
                     reverseOrder={false}
                     toastOptions={{
@@ -58,7 +60,8 @@ function App() {
                         },
                     }}
                 />
-            </MyContext.Provider>
+                </MyContext.Provider>
+            </AuthorizationProvider>
         </LocalizationProvider>
     );
 }

@@ -25,6 +25,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
@@ -55,9 +57,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         Stocktake stocktake = createStocktakeEntity(requestDto, userId, enriched);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         // GỘP LOGIC: Nếu tạo mới với status COMPLETED thì cân bằng kho luôn
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(savedStocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(savedStocktake);
+        // }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -83,6 +85,25 @@ public class StocktakeServiceImpl implements StocktakeService {
     }
 
     @Override
+    public Page<StocktakeResponseDto> searchStocktakes(String storeId, String status, String note, String fromDate, String toDate, Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("User not found"));
+        String role = user.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("");
+        String effectiveStoreId = storeId;
+        if ("STAFF".equals(role)) {
+            if (user.getStore() == null) {
+                throw new ValidationException("User does not have a store assigned");
+            }
+            effectiveStoreId = String.valueOf(user.getStore().getId());
+        }
+        Specification<Stocktake> spec = buildStocktakeSpecification(effectiveStoreId, status, note, fromDate, toDate);
+        return stocktakeRepository.findAll(spec, pageable).map(this::buildStocktakeResponseDto);
+    }
+
+    @Override
     public StocktakeResponseDto getStocktakeById(Long id) {
         Stocktake stocktake = stocktakeRepository.findById(id)
                 .orElseThrow(() -> new ValidationException("Stocktake not found"));
@@ -99,9 +120,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         validateStatusTransition(stocktake.getStatus(), StocktakeStatus.valueOf(status), user);
         stocktake.setStatus(StocktakeStatus.valueOf(status));
         // ENRICH: Nếu chuyển sang COMPLETED thì cập nhật remainQuantity và isCheck cho ImportTransactionDetail
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(stocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(stocktake);
+        // }
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         return buildStocktakeResponseDto(savedStocktake);
     }
@@ -132,9 +153,9 @@ public class StocktakeServiceImpl implements StocktakeService {
         updateStocktakeDetails(stocktake, rawDetails, requestDto);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         // GỘP LOGIC: Nếu cập nhật với status COMPLETED thì cân bằng kho luôn
-        if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-            updateImportDetailsForCompletedStocktake(savedStocktake);
-        }
+        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
+        //     updateImportDetailsForCompletedStocktake(savedStocktake);
+        // }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -329,22 +350,22 @@ public class StocktakeServiceImpl implements StocktakeService {
                                                                  String fromDate, String toDate) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            if (storeId != null) {
+            if (storeId != null && !storeId.isEmpty()) {
                 predicates.add(cb.equal(root.get("store").get("id"), Long.valueOf(storeId)));
             }
-            if (status != null) {
+            if (status != null && !status.isEmpty()) {
                 predicates.add(cb.equal(root.get("status"), StocktakeStatus.valueOf(status)));
             }
-            if (note != null) {
+            if (note != null && !note.isEmpty()) {
                 predicates.add(cb.like(root.get("stocktakeNote"), "%" + note + "%"));
             }
             java.time.ZoneId zone = java.time.ZoneId.systemDefault();
-            if (fromDate != null) {
+            if (fromDate != null && !fromDate.isEmpty()) {
                 java.time.LocalDate from = java.time.LocalDate.parse(fromDate);
                 java.time.Instant fromInstant = from.atStartOfDay(zone).toInstant();
                 predicates.add(cb.greaterThanOrEqualTo(root.get("stocktakeDate"), fromInstant));
             }
-            if (toDate != null) {
+            if (toDate != null && !toDate.isEmpty()) {
                 java.time.LocalDate to = java.time.LocalDate.parse(toDate);
                 java.time.Instant toInstant = to.atTime(23, 59, 59).atZone(zone).toInstant();
                 predicates.add(cb.lessThanOrEqualTo(root.get("stocktakeDate"), toInstant));

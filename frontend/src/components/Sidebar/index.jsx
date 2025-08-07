@@ -20,10 +20,13 @@ import {FaBoxOpen, FaExclamationTriangle, FaClock} from "react-icons/fa";
 import FarmovoLogo from '../../assets/Farmovo.png';
 import {FaStore} from "react-icons/fa6";
 import {MdHistory} from "react-icons/md";
+import PermissionGate, { AdminOnly } from "../PermissionGate.jsx";
+import { useAuth } from "../../contexts/AuthorizationContext";
 
 
 const Sidebar = () => {
     const [submenuIndex, setSubmenuIndex] = useState(null)
+    
     const isOpenSubMenu = (index) => {
         if (submenuIndex === index) {
             setSubmenuIndex(null);
@@ -34,15 +37,20 @@ const Sidebar = () => {
 
     const navigate = useNavigate();
     const context = useContext(MyContext);
+    const { logout } = useAuth();
 
     const handleLogout = async () => {
         try {
             await api.post("/logout", {}, {withCredentials: true}); // Gọi backend để xoá cookie
-            localStorage.removeItem("user"); // ✅ Gợi ý #4: Xoá user info
+            logout(); // Clear AuthorizationContext - this also clears localStorage
             context.setIslogin(false); // Cập nhật lại state
             navigate("/login"); // Chuyển hướng
         } catch (error) {
             console.error("Logout error:", error);
+            // Even if logout API fails, clear local state
+            logout();
+            context.setIslogin(false);
+            navigate("/login");
         }
     };
 
@@ -50,7 +58,12 @@ const Sidebar = () => {
     return (
         <>
             <div
-                className={`sidebar fixed top-0 left-0 bg-[#fff] h-full border-r border-[rgba(0,0,0,0.1)] py-2 px-4 w-[${context.isSidebarOpen === true ? '18%' : '0px'}]`}>
+                className={`sidebar fixed top-0 left-0 bg-[#fff] border-r border-[rgba(0,0,0,0.1)] py-2 px-4 z-50`}
+                style={{ 
+                    height: 'calc(100vh - 20px)',
+                    width: context.isSidebarOpen ? '300px' : '0px',
+                    transition: 'width 0.3s ease'
+                }}>
                 <div className="py-2 w-full">
                     <Link to="/">
                         <img src={FarmovoLogo} alt="Farmovo Logo" className="w-[120px]"/>
@@ -103,15 +116,17 @@ const Sidebar = () => {
                         </Collapse>
 
                     </li>
-                    <li>
-                        <Link to="/users">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                 !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FiUsers className="text-[20px]"/> <span>Người dùng</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    <AdminOnly>
+                        <li>
+                            <Link to="/users">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                     !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <FiUsers className="text-[20px]"/> <span>Người dùng</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    </AdminOnly>
                     <li>
                         <Link to="/customers">
                             <Button
@@ -131,40 +146,13 @@ const Sidebar = () => {
                         </Link>
                     </li>
                     <li>
-                        <Button
-                            className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                            !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]"
-                            onClick={() => isOpenSubMenu(3)}
-                        >
-                            <RiProductHuntLine className="text-[20px]"/> <span>Sản phẩm</span>
-                            <span className="ml-auto block w-[30px] h-[30px] flex items-center justify-center">
-            <FaAngleDown className={`transition-all ${submenuIndex === 3 ? 'rotate-180' : ''}`}/>
-        </span>
-                        </Button>
-                        <Collapse isOpened={submenuIndex === 3}>
-                            <ul className="w-full">
-                                <li className="w-full">
-                                    <Link to="/product">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start
-                                            !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Danh
-                                            sách sản phẩm
-                                        </Button>
-                                    </Link>
-                                </li>
-                                <li className="w-full">
-                                    <Link to="/product/add">
-                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize
-                                         !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
-                                        <span
-                                            className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Thêm
-                                            sản phẩm
-                                        </Button>
-                                    </Link>
-                                </li>
-                            </ul>
-                        </Collapse>
+                        <Link to="/product">
+                            <Button
+                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                <RiProductHuntLine className="text-[20px]"/> <span>Sản phẩm</span>
+                            </Button>
+                        </Link>
                     </li>
                     <li>
                         <Link to="/category">
@@ -175,15 +163,17 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    <li>
-                        <Link to="/store">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <FaStore className="text-[20px]"/> <span>Cửa hàng</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    <AdminOnly>
+                        <li>
+                            <Link to="/store">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <FaStore className="text-[20px]"/> <span>Cửa hàng</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    </AdminOnly>
                     <li>
                         <Link to="/stocktake">
                             <Button
@@ -193,24 +183,28 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    <li>
-                        <Link to="/zone">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdMap className="text-[20px]"/> <span>Khu vực</span>
-                            </Button>
-                        </Link>
-                    </li>
-                    <li>
-                        <Link to="/change-status-log">
-                            <Button
-                                className="w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
-                                <MdHistory className="text-[20px]"/> <span>Lịch sử thay đổi</span>
-                            </Button>
-                        </Link>
-                    </li>
+                    <AdminOnly>
+                        <li>
+                            <Link to="/zone">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <MdMap className="text-[20px]"/> <span>Khu vực</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    </AdminOnly>
+                    <AdminOnly>
+                        <li>
+                            <Link to="/change-status-log">
+                                <Button
+                                    className="w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                    !text-[rgba(0,0,0,0.8)] !font-[600] items-center !py-2 hover:!bg-[#f1f1f1]">
+                                    <MdHistory className="text-[20px]"/> <span>Lịch sử thay đổi</span>
+                                </Button>
+                            </Link>
+                        </li>
+                    </AdminOnly>
                     <li>
                         <Link to="/reports/dashboard">
                             <Button

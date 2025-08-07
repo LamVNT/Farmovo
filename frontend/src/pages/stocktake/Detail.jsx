@@ -39,6 +39,11 @@ const StockTakeDetailPage = () => {
         }
     }, [id, detail, setDetail]);
 
+    // Sau khi lấy detail
+    const hasDiff = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => d.diff !== 0)
+        : false;
+
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">Đang tải chi tiết...</Typography>
@@ -58,6 +63,17 @@ const StockTakeDetailPage = () => {
                     size="medium"
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
+                {/* Nút Cân bằng kho */}
+                {detail.status === 'COMPLETED' && hasDiff && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                    onClick={() => navigate(`/sale/balance/${detail.id}`)}
+                  >
+                    Cân bằng kho (Tạo phiếu bán)
+                  </Button>
+                )}
             </Box>
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 2 : 6, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <Box>

@@ -14,6 +14,17 @@ export const userService = {
         }
     },
 
+    getAllUsersWithPassword: async () => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/userListWithPassword`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy danh sách người dùng');
+        }
+    },
+
     getUserById: async (id) => {
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
@@ -25,9 +36,20 @@ export const userService = {
         }
     },
 
+    getUserByIdWithPassword: async (id) => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}/withPassword`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng');
+        }
+    },
+
     getCurrentUser: async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/staff/me`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/me`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -60,7 +82,7 @@ export const userService = {
 
     updateCurrentUser: async (userData) => {
         try {
-            const response = await axios.put(`${import.meta.env.VITE_API_URL}/staff/me`, userData, {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/me`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;

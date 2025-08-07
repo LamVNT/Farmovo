@@ -1,5 +1,5 @@
 // ======================= StockTakePage.jsx =======================
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     Button,
     Table,
@@ -28,6 +28,7 @@ import {useNavigate} from "react-router-dom";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useStocktake from "../../hooks/useStocktake";
+import { debounce } from "lodash";
 
 const StockTakePage = () => {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -42,25 +43,51 @@ const StockTakePage = () => {
         setDateFilter,
         noteFilter,
         setNoteFilter,
-        codeFilter,
-        setCodeFilter,
-        filteredStocktakes,
-        paginatedStocktakes,
+        stocktakes,
         page,
         setPage,
         rowsPerPage,
         setRowsPerPage,
+        total,
         actionLoading,
         confirmDialog,
         setConfirmDialog,
         snackbar,
         setSnackbar,
-        handleCancel, // Lấy trực tiếp từ hook
+        handleCancel,
     } = useStocktake(user, userRole);
 
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+    const [codeSearch, setCodeSearch] = useState("");
+    const [noteSearch, setNoteSearch] = useState("");
+    // Debounce cho search
+    const [debouncedCode, setDebouncedCode] = useState("");
+    const [debouncedNote, setDebouncedNote] = useState("");
+    useEffect(() => {
+        const handler = debounce(() => {
+            setDebouncedCode(codeSearch);
+            setDebouncedNote(noteSearch);
+        }, 400);
+        handler();
+        return () => handler.cancel();
+    }, [codeSearch, noteSearch]);
+    // Filter local theo mã kiểm kê và ghi chú
+    const filteredStocktakes = useMemo(() => {
+        return stocktakes.filter(st => {
+            let matchCode = true;
+            if (debouncedCode.trim()) {
+                matchCode = (st.name || "").toLowerCase().includes(debouncedCode.toLowerCase());
+            }
+            let matchNote = true;
+            if (debouncedNote.trim()) {
+                matchNote = (st.stocktakeNote || "").toLowerCase().includes(debouncedNote.toLowerCase());
+            }
+            return matchCode && matchNote;
+        });
+    }, [stocktakes, debouncedCode, debouncedNote]);
 
     // ✅ Ưu tiên lấy tên kho theo thứ tự
     let userStoreName = "";
@@ -98,9 +125,9 @@ const StockTakePage = () => {
                     <div className="flex gap-4 items-center flex-wrap">
                         <TextField
                             size="small"
-                            label="Mã kiểm kê"
-                            value={codeFilter}
-                            onChange={e => { setCodeFilter(e.target.value); setPage(0); }}
+                            label="Lọc theo mã kiểm kê"
+                            value={codeSearch}
+                            onChange={e => setCodeSearch(e.target.value)}
                             sx={{ minWidth: 150, background: '#fff', borderRadius: 2 }}
                         />
                         {userRole === "STAFF" && (
@@ -124,8 +151,8 @@ const StockTakePage = () => {
                         <TextField
                             size="small"
                             label="Lọc theo ghi chú"
-                            value={noteFilter}
-                            onChange={e => { setNoteFilter(e.target.value); setPage(0); }}
+                            value={noteSearch}
+                            onChange={e => setNoteSearch(e.target.value)}
                             sx={{ minWidth: 150, background: '#fff', borderRadius: 2 }}
                         />
                         <TextField
@@ -176,12 +203,12 @@ const StockTakePage = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {paginatedStocktakes.length === 0 ? (
+                                    {filteredStocktakes.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={8} align="center">Không có phiếu kiểm kê nào</TableCell>
                                         </TableRow>
                                     ) : (
-                                        paginatedStocktakes.map(st => (
+                                        filteredStocktakes.map(st => (
                                             <TableRow
                                                 key={st.id}
                                                 hover
