@@ -72,7 +72,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final DebtNoteService debtNoteService;
     private final SaleTransactionValidator saleTransactionValidator;
     private final UserRepository userRepository;
-
+    private final ProductRepository productRepository;
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
         log.debug("Getting product response details for product ID: {}", productId);
@@ -589,6 +589,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                         " (available=" + batch.getRemainQuantity() + ", required=" + item.getQuantity() + ")");
             }
 
+            // Trừ số lượng trong batch (ImportTransactionDetail)
             int oldQuantity = batch.getRemainQuantity();
             batch.setRemainQuantity(batch.getRemainQuantity() - item.getQuantity());
             importTransactionDetailRepository.save(batch);
