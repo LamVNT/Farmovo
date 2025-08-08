@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
     @Autowired
     private HttpServletRequest request;
 
-    @ExceptionHandler(AuthenticationException.class)
+        @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthError(
             AuthenticationException ex,
             HttpServletRequest request
