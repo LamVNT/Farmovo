@@ -6,6 +6,7 @@ import UserFormDialog from '../../components/user/UserFormDialog';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import {userService} from '../../services/userService';
 import useUsers from '../../hooks/useUsers';
+import toast from 'react-hot-toast';
 
 const UserManagement = () => {
     const {
@@ -188,9 +189,9 @@ const UserManagement = () => {
         try {
             await userService.deleteUser(userToDelete);
             fetchUsers({ page, size: rowsPerPage, username: searchText || undefined });
-            // setError(null); // This line was removed as per the edit hint
+            toast.success('Xóa người dùng thành công!');
         } catch (err) {
-            // setError(err.message); // This line was removed as per the edit hint
+            toast.error(`Lỗi xóa người dùng: ${err.message}`);
         } finally {
             setConfirmOpen(false);
             setUserToDelete(null);
@@ -207,19 +208,30 @@ const UserManagement = () => {
         if (!form.fullName || form.fullName.trim() === '') {
             errors.fullName = 'Họ tên không được để trống';
         }
-        if (!form.username || form.username.trim() === '') {
-            errors.username = 'Tên đăng nhập không được để trống';
-        }
-        // Chỉ validate password cho admin hoặc khi tạo mới
-        const isAdmin = currentUser && currentUser.roles && currentUser.roles.includes('ROLE_ADMIN');
-        if (!editMode && (!form.password || form.password.trim() === '')) {
-            errors.password = 'Mật khẩu không được để trống khi tạo mới';
+        // Chỉ validate username và password khi tạo mới
+        if (!editMode) {
+            if (!form.username || form.username.trim() === '') {
+                errors.username = 'Tên đăng nhập không được để trống';
+            }
+            // Chỉ validate password cho admin hoặc khi tạo mới
+            const isAdmin = currentUser && currentUser.roles && currentUser.roles.includes('ROLE_ADMIN');
+            if (isAdmin && (!form.password || form.password.trim() === '')) {
+                errors.password = 'Mật khẩu không được để trống khi tạo mới';
+            }
         }
         if (!form.storeId) {
             errors.storeId = 'Vui lòng chọn cửa hàng';
         }
         if (!form.roles || form.roles.length === 0) {
             errors.roles = 'Vui lòng chọn role';
+        }
+        
+        // Email validation
+        if (form.email && form.email.trim() !== '') {
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailRegex.test(form.email.trim())) {
+                errors.email = 'Email không đúng định dạng';
+            }
         }
         
         // If there are validation errors, show them and return
@@ -231,40 +243,39 @@ const UserManagement = () => {
         console.log('Sending userData:', form);
         const userData = {
             fullName: form.fullName.trim(),
-            username: form.username.trim(),
             status: form.status,
             storeId: form.storeId,
             roles: form.roles || [], // Gửi roles khi tạo mới hoặc cập nhật
             email: form.email ? form.email.trim() : null,
         };
 
-        // Only include password if it's provided (for create mode) or if user wants to change it (for edit mode)
+        // Chỉ gửi username và password khi tạo mới
+        if (!editMode) {
+            userData.username = form.username.trim();
+        }
+
+        // Only include password if it's provided (for create mode)
         if (!editMode) {
             userData.password = form.password; // Required for new users
-        } else if (form.password && form.password.trim() !== '') {
-            userData.password = form.password; // Only include if user wants to change password
         }
+        // Không cho phép thay đổi username và password khi edit
 
         if (editMode) {
             // For edit mode, proceed directly
             try {
                 const updatedUser = await userService.updateUser(form.id, userData);
-                // Refresh danh sách sau khi cập nhật
-                fetchUsers({
-                    page: page,
-                    size: rowsPerPage,
-                    username: searchText || undefined,
-                });
-                handleClose();
-            } catch (error) {
-                console.error('Lỗi:', error.message);
-                // Parse error message to show specific validation errors
-                if (error.message.includes('Username already exists')) {
-                    setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
-                } else {
-                    alert(`Lỗi: ${error.message}`);
-                }
-            }
+                            // Refresh danh sách sau khi cập nhật
+            fetchUsers({
+                page: page,
+                size: rowsPerPage,
+                username: searchText || undefined,
+            });
+            toast.success('Cập nhật người dùng thành công!');
+            handleClose();
+                    } catch (error) {
+            console.error('Lỗi:', error.message);
+            toast.error(`Lỗi: ${error.message}`);
+        }
         } else {
             // For create mode, show confirmation dialog
             setUserToCreate(userData);
@@ -272,33 +283,74 @@ const UserManagement = () => {
         }
     };
 
+    const sendLoginInfoEmail = async (userData) => {
+        if (!userData.email || userData.email.trim() === '') {
+            return { success: true, message: 'Không có email để gửi' };
+        }
+        
+        try {
+            const storeName = stores.find(s => s.id === userData.storeId)?.storeName || 'N/A';
+            const emailData = {
+                email: userData.email.trim(),
+                username: userData.username,
+                password: userData.password,
+                fullName: userData.fullName,
+                storeName: storeName
+            };
+            
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/send-login-info`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify(emailData),
+            });
+            
+            if (response.ok) {
+                console.log('Email thông tin đăng nhập đã được gửi thành công!');
+                return { success: true, message: 'Email thông tin đăng nhập đã được gửi thành công!' };
+            } else {
+                const errorData = await response.text();
+                console.error('Lỗi khi gửi email:', errorData);
+                return { success: false, message: `Lỗi khi gửi email: ${errorData}` };
+            }
+        } catch (error) {
+            console.error('Lỗi khi gửi email:', error);
+            return { success: false, message: `Lỗi kết nối khi gửi email: ${error.message}` };
+        }
+    };
+
     const handleConfirmCreate = async () => {
         if (!userToCreate) return;
         try {
             const newUser = await userService.createUser(userToCreate);
+            
+            // Gửi email thông tin đăng nhập nếu có email
+            const emailResult = await sendLoginInfoEmail(userToCreate);
+            
             // Refresh danh sách sau khi tạo mới và reset về trang đầu
             fetchUsers({
                 page: 0, // Reset về trang đầu
                 size: rowsPerPage,
                 username: searchText || undefined,
             });
+            
+            // Hiển thị thông báo kết quả
+            if (emailResult.success) {
+                toast.success('Tạo người dùng thành công!');
+            } else {
+                toast.success('Tạo người dùng thành công!');
+                toast.error(`Lưu ý: ${emailResult.message}`);
+            }
+            
             handleClose();
         } catch (error) {
             console.error('Lỗi:', error.message);
-            // Parse error message to show specific validation errors
-            if (error.message.includes('Username already exists')) {
-                setFormErrors({ username: 'Tên đăng nhập đã tồn tại' });
-                setCreateConfirmOpen(false);
-                setUserToCreate(null);
-                setOpenDialog(true); // Reopen dialog to show error
-            } else {
-                alert(`Lỗi: ${error.message}`);
-            }
+            toast.error(`Lỗi tạo người dùng: ${error.message}`);
         } finally {
-            if (!error?.message?.includes('Username already exists')) {
-                setCreateConfirmOpen(false);
-                setUserToCreate(null);
-            }
+            setCreateConfirmOpen(false);
+            setUserToCreate(null);
         }
     };
 
@@ -311,9 +363,10 @@ const UserManagement = () => {
                 size: rowsPerPage,
                 username: searchText || undefined,
             });
+            toast.success('Cập nhật trạng thái người dùng thành công!');
         } catch (err) {
             console.error('Lỗi toggle status:', err.message);
-            alert(`Lỗi: ${err.message}`);
+            toast.error(`Lỗi: ${err.message}`);
         }
     };
 
@@ -326,9 +379,10 @@ const UserManagement = () => {
                 size: rowsPerPage,
                 username: searchText || undefined,
             });
+            toast.success('Cập nhật trạng thái người dùng thành công!');
         } catch (err) {
             console.error('Lỗi update status:', err.message);
-            alert(`Lỗi: ${err.message}`);
+            toast.error(`Lỗi: ${err.message}`);
         }
     };
 
@@ -375,7 +429,6 @@ const UserManagement = () => {
                 setForm={setForm}
                 editMode={editMode}
                 errors={formErrors}
-                formErrors={formErrors}
                 currentUserRole={currentUser?.roles}
             />
             <ConfirmDialog
@@ -392,9 +445,9 @@ const UserManagement = () => {
                 onClose={() => setCreateConfirmOpen(false)}
                 onConfirm={handleConfirmCreate}
                 title="Xác nhận tạo người dùng"
-                content={`Bạn có chắc chắn muốn tạo người dùng mới với thông tin sau?\n\nHọ tên: ${userToCreate?.fullName}\nTên đăng nhập: ${userToCreate?.username}\nEmail: ${userToCreate?.email || 'N/A'}\nCửa hàng: ${stores.find(s => s.id === userToCreate?.storeId)?.storeName || 'N/A'}\nRole: ${userToCreate?.roles?.join(', ')}\nTrạng thái: ${userToCreate?.status ? 'Hoạt động' : 'Không hoạt động'}`}
-                confirmText="Tạo"
-                cancelText="Hủy"
+                content={`Bạn có chắc chắn muốn tạo người dùng mới với thông tin sau?\n\n📋 Thông tin người dùng:\n• Họ tên: ${userToCreate?.fullName}\n• Tên đăng nhập: ${userToCreate?.username} (tự động tạo)\n• Email: ${userToCreate?.email || 'Không có'}\n• Cửa hàng: ${stores.find(s => s.id === userToCreate?.storeId)?.storeName || 'N/A'}\n• Vai trò: ${userToCreate?.roles?.join(', ')}\n• Trạng thái: ${userToCreate?.status ? 'Hoạt động' : 'Không hoạt động'}${userToCreate?.email ? '\n\n📧 Thông tin đăng nhập sẽ được gửi đến email: ' + userToCreate.email : '\n\n⚠️ Không có email để gửi thông tin đăng nhập'}`}
+                confirmText="Tạo người dùng"
+                cancelText="Hủy bỏ"
             />
         </div>
     );
