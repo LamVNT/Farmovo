@@ -12,11 +12,14 @@ import {
     ToggleButton,
     ToggleButtonGroup,
     Tabs,
-    Tab
+    Tab,
+    Table,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
+    TablePagination,
 } from "@mui/material";
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SearchIcon from '@mui/icons-material/Search';
 import DebtTable from "../../components/debt/DebtTableDialog.jsx";
 import AddDebtDialog from "../../components/debt/AddDebtDialog";
@@ -51,7 +54,7 @@ const DebtManagement = () => {
     const [customerRowsPerPage, setCustomerRowsPerPage] = useState(5);
     const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
     const [filterDebt, setFilterDebt] = useState(false);
-    const [activeTab, setActiveTab] = useState(0); // 0: Khách hàng nợ, 1: Cửa hàng nợ
+    const [activeTab, setActiveTab] = useState(0); // 0: Khách hàng nợ, 1: Cửa hàng nợ, 2: Không nợ
 
     // Date filter for debt notes
     const [debtFromDate, setDebtFromDate] = useState(null);
@@ -149,6 +152,9 @@ const DebtManagement = () => {
             cust.totalDebt !== undefined && 
             cust.totalDebt > 0
         );
+    } else if (activeTab === 2) {
+        // Tab "Không nợ" - hiển thị khách hàng có tổng nợ bằng 0
+        filteredByTab = customers.filter(cust => Number(cust.totalDebt) === 0);
     }
 
     // Lọc theo loại khách hàng
@@ -282,12 +288,33 @@ const DebtManagement = () => {
                             </Box>
                         } 
                     />
+                    <Tab 
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Không nợ</span>
+                                <Box sx={{ 
+                                    backgroundColor: '#9e9e9e', 
+                                    color: 'white', 
+                                    borderRadius: '50%', 
+                                    width: 20, 
+                                    height: 20, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {customers.filter(cust => Number(cust.totalDebt) === 0).length}
+                                </Box>
+                            </Box>
+                        } 
+                    />
                 </Tabs>
             </Box>
 
             {/* Bảng danh sách khách hàng */}
             <Typography variant="h6" gutterBottom>
-                Danh sách khách hàng {activeTab === 0 ? '(Khách hàng nợ)' : '(Cửa hàng nợ)'}
+                Danh sách khách hàng {activeTab === 0 ? '(Khách hàng nợ)' : activeTab === 1 ? '(Cửa hàng nợ)' : '(Không nợ)'}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" mb={2}>
                 <TextField
@@ -315,85 +342,60 @@ const DebtManagement = () => {
                     <ToggleButton value="supplier">Nhà cung cấp</ToggleButton>
                 </ToggleButtonGroup>
             </Stack>
-            <div style={{ height: 520, width: '100%' }}>
-                <DataGrid
-                    rows={filteredCustomers.map((cust, idx) => ({
-                        id: cust.id || idx,
-                        name: cust.name || 'N/A',
-                        phone: cust.phone || 'N/A',
-                        address: cust.address || 'N/A',
-                        typeLabel: cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua',
-                        isSupplier: cust.isSupplier,
-                        totalDebt: cust.totalDebt,
-                    }))}
-                    columns={columns}
-                    pageSize={customerRowsPerPage}
-                    rowsPerPageOptions={[5,10,25,50,100]}
-                    pagination
-                    page={customerPage}
-                    onPageChange={(p)=>setCustomerPage(p)}
-                    onPageSizeChange={(n)=>{setCustomerRowsPerPage(n); setCustomerPage(0);}}
-                    components={{ Toolbar: GridToolbar }}
-                    sx={{ '& .MuiDataGrid-columnHeaders': { backgroundColor: '#e3f2fd', fontWeight:'bold' }, borderRadius:2, boxShadow:2 }}
-                />
-            </div>
-            {/* Legacy table removed */}
-                {/*
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Tên</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Số điện thoại</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Địa chỉ</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Loại khách hàng</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Tổng nợ</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {paginatedCustomers && paginatedCustomers.length > 0 ? (
-                            paginatedCustomers.map((cust) => (
-                                <TableRow key={cust.id || Math.random()}>
-                                    <TableCell>{cust.name || "N/A"}</TableCell>
-                                    <TableCell>{cust.phone || "N/A"}</TableCell>
-                                    <TableCell>{cust.address || "N/A"}</TableCell>
-                                    <TableCell>
-                                        <span style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            fontWeight: '500',
-                                            backgroundColor: cust.isSupplier ? '#e3f2fd' : '#f3e5f5',
-                                            color: cust.isSupplier ? '#1976d2' : '#7b1fa2'
-                                        }}>
-                                            {cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
-                                    <TableCell>
-                                        <IconButton color="primary" onClick={() => handleOpenDebtTable(cust.id)} disabled={!cust.id}>
-                                            <VisibilityIcon />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6}>Không có khách hàng</TableCell>
+            <Table>
+                <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Tên</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Số điện thoại</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Địa chỉ</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Loại khách hàng</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Tổng nợ</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Hành động</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {paginatedCustomers && paginatedCustomers.length > 0 ? (
+                        paginatedCustomers.map((cust) => (
+                            <TableRow key={cust.id || Math.random()}>
+                                <TableCell>{cust.name || "N/A"}</TableCell>
+                                <TableCell>{cust.phone || "N/A"}</TableCell>
+                                <TableCell>{cust.address || "N/A"}</TableCell>
+                                <TableCell>
+                                    <span style={{
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: '500',
+                                        backgroundColor: cust.isSupplier ? '#e3f2fd' : '#f3e5f5',
+                                        color: cust.isSupplier ? '#1976d2' : '#7b1fa2'
+                                    }}>
+                                        {cust.isSupplier ? 'Nhà cung cấp' : 'Khách mua'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>{formatTotalDebt(cust.totalDebt)}</TableCell>
+                                <TableCell>
+                                    <IconButton color="primary" onClick={() => handleOpenDebtTable(cust.id)} disabled={!cust.id}>
+                                        <VisibilityIcon />
+                                    </IconButton>
+                                </TableCell>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-                <TablePagination
-                    component="div"
-                    count={filteredCustomers.length}
-                    page={customerPage}
-                    onPageChange={handleCustomerPageChange}
-                    rowsPerPage={customerRowsPerPage}
-                    onRowsPerPageChange={handleCustomerRowsPerPageChange}
-                    rowsPerPageOptions={[5, 10, 25]}
-                />
-                */}
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={6}>Không có khách hàng</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+            <TablePagination
+                component="div"
+                count={filteredCustomers.length}
+                page={customerPage}
+                onPageChange={handleCustomerPageChange}
+                rowsPerPage={customerRowsPerPage}
+                onRowsPerPageChange={handleCustomerRowsPerPageChange}
+                rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            />
 
             {/* Chú thích ký hiệu tổng nợ */}
             <Typography variant="body2" align="right" sx={{ mt: 2 }}>
