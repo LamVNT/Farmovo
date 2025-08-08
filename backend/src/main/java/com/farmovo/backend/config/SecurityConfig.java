@@ -54,7 +54,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/signin").permitAll()
                         .requestMatchers("/api/logout").permitAll()
                         .requestMatchers("/api/zones").permitAll()
-                        
+                        .requestMatchers("/api/forgot-password/**").permitAll()
                         // Authenticated endpoints - method-level security sẽ handle phân quyền chi tiết
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers("/api/categories/**").authenticated()
@@ -66,13 +66,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/sale-transactions/**").authenticated()
                         .requestMatchers("/api/reports/**").authenticated()
                         .requestMatchers("/api/change-statuslog/**").authenticated()
-                        
+
                         // Admin-only paths (backup security)
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/users").hasRole("ADMIN")
                         .requestMatchers("/api/stores/**").hasRole("ADMIN")
                         .requestMatchers("/api/zones/**").hasRole("ADMIN")
-                        
+
                         .anyRequest().authenticated()
                 )
 
