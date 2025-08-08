@@ -391,43 +391,57 @@ const ImportPage = () => {
 
     const handleQuantityChange = (id, delta) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const newQuantity = Math.max(1, p.quantity + delta);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, p.quantity + delta),
-                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handleQuantityInputChange = (id, newQuantity) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const quantity = Math.max(1, newQuantity);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, newQuantity),
-                        total: (p.price || 0) * Math.max(1, newQuantity),
-                    }
-                    : p
-            )
+                        quantity: quantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
     const handlePriceChange = (id, newPrice) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0);
+                    
+                    return {
                         ...p,
                         price: newPrice,
-                        total: newPrice * (p.quantity || 0),
-                    }
-                    : p
-            )
+                        total: newPrice * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
@@ -448,21 +462,14 @@ const ImportPage = () => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
-                    let newQuantity = p.quantity;
-                    // Chuyển đổi số lượng khi đổi đơn vị
-                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
-                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
-                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                        // Từ khay sang quả: nhân với 25
-                        newQuantity = (p.quantity || 1) * 25;
-                    }
+                    let newQuantity = 1; // Reset về 1 khi đổi đơn vị
+                    const quantityInQua = newUnit === 'khay' ? newQuantity * 30 : newQuantity;
                     
                     return {
                         ...p,
                         unit: newUnit,
                         quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity
+                        total: (p.price || 0) * quantityInQua
                     };
                 }
                 return p;
@@ -675,21 +682,60 @@ const ImportPage = () => {
             width: 80,
             renderCell: (params) => {
                 // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
-                if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
-                if (params.id) {
+                let stt = '';
+                if (typeof params.rowIndex === 'number') {
+                    stt = params.rowIndex + 1;
+                } else if (params.id) {
                     const idx = selectedProducts.findIndex(row => row.id === params.id);
-                    return idx >= 0 ? idx + 1 : '';
+                    stt = idx >= 0 ? idx + 1 : '';
                 }
-                return '';
+                
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                    }}>
+                        {stt}
+                    </div>
+                );
             }
         },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 150, 
+            minWidth: 150,
+            renderCell: (params) => (
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    height: '100%',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    padding: '0 8px'
+                }}>
+                    {params.row.name}
+                </div>
+            )
+        },
         columnVisibility['ĐVT'] && { 
             field: 'unit', 
             headerName: 'ĐVT', 
             width: 120,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
                     <Select
                         size="small"
                         value={params.row.unit || defaultUnit}
@@ -697,6 +743,17 @@ const ImportPage = () => {
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            '& .MuiSelect-select': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                            },
                             '& .MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'transparent',
                             },
@@ -708,8 +765,8 @@ const ImportPage = () => {
                             },
                         }}
                     >
-                        <MenuItem value="quả">quả</MenuItem>
-                        <MenuItem value="khay">khay</MenuItem>
+                        <MenuItem value="quả" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>quả</MenuItem>
+                        <MenuItem value="khay" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>khay</MenuItem>
                     </Select>
                 </div>
             )
@@ -719,10 +776,32 @@ const ImportPage = () => {
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full gap-1">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%', 
+                    gap: '4px'
+                }}>
                     <button 
                         onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, -1); }} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         –
                     </button>
@@ -735,6 +814,13 @@ const ImportPage = () => {
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -754,7 +840,24 @@ const ImportPage = () => {
                     />
                     <button 
                         onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, 1); }} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         +
                     </button>
@@ -772,7 +875,11 @@ const ImportPage = () => {
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center', 
+                    height: '100%' 
+                }}>
                     <TextField
                         size="small"
                         type="text"
@@ -784,10 +891,21 @@ const ImportPage = () => {
                         }}
                         onClick={e => e.stopPropagation()}
                         InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
                         }}
                         sx={{
                             width: '100px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -813,7 +931,11 @@ const ImportPage = () => {
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%' ,
+                }}>
                     <TextField
                         size="small"
                         type="text"
@@ -825,10 +947,21 @@ const ImportPage = () => {
                         }}
                         onClick={e => e.stopPropagation()}
                         InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
                         }}
                         sx={{
                             width: '100px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -849,17 +982,34 @@ const ImportPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
+                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
+                const unit = row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                return price * quantityInQua;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
+                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
+                const unit = params.row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                const total = price * quantityInQua;
                 return (
-                    <div className="text-right w-full">
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textAlign: 'center'
+                    }}>
                         {formatCurrency(total)}
                     </div>
                 );
@@ -1320,7 +1470,15 @@ const ImportPage = () => {
     };
 
     // Tổng tiền hàng
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
+        const quantity = parseInt(p.quantity) || 0;
+        const unit = p.unit || 'quả';
+        
+        // Quy đổi số lượng về quả để tính thành tiền
+        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+        return sum + (price * quantityInQua);
+    }, 0);
 
     // Xử lý mở dialog tổng kết
     const handleShowSummary = async (status) => {
@@ -1646,7 +1804,29 @@ const ImportPage = () => {
                             rowsPerPageOptions={[5]}
                             disableSelectionOnClick
                             getRowId={(row) => row.id}
-                            sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
+                            sx={{
+                                ...(highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}),
+                                '& .MuiDataGrid-cell': {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    borderBottom: '1px solid #e0e0e0',
+                                    padding: '8px 4px'
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600',
+                                    backgroundColor: '#f8f9fa',
+                                    borderBottom: '2px solid #dee2e6'
+                                },
+                                '& .MuiDataGrid-row': {
+                                    minHeight: '52px',
+                                    '&:hover': {
+                                        backgroundColor: '#f8f9fa'
+                                    }
+                                }
+                            }}
                             componentsProps={{
                                 basePopper: {
                                     sx: {
@@ -1738,6 +1918,7 @@ const ImportPage = () => {
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
                 unit={defaultUnit}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}

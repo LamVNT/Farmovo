@@ -56,30 +56,42 @@ const Header = () => {
 
     return (
         <header
-            className={`w-full h-[auto] py-2 shadow-md pr-7 bg-[#fff] flex items-center justify-between transition-all`}>
+            className={`w-full h-[auto] py-4 px-6 bg-white flex items-center justify-between border-b border-gray-200 fixed top-0 left-0 right-0 z-40 shadow-sm`}>
 
-            <div className='part1 flex items-center' style={{
-                paddingLeft: context.isSidebarOpen ? 256 : 20,
+            <div className='part1 flex items-center gap-4' style={{
+                paddingLeft: context.isSidebarOpen ? 400 : 0,
                 transition: 'padding-left 0.3s'
-            }}> {/* 256px = 64 * 4 (pl-64) */}
-                <button
-                    className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-indigo-100 transition-all mr-4"
-                    style={{fontSize: 28, color: '#4f46e5', zIndex: 20}}
-                    onClick={() => context.setisSidebarOpen(!context.isSidebarOpen)}
-                    title={context.isSidebarOpen ? 'Ẩn menu' : 'Hiện menu'}
-                >
-                    <RiMenu2Line/>
-                </button>
+            }}>
+                {/* Menu Button Container - Fixed position */}
+                <div className="flex items-center gap-4" style={{
+                    position: 'fixed',
+                    left: context.isSidebarOpen ? 230 : 20,
+                    top: '20px',
+                    zIndex: 30,
+                    transition: 'left 0.3s'
+                }}>
+                    <button
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-200"
+                        style={{fontSize: 20, color: '#374151'}}
+                        onClick={() => context.setisSidebarOpen(!context.isSidebarOpen)}
+                        title={context.isSidebarOpen ? 'Ẩn menu' : 'Hiện menu'}
+                    >
+                        <RiMenu2Line/>
+                    </button>
+                    
+                    {/* Store Name */}
+                    {storeName && (
+                        <span className="text-lg font-semibold text-gray-800">{storeName}</span>
+                    )}
+                </div>
             </div>
 
             <div className='flex-1 flex items-center justify-center'>
-                {/* Hiển thị tên kho nếu có */}
-                {storeName && (
-                    <span className="text-lg font-semibold text-indigo-700">{storeName}</span>
-                )}
+                {/* Central area - empty for clean design */}
             </div>
 
-            <div className='part2 w-[40%] flex items-center justify-end gap-5'>
+            <div className='part2 flex items-center justify-end gap-5'>
+                {/* Notifications */}
                 <IconButton aria-label="cart">
                     <StyledBadge badgeContent={4} color="secondary">
                         <FaRegBell/>
@@ -91,7 +103,7 @@ const Header = () => {
                     context.isLogin === true ?
 
                         <div className="relative">
-                            <div className="rounded-full w-[30px] h-[30px] overflow-hidden cursor-pointer"
+                            <div className="rounded-full w-8 h-8 overflow-hidden cursor-pointer border-2 border-gray-200"
                                  onClick={handleClickMyAcc}>
                                 <img src={user?.avatar || "https://ecme-react.themenate.net/img/avatars/thumb-1.jpg"}
                                      className="w-full h-full object-cover"/>

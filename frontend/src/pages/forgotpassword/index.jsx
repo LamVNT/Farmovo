@@ -65,6 +65,13 @@ const ForgotPassword = () => {
             const res = await axios.post(`${api}/forgot-password/verifyMail/${email}`);
             console.log("Response từ server:", res.data);
             
+            // Kiểm tra nếu response có message từ backend
+            if (res.data.message) {
+                setMessage("📩 " + res.data.message);
+            } else {
+                setMessage("📩 OTP đã được gửi đến email của bạn.");
+            }
+            
             // Lấy thời gian hết hạn từ response
             if (res.data.expirationTime) {
                 const now = Date.now();
@@ -81,7 +88,6 @@ const ForgotPassword = () => {
             // Reset OTP input khi gửi lại
             setOtp("");
             
-            setMessage("📩 OTP đã được gửi đến email của bạn.");
             setStep(2);
         } catch (err) {
             console.error("Lỗi khi gửi OTP:", err);
@@ -90,7 +96,14 @@ const ForgotPassword = () => {
             console.error("Error message:", err.message);
             
             let errorMessage = "";
-            if (err.response?.status === 404) {
+            if (err.response?.status === 400) {
+                // Xử lý validation error từ backend
+                if (err.response?.data?.message) {
+                    errorMessage = "⚠️ " + err.response.data.message;
+                } else {
+                    errorMessage = "⚠️ Email không đúng định dạng.";
+                }
+            } else if (err.response?.status === 404) {
                 errorMessage = "❌ Email không tồn tại trong hệ thống.";
             } else if (err.response?.data) {
                 errorMessage = "⚠️ " + (typeof err.response.data === 'string' 

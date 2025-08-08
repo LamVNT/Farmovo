@@ -109,6 +109,13 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             disabled
                             InputLabelProps={{ shrink: true }}
                             label=""
+                            sx={{
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                    WebkitTextFillColor:
+                                        debtNote.debtType === '-' ? 'red' : debtNote.debtType === '+' ? 'green' : undefined,
+                                    fontWeight: 600,
+                                },
+                            }}
                         />
                     </Box>
                     <Box flex={1}>

@@ -107,7 +107,7 @@ const CustomerManagementPage = () => {
   };
 
   return (
-    <Box p={3} bgcolor="#fff" borderRadius={2} boxShadow={1}>
+    <Box p={2} bgcolor="#fff" borderRadius={2} boxShadow={1}>
       <Typography variant="h5" fontWeight={600} mb={2}>Quản lý khách hàng</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" mb={2}>
         <TextField

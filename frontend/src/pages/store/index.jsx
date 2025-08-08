@@ -111,7 +111,7 @@ const Store = () => {
     // Đã bỏ render lỗi ra màn hình, chỉ dùng toast
 
     return (
-        <div className="p-5 bg-white shadow-md rounded-md">
+        <div className="p-3 bg-white shadow-md rounded-md">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Quản lý cửa hàng</h2>
                 <div className="flex gap-3">

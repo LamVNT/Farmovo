@@ -1,6 +1,7 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.ChangeStatusLogFilterRequestDTO;
+import com.farmovo.backend.dto.request.ChangeStatusLogByModelRequestDTO;
 import com.farmovo.backend.dto.request.PageResponse;
 import com.farmovo.backend.dto.response.ChangeStatusLogResponseDTO;
 import com.farmovo.backend.dto.response.SourceEntityInfo;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class ChangeStatusLogController {
     private final SourceEntityResolverService sourceEntityResolverService;
 
     @PostMapping("/list-all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponse<ChangeStatusLogResponseDTO>> searchLogs(
             @RequestBody ChangeStatusLogFilterRequestDTO filterRequest,
             Pageable pageable) {
@@ -33,17 +37,27 @@ public class ChangeStatusLogController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ChangeStatusLogResponseDTO> getById(@PathVariable Long id) {
         ChangeStatusLogResponseDTO dto = changeStatusLogService.getChangeStatusLogById(id);
         return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/{id}/source")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SourceEntityInfo> getSourceEntity(@PathVariable Long id) {
         ChangeStatusLogResponseDTO log = changeStatusLogService.getChangeStatusLogById(id);
         SourceEntityInfo sourceInfo = sourceEntityResolverService.resolveSourceEntity(
                 log.getModelName(), log.getModelID());
         return ResponseEntity.ok(sourceInfo);
+    }
+
+    @PostMapping("/by-model")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ChangeStatusLogResponseDTO>> getByModel(
+            @RequestBody ChangeStatusLogByModelRequestDTO request) {
+        List<ChangeStatusLogResponseDTO> logs = changeStatusLogService.getLogsByModel(request.getModelName(), request.getModelId());
+        return ResponseEntity.ok(logs);
     }
 }
 
