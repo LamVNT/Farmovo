@@ -145,7 +145,7 @@ const SaleSidebar = ({
 
     return (
         <>
-        <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
+        <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-2 text-sm">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">
@@ -564,7 +564,7 @@ const SaleSidebar = ({
 
             {/* Tổng nợ hiện tại của khách hàng */}
             {selectedCustomer && (
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                     <div className="font-semibold">Tổng nợ hiện tại</div>
                     <div className={`text-right w-32 ${(() => {
                         const customer = customers.find(c => String(c.id) === String(selectedCustomer));
@@ -575,11 +575,26 @@ const SaleSidebar = ({
                             const customer = customers.find(c => String(c.id) === String(selectedCustomer));
                             const totalDebt = customer?.totalDebt || 0;
                             if (totalDebt > 0) {
-                                return `+${formatCurrency(totalDebt)} (Khách nợ)`;
+                                return (
+                                    <div>
+                                        <div>+{formatCurrency(totalDebt)}</div>
+                                        <div className="text-xs">(Khách nợ)</div>
+                                    </div>
+                                );
                             } else if (totalDebt < 0) {
-                                return `-${formatCurrency(Math.abs(totalDebt))} (Cửa hàng nợ)`;
+                                return (
+                                    <div>
+                                        <div>-{formatCurrency(Math.abs(totalDebt))}</div>
+                                        <div className="text-xs">(Cửa hàng nợ)</div>
+                                    </div>
+                                );
                             } else {
-                                return `${formatCurrency(0)} (Không nợ)`;
+                                return (
+                                    <div>
+                                        <div>{formatCurrency(0)}</div>
+                                        <div className="text-xs">(Không nợ)</div>
+                                    </div>
+                                );
                             }
                         })()}
                     </div>
@@ -766,14 +781,7 @@ const SaleSidebar = ({
                 </Button>
             </div>
 
-            <Button 
-                fullWidth 
-                variant="outlined" 
-                onClick={onCancel}
-                className="border-gray-400 text-gray-600 hover:bg-gray-50"
-            >
-                Hủy
-            </Button>
+
         </div>
         <AddCustomerDialog
             open={showAddCustomerDialog}

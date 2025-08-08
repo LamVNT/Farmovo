@@ -100,7 +100,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByIdAndDeletedAtIsNull(id).map(existingUser -> {
             try {
                 inputUserValidation.validateUserFieldsForUpdate(
-                        user.getFullName(), user.getUsername(), user.getPassword(), id
+                        user.getFullName(), user.getUsername(), user.getPassword()
                 );
                 inputUserValidation.validateUserStatus(user.getStatus());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());

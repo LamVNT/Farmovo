@@ -61,7 +61,7 @@ const Sidebar = () => {
                 className={`sidebar fixed top-0 left-0 bg-[#fff] border-r border-[rgba(0,0,0,0.1)] py-2 px-4 z-50`}
                 style={{ 
                     height: 'calc(100vh - 20px)',
-                    width: context.isSidebarOpen ? '300px' : '0px',
+                    width: context.isSidebarOpen ? '220px' : '0px',
                     transition: 'width 0.3s ease'
                 }}>
                 <div className="py-2 w-full">

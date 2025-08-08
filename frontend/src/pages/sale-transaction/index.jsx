@@ -679,7 +679,7 @@ const SaleTransactionPage = () => {
                     {success}
                 </Alert>
             )}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-3">
                 <h2 className="text-xl font-semibold">Phiếu bán hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/sale/new">
@@ -694,7 +694,7 @@ const SaleTransactionPage = () => {
             </div>
 
             <div
-                className="flex flex-col lg:flex-row gap-4 mb-5"
+                className="flex flex-col lg:flex-row gap-3 mb-4"
                 ref={mainAreaRef}
                 style={{ position: 'relative' }}
                 onMouseEnter={() => setShowFilterBtn(true)}

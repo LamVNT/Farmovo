@@ -42,18 +42,33 @@ export const AuthorizationProvider = ({ children }) => {
             setLoading(true);
             setError(null);
             const userData = await userService.getCurrentUser();
-            setUser(userData);
-            setPermissions(userData.roles || []);
-            // Update localStorage for consistency
-            localStorage.setItem("user", JSON.stringify(userData));
-            console.log('Current user loaded:', userData);
+            if (userData) {
+                setUser(userData);
+                setPermissions(userData.roles || []);
+                // Update localStorage for consistency
+                localStorage.setItem("user", JSON.stringify(userData));
+                console.log('Current user loaded:', userData);
+            } else {
+                // Not authenticated
+                setUser(null);
+                setPermissions([]);
+                localStorage.removeItem("user");
+
+            }
         } catch (error) {
-            console.error('Error fetching user:', error);
-            setError(error.message);
-            setUser(null);
-            setPermissions([]);
-            // Clear localStorage on error
-            localStorage.removeItem("user");
+            // Nếu lỗi do chưa đăng nhập, coi như user = null, không ghi log lỗi khó hiểu
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                setUser(null);
+                setPermissions([]);
+                localStorage.removeItem("user");
+
+            } else {
+                console.error('Error fetching user:', error);
+                setError(error.message);
+                setUser(null);
+                setPermissions([]);
+                localStorage.removeItem("user");
+            }
         } finally {
             setLoading(false);
         }

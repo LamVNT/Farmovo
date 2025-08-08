@@ -131,9 +131,9 @@ const Dashboard = () => {
     const context = useContext(MyContext);
     // Header cải tiến
     return (
-        <div className="p-5 bg-gray-100 min-h-screen">
+        <div className="p-2 bg-gray-100 min-h-screen">
             <div
-                className="w-full py-6 px-8 bg-gradient-to-r from-[#f8fafc] to-[#e0e7ff] rounded-xl shadow-lg flex items-center gap-8 mb-8 justify-between">
+                className="w-full py-4 px-6 bg-gradient-to-r from-[#f8fafc] to-[#e0e7ff] rounded-xl shadow-lg flex items-center gap-6 mb-6 justify-between">
                 <div className="flex-1 pl-2">
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-2 drop-shadow-sm">
                         Hello,
@@ -166,9 +166,9 @@ const Dashboard = () => {
                 className="text-red-600 text-center py-4">{error}</div>} {/* Đổi style trực tiếp thành class TailwindCSS */}
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 mt-6">
                 <div
-                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-6 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
                     <div
                         className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📈
                     </div>
@@ -181,7 +181,7 @@ const Dashboard = () => {
                     )}
                 </div>
                 <div
-                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    className="relative group bg-gradient-to-br from-white via-[#f0f4ff] to-[#e0e7ff] p-6 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
                     <div
                         className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">📊
                     </div>
@@ -196,9 +196,9 @@ const Dashboard = () => {
             </div>
 
             {/* Top Products & Top Customers Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div
-                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-6 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
                     <div
                         className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">🥇
                     </div>
@@ -233,7 +233,7 @@ const Dashboard = () => {
                     )}
                 </div>
                 <div
-                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-10 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
+                    className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-6 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
                     <div
                         className="absolute top-4 right-6 opacity-10 text-7xl pointer-events-none select-none group-hover:opacity-20 transition-all">👑
                     </div>
@@ -271,7 +271,7 @@ const Dashboard = () => {
 
 
             {/* Latest Import Transactions */}
-            <div className="bg-white p-8 rounded-lg shadow-md mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-bold">Latest Import Transactions</h2>
                     <Link to="/import" className="inline-block" style={{textDecoration: 'none'}}>
@@ -300,7 +300,7 @@ const Dashboard = () => {
 
 
             {/* Latest Sale Transactions */}
-            <div className="bg-white p-8 rounded-lg shadow-md mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-bold">Latest Sale Transactions</h2>
                     <Link to="/sale" className="inline-block" style={{textDecoration: 'none'}}>

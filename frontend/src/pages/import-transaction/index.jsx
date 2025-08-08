@@ -873,7 +873,7 @@ const ImportTransactionPage = () => {
                     {success}
                 </Alert>
             )}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-3">
                 <h2 className="text-xl font-semibold">Phiếu nhập hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/import/new">
@@ -889,7 +889,7 @@ const ImportTransactionPage = () => {
             
             {/* Thông báo cho staff */}
             {isStaff() && user?.storeId && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
                             <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -906,7 +906,7 @@ const ImportTransactionPage = () => {
             )}
 
             <div
-                className="flex flex-col lg:flex-row gap-4 mb-5"
+                className="flex flex-col lg:flex-row gap-3 mb-4"
                 ref={mainAreaRef}
                 style={{ position: 'relative' }}
                 onMouseEnter={() => setShowFilterBtn(true)}

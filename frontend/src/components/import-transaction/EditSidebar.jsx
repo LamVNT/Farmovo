@@ -100,7 +100,7 @@ const EditSidebar = ({
 
     return (
         <>
-        <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-4 text-sm">
+        <div className="w-96 bg-white p-4 m-4 rounded-md shadow-none space-y-2 text-sm">
 
             {/* User and Time Info */}
             <div className="flex justify-between items-center">
@@ -316,37 +316,21 @@ const EditSidebar = ({
                         </div>
                     )}
                 </div>
+                
+                {/* Thông báo về zone filtering - ngay sát ô search */}
+                {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
+                    <div className="mt-0.5 text-xs text-green-600">
+                        Khu vực: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
+                    </div>
+                )}
+
+                {/* Thông báo khi chưa chọn store - ngay sát ô search */}
+                {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && (
+                    <div className="mt-0.5 text-xs text-yellow-600">
+                        Chọn cửa hàng để xem khu vực
+                    </div>
+                )}
             </div>
-
-            {/* Thông báo về zone filtering */}
-            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-green-700 font-medium">
-                            Khu vực sẽ được hiển thị theo cửa hàng: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
-                        </span>
-                    </div>
-                    <div className="mt-2 text-xs text-green-600">
-                        Vui lòng chọn cửa hàng để xem các khu vực tương ứng.
-                    </div>
-                </div>
-            )}
-
-            {/* Thông báo khi chưa chọn store */}
-            {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                        <span className="text-sm text-yellow-700 font-medium">
-                            Vui lòng chọn cửa hàng để xem khu vực
-                        </span>
-                    </div>
-                    <div className="mt-2 text-xs text-yellow-600">
-                        Khu vực sẽ được hiển thị dựa trên cửa hàng bạn chọn.
-                    </div>
-                </div>
-            )}
 
 
 
@@ -373,7 +357,7 @@ const EditSidebar = ({
 
             {/* Tổng nợ hiện tại của nhà cung cấp */}
             {selectedSupplier && (
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                     <div className="font-semibold">Tổng nợ hiện tại</div>
                     <div className={`text-right w-32 ${(() => {
                         const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
@@ -384,11 +368,26 @@ const EditSidebar = ({
                             const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
                             const totalDebt = supplier?.totalDebt || 0;
                             if (totalDebt > 0) {
-                                return `+${totalDebt.toLocaleString('vi-VN')} VND (Nhà cung cấp nợ)`;
+                                return (
+                                    <div>
+                                        <div>+{totalDebt.toLocaleString('vi-VN')} VND</div>
+                                        <div className="text-xs">(Nhà cung cấp nợ)</div>
+                                    </div>
+                                );
                             } else if (totalDebt < 0) {
-                                return `-${Math.abs(totalDebt).toLocaleString('vi-VN')} VND (Cửa hàng nợ)`;
+                                return (
+                                    <div>
+                                        <div>-{Math.abs(totalDebt).toLocaleString('vi-VN')} VND</div>
+                                        <div className="text-xs">(Cửa hàng nợ)</div>
+                                    </div>
+                                );
                             } else {
-                                return `${totalDebt.toLocaleString('vi-VN')} VND (Không nợ)`;
+                                return (
+                                    <div>
+                                        <div>{totalDebt.toLocaleString('vi-VN')} VND</div>
+                                        <div className="text-xs">(Không nợ)</div>
+                                    </div>
+                                );
                             }
                         })()}
                     </div>

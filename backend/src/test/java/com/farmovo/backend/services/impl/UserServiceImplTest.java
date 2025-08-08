@@ -136,7 +136,7 @@ class UserServiceImplTest {
         assertThat(result.get().getFullName()).isEqualTo("New Name");
         assertThat(result.get().getUsername()).isEqualTo("newuser");
         assertThat(result.get().getStatus()).isFalse();
-        verify(inputUserValidation).validateUserFieldsForUpdate(eq("New Name"), eq("newuser"), isNull(), eq(1L));
+        verify(inputUserValidation).validateUserFieldsForUpdate(eq("New Name"), eq("newuser"), isNull());
     }
 
     @Test
@@ -344,12 +344,11 @@ class UserServiceImplTest {
         newUser.setStatus(true);
         newUser.setStore(store);
 
-        // Simulate username already exists
-        when(userRepository.existsByUsername("johnd")).thenReturn(true);
+        // Simulate JPA unique constraint violation
+        when(userRepository.save(any(User.class))).thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"));
 
         assertThatThrownBy(() -> userService.saveUser(newUser, principal))
-                .isInstanceOf(UserManagementException.class)
-                .hasMessageContaining("Username already exists");
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     @Test
@@ -432,7 +431,7 @@ class UserServiceImplTest {
         update.setFullName(longName);
 
         doThrow(new IllegalArgumentException("Full name must not exceed 50 characters"))
-                .when(inputUserValidation).validateUserFieldsForUpdate(eq(longName), isNull(), isNull(), eq(1L));
+                .when(inputUserValidation).validateUserFieldsForUpdate(eq(longName), isNull(), isNull());
 
         assertThatThrownBy(() -> userService.updateUser(userId, update))
                 .isInstanceOf(UserManagementException.class);
@@ -471,7 +470,7 @@ class UserServiceImplTest {
         update.setUsername(longUsername);
 
         doThrow(new IllegalArgumentException("Account must not exceed 50 characters"))
-                .when(inputUserValidation).validateUserFieldsForUpdate(isNull(), eq(longUsername), isNull(), eq(1L));
+                .when(inputUserValidation).validateUserFieldsForUpdate(isNull(), eq(longUsername), isNull());
 
         assertThatThrownBy(() -> userService.updateUser(userId, update))
                 .isInstanceOf(UserManagementException.class);
@@ -491,30 +490,10 @@ class UserServiceImplTest {
         update.setPassword(longPwd);
 
         doThrow(new IllegalArgumentException("Password must not exceed 64 characters"))
-                .when(inputUserValidation).validateUserFieldsForUpdate(isNull(), isNull(), eq(longPwd), eq(1L));
+                .when(inputUserValidation).validateUserFieldsForUpdate(isNull(), isNull(), eq(longPwd));
 
         assertThatThrownBy(() -> userService.updateUser(userId, update))
                 .isInstanceOf(UserManagementException.class);
-    }
-
-    @Test
-    @DisplayName("UTCU6 - updateUser: duplicate username (Fail)")
-    void testUpdateUser_DuplicateUsername_Fail() {
-        Long userId = 1L;
-        User existing = new User();
-        existing.setId(userId);
-        existing.setStore(store);
-        when(userRepository.findByIdAndDeletedAtIsNull(userId)).thenReturn(Optional.of(existing));
-
-        User update = new User();
-        update.setUsername("existinguser");
-
-        doThrow(new IllegalArgumentException("Username already exists: existinguser"))
-                .when(inputUserValidation).validateUserFieldsForUpdate(isNull(), eq("existinguser"), isNull(), eq(1L));
-
-        assertThatThrownBy(() -> userService.updateUser(userId, update))
-                .isInstanceOf(UserManagementException.class)
-                .hasMessageContaining("Username already exists");
     }
 
     // ====== deleteUser use-case ======

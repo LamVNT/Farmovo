@@ -13,14 +13,14 @@ const MainLayout = ({children}) => {
                 <div
                     className={`overflow-hidden sidebarWrapper transition-all`}
                     style={{
-                        width: isSidebarOpen ? '300px' : '0px',
+                        width: isSidebarOpen ? '220px' : '0px',
                         opacity: isSidebarOpen ? 1 : 0
                     }}>
                     <Sidebar/>
                 </div>
                 <div className={`contentRight py-4 px-5 transition-all`}
                     style={{
-                        width: isSidebarOpen ? 'calc(100% - 300px)' : '100%'
+                        width: isSidebarOpen ? 'calc(100% - 220px)' : '100%'
                     }}>
                     {children}
                 </div>

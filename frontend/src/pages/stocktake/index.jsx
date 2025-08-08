@@ -115,8 +115,8 @@ const StockTakePage = () => {
     }
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="p-3 bg-gray-50 min-h-screen">
+            <div className="bg-white rounded-lg shadow-lg p-4">
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800">Quản lý kiểm kho</h2>

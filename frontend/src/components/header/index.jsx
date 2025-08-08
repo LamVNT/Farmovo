@@ -65,7 +65,7 @@ const Header = () => {
                 {/* Menu Button Container - Fixed position */}
                 <div className="flex items-center gap-4" style={{
                     position: 'fixed',
-                    left: context.isSidebarOpen ? 310 : 20,
+                    left: context.isSidebarOpen ? 230 : 20,
                     top: '20px',
                     zIndex: 30,
                     transition: 'left 0.3s'
