@@ -131,11 +131,11 @@ const StockTakePage = () => {
     }, [userRole, setFromDate, setToDate]);
 
     const [dateRange, setDateRange] = useState([
-      {
-        startDate: new Date(),
-        endDate: new Date(),
-        key: 'selection',
-      },
+        {
+            startDate: new Date(),
+            endDate: new Date(),
+            key: 'selection',
+        },
     ]);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -190,32 +190,32 @@ const StockTakePage = () => {
                         )}
                         {/* Thay thế trường ngày bằng DateRangePicker */}
                         <Box sx={{ position: 'relative', minWidth: 250 }}>
-                          <TextField
-                            size="small"
-                            label="Khoảng ngày kiểm kê"
-                            value={
-                              dateRange[0].startDate && dateRange[0].endDate
-                                ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
-                                : ''
-                            }
-                            onClick={() => setShowDatePicker(true)}
-                            readOnly
-                            sx={{ background: '#fff', borderRadius: 2, width: '100%' }}
-                          />
-                          {showDatePicker && (
-                            <Box sx={{ position: 'absolute', zIndex: 10, top: 45 }}>
-                              <DateRangePicker
-                                onChange={item => {
-                                  setDateRange([item.selection]);
-                                  setShowDatePicker(false);
-                                }}
-                                moveRangeOnFirstSelection={false}
-                                ranges={dateRange}
-                                maxDate={new Date()}
-                                locale={undefined}
-                              />
-                            </Box>
-                          )}
+                            <TextField
+                                size="small"
+                                label="Khoảng ngày kiểm kê"
+                                value={
+                                    dateRange[0].startDate && dateRange[0].endDate
+                                        ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
+                                        : ''
+                                }
+                                onClick={() => setShowDatePicker(true)}
+                                readOnly
+                                sx={{ background: '#fff', borderRadius: 2, width: '100%' }}
+                            />
+                            {showDatePicker && (
+                                <Box sx={{ position: 'absolute', zIndex: 10, top: 45 }}>
+                                    <DateRangePicker
+                                        onChange={item => {
+                                            setDateRange([item.selection]);
+                                            setShowDatePicker(false);
+                                        }}
+                                        moveRangeOnFirstSelection={false}
+                                        ranges={dateRange}
+                                        maxDate={new Date()}
+                                        locale={undefined}
+                                    />
+                                </Box>
+                            )}
                         </Box>
                         <TextField
                             size="small"

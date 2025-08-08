@@ -394,7 +394,10 @@ export const useSaleTransaction = (props = {}) => {
                 status: pendingAction,
                 saleDate: now,
                 detail: selectedProducts.map(product => ({
-                    id: product.batchId || product.id,
+                    // Sửa ở đây: chỉ gửi id là số, nếu không thì null
+                    id: (typeof product.batchId === 'number' && isFinite(product.batchId)) ? product.batchId
+                        : (typeof product.id === 'number' && isFinite(product.id)) ? product.id
+                        : null,
                     proId: product.productId || product.id,
                     productName: product.name || '',
                     productCode: product.productCode || product.code || '',
