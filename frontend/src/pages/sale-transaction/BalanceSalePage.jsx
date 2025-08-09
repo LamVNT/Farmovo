@@ -47,7 +47,7 @@ const BalanceSalePage = () => {
     }, [stocktakeId, batches]);
 
     const handleSuccess = () => {
-        navigate('/sale');
+        navigate('/balance-transaction');
     };
 
     return loading ? (

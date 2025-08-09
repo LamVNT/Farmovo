@@ -360,7 +360,7 @@ const router = createBrowserRouter([
     {
         path: "/balance",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <BalanceTransactionPage/>
                 </MainLayout>

@@ -30,6 +30,18 @@ const StockTakeDetailPage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+    // Helper lấy storeId cho Staff (nếu cần dùng cho filter/detail)
+    const getStaffStoreId = () => {
+        if (user && user.store && typeof user.store === 'object' && user.store.id != null) {
+            return Number(user.store.id);
+        } else if (typeof user?.storeId === 'number' || (typeof user?.storeId === 'string' && user?.storeId !== '')) {
+            return Number(user.storeId);
+        } else if (localStorage.getItem('staff_store_id')) {
+            return Number(localStorage.getItem('staff_store_id'));
+        }
+        return '';
+    };
+
     useEffect(() => {
         // Chỉ cần lấy detail từ API nếu chưa có
         if (!detail && id) {
@@ -165,7 +177,7 @@ const StockTakeDetailPage = () => {
                                                     const zone = zones.find(z => z.id === Number(zid.trim()));
                                                     return zone ? zone.zoneName : zid.trim();
                                                 }).join(", ")
-                                                : (function() {
+                                                : (function () {
                                                     const zone = zones.find(z => z.id === Number(d.zoneReal));
                                                     return zone ? zone.zoneName : (d.zoneReal || '');
                                                 })()

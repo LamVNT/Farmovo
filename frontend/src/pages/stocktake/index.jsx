@@ -11,11 +11,7 @@ import {
     Paper,
     Chip,
     IconButton,
-    CircularProgress,
     Box,
-    Typography,
-    useTheme,
-    useMediaQuery,
     TextField,
     MenuItem,
     Tooltip,
@@ -29,13 +25,14 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useStocktake from "../../hooks/useStocktake";
 import {debounce} from "lodash";
-import { DateRangePicker } from 'react-date-range';
+import {DateRangePicker} from 'react-date-range';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
 const StockTakePage = () => {
-    const user = JSON.parse(localStorage.getItem("user")) || {}; // Thêm kiểm tra lỗi cho user
-    const userRole = user?.roles?.[0];
+    const user = JSON.parse(localStorage.getItem("user")) || {};
+    const userRole = (user?.roles?.[0] || "").toUpperCase();
+
     const {
         loading,
         statusFilter,
@@ -46,32 +43,27 @@ const StockTakePage = () => {
         setFromDate,
         toDate,
         setToDate,
-        noteFilter,
-        setNoteFilter,
         stocktakes,
         page,
         setPage,
         rowsPerPage,
         setRowsPerPage,
-        total,
         actionLoading,
         confirmDialog,
         setConfirmDialog,
         snackbar,
         setSnackbar,
         handleCancel,
-        stores, // Sử dụng stores từ useStocktake để hiển thị danh sách kho
+        stores,
     } = useStocktake(user, userRole);
 
     const navigate = useNavigate();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [codeSearch, setCodeSearch] = useState("");
     const [noteSearch, setNoteSearch] = useState("");
-    // Debounce cho search
     const [debouncedCode, setDebouncedCode] = useState("");
     const [debouncedNote, setDebouncedNote] = useState("");
+
     useEffect(() => {
         const handler = debounce(() => {
             setDebouncedCode(codeSearch);
@@ -80,22 +72,15 @@ const StockTakePage = () => {
         handler();
         return () => handler.cancel();
     }, [codeSearch, noteSearch]);
-    // Filter local theo mã kiểm kê và ghi chú
+
     const filteredStocktakes = useMemo(() => {
         return stocktakes.filter(st => {
-            let matchCode = true;
-            if (debouncedCode.trim()) {
-                matchCode = (st.name || "").toLowerCase().includes(debouncedCode.toLowerCase());
-            }
-            let matchNote = true;
-            if (debouncedNote.trim()) {
-                matchNote = (st.stocktakeNote || "").toLowerCase().includes(debouncedNote.toLowerCase());
-            }
+            let matchCode = !debouncedCode.trim() || (st.name || "").toLowerCase().includes(debouncedCode.toLowerCase());
+            let matchNote = !debouncedNote.trim() || (st.stocktakeNote || "").toLowerCase().includes(debouncedNote.toLowerCase());
             return matchCode && matchNote;
         });
     }, [stocktakes, debouncedCode, debouncedNote]);
 
-    // ✅ Ưu tiên lấy tên kho theo thứ tự
     let userStoreName = "";
     if (user?.store && typeof user.store === 'object' && user.store.name) {
         userStoreName = user.store.name;
@@ -105,7 +90,6 @@ const StockTakePage = () => {
         userStoreName = user.store;
     }
 
-    // ✅ Hàm kiểm tra diff (sửa lại mục 1)
     function hasDiff(stocktake) {
         let details = [];
         if (Array.isArray(stocktake.detail)) {
@@ -120,9 +104,9 @@ const StockTakePage = () => {
         return Array.isArray(details) && details.some(d => d.diff !== 0);
     }
 
-    // [Thay đổi] Đặt dateFilter mặc định là ngày hiện tại (06/08/2025) cho Owner
+    // ✅ Admin & Owner mặc định lọc theo ngày hôm nay
     useEffect(() => {
-        if (userRole === "OWNER") {
+        if (["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole)) {
             const today = new Date();
             const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             setFromDate(formattedDate);
@@ -130,13 +114,11 @@ const StockTakePage = () => {
         }
     }, [userRole, setFromDate, setToDate]);
 
-    const [dateRange, setDateRange] = useState([
-        {
-            startDate: new Date(),
-            endDate: new Date(),
-            key: 'selection',
-        },
-    ]);
+    const [dateRange, setDateRange] = useState([{
+        startDate: new Date(),
+        endDate: new Date(),
+        key: 'selection',
+    }]);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
@@ -147,6 +129,9 @@ const StockTakePage = () => {
             setToDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`);
         }
     }, [dateRange, setFromDate, setToDate]);
+
+    const isStaff = userRole === "STAFF" || userRole === "ROLE_STAFF";
+    const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
 
     return (
         <div className="p-3 bg-gray-50 min-h-screen">
@@ -164,7 +149,7 @@ const StockTakePage = () => {
                             onChange={e => setCodeSearch(e.target.value)}
                             sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
                         />
-                        {userRole === "STAFF" && (
+                        {isStaff && (
                             <TextField
                                 size="small"
                                 label="Kho"
@@ -173,7 +158,7 @@ const StockTakePage = () => {
                                 sx={{minWidth: 120, background: '#fff', borderRadius: 2}}
                             />
                         )}
-                        {userRole === "OWNER" && (
+                        {isOwnerOrAdmin && (
                             <TextField
                                 size="small"
                                 select
@@ -188,8 +173,7 @@ const StockTakePage = () => {
                                 ))}
                             </TextField>
                         )}
-                        {/* Thay thế trường ngày bằng DateRangePicker */}
-                        <Box sx={{ position: 'relative', minWidth: 250 }}>
+                        <Box sx={{position: 'relative', minWidth: 250}}>
                             <TextField
                                 size="small"
                                 label="Khoảng ngày kiểm kê"
@@ -200,10 +184,10 @@ const StockTakePage = () => {
                                 }
                                 onClick={() => setShowDatePicker(true)}
                                 readOnly
-                                sx={{ background: '#fff', borderRadius: 2, width: '100%' }}
+                                sx={{background: '#fff', borderRadius: 2, width: '100%'}}
                             />
                             {showDatePicker && (
-                                <Box sx={{ position: 'absolute', zIndex: 10, top: 45 }}>
+                                <Box sx={{position: 'absolute', zIndex: 10, top: 45}}>
                                     <DateRangePicker
                                         onChange={item => {
                                             setDateRange([item.selection]);
@@ -212,7 +196,6 @@ const StockTakePage = () => {
                                         moveRangeOnFirstSelection={false}
                                         ranges={dateRange}
                                         maxDate={new Date()}
-                                        locale={undefined}
                                     />
                                 </Box>
                             )}
@@ -333,7 +316,7 @@ const StockTakePage = () => {
                                                             </IconButton>
                                                         </span>
                                                     </Tooltip>
-                                                    {userRole === "STAFF" && st.status === "DRAFT" && (
+                                                    {isStaff && st.status === "DRAFT" && (
                                                         <Tooltip title="Hủy phiếu">
                                                             <span>
                                                                 <IconButton

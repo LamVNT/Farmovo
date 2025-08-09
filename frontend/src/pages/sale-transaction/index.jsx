@@ -216,12 +216,20 @@ const SaleTransactionPage = () => {
                 queryParams.toDate = end.toISOString();
             }
 
+            // Loại bỏ phiếu Cân Bằng kho
+            queryParams.note = '';
+
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', queryParams);
             const data = await saleTransactionService.listPaged(queryParams);
-            console.log('API page:', page, 'pageSize:', pageSize, 'data:', data);
-            
-            setTransactions(Array.isArray(data) ? data : (data?.content || []));
-            setTotal(data?.totalElements || 0);
+            let transactions = Array.isArray(data) ? data : (data?.content || []);
+            // Lọc bỏ phiếu Cân Bằng kho (note chứa 'Cân bằng kho' hoặc khách hàng là 'Khách lẻ')
+            transactions = transactions.filter(row => {
+                const note = (row.saleTransactionNote || '').toLowerCase();
+                const customer = (row.customerName || '').toLowerCase();
+                return !note.includes('cân bằng kho') && customer !== 'khách lẻ';
+            });
+            setTransactions(transactions);
+            setTotal(data?.totalElements || transactions.length);
         } catch (err) {
             console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu bán hàng');
