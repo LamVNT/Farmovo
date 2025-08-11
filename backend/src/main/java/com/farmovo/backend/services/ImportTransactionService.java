@@ -29,6 +29,7 @@ public interface ImportTransactionService {
             String supplierName,
             Long storeId,
             Long staffId,
+            Long createdBy,
             ImportTransactionStatus status,
             LocalDateTime fromDate,
             LocalDateTime toDate,

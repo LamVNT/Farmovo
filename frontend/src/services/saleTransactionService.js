@@ -129,6 +129,16 @@ const saleTransactionService = {
             console.error('Error in exportPdf:', error);
             throw error;
         }
+    },
+
+    async softDelete(id) {
+        try {
+            const res = await api.delete(`/sale-transactions/sort-delete/${id}`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in softDelete:', error);
+            throw error;
+        }
     }
 };
 
