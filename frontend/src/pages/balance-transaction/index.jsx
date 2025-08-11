@@ -10,7 +10,11 @@ import {
     AccordionSummary,
     AccordionDetails,
     Popover,
-    MenuItem
+    MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TableChartIcon from '@mui/icons-material/TableChart';
@@ -18,12 +22,17 @@ import {DateRange} from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import balanceTransactionService from '../../services/balanceTransactionService';
+import saleTransactionService from '../../services/saleTransactionService';
+import { userService } from '../../services/userService';
+import CheckIcon from '@mui/icons-material/Check';
 import {formatCurrency} from "../../utils/formatters";
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import {Menu, IconButton, ListItemIcon, ListItemText} from '@mui/material';
+import SaleDetailDialog from '../../components/sale-transaction/SaleDetailDialog';
+import { useSearchParams } from 'react-router-dom';
 
 const labelMap = {
     today: "Hôm nay",
@@ -94,6 +103,8 @@ const getStatusColor = (status) => {
             return {bg: '#f3f4f6', text: '#6b7280', label: 'Nháp'};
         case 'CANCEL':
             return {bg: '#fde8e8', text: '#ef4444', label: 'Đã huỷ'};
+        case 'WAITING_FOR_APPROVE':
+            return {bg: '#fffbe6', text: '#f59e42', label: 'Chờ xác nhận'};
         default:
             return {bg: '#f3f4f6', text: '#6b7280', label: status};
     }
@@ -104,6 +115,10 @@ const BalanceTransactionPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [detailRow, setDetailRow] = useState(null);
+    const [detailCreator, setDetailCreator] = useState(null);
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [total, setTotal] = useState(0);
@@ -121,6 +136,7 @@ const BalanceTransactionPage = () => {
             draft: false,
             complete: false,
             cancel: false,
+            waiting: false,
         },
         customer: '',
         store: '',
@@ -128,10 +144,40 @@ const BalanceTransactionPage = () => {
     const mainAreaRef = useRef(null);
     const [actionAnchorEl, setActionAnchorEl] = useState(null);
     const [actionRow, setActionRow] = useState(null);
+    const [searchParams] = useSearchParams();
+
+    // Fetch current user for role-based actions
+    useEffect(() => {
+        userService.getCurrentUser()
+            .then(setCurrentUser)
+            .catch(() => setCurrentUser(null));
+    }, []);
 
     useEffect(() => {
         loadTransactions();
     }, [page, pageSize, search, JSON.stringify(filter), JSON.stringify(customDate)]);
+
+    useEffect(() => {
+        const idByStocktake = searchParams.get('id_by_stocktake');
+        const view = searchParams.get('view');
+        if (idByStocktake && view === 'detail') {
+            (async () => {
+                try {
+                    const data = await balanceTransactionService.listPaged({ page: 0, size: 50 });
+                    const list = Array.isArray(data) ? data : (data?.content || []);
+                    const pcb = list.find(r => (r.name || '').startsWith('PCB') && (r.stocktakeId === Number(idByStocktake)));
+                    if (pcb) {
+                        const full = await saleTransactionService.getById(pcb.id);
+                        setDetailRow(full);
+                        if (full?.createdBy) {
+                            try { const creator = await userService.getUserById(full.createdBy); setDetailCreator(creator); } catch (_) { setDetailCreator(null); }
+                        }
+                        setDetailOpen(true);
+                    }
+                } catch (_) {}
+            })();
+        }
+    }, [searchParams]);
 
     const loadTransactions = async () => {
         setLoading(true);
@@ -149,11 +195,10 @@ const BalanceTransactionPage = () => {
             };
             const data = await balanceTransactionService.listPaged(params);
             let transactions = Array.isArray(data) ? data : (data?.content || []);
-            // Chỉ lấy phiếu Cân Bằng kho (note chứa 'Cân bằng kho' hoặc khách hàng là 'Khách lẻ')
+            // Chỉ lấy phiếu Cân Bằng kho theo Note (đơn giản hoá, không phụ thuộc Khách lẻ)
             transactions = transactions.filter(row => {
                 const note = (row.saleTransactionNote || '').toLowerCase();
-                const customer = (row.customerName || '').toLowerCase();
-                return note.includes('cân bằng kho') || customer === 'khách lẻ';
+                return note.includes('cân bằng kho') && (row.status === 'WAITING_FOR_APPROVE' || row.status === 'DRAFT' || row.status === 'COMPLETE' || row.status === 'CANCEL');
             });
             setTransactions(transactions);
             setTotal(data?.totalElements || transactions.length);
@@ -169,6 +214,7 @@ const BalanceTransactionPage = () => {
         if (filter.status.draft) keys.push('DRAFT');
         if (filter.status.complete) keys.push('COMPLETE');
         if (filter.status.cancel) keys.push('CANCEL');
+        if (filter.status.waiting) keys.push('WAITING_FOR_APPROVE');
         return keys;
     };
 
@@ -192,6 +238,111 @@ const BalanceTransactionPage = () => {
         // TODO: Thêm logic xuất file Excel/PDF nếu có
         setSuccess('Xuất file thành công!');
         setTimeout(() => setSuccess(null), 3000);
+    };
+
+    const canComplete = () => {
+        const roles = (currentUser?.roles || []).map(r => String(r).toUpperCase());
+        const normalized = roles.map(r => r.startsWith('ROLE_') ? r.slice(5) : r);
+        return normalized.includes('OWNER') || normalized.includes('ADMIN');
+    };
+
+    const handleActionClick = (e, row) => {
+        setActionAnchorEl(e.currentTarget);
+        setActionRow(row);
+    };
+
+    const handleActionClose = () => {
+        setActionAnchorEl(null);
+        setActionRow(null);
+    };
+
+    const handleComplete = async () => {
+        if (!actionRow) return;
+        try {
+            await saleTransactionService.complete(actionRow.id);
+            setSuccess('Hoàn thành phiếu cân bằng thành công!');
+            handleActionClose();
+            loadTransactions();
+        } catch (err) {
+            setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        }
+    };
+
+    const handleCompleteDetail = async () => {
+        if (!detailRow) return;
+        try {
+            await saleTransactionService.complete(detailRow.id);
+            setSuccess('Hoàn thành phiếu cân bằng thành công!');
+            setDetailOpen(false);
+            setDetailRow(null);
+            loadTransactions();
+        } catch (err) {
+            setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+        }
+    };
+
+    const handleViewDetail = async () => {
+        if (!actionRow) return;
+        try {
+            const full = await saleTransactionService.getById(actionRow.id);
+            setDetailRow(full);
+            // Fetch creator info if available
+            if (full?.createdBy) {
+                try {
+                    const creator = await userService.getUserById(full.createdBy);
+                    setDetailCreator(creator);
+                } catch (_) {
+                    setDetailCreator(null);
+                }
+            } else {
+                setDetailCreator(null);
+            }
+            setDetailOpen(true);
+        } catch (e) {
+            setDetailRow(actionRow);
+            setDetailCreator(null);
+            setDetailOpen(true);
+        } finally {
+            handleActionClose();
+        }
+    };
+
+    const handleExportDetail = () => {
+        // Reuse excel util via sale page if available later; placeholder toast
+        setSuccess('Xuất chi tiết (đang phát triển)');
+        handleActionClose();
+        setTimeout(() => setSuccess(null), 2000);
+    };
+
+    const handleExportPdf = async () => {
+        if (!actionRow) return;
+        try {
+            const pdfBlob = await saleTransactionService.exportPdf(actionRow.id);
+            const url = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `sale-transaction-${actionRow.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            handleActionClose();
+        } catch (e) {
+            setError('Không thể xuất PDF');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!actionRow) return;
+        try {
+            // soft delete
+            await saleTransactionService.softDelete?.(actionRow.id);
+            setSuccess('Xóa phiếu thành công');
+            handleActionClose();
+            loadTransactions();
+        } catch (e) {
+            setError('Không thể xóa phiếu');
+        }
     };
 
     // Table styles
@@ -426,6 +577,14 @@ const BalanceTransactionPage = () => {
                                                            }))}/>}
                                         label={<span style={{cursor: 'pointer'}}>Đã huỷ</span>}
                                     />
+                                    <FormControlLabel
+                                        control={<Checkbox checked={filter.status.waiting}
+                                                           onChange={() => setFilter(prev => ({
+                                                               ...prev,
+                                                               status: {...prev.status, waiting: !prev.status.waiting}
+                                                           }))}/>}
+                                        label={<span style={{cursor: 'pointer'}}>Chờ xác nhận</span>}
+                                    />
                                 </div>
                             </div>
                             <Accordion className="bg-white rounded shadow mb-4 w-full">
@@ -560,10 +719,7 @@ const BalanceTransactionPage = () => {
                                                 </span>
                                         </td>
                                         <td style={{...tdStyles, textAlign: 'center'}}>
-                                            <IconButton size="small" onClick={e => {
-                                                setActionAnchorEl(e.currentTarget);
-                                                setActionRow(row);
-                                            }}>
+                                            <IconButton size="small" onClick={e => handleActionClick(e, row)}>
                                                 <MoreHorizIcon fontSize="small"/>
                                             </IconButton>
                                         </td>
@@ -654,8 +810,7 @@ const BalanceTransactionPage = () => {
                 anchorEl={actionAnchorEl}
                 open={Boolean(actionAnchorEl)}
                 onClose={() => {
-                    setActionAnchorEl(null);
-                    setActionRow(null);
+                    handleActionClose();
                 }}
                 PaperProps={{
                     elevation: 4,
@@ -672,35 +827,46 @@ const BalanceTransactionPage = () => {
                     },
                 }}
             >
-                <MenuItem onClick={() => {
-                    alert('Xem chi tiết phiếu: ' + (actionRow?.name || ''));
-                    setActionAnchorEl(null);
-                }}>
+                <MenuItem onClick={handleViewDetail}>
                     <ListItemIcon><VisibilityIcon fontSize="small"/></ListItemIcon>
                     <ListItemText primary="Xem chi tiết"/>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    alert('Xuất chi tiết phiếu: ' + (actionRow?.name || ''));
-                    setActionAnchorEl(null);
-                }}>
+                <MenuItem onClick={handleExportDetail}>
                     <ListItemIcon><TableChartIcon fontSize="small"/></ListItemIcon>
                     <ListItemText primary="Xuất chi tiết"/>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    alert('Xuất PDF phiếu: ' + (actionRow?.name || ''));
-                    setActionAnchorEl(null);
-                }}>
+                <MenuItem onClick={handleExportPdf}>
                     <ListItemIcon><PrintIcon fontSize="small"/></ListItemIcon>
                     <ListItemText primary="Xuất PDF"/>
                 </MenuItem>
-                <MenuItem onClick={() => {
-                    alert('Xóa phiếu: ' + (actionRow?.name || ''));
-                    setActionAnchorEl(null);
-                }}>
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && canComplete() && (
+                    <MenuItem onClick={handleComplete}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success"/></ListItemIcon>
+                        <ListItemText primary="Hoàn thành"/>
+                    </MenuItem>
+                )}
+                <MenuItem onClick={handleDelete}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error"/></ListItemIcon>
                     <ListItemText primary="Xóa"/>
                 </MenuItem>
             </Menu>
+
+            {/* Detail dialog (read-only) */}
+            <SaleDetailDialog
+                open={detailOpen}
+                onClose={() => { setDetailOpen(false); setDetailRow(null); }}
+                transaction={detailRow}
+                formatCurrency={formatCurrency}
+                onExport={() => {}}
+                onExportPdf={() => {}}
+                userDetails={detailCreator}
+                customerDetails={null}
+                onCancel={() => {}}
+                onComplete={canComplete() && detailRow?.status === 'WAITING_FOR_APPROVE' ? handleCompleteDetail : undefined}
+                onOpenTransaction={() => {}}
+                onCloseTransaction={() => {}}
+                loading={false}
+            />
         </div>
     );
 };

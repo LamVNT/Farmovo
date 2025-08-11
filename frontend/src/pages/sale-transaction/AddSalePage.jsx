@@ -47,7 +47,7 @@ const AddSalePage = (props) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [dataGridKey, setDataGridKey] = useState(0);
-    const [nextCode, setNextCode] = useState('');
+    const [nextCode, setNextCode] = useState(props.initialCode || '');
     const [unit, setUnit] = useState('quả');
     const [paidAmountInput, setPaidAmountInput] = useState('0');
     const [columnVisibility, setColumnVisibility] = useState({
@@ -109,18 +109,19 @@ const AddSalePage = (props) => {
         handleQuantityInputChange,
         handlePriceChange,
         handleDeleteProduct,
+        handleShowSummary,
         handleSaveDraft,
         handleComplete,
         handleCancel,
         handleConfirmSummary,
         handleCloseSummary,
-    } = useSaleTransaction();
+    } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
 
     useEffect(() => {
         if (props.isBalanceStock && !balanceModeInitialized) {
             if (props.initialProducts) setSelectedProducts(props.initialProducts);
             if (props.initialNote) setNote(props.initialNote);
-            if (props.initialCustomer) setSelectedCustomer(props.initialCustomer);
+            if (props.initialCustomer) setSelectedCustomer(props.initialCustomer?.id || props.initialCustomer);
             setBalanceModeInitialized(true);
         }
     }, [props.isBalanceStock, props.initialProducts, props.initialNote, props.initialCustomer, balanceModeInitialized]);
@@ -168,8 +169,26 @@ const AddSalePage = (props) => {
     }, []);
 
     useEffect(() => {
-        saleTransactionService.getNextCode?.().then(setNextCode).catch(() => setNextCode(''));
-    }, []);
+        const fetchNext = async () => {
+            try {
+                const isBalance = props.isBalanceStock || (props.initialNote && props.initialNote.toLowerCase().includes('cân bằng kho'));
+                if (isBalance) {
+                    try {
+                        const pcb = await saleTransactionService.getNextBalanceCode?.();
+                        if (pcb) { setNextCode(pcb); return; }
+                    } catch {}
+                    const pb = await saleTransactionService.getNextCode?.();
+                    setNextCode((pb || '').replace(/^PB/, 'PCB'));
+                } else {
+                    const pb = await saleTransactionService.getNextCode?.();
+                    setNextCode(pb || '');
+                }
+            } catch (e) {
+                setNextCode('');
+            }
+        };
+        fetchNext();
+    }, [props.isBalanceStock]);
 
     useEffect(() => {
         const storeFilteredBatches = batches.filter(batch => {
@@ -216,7 +235,8 @@ const AddSalePage = (props) => {
         }
     }, [error, success]);
 
-    const handleShowSummary = async (status) => {
+    // Validate trước khi mở popup tóm tắt qua handleShowSummary từ hook
+    const openSummaryAfterValidate = (status) => {
         let missing = false;
         if (!selectedCustomer) {
             setError('Vui lòng chọn khách hàng');
@@ -240,10 +260,13 @@ const AddSalePage = (props) => {
             setHighlightProducts(false);
         }
         if (missing) return;
-        if (status === 'DRAFT') {
-            await handleSaveDraft();
-        } else if (status === 'COMPLETE') {
-            await handleComplete();
+        // Mở popup tóm tắt, để hook chuẩn bị summaryData
+        if (props.isBalanceStock) {
+            handleShowSummary('COMPLETE');
+        } else if (status === 'DRAFT') {
+            handleShowSummary('DRAFT');
+        } else {
+            handleShowSummary('COMPLETE');
         }
     };
 
@@ -419,6 +442,7 @@ const AddSalePage = (props) => {
                         size="small"
                         value={params.row.unit || 'quả'}
                         onChange={(e) => handleUnitChange(params.row.id, e.target.value)}
+                        disabled={props.isBalanceStock}
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
@@ -430,7 +454,7 @@ const AddSalePage = (props) => {
                         <MenuItem value="quả">quả</MenuItem>
                         <MenuItem
                             value="khay"
-                            disabled={params.row.remainQuantity < 30}
+                            disabled={params.row.remainQuantity < 30 || props.isBalanceStock}
                             sx={{'&.Mui-disabled': {color: '#999', fontStyle: 'italic'}}}
                         >
                             khay {params.row.remainQuantity < 30 && '(cần ≥30 quả)'}
@@ -447,6 +471,7 @@ const AddSalePage = (props) => {
                 <div className="flex items-center justify-center h-full gap-1">
                     <button
                         onClick={() => handleQuantityChange(params.row.id, -1)}
+                        disabled={props.isBalanceStock}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         –
@@ -457,6 +482,7 @@ const AddSalePage = (props) => {
                         variant="standard"
                         value={params.row.quantity || 1}
                         onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
+                        disabled={props.isBalanceStock}
                         sx={{
                             width: '60px',
                             '& .MuiInput-underline:before': {borderBottomColor: 'transparent'},
@@ -468,6 +494,7 @@ const AddSalePage = (props) => {
                     />
                     <button
                         onClick={() => handleQuantityChange(params.row.id, 1)}
+                        disabled={props.isBalanceStock}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
                     >
                         +
@@ -622,6 +649,7 @@ const AddSalePage = (props) => {
                                     return p;
                                 }));
                             }}
+                            disabled={props.isBalanceStock}
                             sx={{minWidth: 80, marginLeft: 1, background: '#fff'}}
                         >
                             <MenuItem value="quả">quả</MenuItem>
@@ -697,7 +725,7 @@ const AddSalePage = (props) => {
                         rows={selectedProducts.map((row, idx) => ({
                             ...row,
                             stt: idx + 1,
-                            id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất
+                            id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất (DataGrid key)
                         }))}
                         columns={columns}
                         pageSize={5}
@@ -739,8 +767,8 @@ const AddSalePage = (props) => {
                     setPaidAmount(Math.max(0, value));
                     setPaidAmountInput(e.target.value);
                 }}
-                onSaveDraft={() => handleShowSummary('DRAFT')}
-                onComplete={() => handleShowSummary('COMPLETE')}
+                onSaveDraft={() => { openSummaryAfterValidate('DRAFT'); }}
+                onComplete={() => { openSummaryAfterValidate('COMPLETE'); }}
                 onCancel={handleCancel}
                 formatCurrency={formatCurrency}
                 isValidValue={isValidValue}
@@ -750,6 +778,7 @@ const AddSalePage = (props) => {
                 setCustomers={setCustomers}
                 paidAmountInput={paidAmountInput}
                 setPaidAmountInput={setPaidAmountInput}
+                isBalanceStock={props.isBalanceStock}
             />
             <SaleProductDialog
                 open={showProductDialog}
@@ -772,8 +801,33 @@ const AddSalePage = (props) => {
             <SaleSummaryDialog
                 open={showSummaryDialog}
                 onClose={handleCloseSummary}
-                onConfirm={handleConfirmSummary}
-                saleData={summaryData}
+                onConfirm={async () => {
+                    try {
+                        const ok = await handleConfirmSummary();
+                        if (!ok) return;
+                        if (props.isBalanceStock) {
+                            props.onSuccess && props.onSuccess();
+                        } else {
+                            window.location.href = '/sale';
+                        }
+                    } finally {
+                        setShowSummaryDialog(false);
+                    }
+                }}
+                saleData={{
+                    name: nextCode,
+                    status: pendingAction,
+                    customer: customers.find(c => String(c.id) === String(selectedCustomer)) || null,
+                    store: stores.find(s => String(s.id) === String(selectedStore)) || null,
+                    products: selectedProducts.map(p => ({
+                        ...p,
+                        price: p.price || p.unitSalePrice || 0,
+                    })),
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    note: note,
+                    saleDate: new Date().toISOString(),
+                }}
                 formatCurrency={formatCurrency}
                 loading={loading}
                 currentUser={currentUser}

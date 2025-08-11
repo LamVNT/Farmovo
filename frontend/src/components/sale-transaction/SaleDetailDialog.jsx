@@ -151,7 +151,7 @@ const SaleDetailDialog = ({
                                         <div>
                                             <div className="font-medium">{product.productName || product.name}</div>
                                             <div className="text-xs text-gray-500">
-                                                Mã: {product.code || product.productCode || 'N/A'}
+                                                Mã: {product.code || product.productCode || product.batchCode || product.name || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>

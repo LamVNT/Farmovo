@@ -5,7 +5,7 @@ import { productService } from "../../services/productService";
 import { getZones } from "../../services/zoneService";
 import { saveAs } from 'file-saver';
 import {
-    Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box, TextField, useTheme, useMediaQuery
+    Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box, TextField, useTheme, useMediaQuery, Link
 } from "@mui/material";
 import useStocktake from "../../hooks/useStocktake";
 import SnackbarAlert from "../../components/SnackbarAlert";
@@ -56,6 +56,10 @@ const StockTakeDetailPage = () => {
         ? detail.detail.some(d => d.diff !== 0)
         : false;
 
+    const canBalance = detail?.status === 'COMPLETED'
+        && hasDiff
+        && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
+
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">Đang tải chi tiết...</Typography>
@@ -70,20 +74,32 @@ const StockTakeDetailPage = () => {
                     {detail.name || `KK${String(detail.id).padStart(6, '0')}`}
                 </Typography>
                 <Chip
-                    label={detail.status === "COMPLETED" ? "Đã cân bằng kho" : detail.status === "DRAFT" ? "Phiếu tạm" : detail.status}
+                    label={detail.status === "COMPLETED" ? "Đã hoàn thành" : detail.status === "DRAFT" ? "Phiếu tạm" : detail.status}
                     color={detail.status === "COMPLETED" ? "success" : detail.status === "DRAFT" ? "warning" : "default"}
                     size="medium"
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
                 {/* Nút Cân bằng kho */}
-                {detail.status === 'COMPLETED' && hasDiff && (
+                {canBalance && (
                     <Button
                         variant="contained"
                         color="primary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate(`/sale/balance/${detail.id}`)}
+                        onClick={() => navigate(`/sale/balance/${detail.id}`, { state: { stocktakeId: detail.id, stocktakeCode: detail.name } })}
                     >
-                        Cân bằng kho (Tạo phiếu bán)
+                        Cân bằng kho (Tạo PCB)
+                    </Button>
+                )}
+                {/* Nút mở PCB đã liên kết nếu có */}
+                {!canBalance && detail?.hasBalance && (
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/balance?view=detail&id_by_stocktake=${detail.id}`)}
+                        title="Mở phiếu cân bằng đã liên kết"
+                    >
+                        Xem phiếu cân bằng
                     </Button>
                 )}
             </Box>

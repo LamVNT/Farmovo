@@ -84,6 +84,15 @@ const CreateStocktakePage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+    // Bổ sung useEffect để tự động set editMode dựa vào id
+    useEffect(() => {
+        if (id) {
+            setEditMode(true);
+        } else {
+            setEditMode(false);
+        }
+    }, [id, setEditMode]);
+
     // Helper lấy storeId cho Staff
     const getStaffStoreId = () => {
         if (user && user.store && typeof user.store === 'object' && user.store.id != null) {
@@ -168,7 +177,7 @@ const CreateStocktakePage = () => {
         if (id) {
             axios.get(`/stocktakes/${id}`)
                 .then(res => {
-                    const details = res.data.detail || [];
+                    const details = (res.data.detail || []).filter(d => d.isCheck); // chỉ lấy dòng đã tích isCheck
                     // Map lại detail thành lots phù hợp với form
                     const mappedDetails = details.map(d => ({
                         ...d,
@@ -375,7 +384,7 @@ const CreateStocktakePage = () => {
 
     return (
         <Box sx={{ maxWidth: 1200, margin: "40px auto", background: "#fff", p: 4, borderRadius: 3, boxShadow: 2 }}>
-            <Typography variant="h5" fontWeight={700} mb={2}>Tạo phiếu kiểm kê mới</Typography>
+            <Typography variant="h5" fontWeight={700} mb={2}>{editMode ? "Cập nhật phiếu kiểm kê" : "Tạo phiếu kiểm kê mới"}</Typography>
             <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Box sx={{ position: 'relative' }}>
                     <TextField

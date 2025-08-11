@@ -579,8 +579,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             detail.setCreatedBy(userId);
         }
 
-        // false là cần kiểm hàng
-        detail.setIsCheck(true);
+        // false là cần kiểm hàng: khởi tạo tất cả là chưa kiểm
+        detail.setIsCheck(false);
         return detail;
     }
     private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {

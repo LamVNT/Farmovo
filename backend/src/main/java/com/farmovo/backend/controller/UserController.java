@@ -44,7 +44,7 @@ public class UserController {
     private EmailServiceImpl emailService;
 
     @GetMapping("/admin/userList")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public List<UserResponseDto> getAllUsers() {
         logger.info("Fetching all users");
         return userService.getAllUsers().stream()
@@ -53,7 +53,7 @@ public class UserController {
     }
 
     @GetMapping("/admin/allUsernames")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public List<String> getAllUsernames() {
         logger.info("Fetching all usernames including soft deleted ones");
         return userService.getAllUsernames();
@@ -69,7 +69,7 @@ public class UserController {
 
     // New paged search endpoint
     @GetMapping("/admin/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<com.farmovo.backend.dto.request.PageResponse<UserResponseDto>> searchUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -85,7 +85,7 @@ public class UserController {
     }
 
     @GetMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
@@ -102,7 +102,7 @@ public class UserController {
     }
 
     @PostMapping("/admin/createUser")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto, Principal principal) {
         logger.info("Creating new user: {} by user: {}", dto.getUsername(), principal.getName());
         User user = userService.convertToEntity(dto);
@@ -111,7 +111,7 @@ public class UserController {
     }
 
     @PutMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating user with id: {}", id);
         User user = userService.convertToEntity(dto);
@@ -121,7 +121,7 @@ public class UserController {
     }
 
     @DeleteMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id, Principal principal) {
         logger.info("Deleting user with id: {} by user: {}", id, principal.getName());
         if (userService.deleteUser(id, principal)) {
@@ -132,7 +132,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> updateUserStatus(@PathVariable Long id, @RequestBody Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
         return userService.updateUserStatus(id, status)
@@ -141,7 +141,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/toggle-status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> toggleUserStatus(@PathVariable Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userService.toggleUserStatus(id)
@@ -155,6 +155,15 @@ public class UserController {
         User user = userService.getUserByUsername(principal.getName())
                 .orElseThrow(() -> new UserManagementException("User not found"));
         return ResponseEntity.ok(userMapper.toResponseDto(user));
+    }
+
+    // Public basic lookup for any authenticated user to resolve display names (used by STAFF)
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserResponseDto> getUserBasicById(@PathVariable Long id) {
+        logger.info("Fetching basic user info with id: {}", id);
+        return userService.getUserById(id)
+                .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
+                .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
     }
 
     @PutMapping("/users/me")
@@ -173,7 +182,7 @@ public class UserController {
     }
 
     @PostMapping("/admin/send-login-info")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<String> sendLoginInfoEmail(@RequestBody SendLoginInfoRequestDto request) {
         logger.info("Sending login info email to: {}", request.getEmail());
         try {

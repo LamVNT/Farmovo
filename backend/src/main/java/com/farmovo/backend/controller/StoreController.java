@@ -30,7 +30,7 @@ public class StoreController {
     private UserRepository userRepository;
 
     @GetMapping("/admin/storeList")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public List<StoreResponseDto> getAllStores() {
         logger.info("Fetching all stores from table 'store'");
         try {
@@ -54,7 +54,7 @@ public class StoreController {
     }
 
     @PostMapping("/store")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public StoreResponseDto createStore(@Valid @RequestBody StoreRequestDto dto, Principal principal) {
         logger.info("Creating new store: {}", dto.getStoreName());
         Store store = storeService.convertToEntity(dto);
@@ -72,7 +72,7 @@ public class StoreController {
     }
 
     @PutMapping("/store/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<StoreResponseDto> updateStore(@PathVariable Long id, @Valid @RequestBody StoreRequestDto dto) {
         logger.info("Updating store with id: {}", id);
         Store store = storeService.convertToEntity(dto);
@@ -82,7 +82,7 @@ public class StoreController {
     }
 
     @DeleteMapping("/store/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<Void> deleteStore(@PathVariable Long id) {
         logger.info("Deleting store with id: {}", id);
         if (storeService.deleteStore(id)) {

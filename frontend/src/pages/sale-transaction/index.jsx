@@ -137,7 +137,26 @@ const SaleTransactionPage = () => {
     // Kiểm tra URL params để tự động mở dialog chi tiết
     useEffect(() => {
         const viewParam = searchParams.get('view');
-        if (id && viewParam === 'detail') {
+        const idByStocktake = searchParams.get('id_by_stocktake');
+        if (idByStocktake) {
+            // Thử tìm PCB theo stocktakeId sau khi load danh sách
+            (async () => {
+                try {
+                    // Tải trang đầu để tìm nhanh
+                    const data = await saleTransactionService.listPaged({ page: 0, size: 50 });
+                    const list = Array.isArray(data) ? data : (data?.content || []);
+                    const pcb = list.find(r => (r.name || '').startsWith('PCB') && (r.stocktakeId === Number(idByStocktake)));
+                    if (pcb) {
+                        await handleAutoOpenDetail(pcb.id);
+                        return;
+                    }
+                    // Fallback: thử gọi getById theo ID từ filter khác nếu BE/FE khác cấu trúc
+                    // Ở đây bỏ qua để tránh gọi sai; người dùng vẫn ở trang danh sách
+                } catch (e) {
+                    // ignore
+                }
+            })();
+        } else if (id && viewParam === 'detail') {
             // Tự động mở dialog chi tiết cho transaction có ID này
             handleAutoOpenDetail(parseInt(id));
         }
@@ -146,7 +165,7 @@ const SaleTransactionPage = () => {
     // Hàm tự động mở dialog chi tiết
     const handleAutoOpenDetail = async (transactionId) => {
         try {
-            const transaction = await saleTransactionService.getWithDetails(transactionId);
+            const transaction = await saleTransactionService.getById(transactionId);
             setSelectedTransaction(transaction);
             
             // Fetch thông tin customer
@@ -208,12 +227,24 @@ const SaleTransactionPage = () => {
                 queryParams.status = statusKeys.join(',');
             }
 
-            // Add date range
+            // Add date range (use local datetime strings, no timezone)
+            const toLocalString = (d) => {
+                const pad = (n) => String(n).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                const mm = pad(d.getMonth() + 1);
+                const dd = pad(d.getDate());
+                const HH = pad(d.getHours());
+                const MM = pad(d.getMinutes());
+                const SS = pad(d.getSeconds());
+                return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+            };
             if (customDate && customDate[0]) {
                 const start = customDate[0].startDate;
                 const end = customDate[0].endDate;
-                queryParams.fromDate = start.toISOString();
-                queryParams.toDate = end.toISOString();
+                const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+                const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+                queryParams.fromDate = toLocalString(startOfDay);
+                queryParams.toDate = toLocalString(endOfDay);
             }
 
             // Loại bỏ phiếu Cân Bằng kho
@@ -222,11 +253,10 @@ const SaleTransactionPage = () => {
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', queryParams);
             const data = await saleTransactionService.listPaged(queryParams);
             let transactions = Array.isArray(data) ? data : (data?.content || []);
-            // Lọc bỏ phiếu Cân Bằng kho (note chứa 'Cân bằng kho' hoặc khách hàng là 'Khách lẻ')
+            // Lọc bỏ phiếu Cân Bằng kho (chỉ theo Note), vẫn hiển thị các phiếu bán cho 'Khách lẻ'
             transactions = transactions.filter(row => {
                 const note = (row.saleTransactionNote || '').toLowerCase();
-                const customer = (row.customerName || '').toLowerCase();
-                return !note.includes('cân bằng kho') && customer !== 'khách lẻ';
+                return !note.includes('cân bằng kho');
             });
             setTransactions(transactions);
             setTotal(data?.totalElements || transactions.length);

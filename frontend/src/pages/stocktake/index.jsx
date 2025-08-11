@@ -219,9 +219,9 @@ const StockTakePage = () => {
                             sx={{minWidth: 130, background: '#fff', borderRadius: 2}}
                         >
                             <MenuItem value="">Tất cả</MenuItem>
-                            <MenuItem value="DRAFT">DRAFT</MenuItem>
-                            <MenuItem value="COMPLETED">COMPLETED</MenuItem>
-                            <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+                            <MenuItem value="DRAFT">Nháp</MenuItem>
+                            <MenuItem value="COMPLETED">Hoàn thành</MenuItem>
+                            <MenuItem value="CANCELLED">Đã hủy</MenuItem>
                         </TextField>
                         <Button
                             variant="contained"
@@ -289,7 +289,12 @@ const StockTakePage = () => {
                                                 <TableCell>{st.stocktakeNote || '-'}</TableCell>
                                                 <TableCell>
                                                     <Chip
-                                                        label={st.status}
+                                                        label={
+                                                            st.status === "DRAFT" ? "Nháp" :
+                                                                st.status === "COMPLETED" ? "Hoàn thành" :
+                                                                    st.status === "CANCELLED" ? "Đã hủy" :
+                                                                        st.status
+                                                        }
                                                         color={
                                                             st.status === "DRAFT" ? "warning" :
                                                                 st.status === "COMPLETED" ? "success" :

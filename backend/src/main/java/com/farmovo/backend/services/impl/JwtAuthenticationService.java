@@ -4,6 +4,7 @@ import com.farmovo.backend.exceptions.BadRequestException;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
+import com.farmovo.backend.utils.RoleUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -62,7 +63,7 @@ public class JwtAuthenticationService {
 
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)
-                .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
+                .map(RoleUtils::normalize)
                 .toList();
     }
 

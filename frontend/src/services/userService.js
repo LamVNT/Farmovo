@@ -27,7 +27,8 @@ export const userService = {
 
     getUserById: async (id) => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
+            // Use public endpoint accessible to all authenticated roles
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/${id}`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
