@@ -344,6 +344,8 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     }
 
     @Override
+    @Transactional
+    @LogStatusChange
     public void softDeleteSaleTransaction(Long id, Long userId) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu bán với ID: " + id));
