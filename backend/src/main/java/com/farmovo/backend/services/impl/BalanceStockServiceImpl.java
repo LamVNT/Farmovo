@@ -54,6 +54,8 @@ public class BalanceStockServiceImpl implements BalanceStockService {
         dto.setSaleTransactionNote("Cân bằng kho");
         dto.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
         dto.setSaleDate(java.time.LocalDateTime.now());
+        // Ghi link Stocktake vào DTO để khi tạo PCB sẽ lưu luôn
+        dto.setStocktakeId(stocktake.getId());
         dto.setName(null); // Để backend tự sinh mã phiếu bán nếu cần
         return dto;
     }
@@ -72,6 +74,10 @@ public class BalanceStockServiceImpl implements BalanceStockService {
                     ImportTransactionDetail lot = importTransactionDetailRepository.findByName(dto.getBatchCode());
                     if (lot != null && (lot.getZones_id() == null || !lot.getZones_id().equals(dto.getZoneReal()))) {
                         lot.setZones_id(dto.getZoneReal());
+                    }
+                    // Đảm bảo cập nhật isCheck = true khi hoàn thành phiếu cân bằng kho
+                    if (lot != null) {
+                        lot.setIsCheck(true);
                         importTransactionDetailRepository.save(lot);
                     }
                 }

@@ -61,4 +61,4 @@ aws:
     bucket: my-debt-images
 
 server:
-  port: 8081
+  port: 8080

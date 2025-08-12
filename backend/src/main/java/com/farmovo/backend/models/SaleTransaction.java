@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "sale_transactions")
+@Table(
+        name = "sale_transactions",
+        uniqueConstraints = @UniqueConstraint(name = "ux_sale_stocktake_id", columnNames = {"stocktake_id"})
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -30,7 +33,7 @@ public class SaleTransaction extends Base {
     @Column(name = "paid_amount")
     private BigDecimal paidAmount;
 
-    @Column(name = "detail", length = 1000)
+    @Column(name = "detail", columnDefinition = "TEXT")
     private String detail;
 
     @Column(name = "sale_transaction_note", length = 1000)
@@ -50,4 +53,14 @@ public class SaleTransaction extends Base {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
+
+    // Link ngược về phiếu kiểm kê nguồn (nếu là PCB tạo từ Stocktake)
+    @Column(name = "stocktake_id")
+    private Long stocktakeId;
+
+    // Quan hệ chỉ để sinh FK/Schema; không dùng trong logic (tránh N+1).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stocktake_id", insertable = false, updatable = false,
+            foreignKey = @ForeignKey(name = "fk_sale_stocktake"))
+    private Stocktake stocktakeRef;
 }

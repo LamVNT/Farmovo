@@ -89,3 +89,59 @@ a.active button {
     outline: none !important;
 }
 
+/* Optimized layout for smaller sidebar */
+.contentRight {
+    transition: width 0.3s ease;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+    .contentRight {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .contentRight {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+}
+
+/* Optimize table layouts for smaller space */
+.MuiDataGrid-root {
+    font-size: 13px !important;
+}
+
+.MuiDataGrid-cell {
+    padding: 8px 12px !important;
+}
+
+.MuiDataGrid-columnHeader {
+    padding: 8px 12px !important;
+}
+
+/* Optimize form layouts */
+.MuiTextField-root {
+    margin-bottom: 12px !important;
+}
+
+.MuiFormControl-root {
+    margin-bottom: 12px !important;
+}
+
+/* Optimize card layouts */
+.MuiCard-root {
+    margin-bottom: 16px !important;
+}
+
+/* Optimize grid layouts */
+.MuiGrid-container {
+    margin: -8px !important;
+}
+
+.MuiGrid-item {
+    padding: 8px !important;
+}
+

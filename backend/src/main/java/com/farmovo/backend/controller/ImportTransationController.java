@@ -164,6 +164,7 @@ public class ImportTransationController {
             @RequestParam(required = false) String supplierName,
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Long staffId,
+            @RequestParam(required = false) Long createdBy,
             @RequestParam(required = false) ImportTransactionStatus status,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
@@ -174,12 +175,11 @@ public class ImportTransationController {
             Pageable pageable
     ) {
         Page<ImportTransactionResponseDto> result = importTransactionService.listAllImportTransaction(
-                name, supplierName, storeId, staffId, status,
+                name, supplierName, storeId, staffId, createdBy, status,
                 fromDate, toDate, minTotalAmount, maxTotalAmount, pageable
         );
         return ResponseEntity.ok(PageResponse.fromPage(result));
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<CreateImportTransactionRequestDto> getImportTransactionById(@PathVariable Long id) {

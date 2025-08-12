@@ -4,6 +4,7 @@ import com.farmovo.backend.dto.response.ChangePassword;
 import com.farmovo.backend.dto.response.MailBody;
 import com.farmovo.backend.dto.response.OtpVerificationResponse;
 import com.farmovo.backend.dto.request.OtpRequest;
+import com.farmovo.backend.validator.EmailValidator;
 import com.farmovo.backend.validator.OtpValidator;
 import com.farmovo.backend.models.ForgotPassword;
 import com.farmovo.backend.models.User;
@@ -46,57 +47,30 @@ public class ForgotPasswordController {
 
     @Autowired
     private OtpValidator otpValidator;
+    
+    @Autowired
+    private EmailValidator emailValidator;
 
 
-    @Transactional
     @PostMapping("/verifyMail/{email}")
     public ResponseEntity<Object> verifyMail(@PathVariable String email) {
-        try {
-            System.out.println("=== Gửi OTP cho email: " + email + " ===");
-            
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("Email không tồn tại: " + email));
-            
-            System.out.println("Tìm thấy user: " + user.getUsername());
-            
-            // Xóa OTP cũ nếu có
-            forgotPasswordRepository.deleteByUserId(user.getId());
-            System.out.println("Đã xóa OTP cũ");
-
-            // 3. Tạo mã OTP mới
-            int otp = otpGenerator();
-            Date expirationTime = new Date(System.currentTimeMillis() + 70 * 1000);
-            
-            System.out.println("Tạo OTP mới: " + otp + ", hết hạn: " + expirationTime);
-
-            // 4. Gửi email chứa OTP
-            MailBody mailBody = MailBody.builder()
-                    .to(email)
-                    .subject("OTP for Forgot Password")
-                    .text("Mã OTP của bạn là: " + otp + "\nMã sẽ hết hạn trong 70 giây.")
-                    .build();
-            emailService.sendSimpleMessage(mailBody);
-            System.out.println("Đã gửi email OTP");
-
-            // 5. Lưu bản ghi ForgotPassword mới
-            ForgotPassword newFp = ForgotPassword.builder()
-                    .otp(otp)
-                    .expirationTime(expirationTime)
-                    .user(user)
-                    .build();
-            forgotPasswordRepository.save(newFp);
-            System.out.println("Đã lưu OTP vào database");
-
-            // Trả về thông tin bao gồm thời gian hết hạn
-            return ResponseEntity.ok(Map.of(
-                "message", "OTP đã được gửi đến email của bạn.",
-                "expirationTime", expirationTime.getTime()
+        // Validate email format
+        if (!emailValidator.isValidEmail(email)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "Email không đúng định dạng."
             ));
+        }
+        try {
+            Map<String, Object> result = forgotPasswordService.sendOtpForForgotPassword(email);
+            return ResponseEntity.ok(result);
         } catch (Exception ex) {
             System.err.println("Lỗi khi gửi OTP: " + ex.getMessage());
             ex.printStackTrace();
-            String errorMessage = "Gửi email OTP thất bại. Chi tiết: " + ex.getMessage();
-            throw new RuntimeException(errorMessage, ex);
+            // Trả về message chung chung để tránh tiết lộ thông tin hệ thống
+            return ResponseEntity.ok(Map.of(
+                "message", "Nếu email đã đăng ký, OTP sẽ được gửi đến email của bạn.",
+                "expirationTime", new Date(System.currentTimeMillis() + 70 * 1000).getTime()
+            ));
         }
     }
 

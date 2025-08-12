@@ -1,7 +1,7 @@
 package com.farmovo.backend.repositories;
 
-import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.SaleTransaction;
+import com.farmovo.backend.models.SaleTransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -29,14 +29,20 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query("SELECT FUNCTION('YEAR', s.saleDate) as year, SUM(s.totalAmount) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY year ORDER BY year")
     List<Object[]> getRevenueByYear(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
-    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount " +
-            "FROM SaleTransaction s " +
-            "WHERE s.saleDate BETWEEN :from AND :to " +
-            "GROUP BY s.customer.id, s.customer.name " +
-            "ORDER BY totalAmount DESC")
+    // Thống kê khách hàng top theo doanh thu
+    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY s.customer.id, s.customer.name ORDER BY totalAmount DESC")
     List<Object[]> getTopCustomers(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, org.springframework.data.domain.Pageable pageable);
+
+    // Truy vấn max số thứ tự hiện có cho mã PCBxxxxxx
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(name, 4) AS BIGINT)), 0) FROM sale_transactions WHERE name LIKE 'PCB%'", nativeQuery = true)
+    Long getMaxPcbSequence();
 
     @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.saleDate DESC")
     List<SaleTransaction> findRecentSales(org.springframework.data.domain.Pageable pageable);
+
+    // PCB linkage helpers
+    boolean existsByStocktakeId(Long stocktakeId);
+    long countByStocktakeId(Long stocktakeId);
+    long countByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
 }
 

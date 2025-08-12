@@ -1,7 +1,5 @@
 // pages/login/index.jsx
-import React, { useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MyContext } from '../../App';
+import React from 'react';
 import LoginForm from '../../components/login/LoginForm';
 import { Link, NavLink } from 'react-router-dom';
 import Button from "@mui/material/Button";
@@ -10,15 +8,6 @@ import SocialLoginButtons from '../../components/login/SocialLoginButtons';
 import FarmovoLogo from '../../assets/Farmovo.png';
 
 const Login = () => {
-    const { isLogin } = useContext(MyContext);
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        if (isLogin) {
-            navigate("/");
-        }
-    }, [isLogin]);
-
     return (
         <section className='bg-white w-full'>
             <header className="w-full fixed top-0 left-0 px-4 py-3 flex items-center justify-between z-50">

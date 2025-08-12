@@ -22,8 +22,8 @@ public class AuthorityController {
     @Autowired
     private AuthorityRepository authorityRepository;
 
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     @GetMapping("/admin/roleList")
-    @PreAuthorize("hasRole('ADMIN')")
     public List<Authority> getAllAuthorities() {
         logger.info("Fetching all authorities");
         return authorityRepository.findAll();

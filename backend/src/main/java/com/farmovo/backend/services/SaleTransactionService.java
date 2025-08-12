@@ -42,6 +42,9 @@ public interface SaleTransactionService {
 
     String getNextSaleTransactionCode();
 
+    // Next code for balance transactions (PCB...)
+    String getNextBalanceSaleTransactionCode();
+
     void softDeleteSaleTransaction(Long id, Long userId);
 
     SaleTransactionResponseDto getById(Long id);

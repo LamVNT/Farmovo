@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -76,5 +77,12 @@ public class ChangeStatusLogServiceImpl implements ChangeStatusLogService {
                 });
         log.info("Found ChangeStatusLog: {}", entity);
         return changeStatusLogMapper.toDto(entity);
+    }
+
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLogsByModel(String modelName, Long modelId) {
+        log.info("Fetching ChangeStatusLogs by modelName={} and modelId={}", modelName, modelId);
+        List<ChangeStatusLog> logs = repository.findByModelNameIgnoreCaseAndModelIDOrderByCreatedAtDesc(modelName, modelId);
+        return changeStatusLogMapper.toDtoList(logs);
     }
 } 

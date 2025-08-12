@@ -61,7 +61,7 @@ const Sidebar = () => {
                 className={`sidebar fixed top-0 left-0 bg-[#fff] border-r border-[rgba(0,0,0,0.1)] py-2 px-4 z-50`}
                 style={{ 
                     height: 'calc(100vh - 20px)',
-                    width: context.isSidebarOpen ? '300px' : '0px',
+                    width: context.isSidebarOpen ? '220px' : '0px',
                     transition: 'width 0.3s ease'
                 }}>
                 <div className="py-2 w-full">
@@ -109,6 +109,13 @@ const Sidebar = () => {
                                             <span
                                                 className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Phiếu
                                             bán hàng
+                                        </Button>
+                                    </Link>
+                                </li>
+                                <li className="w-full">
+                                    <Link to="/balance">
+                                        <Button className="!text-[rgba(0,0,0,0.7)] !capitalize !justify-start !w-full !text-[13px] !font-[600] !pl-9 flex gap-3">
+                                            <span className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>{" "} Phiếu cân bằng
                                         </Button>
                                     </Link>
                                 </li>

@@ -57,7 +57,7 @@ const DashboardReport = () => {
   ];
 
   return (
-    <Box p={3}>
+    <Box p={2}>
       <Typography variant="h5" fontWeight={700} mb={2}>Báo cáo tổng hợp</Typography>
       <Typography variant="body1" mb={3} color="text.secondary">
         Chọn loại báo cáo bạn muốn xem hoặc lọc theo kho (nếu có quyền).

@@ -46,6 +46,7 @@ import { exportImportTransactions, exportImportTransactionDetail } from '../../u
 import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
 import { getZones } from '../../services/zoneService';
 import { useAuth } from '../../contexts/AuthorizationContext';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 const getRange = (key) => {
     const today = new Date();
@@ -103,7 +104,6 @@ const ImportTransactionPage = () => {
             cancel: false,
         },
         creator: '',
-        importer: '',
         search: ''
     });
 
@@ -126,6 +126,38 @@ const ImportTransactionPage = () => {
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [userDetails, setUserDetails] = useState(null);
     const [storeDetails, setStoreDetails] = useState(null);
+
+    // Creator filter options
+    const [creatorOptions, setCreatorOptions] = useState([]);
+    const [creatorLoading, setCreatorLoading] = useState(false);
+
+    // Multi-select state for bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const selectedCount = selectedIds.size;
+    const currentPageIds = transactions.map(t => t.id);
+    const allSelectedOnPage = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.has(id));
+    const someSelectedOnPage = currentPageIds.some(id => selectedIds.has(id)) && !allSelectedOnPage;
+
+    const isRowSelected = (id) => selectedIds.has(id);
+    const clearSelection = () => setSelectedIds(new Set());
+    const toggleSelectOne = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+    const toggleSelectAllOnPage = () => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allSelectedOnPage) {
+                currentPageIds.forEach(id => next.delete(id));
+            } else {
+                currentPageIds.forEach(id => next.add(id));
+            }
+            return next;
+        });
+    };
 
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
@@ -219,8 +251,13 @@ const ImportTransactionPage = () => {
             };
             // Add filter params
             if (filter.search) query.name = filter.search;
-            if (filter.importer) query.staffId = filter.importer;
-            if (filter.creator) query.createdBy = filter.creator;
+            // Removed importer filter
+            if (filter.creator !== '' && filter.creator !== null && filter.creator !== undefined) {
+                const creatorValue = (typeof filter.creator === 'string' && /^\d+$/.test(filter.creator))
+                    ? Number(filter.creator)
+                    : filter.creator;
+                query.createdBy = creatorValue;
+            }
             // Status
             const statusKeys = getStatusKeys();
             if (statusKeys.length === 1) query.status = statusKeys[0];
@@ -258,6 +295,48 @@ const ImportTransactionPage = () => {
         loadTransactions();
     }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate), user?.storeId]);
 
+    // After transactions load, build creator options depending on role
+    useEffect(() => {
+        const buildCreatorOptions = async () => {
+            setCreatorLoading(true);
+            try {
+                // Prefer admin: load all users
+                if (!isStaff()) {
+                    try {
+                        const all = await userService.getAllUsers();
+                        const options = (all || []).map(u => ({
+                            id: u.id,
+                            name: u.fullName || u.username || `User #${u.id}`,
+                            storeId: u.storeId,
+                        }));
+                        setCreatorOptions(options);
+                        return;
+                    } catch (e) {
+                        // Fallback to derived from transactions
+                    }
+                }
+                // Staff or admin fallback: derive creators from current page transactions
+                const creatorIds = Array.from(new Set((transactions || []).map(t => t.createdBy).filter(Boolean)));
+                if (creatorIds.length === 0) {
+                    setCreatorOptions([]);
+                    return;
+                }
+                const results = await Promise.allSettled(creatorIds.map(id => userService.getUserById(id)));
+                const users = results
+                    .filter(r => r.status === 'fulfilled' && r.value)
+                    .map(r => r.value);
+                // If staff: optionally filter by same store
+                const filtered = isStaff() && user?.storeId
+                    ? users.filter(u => (u.storeId === user.storeId))
+                    : users;
+                const options = filtered.map(u => ({ id: u.id, name: u.fullName || u.username || `User #${u.id}` }));
+                setCreatorOptions(options);
+            } finally {
+                setCreatorLoading(false);
+            }
+        };
+        buildCreatorOptions();
+    }, [JSON.stringify(transactions), isStaff, user?.storeId]);
 
 
     // Thay thế đoạn filter transactions:
@@ -597,6 +676,65 @@ const ImportTransactionPage = () => {
             });
         }
         handleActionClose();
+    };
+
+    // Bulk actions
+    const handleBulkCancel = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE'));
+        if (eligible.length === 0) {
+            setError('Không có phiếu hợp lệ để hủy (chỉ DRAFT/WAITING_FOR_APPROVE).');
+            return;
+        }
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận hủy ${eligible.length} phiếu`,
+            message: `Bạn có chắc chắn muốn hủy ${eligible.length} phiếu đã chọn?`,
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const results = await Promise.allSettled(eligible.map(e => importTransactionService.updateStatus(e.id)));
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) setSuccess(`Đã hủy ${succeeded}/${results.length} phiếu.`);
+                    if (failed > 0) setError(`Không thể hủy ${failed} phiếu.`);
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'cancel'
+        });
+    };
+
+    const handleBulkDelete = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id));
+        if (eligible.length === 0) {
+            setError('Hãy chọn ít nhất một phiếu để xóa.');
+            return;
+        }
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận xóa ${eligible.length} phiếu`,
+            message: 'Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa các phiếu đã chọn?',
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const results = await Promise.allSettled(eligible.map(e => importTransactionService.softDelete(e.id)));
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                    if (failed > 0) setError(`Không thể xóa ${failed} phiếu.`);
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'delete'
+        });
     };
 
     // Hàm xuất file tổng
@@ -1074,13 +1212,26 @@ const ImportTransactionPage = () => {
 
                       <Accordion className="bg-white rounded shadow mb-4 w-full">
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người tạo</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo" value={filter.creator} onChange={(e) => setFilter({ ...filter, creator: e.target.value })} /></AccordionDetails>
+                        <AccordionDetails>
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="creator-select-label">Chọn người tạo</InputLabel>
+                                <Select
+                                    labelId="creator-select-label"
+                                    label="Chọn người tạo"
+                                    value={filter.creator || ''}
+                                    onChange={(e) => setFilter({ ...filter, creator: e.target.value })}
+                                    disabled={creatorLoading}
+                                >
+                                    <MenuItem value=""><em>Tất cả</em></MenuItem>
+                                    {creatorOptions.map(opt => (
+                                        <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </AccordionDetails>
                       </Accordion>
 
-                      <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người nhập</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập" value={filter.importer} onChange={(e) => setFilter({ ...filter, importer: e.target.value })} /></AccordionDetails>
-                      </Accordion>
+                      
 
                       {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
@@ -1098,7 +1249,101 @@ const ImportTransactionPage = () => {
                     <div className="mb-4 w-1/2">
                         <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
                     </div>
-                    
+
+                    {selectedCount > 0 && (
+                        <>
+                            {(() => {
+                                const eligibleCancelCount = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE')).length;
+                                const ineligibleCancelCount = selectedCount - eligibleCancelCount;
+                                return (
+                                    <div
+                                        className="bulk-toolbar"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: 6,
+                                            background: 'linear-gradient(180deg, #f8fbff 0%, #eef2ff 100%)',
+                                            borderRadius: 12,
+                                            marginBottom: 8,
+                                            boxShadow: '0 1px 6px rgba(59,130,246,0.08)',
+                                            border: '1px solid #dbeafe',
+                                            width: 'fit-content',
+                                            fontFamily: 'Roboto, Arial, sans-serif',
+                                            fontSize: 14
+                                        }}
+                                    >
+                                        <span style={{ color: '#1e40af' }}>Đã chọn {selectedCount}</span>
+                                        <span style={{ width: 1, height: 18, background: '#dbeafe' }} />
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={clearSelection}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Bỏ chọn"
+                                        >
+                                            <CloseIcon fontSize="small" />
+                                            <span className="label">Bỏ chọn</span>
+                                        </Button>
+                                        {eligibleCancelCount > 0 && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={handleBulkCancel}
+                                                className="bulk-btn"
+                                                sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                                aria-label="Hủy"
+                                            >
+                                                <CancelIcon fontSize="small" />
+                                                <span className="label">Hủy</span>
+                                            </Button>
+                                        )}
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={handleBulkDelete}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Xóa"
+                                        >
+                                            <DeleteIcon fontSize="small" />
+                                            <span className="label">Xóa</span>
+                                        </Button>
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount === 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount > 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Có {ineligibleCancelCount} phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            <style>{`
+                                .bulk-toolbar .bulk-btn { display: inline-flex; align-items: center; }
+                                .bulk-toolbar .bulk-btn .label {
+                                  max-width: 0;
+                                  opacity: 0;
+                                  overflow: hidden;
+                                  margin-left: 0;
+                                  transition: max-width .2s ease, opacity .2s ease, margin-left .2s ease;
+                                  white-space: nowrap;
+                                }
+                                .bulk-toolbar .bulk-btn:hover .label {
+                                  max-width: 120px;
+                                  opacity: 1;
+                                  margin-left: 6px;
+                                }
+                            `}</style>
+                        </>
+                    )}
+
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
@@ -1125,7 +1370,13 @@ const ImportTransactionPage = () => {
                                 </colgroup>
                                 <thead>
                                     <tr>
-                                        <th style={thStyles}><Checkbox /></th>
+                                        <th style={thStyles}>
+                                            <Checkbox
+                                                checked={allSelectedOnPage}
+                                                indeterminate={someSelectedOnPage}
+                                                onChange={toggleSelectAllOnPage}
+                                            />
+                                        </th>
                                         <th style={thStyles}>STT</th>
                                         <th style={thStyles}>Tên phiếu nhập</th>
                                         <th style={thStyles}>Thời gian</th>
@@ -1141,7 +1392,9 @@ const ImportTransactionPage = () => {
                                         <tr><td colSpan={9} style={{ textAlign: 'center', ...tdStyles }}>Không có dữ liệu</td></tr>
                                     ) : transactions.map((row, idx) => (
                                         <tr key={row.id} style={zebra(idx)}>
-                                            <td style={tdStyles}><Checkbox size="small" /></td>
+                                            <td style={tdStyles}>
+                                                <Checkbox size="small" checked={isRowSelected(row.id)} onChange={() => toggleSelectOne(row.id)} />
+                                            </td>
                                             <td style={tdStyles}>{page * pageSize + idx + 1}</td>
                                             <td style={tdStyles}>{row.name}</td>
                                             <td style={tdStyles}>{row.importDate ? new Date(row.importDate).toLocaleString('vi-VN') : ''}</td>

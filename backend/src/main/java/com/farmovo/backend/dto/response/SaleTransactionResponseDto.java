@@ -27,5 +27,9 @@ public class SaleTransactionResponseDto {
     private String storeAddress;
     private Long createdBy;
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
+
+    // Link ngược về Stocktake nếu là PCB
+    private Long stocktakeId;
+    private String stocktakeCode;
 }
 
