@@ -233,11 +233,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
-        String message = "Tên danh mục đã tồn tại!";
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        String userMessage;
+        if (message != null && message.toLowerCase().contains("duplicate")) {
+            userMessage = "Dữ liệu đã tồn tại (trùng khóa).";
+        } else if (message != null && (message.toLowerCase().contains("value too long") || message.toLowerCase().contains("character varying"))) {
+            userMessage = "Dữ liệu quá dài so với giới hạn cột.";
+        } else {
+            userMessage = "Vi phạm ràng buộc dữ liệu.";
+        }
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
-                message,
-                "Duplicate key",
+                userMessage,
+                "Data integrity violation",
                 request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);

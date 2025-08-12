@@ -75,6 +75,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final SaleTransactionValidator saleTransactionValidator;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final StocktakeRepository stocktakeRepository;
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
@@ -100,10 +101,21 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         SaleTransaction transaction = new SaleTransaction();
         mapDtoToTransaction(transaction, dto, userId);
 
-        // Sinh mã name tự động
-        String newName = generateTransactionCode();
-        transaction.setName(newName);
-        log.debug("Generated sale transaction code: {}", newName);
+        // Giả sử có phương thức saveFromBalance hoặc logic phân biệt phiếu cân bằng kho:
+        // Trong phương thức save hoặc saveFromBalance:
+        if (dto.getSaleTransactionNote() != null && dto.getSaleTransactionNote().contains("Cân bằng kho")) {
+            dto.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
+            transaction.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
+            // Sinh mã PCB000xxx
+            String pcbCode = getNextBalanceTransactionCode();
+            dto.setName(pcbCode);
+            transaction.setName(pcbCode);
+        } else {
+            // Logic cũ, sinh mã PBxxxxxx
+            String newName = generateTransactionCode();
+            transaction.setName(newName);
+        }
+        log.debug("Generated sale transaction code: {}", transaction.getName());
 
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Transaction status is COMPLETE, deducting stock from batches");
@@ -186,6 +198,24 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                 .map(entity -> saleTransactionMapper.toResponseDto(entity, objectMapper))
                 .collect(Collectors.toList());
 
+        // Chuẩn hóa: điền stocktakeCode bằng cách resolve từ Stocktake theo stocktakeId (tránh phụ thuộc cột lưu sẵn)
+        try {
+            java.util.Set<Long> stIds = dtoList.stream()
+                    .map(SaleTransactionResponseDto::getStocktakeId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!stIds.isEmpty()) {
+                java.util.Map<Long, String> idToCode = stocktakeRepository.findAllById(stIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(com.farmovo.backend.models.Stocktake::getId, com.farmovo.backend.models.Stocktake::getName, (a, b) -> a));
+                dtoList.forEach(d -> {
+                    if (d.getStocktakeId() != null) {
+                        String code = idToCode.get(d.getStocktakeId());
+                        if (code != null) d.setStocktakeCode(code);
+                    }
+                });
+            }
+        } catch (Exception ignore) {}
+
         return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
@@ -201,13 +231,40 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                     id, transaction.getStatus());
             throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "hoàn thành phiếu");
         }
-        // Parse detail từ JSON để trừ stock
+        // Parse detail từ JSON để trừ stock + cập nhật Zone/isCheck nếu là phiếu cân bằng
         List<ProductSaleResponseDto> detailList = parseTransactionDetail(transaction.getDetail());
         if (!detailList.isEmpty()) {
             log.info("Transaction completed, deducting stock from {} batches", detailList.size());
             deductStockFromBatch(detailList);
             log.info("Transaction completed, deducting stock from {} products", detailList.size());
             deductStockFromProduct(detailList);
+            // Nếu là phiếu cân bằng kho, cập nhật zone thực tế và isCheck=true cho các lô liên quan
+            boolean isBalance = (transaction.getSaleTransactionNote() != null && transaction.getSaleTransactionNote().contains("Cân bằng kho")) || transaction.getStocktakeId() != null;
+            if (isBalance) {
+                java.util.ArrayList<ImportTransactionDetail> lotsToUpdate = new java.util.ArrayList<>();
+                for (ProductSaleResponseDto dto : detailList) {
+                    ImportTransactionDetail lot = null;
+                    if (dto.getId() != null) {
+                        lot = importTransactionDetailRepository.findById(dto.getId()).orElse(null);
+                    }
+                    if (lot == null && dto.getBatchCode() != null) {
+                        lot = importTransactionDetailRepository.findByName(dto.getBatchCode());
+                    }
+                    if (lot != null) {
+                        String newZone = dto.getZoneReal();
+                        if (newZone != null && !newZone.isBlank() && (lot.getZones_id() == null || !lot.getZones_id().equals(newZone))) {
+                            lot.setZones_id(newZone);
+                        }
+                        lot.setIsCheck(Boolean.TRUE);
+                        lotsToUpdate.add(lot);
+                    }
+                }
+                if (!lotsToUpdate.isEmpty()) {
+                    importTransactionDetailRepository.saveAll(lotsToUpdate);
+                    try { importTransactionDetailRepository.flush(); } catch (Exception ignore) {}
+                }
+                // Không còn ghi cờ vào Stocktake; trạng thái cân bằng sẽ được suy ra bằng exists/count sale_transactions theo stocktakeId
+            }
         }
         transaction.setStatus(SaleTransactionStatus.COMPLETE);
         saleTransactionRepository.save(transaction);
@@ -281,6 +338,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     }
 
     @Override
+    public String getNextBalanceSaleTransactionCode() {
+        Long nextSeq = saleTransactionRepository.getMaxPcbSequence() + 1;
+        return String.format("PCB%06d", nextSeq);
+    }
+
+    @Override
+    @Transactional
+    @LogStatusChange
     public void softDeleteSaleTransaction(Long id, Long userId) {
         SaleTransaction transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu bán với ID: " + id));
@@ -302,6 +367,15 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                 });
 
         SaleTransactionResponseDto result = saleTransactionMapper.toResponseDto(entity, objectMapper);
+        // Điền stocktakeCode nếu có stocktakeId
+        if (result.getStocktakeId() != null && (result.getStocktakeCode() == null || result.getStocktakeCode().isBlank())) {
+            try {
+                com.farmovo.backend.models.Stocktake st = stocktakeRepository.findById(result.getStocktakeId()).orElse(null);
+                if (st != null) {
+                    result.setStocktakeCode(st.getName());
+                }
+            } catch (Exception ignore) {}
+        }
         log.debug("Retrieved sale transaction with ID: {}", id);
         return result;
     }
@@ -524,6 +598,11 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         return String.format("PB%06d", lastId + 1);
     }
 
+    private String getNextBalanceTransactionCode() {
+        Long nextSeq = saleTransactionRepository.getMaxPcbSequence() + 1;
+        return String.format("PCB%06d", nextSeq);
+    }
+
 
     private void mapDtoToTransaction(SaleTransaction transaction, CreateSaleTransactionRequestDto dto, Long userId) {
         transaction.setTotalAmount(dto.getTotalAmount());
@@ -531,6 +610,9 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         transaction.setSaleTransactionNote(dto.getSaleTransactionNote());
         transaction.setSaleDate(dto.getSaleDate());
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : SaleTransactionStatus.DRAFT);
+        // Lưu link Stocktake nếu là PCB tạo từ kiểm kê
+        transaction.setStocktakeId(dto.getStocktakeId());
+        // Không set stocktakeCode ở tầng lưu; sẽ resolve khi đọc để đảm bảo chuẩn hóa
         if (userId != null) {
             transaction.setCreatedBy(userId);
         }
@@ -555,6 +637,12 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     }
 
     private void handleCompleteStatus(SaleTransaction transaction) {
+        // Nếu là phiếu cân bằng kho hoặc khách lẻ thì không tạo nợ
+        if ((transaction.getSaleTransactionNote() != null && transaction.getSaleTransactionNote().contains("Cân bằng kho"))
+            || transaction.getCustomer() == null
+            || (transaction.getCustomer() != null && "Khách lẻ".equalsIgnoreCase(transaction.getCustomer().getName()))) {
+            return;
+        }
         BigDecimal paidAmount = transaction.getPaidAmount() != null ? transaction.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal totalAmount = transaction.getTotalAmount() != null ? transaction.getTotalAmount() : BigDecimal.ZERO;
         BigDecimal rawDebtAmount = paidAmount.subtract(totalAmount);  // raw = paid - total

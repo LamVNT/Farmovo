@@ -33,4 +33,4 @@ public interface AdminUserMapper {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
     }
-} 
+}

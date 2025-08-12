@@ -13,6 +13,7 @@ import {
     Typography,
     Box,
     Autocomplete,
+    InputAdornment,
 } from "@mui/material";
 import { addDebtNote } from "../../services/debtService";
 import { uploadEvidence, getAllStores } from "../../services/storeService";
@@ -33,8 +34,21 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     const [error, setError] = useState("");
     const fileInputRef = useRef(null);
 
+    const formatNumberWithDots = (value) => {
+        if (value === null || value === undefined) return "";
+        const digitsOnly = String(value).replace(/\D/g, "");
+        if (!digitsOnly) return "";
+        return Number(digitsOnly).toLocaleString('vi-VN');
+    };
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        if (name === 'debtAmount') {
+            const formatted = formatNumberWithDots(value);
+            setFormData({ ...formData, debtAmount: formatted });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
         setError("");
     };
 
@@ -95,7 +109,8 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             if (file) {
                 debtEvidences = await uploadEvidence(file);
             }
-            const debtAmount = parseFloat(formData.debtAmount) || 0;
+            const rawAmount = (formData.debtAmount || "").replace(/\D/g, "");
+            const debtAmount = Number(rawAmount) || 0;
             const data = {
                 customerId: formData.customerId,
                 debtAmount: formData.debtType === "-" ? -Math.abs(debtAmount) : Math.abs(debtAmount),
@@ -176,14 +191,19 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                     <TextField
                         margin="dense"
                         name="debtAmount"
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         fullWidth
                         value={formData.debtAmount}
                         onChange={handleChange}
                         required
-                        InputProps={{ inputProps: { min: 0 } }}
+                        placeholder="VD: 1.000.000"
                         label=""
                         sx={{ ml: 2 }}
+                        InputProps={{
+                            endAdornment: <InputAdornment position="end">VND</InputAdornment>,
+                            inputProps: { inputMode: 'numeric' }
+                        }}
                     />
                 </Box>
                 <Box display="flex" alignItems="center" mb={2}>

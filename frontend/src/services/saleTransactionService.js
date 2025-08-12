@@ -109,12 +109,32 @@ const saleTransactionService = {
         }
     },
 
+    async softDelete(id) {
+        try {
+            const res = await api.delete(`/sale-transactions/sort-delete/${id}`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in softDelete:', error);
+            throw error;
+        }
+    },
+
     async getNextCode() {
         try {
             const res = await api.get('/sale-transactions/next-code');
             return res.data;
         } catch (error) {
             console.error('Error in getNextCode:', error);
+            throw error;
+        }
+    },
+
+    async getNextBalanceCode() {
+        try {
+            const res = await api.get('/sale-transactions/next-code-balance');
+            return res.data;
+        } catch (error) {
+            console.error('Error in getNextBalanceCode:', error);
             throw error;
         }
     },
@@ -127,6 +147,16 @@ const saleTransactionService = {
             return res.data;
         } catch (error) {
             console.error('Error in exportPdf:', error);
+            throw error;
+        }
+    },
+
+    async softDelete(id) {
+        try {
+            const res = await api.delete(`/sale-transactions/sort-delete/${id}`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in softDelete:', error);
             throw error;
         }
     }

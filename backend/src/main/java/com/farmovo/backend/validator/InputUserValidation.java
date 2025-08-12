@@ -1,18 +1,12 @@
 package com.farmovo.backend.validator;
 
+import com.farmovo.backend.dto.request.SendLoginInfoRequestDto;
 import com.farmovo.backend.exceptions.InvalidStatusException;
-import com.farmovo.backend.repositories.UserRepository;
-import com.farmovo.backend.models.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Component
 public class InputUserValidation {
-
-    @Autowired
-    private UserRepository userRepository;
 
     // Validation cho tạo mới (tất cả trường bắt buộc)
     public void validateUserFieldsForCreate(String fullName, String  username, String password) {
@@ -23,11 +17,6 @@ public class InputUserValidation {
             throw new IllegalArgumentException("Account must be non-empty and not exceed 50 characters");
         }
         
-        // Kiểm tra username trùng lặp (bao gồm cả soft deleted users)
-        if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("Username already exists: " + username);
-        }
-        
         // Validate password strength using PasswordValidator
         PasswordValidator.PasswordValidationResult passwordResult = PasswordValidator.validatePassword(password);
         if (!passwordResult.isValid()) {
@@ -36,21 +25,12 @@ public class InputUserValidation {
     }
 
     // Validation cho cập nhật (password không bắt buộc)
-    public void validateUserFieldsForUpdate(String fullName, String username, String password, Long userId) {
+    public void validateUserFieldsForUpdate(String fullName, String username, String password) {
         if (fullName != null && (!fullName.trim().isEmpty() && fullName.length() > 50)) {
             throw new IllegalArgumentException("Full name must not exceed 50 characters if provided");
         }
         if (username != null && (!username.trim().isEmpty() && username.length() > 50)) {
             throw new IllegalArgumentException("Account must not exceed 50 characters if provided");
-        }
-        
-        // Kiểm tra username trùng lặp khi update (trừ user hiện tại)
-        if (username != null && !username.trim().isEmpty()) {
-            // Kiểm tra xem có user nào khác (không phải user hiện tại) có username này không
-            Optional<User> existingUser = userRepository.findByUsername(username);
-            if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
-                throw new IllegalArgumentException("Username already exists: " + username);
-            }
         }
         
         // Validate password strength if provided
@@ -68,5 +48,81 @@ public class InputUserValidation {
             throw new InvalidStatusException("Status must not be null");
         }
         // Không cần kiểm tra "active" hoặc "deactive" vì status là Boolean (true/false)
+    }
+
+    // Email validation pattern
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+        "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    );
+
+    // Validation cho email
+    public void validateEmail(String email) {
+        if (email != null && !email.trim().isEmpty()) {
+            if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
+                throw new IllegalArgumentException("Invalid email format");
+            }
+            if (email.length() > 255) {
+                throw new IllegalArgumentException("Email must not exceed 255 characters");
+            }
+        }
+    }
+
+    // Validation cho email khi tạo mới (có thể bắt buộc hoặc không tùy theo yêu cầu)
+    public void validateEmailForCreate(String email) {
+        // Email có thể không bắt buộc khi tạo user
+        if (email != null && !email.trim().isEmpty()) {
+            validateEmail(email);
+        }
+    }
+
+    // Validation cho email khi cập nhật
+    public void validateEmailForUpdate(String email) {
+        // Email có thể không bắt buộc khi cập nhật
+        if (email != null && !email.trim().isEmpty()) {
+            validateEmail(email);
+        }
+    }
+
+    // Validation cho SendLoginInfoRequestDto
+    public void validateSendLoginInfoRequest(SendLoginInfoRequestDto request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request cannot be null");
+        }
+        
+        // Validate email
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email không được để trống");
+        }
+        validateEmail(request.getEmail());
+        
+        // Validate username
+        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+            throw new IllegalArgumentException("Username không được để trống");
+        }
+        if (request.getUsername().length() > 50) {
+            throw new IllegalArgumentException("Username không được vượt quá 50 ký tự");
+        }
+        
+        // Validate password
+        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+            throw new IllegalArgumentException("Password không được để trống");
+        }
+        PasswordValidator.PasswordValidationResult passwordResult = PasswordValidator.validatePassword(request.getPassword());
+        if (!passwordResult.isValid()) {
+            throw new IllegalArgumentException("Password validation failed: " + passwordResult.getErrorMessage());
+        }
+        
+        // Validate fullName
+        if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Full name không được để trống");
+        }
+        if (request.getFullName().length() > 50) {
+            throw new IllegalArgumentException("Full name không được vượt quá 50 ký tự");
+        }
+        
+        // Validate storeName
+        if (request.getStoreName() == null || request.getStoreName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Store name không được để trống");
+        }
     }
 }

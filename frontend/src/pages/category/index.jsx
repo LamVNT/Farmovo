@@ -88,18 +88,18 @@ const Category = () => {
     if (error) return <div>{error}</div>;
 
     return (
-        <div className="p-5 bg-white shadow-md rounded-md">
+        <div className="p-4 bg-white shadow-md rounded-md">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Category Management</h2>
+                <h2 className="text-xl font-semibold">Quản lý danh mục</h2>
                 <div className="flex gap-3">
                     <TextField
                         size="small"
-                        label="Search Category"
+                        label="Tìm kiếm danh mục"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                     />
                     <Button variant="contained" onClick={handleOpenCreate} startIcon={<FaPlus/>}>
-                        Add
+                        Thêm mới
                     </Button>
                 </div>
             </div>

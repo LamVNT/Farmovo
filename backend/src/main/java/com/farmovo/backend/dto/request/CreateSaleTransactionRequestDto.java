@@ -24,5 +24,8 @@ public class CreateSaleTransactionRequestDto {
     private SaleTransactionStatus status;
     private LocalDateTime saleDate;
     private String name;
+
+    // Link ngược về phiếu kiểm kê nguồn (nếu là PCB tạo từ Stocktake)
+    private Long stocktakeId;
 }
 

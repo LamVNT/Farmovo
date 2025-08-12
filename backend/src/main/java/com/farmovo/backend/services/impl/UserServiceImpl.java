@@ -53,6 +53,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<String> getAllUsernames() {
+        logger.info("Retrieving all usernames including soft deleted ones");
+        return userRepository.findAll().stream()
+                .map(User::getUsername)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<User> getUserById(Long id) {
         logger.info("Retrieving user with id: {}", id);
         return userRepository.findByIdAndDeletedAtIsNull(id);
@@ -70,6 +78,7 @@ public class UserServiceImpl implements UserService {
         try {
             inputUserValidation.validateUserFieldsForCreate(user.getFullName(), user.getUsername(), user.getPassword());
             inputUserValidation.validateUserStatus(user.getStatus());
+            inputUserValidation.validateEmailForCreate(user.getEmail());
             if (user.getStatus() == null) {
                 user.setStatus(true);
                 logger.info("Default status set to true for new user");
@@ -100,9 +109,10 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByIdAndDeletedAtIsNull(id).map(existingUser -> {
             try {
                 inputUserValidation.validateUserFieldsForUpdate(
-                        user.getFullName(), user.getUsername(), user.getPassword(), id
+                        user.getFullName(), user.getUsername(), user.getPassword()
                 );
                 inputUserValidation.validateUserStatus(user.getStatus());
+                inputUserValidation.validateEmailForUpdate(user.getEmail());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
                 if (user.getPassword() != null) existingUser.setPassword(user.getPassword());

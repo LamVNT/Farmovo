@@ -6,6 +6,7 @@ import com.farmovo.backend.services.ZoneService;
 import com.farmovo.backend.services.UserService;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.models.User;
+import com.farmovo.backend.utils.RoleUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -34,28 +35,23 @@ public class ZoneController {
         try {
             String token = jwtUtils.getJwtFromRequest(request);
             if (token == null) {
-                // Nếu không có token, trả về tất cả zones (có thể cần xem xét lại logic này)
                 return ResponseEntity.ok(zoneService.getAllZones());
             }
             
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
             if (userId == null) {
-                // Nếu không lấy được userId từ token, trả về tất cả zones
                 return ResponseEntity.ok(zoneService.getAllZones());
             }
             
             User user = userService.getUserById(userId).orElse(null);
             if (user != null && user.getAuthorities() != null) {
-                boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
-                boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
+                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
                 if (isStaff && user.getStore() != null) {
                     return ResponseEntity.ok(zoneService.getZonesByStoreId(user.getStore().getId()));
                 }
-                // OWNER hoặc quyền khác trả về toàn bộ zone
             }
             return ResponseEntity.ok(zoneService.getAllZones());
         } catch (Exception e) {
-            // Log lỗi và trả về tất cả zones như fallback
             logger.error("Error in getAllZones: ", e);
             return ResponseEntity.ok(zoneService.getAllZones());
         }
@@ -76,8 +72,7 @@ public class ZoneController {
             
             User user = userService.getUserById(userId).orElse(null);
             if (user != null && user.getAuthorities() != null) {
-                boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
-                boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
+                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
                 if (isStaff) {
                     // Staff chỉ được tạo zone trong kho của mình
                     if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
@@ -108,8 +103,7 @@ public class ZoneController {
             
             User user = userService.getUserById(userId).orElse(null);
             if (user != null && user.getAuthorities() != null) {
-                boolean isOwner = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("OWNER"));
-                boolean isStaff = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("STAFF"));
+                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
                 if (isStaff) {
                     // Staff chỉ được cập nhật zone trong kho của mình
                     if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
@@ -143,5 +137,4 @@ public class ZoneController {
         List<ZoneResponseDto> zones = zoneService.getZonesByStoreId(storeId);
         return ResponseEntity.ok(zones);
     }
-
 }

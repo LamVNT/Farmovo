@@ -27,7 +27,8 @@ export const userService = {
 
     getUserById: async (id) => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
+            // Use public endpoint accessible to all authenticated roles
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/${id}`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -52,8 +53,13 @@ export const userService = {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/me`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
-            return response.data;
+            return response.data; // Already authenticated
         } catch (error) {
+            // If the server returns 401/403, treat as unauthenticated instead of throwing
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                return null;
+            }
+            // For other errors propagate them so they can be surfaced properly
             throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng hiện tại');
         }
     },

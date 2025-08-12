@@ -1,0 +1,24 @@
+import api from './axiosClient';
+
+const balanceTransactionService = {
+    async listPaged(params) {
+        try {
+            const res = await api.get('/sale-transactions/list-all', { params: { ...params, isBalanceStock: true } });
+            return res.data;
+        } catch (error) {
+            console.error('Error in listPaged (balance):', error);
+            throw error;
+        }
+    },
+    async getById(id) {
+        try {
+            const res = await api.get(`/sale-transactions/${id}`);
+            return res.data;
+        } catch (error) {
+            console.error('Error in getById (balance):', error);
+            throw error;
+        }
+    },
+};
+
+export default balanceTransactionService; 

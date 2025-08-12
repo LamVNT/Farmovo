@@ -2,6 +2,7 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
+import com.farmovo.backend.dto.request.SendLoginInfoRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.dto.response.AdminUserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
@@ -9,6 +10,7 @@ import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.mapper.AdminUserMapper;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
+import com.farmovo.backend.services.impl.EmailServiceImpl;
 import jakarta.validation.Valid;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,13 +40,23 @@ public class UserController {
     @Autowired
     private AdminUserMapper adminUserMapper;
 
+    @Autowired
+    private EmailServiceImpl emailService;
+
     @GetMapping("/admin/userList")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public List<UserResponseDto> getAllUsers() {
         logger.info("Fetching all users");
         return userService.getAllUsers().stream()
                 .map(userMapper::toResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/admin/allUsernames")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
+    public List<String> getAllUsernames() {
+        logger.info("Fetching all usernames including soft deleted ones");
+        return userService.getAllUsernames();
     }
 
     @GetMapping("/admin/userListWithPassword")
@@ -57,7 +69,7 @@ public class UserController {
 
     // New paged search endpoint
     @GetMapping("/admin/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<com.farmovo.backend.dto.request.PageResponse<UserResponseDto>> searchUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -73,7 +85,7 @@ public class UserController {
     }
 
     @GetMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         logger.info("Fetching user with id: {}", id);
         return userService.getUserById(id)
@@ -90,7 +102,7 @@ public class UserController {
     }
 
     @PostMapping("/admin/createUser")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public UserResponseDto createUser(@Valid @RequestBody UserRequestDto dto, Principal principal) {
         logger.info("Creating new user: {} by user: {}", dto.getUsername(), principal.getName());
         User user = userService.convertToEntity(dto);
@@ -99,7 +111,7 @@ public class UserController {
     }
 
     @PutMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating user with id: {}", id);
         User user = userService.convertToEntity(dto);
@@ -109,7 +121,7 @@ public class UserController {
     }
 
     @DeleteMapping("/admin/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id, Principal principal) {
         logger.info("Deleting user with id: {} by user: {}", id, principal.getName());
         if (userService.deleteUser(id, principal)) {
@@ -120,7 +132,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> updateUserStatus(@PathVariable Long id, @RequestBody Boolean status) {
         logger.info("Updating status for user with id: {} to {}", id, status);
         return userService.updateUserStatus(id, status)
@@ -129,7 +141,7 @@ public class UserController {
     }
 
     @PatchMapping("/admin/{id}/toggle-status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<UserResponseDto> toggleUserStatus(@PathVariable Long id) {
         logger.info("Toggling status for user with id: {}", id);
         return userService.toggleUserStatus(id)
@@ -145,6 +157,15 @@ public class UserController {
         return ResponseEntity.ok(userMapper.toResponseDto(user));
     }
 
+    // Public basic lookup for any authenticated user to resolve display names (used by STAFF)
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserResponseDto> getUserBasicById(@PathVariable Long id) {
+        logger.info("Fetching basic user info with id: {}", id);
+        return userService.getUserById(id)
+                .map(user -> ResponseEntity.ok(userMapper.toResponseDto(user)))
+                .orElseThrow(() -> new UserManagementException("User not found with id: " + id));
+    }
+
     @PutMapping("/users/me")
     public ResponseEntity<UserResponseDto> updateCurrentUser(Principal principal, @Valid @RequestBody UserUpdateRequestDto dto) {
         logger.info("Updating current user: {}", principal.getName());
@@ -158,6 +179,19 @@ public class UserController {
         return userService.updateUser(userId, user)
                 .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found"));
+    }
+
+    @PostMapping("/admin/send-login-info")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
+    public ResponseEntity<String> sendLoginInfoEmail(@RequestBody SendLoginInfoRequestDto request) {
+        logger.info("Sending login info email to: {}", request.getEmail());
+        try {
+            emailService.sendLoginInfoEmail(request);
+            return ResponseEntity.ok("Email thông tin đăng nhập đã được gửi thành công!");
+        } catch (Exception e) {
+            logger.error("Error sending login info email: {}", e.getMessage());
+            return ResponseEntity.status(500).body("Lỗi khi gửi email: " + e.getMessage());
+        }
     }
 
     @ExceptionHandler(UserManagementException.class)

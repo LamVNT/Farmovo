@@ -1,16 +1,18 @@
 package com.farmovo.backend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.farmovo.backend.dto.request.PageResponse;
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
+import com.farmovo.backend.dto.request.SendLoginInfoRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.exceptions.GlobalExceptionHandler;
 import com.farmovo.backend.exceptions.UserManagementException;
 import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.models.User;
 import com.farmovo.backend.services.UserService;
+import com.farmovo.backend.services.impl.EmailServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
@@ -43,6 +47,8 @@ class UserControllerTest {
     private UserService userService;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private EmailServiceImpl emailService;
 
     @InjectMocks
     private UserController userController;
@@ -252,5 +258,72 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /admin/send-login-info - Gửi email thành công")
+    void testSendLoginInfoEmail_Success() throws Exception {
+        // Given
+        SendLoginInfoRequestDto request = new SendLoginInfoRequestDto();
+        request.setEmail("test@example.com");
+        request.setUsername("testuser");
+        request.setPassword("TestPass123!");
+        request.setFullName("Test User");
+        request.setStoreName("Test Store");
+
+        doNothing().when(emailService).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
+
+        // When & Then
+        mockMvc.perform(post("/api/admin/send-login-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Email thông tin đăng nhập đã được gửi thành công!"));
+
+        verify(emailService, times(1)).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("POST /admin/send-login-info - Lỗi khi gửi email")
+    void testSendLoginInfoEmail_ServiceThrowsException() throws Exception {
+        // Given
+        SendLoginInfoRequestDto request = new SendLoginInfoRequestDto();
+        request.setEmail("test@example.com");
+        request.setUsername("testuser");
+        request.setPassword("TestPass123!");
+        request.setFullName("Test User");
+        request.setStoreName("Test Store");
+
+        String errorMessage = "SMTP connection failed";
+        doThrow(new RuntimeException(errorMessage)).when(emailService).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
+
+        // When & Then
+        mockMvc.perform(post("/api/admin/send-login-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string("Lỗi khi gửi email: " + errorMessage));
+
+        verify(emailService, times(1)).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("POST /admin/send-login-info - Request không hợp lệ")
+    void testSendLoginInfoEmail_InvalidRequest() throws Exception {
+        // Given
+        SendLoginInfoRequestDto request = new SendLoginInfoRequestDto();
+        // Không set email - sẽ gây lỗi validation trong service
+
+        doThrow(new IllegalArgumentException("Email không được để trống"))
+                .when(emailService).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
+
+        // When & Then
+        mockMvc.perform(post("/api/admin/send-login-info")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string("Lỗi khi gửi email: Email không được để trống"));
+
+        verify(emailService, times(1)).sendLoginInfoEmail(any(SendLoginInfoRequestDto.class));
     }
 }
