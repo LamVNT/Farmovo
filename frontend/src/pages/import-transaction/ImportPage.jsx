@@ -208,39 +208,51 @@ const ImportPage = () => {
         }
     };
 
-    // Cập nhật category products khi products thay đổi
+    // Cập nhật category products khi products, selectedCategory hoặc selectedStore thay đổi
     useEffect(() => {
         if (selectedCategory) {
-            const filteredProducts = products.filter(product => 
-                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
-            );
+            const filteredProducts = products.filter(product => {
+                // Lọc theo category
+                const matchesCategory = product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id;
+                
+                // Lọc theo store (nếu đã chọn store)
+                const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+                
+                return matchesCategory && matchesStore;
+            });
             setCategoryProducts(filteredProducts);
         }
-    }, [products, selectedCategory]);
+    }, [products, selectedCategory, selectedStore]);
 
-    // Cập nhật search results khi products hoặc searchTerm hoặc isSearchFocused thay đổi
+    // Cập nhật search results khi products, searchTerm, isSearchFocused hoặc selectedStore thay đổi
     useEffect(() => {
         if (searchTerm.trim() !== '') {
-            // Ưu tiên lọc searchTerm nếu có nhập
+            // Ưu tiên lọc searchTerm nếu có nhập, và lọc theo store
             const results = products.filter(
                 (p) => {
                     const name = p.name || p.productName || '';
                     const code = p.code || '';
-                    return (
-                        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        code.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
+                    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        code.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    // Lọc theo store (nếu đã chọn store)
+                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                    
+                    return matchesSearch && matchesStore;
                 }
             );
             setFilteredProducts(results);
         } else if (isSearchFocused) {
-            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên
-            setFilteredProducts(products.slice(0, 5));
+            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên (theo store)
+            const storeProducts = selectedStore ? 
+                products.filter(p => p.storeId === selectedStore) : 
+                products;
+            setFilteredProducts(storeProducts.slice(0, 5));
         } else {
             // Không focus và không nhập thì không gợi ý gì
             setFilteredProducts([]);
         }
-    }, [products, searchTerm, isSearchFocused]);
+    }, [products, searchTerm, isSearchFocused, selectedStore]);
 
     // Cập nhật filteredSuppliers khi search hoặc focus
     useEffect(() => {
@@ -483,6 +495,16 @@ const ImportPage = () => {
     };
 
     const handleOpenCategoryDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm từ nhóm hàng');
+            setHighlightStore(true);
+            return;
+        }
+        
         setShowCategoryDialog(true);
         setSelectedCategory(null);
         setCategoryProducts([]);
@@ -496,10 +518,16 @@ const ImportPage = () => {
 
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
-        // Lọc sản phẩm theo category
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
+        // Lọc sản phẩm theo category và store
+        const filteredProducts = products.filter(product => {
+            // Lọc theo category
+            const matchesCategory = product.categoryId === category.id || product.category?.id === category.id;
+            
+            // Lọc theo store (nếu đã chọn store)
+            const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+            
+            return matchesCategory && matchesStore;
+        });
         setCategoryProducts(filteredProducts);
     };
 
@@ -1954,7 +1982,11 @@ const ImportPage = () => {
                                         >
                                             <div className="font-medium text-base">{category.name}</div>
                                             <div className="text-sm text-gray-500 font-semibold bg-blue-100 rounded-full px-3 py-1 ml-2">
-                                                {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                                {products.filter(p => {
+                                                    const matchesCategory = p.categoryId === category.id || p.category?.id === category.id;
+                                                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                                                    return matchesCategory && matchesStore;
+                                                }).length} sản phẩm
                                             </div>
                                         </div>
                                     ))

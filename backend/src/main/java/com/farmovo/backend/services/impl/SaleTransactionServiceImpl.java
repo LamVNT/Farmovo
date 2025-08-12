@@ -226,10 +226,18 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         var transaction = saleTransactionRepository.findById(id)
                 .orElseThrow(() -> new SaleTransactionNotFoundException("Not found"));
 
-        if (transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
-            log.warn("Attempted to complete non-WAITING_FOR_APPROVE transaction with ID: {}, current status: {}",
+        // Cho phép hoàn thành từ cả DRAFT và WAITING_FOR_APPROVE
+        if (transaction.getStatus() != SaleTransactionStatus.DRAFT && transaction.getStatus() != SaleTransactionStatus.WAITING_FOR_APPROVE) {
+            log.warn("Attempted to complete transaction with invalid status. ID: {}, current status: {}",
                     id, transaction.getStatus());
-            throw new TransactionStatusException(transaction.getStatus().toString(), "WAITING_FOR_APPROVE", "hoàn thành phiếu");
+            throw new TransactionStatusException(transaction.getStatus().toString(), "DRAFT hoặc WAITING_FOR_APPROVE", "hoàn thành phiếu");
+        }
+
+        // Nếu là DRAFT, tự động chuyển sang WAITING_FOR_APPROVE trước
+        if (transaction.getStatus() == SaleTransactionStatus.DRAFT) {
+            log.info("Auto-converting DRAFT transaction to WAITING_FOR_APPROVE before completing. ID: {}", id);
+            transaction.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
+            saleTransactionRepository.save(transaction);
         }
         // Parse detail từ JSON để trừ stock + cập nhật Zone/isCheck nếu là phiếu cân bằng
         List<ProductSaleResponseDto> detailList = parseTransactionDetail(transaction.getDetail());

@@ -23,9 +23,21 @@ const SaleProductDialog = ({
     onAddProducts,
     formatCurrency 
 }) => {
-    const [selectedBatches, setSelectedBatches] = useState(selectedBatchesForDialog);
+    const [selectedBatches, setSelectedBatches] = useState([]);
     const [productSearch, setProductSearch] = useState('');
     const [filteredProducts, setFilteredProducts] = useState(products);
+
+    // Khởi tạo selectedBatches với id duy nhất
+    useEffect(() => {
+        if (selectedBatchesForDialog && selectedBatchesForDialog.length > 0) {
+            const uniqueBatches = selectedBatchesForDialog.map((batch, idx) => ({
+                ...batch,
+                id: Date.now() + Math.random() + idx, // Đảm bảo id duy nhất
+                batchId: batch.batchId || batch.id || batch.proId
+            }));
+            setSelectedBatches(uniqueBatches);
+        }
+    }, [selectedBatchesForDialog]);
 
     useEffect(() => {
         if (productSearch.trim() === '') {
@@ -39,17 +51,32 @@ const SaleProductDialog = ({
     }, [productSearch, products]);
 
     const handleBatchSelection = (batch) => {
-        const isSelected = selectedBatches.some(b => b.batchId === batch.id);
+        // Sử dụng batch.id gốc để kiểm tra selection
+        const originalBatchId = batch.id || batch.batchId || batch.proId;
+        
+        // Tạo id duy nhất cho selectedBatches để tránh trùng lặp
+        const uniqueId = Date.now() + Math.random() + Math.floor(Math.random() * 1000);
+        
+        const isSelected = selectedBatches.some(b => b.batchId === originalBatchId);
         if (isSelected) {
-            setSelectedBatches(prev => prev.filter(b => b.batchId !== batch.id));
+            setSelectedBatches(prev => prev.filter(b => b.batchId !== originalBatchId));
         } else {
-            setSelectedBatches(prev => [...prev, { id: `${batch.id}-${prev.length}`, batchId: batch.id, batch, quantity: 1 }]);
+            setSelectedBatches(prev => [...prev, { 
+                id: uniqueId, 
+                batchId: originalBatchId, 
+                batch, 
+                quantity: 1,
+                proId: batch.proId || batch.productId || selectedProduct?.proId || selectedProduct?.id // Đảm bảo proId luôn có giá trị
+            }]);
         }
     };
 
     const handleQuantityChange = (batchId, quantity) => {
+        // Đảm bảo batchId là số hợp lệ
+        const validBatchId = (/^\d+$/.test(String(batchId))) ? Number(batchId) : batchId;
+        
         setSelectedBatches(prev => 
-            prev.map(b => b.batchId === batchId ? { ...b, quantity } : b)
+            prev.map(b => b.batchId === validBatchId ? { ...b, quantity } : b)
         );
     };
 
@@ -117,13 +144,19 @@ const SaleProductDialog = ({
                             availableBatches.length > 0 ? (
                                 <>
                                     {availableBatches.map((batch, idx) => {
-                                        const isSelected = selectedBatches.some(b => b.batchId === batch.id);
-                                        const selectedBatchData = selectedBatches.find(b => b.batchId === batch.id);
+                                        // Sử dụng batch.id gốc để kiểm tra selection
+                                        const originalBatchId = batch.id || batch.batchId || batch.proId;
+                                        
+                                        // Sử dụng uniqueKey từ availableBatches hoặc tạo mới nếu không có
+                                        const uniqueKey = batch.uniqueKey || `${originalBatchId}_${idx}_${batch.name || batch.batchCode || 'batch'}_${batch.remainQuantity || 0}_${batch.unitSalePrice || 0}_${batch.createAt || 'no-date'}`;
+                                        
+                                        const isSelected = selectedBatches.some(b => b.batchId === originalBatchId);
+                                        const selectedBatchData = selectedBatches.find(b => b.batchId === originalBatchId);
                                         const quantity = selectedBatchData ? selectedBatchData.quantity : 1;
                                         const isError = isSelected && (quantity < 1 || quantity > batch.remainQuantity);
                                         return (
                                             <div
-                                                key={batch.id}
+                                                key={uniqueKey}
                                                 className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition cursor-pointer
                                                     ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}
                                                     ${isError ? 'border-red-500 bg-red-50' : ''}
@@ -150,7 +183,7 @@ const SaleProductDialog = ({
                                                             e.stopPropagation();
                                                             const val = parseInt(e.target.value) || 1;
                                                             if (isSelected) {
-                                                                handleQuantityChange(batch.id, val);
+                                                                handleQuantityChange(originalBatchId, val);
                                                             }
                                                         }}
                                                         inputProps={{ min: 1, max: batch.remainQuantity, style: { padding: 4, width: 60 } }}
@@ -158,7 +191,7 @@ const SaleProductDialog = ({
                                                         onFocus={(e) => {
                                                             if (quantity === 1 && e.target.value === '1') {
                                                                 e.target.value = '';
-                                                                handleQuantityChange(batch.id, '');
+                                                                handleQuantityChange(originalBatchId, '');
                                                             }
                                                         }}
                                                         onClick={e => e.stopPropagation()}

@@ -64,6 +64,7 @@ const AddSalePage = (props) => {
     const [highlightProducts, setHighlightProducts] = useState(false);
     const [balanceModeInitialized, setBalanceModeInitialized] = useState(false);
     const [invalidProductIds, setInvalidProductIds] = useState([]);
+    const [isClient, setIsClient] = useState(false);
 
     const {
         currentUser,
@@ -115,6 +116,8 @@ const AddSalePage = (props) => {
         handleCancel,
         handleConfirmSummary,
         handleCloseSummary,
+        handleSelectProductInDialog,
+        handleSelectBatches,
     } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
 
     useEffect(() => {
@@ -137,7 +140,8 @@ const AddSalePage = (props) => {
             setSelectedProducts(props.initialProducts.map((p, idx) => ({
                 ...p,
                 price: p.unitSalePrice || 0,
-                id: p.id || p.batchId || `temp_${idx}_${Date.now()}` // Gán id hợp lệ
+                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
+                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
             })));
         }
     }, [props.isBalanceStock, props.initialProducts]);
@@ -235,6 +239,11 @@ const AddSalePage = (props) => {
         }
     }, [error, success]);
 
+    // Set client-side rendering
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     // Validate trước khi mở popup tóm tắt qua handleShowSummary từ hook
     const openSummaryAfterValidate = (status) => {
         let missing = false;
@@ -274,6 +283,20 @@ const AddSalePage = (props) => {
         setColumnVisibility((prev) => ({...prev, [col]: !prev[col]}));
     };
 
+    const handleOpenProductDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm sản phẩm');
+            setHighlightStore(true);
+            return;
+        }
+        
+        setShowProductDialog(true);
+    };
+
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
@@ -296,12 +319,15 @@ const AddSalePage = (props) => {
     };
 
     const handleSelectBatch = (batch) => {
+        // Đảm bảo batch.id là số hợp lệ
+        const validBatchId = (/^\d+$/.test(String(batch.id))) ? Number(batch.id) : (batch.batchId || batch.proId || Date.now());
+        
         if (unit === 'khay') {
             const remainKhay = Math.floor(batch.remainQuantity / 30);
             if (remainKhay < 1) return;
             handleSelectProduct({
-                id: batch.id,
-                proId: batch.proId,
+                id: validBatchId,
+                proId: batch.proId || batch.productId || batch.id || validBatchId, // Đảm bảo proId luôn có giá trị
                 name: batch.productName,
                 unit: 'khay',
                 price: batch.unitSalePrice || 0,
@@ -315,8 +341,8 @@ const AddSalePage = (props) => {
             }, {directAdd: true});
         } else {
             handleSelectProduct({
-                id: batch.id,
-                proId: batch.proId,
+                id: validBatchId,
+                proId: batch.proId || batch.productId || batch.id || validBatchId, // Đảm bảo proId luôn có giá trị
                 name: batch.productName,
                 unit: 'quả',
                 price: batch.unitSalePrice || 0,
@@ -335,6 +361,16 @@ const AddSalePage = (props) => {
     };
 
     const handleOpenCategoryDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm từ nhóm hàng');
+            setHighlightStore(true);
+            return;
+        }
+        
         setShowCategoryDialog(true);
         setSelectedCategory(null);
         setCategoryProducts([]);
@@ -360,7 +396,11 @@ const AddSalePage = (props) => {
     };
 
     const handleSelectCategoryProduct = (product) => {
-        handleSelectProduct({...product, unit: 'quả'}, {directAdd: true});
+        handleSelectProduct({
+            ...product, 
+            unit: 'quả',
+            proId: product.proId || product.id // Đảm bảo proId luôn có giá trị
+        }, {directAdd: true});
     };
 
     const handleUnitChange = (id, newUnit) => {
@@ -398,46 +438,81 @@ const AddSalePage = (props) => {
             field: 'stt',
             headerName: 'STT',
             width: 80,
-            renderCell: (params) => params.row.stt,
-            sortable: false,
-            filterable: false,
+            renderCell: (params) => {
+                let stt = '';
+                if (typeof params.rowIndex === 'number') {
+                    stt = params.rowIndex + 1;
+                } else if (params.id) {
+                    const idx = selectedProducts.findIndex(row => row.id === params.id);
+                    stt = idx >= 0 ? idx + 1 : '';
+                }
+                
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                    }}>
+                        {stt}
+                    </div>
+                );
+            }
         },
-        ...(props.isBalanceStock && columnVisibility['Mã lô'] ? [{
-            field: 'batchCode',
-            headerName: 'Mã lô',
-            width: 120,
-        }] : []),
-        columnVisibility['Tên hàng'] && {
-            field: 'name',
-            headerName: 'Tên hàng',
-            flex: 1,
-            renderCell: (params) => (
-                <div className="flex flex-col w-full">
-                    <div className="font-medium text-gray-900">{params.row.name}</div>
-                    {params.row.batchCode && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.batchCode}
+
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 150, 
+            minWidth: 150,
+            renderCell: (params) => {
+                // Lấy tên sản phẩm từ nhiều nguồn có thể
+                const productName = params.row.productName || 
+                                  params.row.name || 
+                                  params.row.batch?.productName || 
+                                  'Sản phẩm';
+                
+                // Lấy mã lô từ nhiều nguồn có thể
+                const batchCode = params.row.batch?.name || 
+                                params.row.batch?.batchCode || 
+                                params.row.batchCode || 
+                                params.row.name ||
+                                params.row.batchId || 
+                                params.row.id;
+                
+                                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        padding: '0 8px'
+                    }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#111827' }}>
+                            {productName}
                         </div>
-                    )}
-                    {!params.row.batchCode && params.row.batchId && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.batchId}
-                        </div>
-                    )}
-                    {!params.row.batchCode && !params.row.batchId && params.row.id && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.id}
-                        </div>
-                    )}
-                </div>
-            )
+                    </div>
+                );
+            }
         },
-        columnVisibility['ĐVT'] && {
-            field: 'unit',
-            headerName: 'ĐVT',
+        columnVisibility['ĐVT'] && { 
+            field: 'unit', 
+            headerName: 'ĐVT', 
             width: 120,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
                     <Select
                         size="small"
                         value={params.row.unit || 'quả'}
@@ -446,19 +521,30 @@ const AddSalePage = (props) => {
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
-                            '& .MuiOutlinedInput-notchedOutline': {borderColor: 'transparent'},
-                            '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2'},
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2'},
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            '& .MuiSelect-select': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'transparent',
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
                         }}
                     >
-                        <MenuItem value="quả">quả</MenuItem>
-                        <MenuItem
-                            value="khay"
-                            disabled={params.row.remainQuantity < 30 || props.isBalanceStock}
-                            sx={{'&.Mui-disabled': {color: '#999', fontStyle: 'italic'}}}
-                        >
-                            khay {params.row.remainQuantity < 30 && '(cần ≥30 quả)'}
-                        </MenuItem>
+                        <MenuItem value="quả" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>quả</MenuItem>
+                        <MenuItem value="khay" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>khay</MenuItem>
                     </Select>
                 </div>
             )
@@ -468,11 +554,33 @@ const AddSalePage = (props) => {
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full gap-1">
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, -1)}
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%', 
+                    gap: '4px'
+                }}>
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, -1); }} 
                         disabled={props.isBalanceStock}
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         –
                     </button>
@@ -483,19 +591,54 @@ const AddSalePage = (props) => {
                         value={params.row.quantity || 1}
                         onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
                         disabled={props.isBalanceStock}
+                        onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
-                            '& .MuiInput-underline:before': {borderBottomColor: 'transparent'},
-                            '& .MuiInput-underline:after': {borderBottomColor: '#1976d2'},
-                            '& .MuiInput-underline:hover:before': {borderBottomColor: 'transparent'},
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {display: 'none'},
-                            '& input[type=number]': {MozAppearance: 'textfield'}
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                display: 'none',
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
+                            }
                         }}
                     />
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, 1)}
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, 1); }} 
                         disabled={props.isBalanceStock}
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         +
                     </button>
@@ -506,25 +649,53 @@ const AddSalePage = (props) => {
             field: 'price',
             headerName: 'Đơn giá',
             renderHeader: () => (
-                <span>Đơn giá<span style={{color: '#6b7280', fontSize: '0.875em'}}>/quả</span></span>
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
             ),
             width: 150,
+            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center', 
+                    height: '100%' 
+                }}>
                     <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         variant="standard"
-                        value={params.row.price || 0}
-                        onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)}
-                        InputProps={{endAdornment: <span className="text-gray-500">VND</span>}}
+                        value={(params.row.price || 0).toLocaleString('vi-VN')}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '');
+                            handlePriceChange(params.row.id, Number(value) || 0);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        InputProps={{
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
+                        }}
                         sx={{
                             width: '100px',
-                            '& .MuiInput-underline:before': {borderBottomColor: 'transparent'},
-                            '& .MuiInput-underline:after': {borderBottomColor: '#1976d2'},
-                            '& .MuiInput-underline:hover:before': {borderBottomColor: 'transparent'},
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {display: 'none'},
-                            '& input[type=number]': {MozAppearance: 'textfield'}
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
                         }}
                     />
                 </div>
@@ -539,6 +710,7 @@ const AddSalePage = (props) => {
                 const price = parseFloat(row.price) || 0;
                 const quantity = parseInt(row.quantity) || 0;
                 const unit = row.unit || 'quả';
+                
                 const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
                 return price * quantityInQua;
             },
@@ -547,41 +719,44 @@ const AddSalePage = (props) => {
                 const price = parseFloat(params.row.price) || 0;
                 const quantity = parseInt(params.row.quantity) || 0;
                 const unit = params.row.unit || 'quả';
+                
                 const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
                 const total = price * quantityInQua;
-                return <div className="text-right w-full">{formatCurrency(total)}</div>;
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textAlign: 'center'
+                    }}>
+                        {formatCurrency(total)}
+                    </div>
+                );
             },
         },
-        ...(props.isBalanceStock && columnVisibility['Zone'] ? [{
-            field: 'zoneReal',
-            headerName: 'Zone',
-            width: 120,
-            renderCell: (params) => {
-                const { row } = params;
-                // zones lấy từ hook useSaleTransaction
-                // row.zoneReal có thể là mảng, chuỗi phân cách phẩy, hoặc số
-                const zonesList = Array.isArray(row.zoneReal)
-                    ? row.zoneReal
-                    : typeof row.zoneReal === 'string' && row.zoneReal.includes(',')
-                        ? row.zoneReal.split(',').map(z => z.trim())
-                        : [row.zoneReal];
-                const zoneNames = zonesList.map(zid => {
-                    const zone = zones.find(z => z.id === Number(zid));
-                    return zone ? zone.zoneName : zid;
-                }).join(', ');
-                return <span>{zoneNames}</span>;
-            },
-        }] : []),
+
         !props.isBalanceStock && {
             field: 'actions',
             headerName: '',
             width: 60,
             renderCell: (params) => (
-                <Tooltip title="Xóa">
-                    <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
-                        <FaRegTrashCan/>
-                    </IconButton>
-                </Tooltip>
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
+                    <Tooltip title="Xóa">
+                        <IconButton size="small" onClick={e => { e.stopPropagation(); handleDeleteProduct(params.row.id); }}>
+                            <FaRegTrashCan />
+                        </IconButton>
+                    </Tooltip>
+                </div>
             ),
         },
     ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, handleUnitChange, props.isBalanceStock]);
@@ -657,7 +832,7 @@ const AddSalePage = (props) => {
                         </Select>
                         {!props.isBalanceStock && (
                             <Tooltip title="Thêm sản phẩm">
-                                <IconButton onClick={() => setShowProductDialog(true)}>
+                                <IconButton onClick={handleOpenProductDialog}>
                                     <FiPlus/>
                                 </IconButton>
                             </Tooltip>
@@ -719,26 +894,91 @@ const AddSalePage = (props) => {
                         </Menu>
                     </div>
                 </div>
-                <div style={{height: 400, width: '100%'}}>
-                    <DataGrid
-                        key={dataGridKey}
-                        rows={selectedProducts.map((row, idx) => ({
-                            ...row,
-                            stt: idx + 1,
-                            id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất (DataGrid key)
-                        }))}
-                        columns={columns}
-                        pageSize={5}
-                        rowsPerPageOptions={[5]}
-                        disableSelectionOnClick
-                        getRowId={(row) => row.id}
-                        sx={highlightProducts ? {
-                            boxShadow: '0 0 0 3px #ffbdbd',
-                            borderRadius: 4,
-                            background: '#fff6f6'
-                        } : {}}
-                        getRowClassName={(params) => invalidProductIds.includes(params.row.id) ? 'row-error' : ''}
-                    />
+                <div style={{ height: 400, width: '100%' }}>
+                    {isClient ? (
+                        <DataGrid
+                            key={dataGridKey}
+                            rows={selectedProducts.map((row, idx) => ({
+                                ...row,
+                                stt: idx + 1,
+                                id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất (DataGrid key)
+                            }))}
+                            columns={columns}
+                            pageSize={5}
+                            rowsPerPageOptions={[5]}
+                            disableSelectionOnClick
+                            getRowId={(row) => row.id}
+                            sx={{
+                                ...(highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}),
+                                '& .MuiDataGrid-cell': {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    borderBottom: '1px solid #e0e0e0',
+                                    padding: '8px 4px'
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600',
+                                    backgroundColor: '#f8f9fa',
+                                    borderBottom: '2px solid #dee2e6'
+                                },
+                                '& .MuiDataGrid-row': {
+                                    minHeight: '52px',
+                                    '&:hover': {
+                                        backgroundColor: '#f8f9fa'
+                                    }
+                                }
+                            }}
+                            componentsProps={{
+                                basePopper: {
+                                    sx: {
+                                        '& .MuiDataGrid-panel': {
+                                            '& .MuiDataGrid-panelContent': {
+                                                '& .MuiDataGrid-panelFooter': {
+                                                    display: 'none'
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }}
+                            disableColumnMenu={false}
+                            disableColumnFilter={false}
+                            disableColumnSelector={false}
+                            disableDensitySelector={false}
+                            disableColumnReorder={true}
+                            disableColumnResize={true}
+                            disableExtendRowFullWidth={true}
+                            disableIgnoreModificationsIfProcessingProps={true}
+                            disableRowSelectionOnClick={true}
+                            disableVirtualization={false}
+                            hideFooter={false}
+                            hideFooterPagination={false}
+                            hideFooterSelectedRowCount={false}
+                            loading={false}
+                            rowHeight={52}
+                            rowSpacingType="border"
+                            showCellVerticalBorder={false}
+                            showColumnVerticalBorder={false}
+                            columnVisibilityModel={columnVisibility}
+                            onColumnVisibilityModelChange={(newModel) => setColumnVisibility(newModel)}
+                            getRowClassName={(params) => invalidProductIds.includes(params.row.id) ? 'row-error' : ''}
+                        />
+                    ) : (
+                        <div style={{ 
+                            height: 400, 
+                            width: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px'
+                        }}>
+                            <div>Loading...</div>
+                        </div>
+                    )}
                 </div>
             </div>
             <SaleSidebar
@@ -792,9 +1032,8 @@ const AddSalePage = (props) => {
                 selectedProduct={selectedProduct}
                 availableBatches={availableBatches}
                 selectedBatchesForDialog={[]}
-                onSelectProduct={handleSelectProduct}
-                onSelectBatches={() => {
-                }}
+                onSelectProduct={handleSelectProductInDialog}
+                onSelectBatches={handleSelectBatches}
                 onAddProducts={handleAddProductsFromDialog}
                 formatCurrency={formatCurrency}
             />
