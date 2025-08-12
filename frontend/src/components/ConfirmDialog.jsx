@@ -11,7 +11,7 @@ const ConfirmDialog = ({ open, onClose, onConfirm, title, content, confirmText =
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <Typography>{content}</Typography>
+        <Typography style={{ whiteSpace: 'pre-line' }}>{content}</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="secondary" variant="outlined">{cancelText}</Button>

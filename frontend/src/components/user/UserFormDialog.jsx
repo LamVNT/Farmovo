@@ -16,32 +16,9 @@ import {
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import axios from 'axios';
+import { generateUsername } from '../../utils/usernameGenerator';
 
 const API_URL = `${import.meta.env.VITE_API_URL}`;
-
-function removeVietnameseTones(str) {
-    return str
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D');
-}
-
-function generateUsername(fullName, existingUsernames) {
-    if (!fullName) return '';
-    const parts = removeVietnameseTones(fullName.trim()).split(/\s+/);
-    if (parts.length === 0) return '';
-    const lastName = parts[parts.length - 1];
-    const initials = parts.slice(0, -1).map(p => p[0]?.toUpperCase() || '').join('');
-    let base = lastName + (initials ? initials : '');
-    base = base.replace(/[^a-zA-Z0-9]/g, '');
-    let number = 1;
-    let username = base + number;
-    while (existingUsernames.includes(username)) {
-        number++;
-        username = base + number;
-    }
-    return username;
-}
 
 function generateRandomPassword() {
     // Tạo password đáp ứng yêu cầu validation
@@ -68,12 +45,15 @@ function generateRandomPassword() {
     return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode, errors = {}, currentUserRole = null, formErrors = {} }) => {
     const [stores, setStores] = useState([]);
     const [roles, setRoles] = useState([]);
     const [storesLoading, setStoresLoading] = useState(true); // Thêm state loading cho stores
     const [allUsernames, setAllUsernames] = useState([]);
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Kiểm tra xem user hiện tại có phải là admin không
+    const isAdmin = currentUserRole && currentUserRole.includes('ROLE_ADMIN');
 
     useEffect(() => {
         const fetchStores = async () => {
@@ -217,6 +197,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.fullName || ''}
                     onChange={handleChange}
                     required
+                    error={!!errors.fullName || !!formErrors.fullName}
+                    helperText={errors.fullName || formErrors.fullName}
                 />
                 <TextField
                     margin="dense"
@@ -227,6 +209,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.email || ''}
                     onChange={handleChange}
                     required={false}
+                    error={!!errors.email}
+                    helperText={errors.email}
                 />
                 <TextField
                     margin="dense"
@@ -236,31 +220,38 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                     value={form.username || ''}
                     onChange={handleChange}
                     required
+                    error={!!errors.username || !!formErrors.username}
+                    helperText={errors.username || formErrors.username}
                 />
-                <TextField
-                    margin="dense"
-                    label="Mật khẩu"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    fullWidth
-                    value={editMode ? (form.password || '******') : (form.password || '')}
-                    onChange={handleChange}
-                    required={!editMode}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    aria-label="toggle password visibility"
-                                    onClick={handleClickShowPassword}
-                                    onMouseDown={handleMouseDownPassword}
-                                    edge="end"
-                                >
-                                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                                </IconButton>
-                            </InputAdornment>
-                        ),
-                    }}
-                />
+                {isAdmin && (
+                    <TextField
+                        margin="dense"
+                        label="Mật khẩu"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        fullWidth
+                        value={form.password || ''}
+                        onChange={handleChange}
+                        required={!editMode}
+                        error={!!errors.password || !!formErrors.password}
+                        helperText={editMode ? 'Để trống nếu không muốn thay đổi mật khẩu' : (errors.password || formErrors.password)}
+                        placeholder={editMode ? 'Để trống nếu không muốn thay đổi' : ''}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        aria-label="toggle password visibility"
+                                        onClick={handleClickShowPassword}
+                                        onMouseDown={handleMouseDownPassword}
+                                        edge="end"
+                                    >
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                )}
                 <FormControlLabel
                     control={
                         <Checkbox
@@ -291,6 +282,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Cửa hàng *"
                             fullWidth
                             required
+                            error={!!errors.storeId || !!formErrors.storeId}
+                            helperText={errors.storeId || formErrors.storeId}
                             InputProps={{
                                 ...params.InputProps,
                                 endAdornment: (
@@ -315,6 +308,8 @@ const UserFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) =>
                             label="Role *"
                             fullWidth
                             required
+                            error={!!errors.roles || !!formErrors.roles}
+                            helperText={errors.roles || formErrors.roles}
                         />
                     )}
                 />

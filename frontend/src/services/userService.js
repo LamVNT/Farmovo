@@ -14,9 +14,31 @@ export const userService = {
         }
     },
 
+    getAllUsersWithPassword: async () => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/userListWithPassword`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy danh sách người dùng');
+        }
+    },
+
     getUserById: async (id) => {
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng');
+        }
+    },
+
+    getUserByIdWithPassword: async (id) => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}/withPassword`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
