@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useMemo} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback, startTransition} from 'react';
 import {
     TextField,
     Button,
@@ -23,6 +23,8 @@ import {FiPlus} from 'react-icons/fi';
 import {DataGrid} from '@mui/x-data-grid';
 import {FaRegTrashCan} from "react-icons/fa6";
 import {format} from 'date-fns';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 // Components
 import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
@@ -37,6 +39,7 @@ import {formatCurrency, isValidValue} from '../../utils/formatters';
 import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = (props) => {
+    const navigate = useNavigate();
     const searchRef = useRef(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [batches, setBatches] = useState([]);
@@ -65,6 +68,11 @@ const AddSalePage = (props) => {
     const [balanceModeInitialized, setBalanceModeInitialized] = useState(false);
     const [invalidProductIds, setInvalidProductIds] = useState([]);
     const [isClient, setIsClient] = useState(false);
+    const [showBackConfirm, setShowBackConfirm] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [isNavigatingAway, setIsNavigatingAway] = useState(false);
 
     const {
         currentUser,
@@ -226,6 +234,16 @@ const AddSalePage = (props) => {
         }
     }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
 
+    // Reset selectedProducts khi store thay đổi (chỉ reset bảng datagrid, giữ nguyên thông tin khác)
+    useEffect(() => {
+        if (selectedStore) {
+            // Reset selectedProducts khi store thay đổi
+            setSelectedProducts([]);
+            // Reset dataGridKey để refresh datagrid
+            setDataGridKey(prev => prev + 1);
+        }
+    }, [selectedStore]);
+
     useEffect(() => {
         if (error || success) {
             const timer = setTimeout(() => {
@@ -375,6 +393,76 @@ const AddSalePage = (props) => {
         setSelectedCategory(null);
         setCategoryProducts([]);
     };
+
+    const handleBack = useCallback(() => {
+        if (hasUnsavedChanges) {
+            setShowBackConfirm(true);
+        } else {
+            navigate('/sale');
+        }
+    }, [hasUnsavedChanges, navigate]);
+
+    const handleConfirmBack = useCallback(() => {
+        // Xóa dữ liệu tạm thời khi chọn rời khỏi
+        localStorage.removeItem('addSalePage_tempData');
+        
+        // Chuyển hướng ngay lập tức
+        setShowBackConfirm(false);
+        setIsNavigatingAway(true);
+        
+        if (pendingNavigation) {
+            // Sử dụng window.location.href để chuyển hướng nhanh hơn
+            window.location.href = pendingNavigation;
+        } else {
+            navigate('/sale');
+        }
+        
+        setPendingNavigation(null);
+    }, [pendingNavigation, navigate]);
+
+    const handleCancelBack = useCallback(() => {
+        setShowBackConfirm(false);
+        setPendingNavigation(null);
+        setIsNavigatingAway(false);
+    }, []);
+
+    const handleSaveAndBack = useCallback(async () => {
+        try {
+            // Lưu dữ liệu ngay lập tức thay vì đợi useEffect
+            const tempData = {
+                selectedProducts,
+                selectedCustomer,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('addSalePage_tempData', JSON.stringify(tempData));
+            
+            // Hiển thị thông báo ngắn gọn
+            setSuccess('Đã lưu tạm thời!');
+            
+            // Chuyển hướng ngay lập tức
+            setShowBackConfirm(false);
+            setIsNavigatingAway(true);
+            
+            if (pendingNavigation) {
+                window.location.href = pendingNavigation;
+            } else {
+                navigate('/sale');
+            }
+            
+            setPendingNavigation(null);
+        } catch (error) {
+            setError('Không thể lưu tạm thời. Vui lòng thử lại.');
+        }
+    }, [pendingNavigation, navigate, selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    const clearTempData = useCallback(() => {
+        localStorage.removeItem('addSalePage_tempData');
+        setHasUnsavedChanges(false);
+    }, []);
 
     const handleCloseCategoryDialog = () => {
         setShowCategoryDialog(false);
@@ -770,69 +858,255 @@ const AddSalePage = (props) => {
         }
     }, [props.isBalanceStock, khachLe]);
 
+    // Theo dõi thay đổi để hiển thị dialog xác nhận - tối ưu hóa
+    useEffect(() => {
+        const hasChanges = selectedProducts.length > 0 || 
+                          selectedCustomer !== '' || 
+                          selectedStore !== '' || 
+                          note !== '' || 
+                          paidAmount > 0;
+        
+        setHasUnsavedChanges(hasChanges);
+    }, [selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Xử lý lưu tạm thời riêng biệt để tránh re-render không cần thiết
+    // useEffect này không còn cần thiết vì đã xử lý trực tiếp trong handleSaveAndBack
+    // useEffect(() => {
+    //     if (shouldSaveTemp && hasUnsavedChanges) {
+    //         const tempData = {
+    //             selectedProducts,
+    //             selectedCustomer,
+    //             selectedStore,
+    //             note,
+    //             paidAmount,
+    //             timestamp: Date.now()
+    //     };
+    //         localStorage.setItem('addSalePage_tempData', JSON.stringify(tempData));
+    //         setShouldSaveTemp(false);
+    //     }
+    // }, [shouldSaveTemp, hasUnsavedChanges, selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Khôi phục dữ liệu tạm thời khi vào lại trang - tối ưu hóa
+    useEffect(() => {
+        const tempData = localStorage.getItem('addSalePage_tempData');
+        if (!tempData) return;
+
+        try {
+            const parsed = JSON.parse(tempData);
+            const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000; // 24 giờ
+            
+            if (isExpired) {
+                localStorage.removeItem('addSalePage_tempData');
+                return;
+            }
+
+            // Sử dụng React 18 batch updates để tối ưu performance
+            startTransition(() => {
+                if (parsed.selectedProducts?.length > 0) {
+                    setSelectedProducts(parsed.selectedProducts);
+                }
+                if (parsed.selectedCustomer) {
+                    setSelectedCustomer(parsed.selectedCustomer);
+                }
+                if (parsed.selectedStore) {
+                    setSelectedStore(parsed.selectedStore);
+                }
+                if (parsed.note) {
+                    setNote(parsed.note);
+                }
+                if (parsed.paidAmount) {
+                    setPaidAmount(parsed.paidAmount);
+                    setPaidAmountInput(parsed.paidAmount.toString());
+                }
+            });
+            
+            setSuccess('Đã khôi phục dữ liệu tạm thời!');
+        } catch (error) {
+            console.error('Lỗi khi khôi phục dữ liệu tạm thời:', error);
+            localStorage.removeItem('addSalePage_tempData');
+        }
+    }, []);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công - tối ưu hóa
+    useEffect(() => {
+        if (success && (success.includes('thành công') || success.includes('Đã lưu phiếu'))) {
+            clearTempData();
+        }
+    }, [success]);
+
+    // Xử lý khi dialog xác nhận đóng - tối ưu hóa
+    // useEffect này không còn cần thiết vì đã xử lý trực tiếp
+    // useEffect(() => {
+    //     if (!showBackConfirm) {
+    //         setShouldSaveTemp(false);
+    //     }
+    // }, [showBackConfirm]);
+
+    // Bắt sự kiện browser back button và beforeunload - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listeners khi cần thiết
+        if (!hasUnsavedChanges) return;
+
+        const handleBeforeUnload = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                event.returnValue = '';
+                return '';
+            }
+        };
+
+        const handlePopState = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                setShowBackConfirm(true);
+                window.history.pushState(null, '', window.location.pathname);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('popstate', handlePopState);
+        
+        // Push state ban đầu để có thể bắt sự kiện back
+        window.history.pushState(null, '', window.location.pathname);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges, showBackConfirm, isNavigatingAway]);
+
+    // Bắt sự kiện click vào sidebar navigation - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listener khi cần thiết
+        if (!hasUnsavedChanges || showBackConfirm) return;
+
+        const handleSidebarClick = (event) => {
+            const sidebarLink = event.target.closest('a[href]');
+            const isSidebarClick = sidebarLink || 
+                                  event.target.closest('[data-testid*="sidebar"]') ||
+                                  event.target.closest('.sidebar') ||
+                                  event.target.closest('nav');
+            
+            if (isSidebarClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                if (sidebarLink?.href) {
+                    setPendingNavigation(sidebarLink.href);
+                }
+                
+                setShowBackConfirm(true);
+                return false;
+            }
+        };
+
+        document.addEventListener('click', handleSidebarClick, true);
+        
+        return () => {
+            document.removeEventListener('click', handleSidebarClick, true);
+        };
+    }, [hasUnsavedChanges, showBackConfirm]);
+
+
+
     return (
         <div className="flex w-full h-screen bg-gray-100">
             {error && <Alert severity="error"
-                             className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
+                             className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
             {success && <Alert severity="success"
-                               className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
+                               className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
-                <div className="flex justify-between items-center mb-2">
-                    <div ref={searchRef} className="relative w-full max-w-2xl flex items-center gap-2">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                    <div className="flex items-center gap-4 flex-1">
+                        <Button
+                            variant="text"
+                            startIcon={<ArrowBackIcon />}
+                            onClick={handleBack}
+                            sx={{
+                                color: '#1976d2',
+                                fontWeight: 600,
+                                fontSize: '1.1rem',
+                                textTransform: 'none',
+                                padding: '8px 16px',
+                                borderRadius: 2,
+                                '&:hover': {
+                                    backgroundColor: '#e3f0ff',
+                                    color: '#1565c0'
+                                }
+                            }}
+                        >
+                            {props.isBalanceStock ? 'Cân bằng kho' : 'Bán hàng'}
+                        </Button>
+                        
+                        <div ref={searchRef} className="relative flex-1 max-w-2xl flex items-center gap-3">
                         <TextField
                             size="small"
                             fullWidth
                             placeholder="Tìm lô hàng theo mã hoặc tên sản phẩm"
                             value={searchTerm}
                             onChange={handleSearchChange}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            onFocus={() => {
+                                // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+                                const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                                        currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+                                
+                                if (isAdminOrManager && !selectedStore) {
+                                    setError('Vui lòng chọn cửa hàng trước khi tìm kiếm sản phẩm');
+                                    setHighlightStore(true);
+                                    return;
+                                }
+                                
+                                setIsSearchFocused(true);
+                            }}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
+                            variant="outlined"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500"/>
+                                        <FaSearch className="text-gray-500" />
                                     </InputAdornment>
                                 ),
                             }}
-                            sx={{borderRadius: 2, background: '#f9fafb'}}
-                        />
-                        <Select
-                            size="small"
-                            value={unit}
-                            onChange={e => {
-                                const newUnit = e.target.value;
-                                setUnit(newUnit);
-                                setSelectedProducts(prev => prev.map(p => {
-                                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                                        return {
-                                            ...p,
-                                            unit: 'khay',
-                                            quantity: Math.ceil((p.quantity || 1) / 30),
-                                            price: (p.price || 0),
-                                            total: (p.price || 0) * Math.ceil((p.quantity || 1) / 30) * 30
-                                        };
-                                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                                        return {
-                                            ...p,
-                                            unit: 'quả',
-                                            quantity: (p.quantity || 1) * 30,
-                                            price: (p.price || 0),
-                                            total: (p.price || 0) * ((p.quantity || 1) * 30)
-                                        };
-                                    }
-                                    return p;
-                                }));
+                            sx={{
+                                background: '#fff',
+                                borderRadius: 2,
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    boxShadow: 'none',
+                                    '& fieldset': {
+                                        borderColor: '#bcd0ee',
+                                        borderWidth: 2,
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: '#1976d2',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#1976d2',
+                                        boxShadow: '0 0 0 2px #e3f0ff',
+                                    },
+                                },
+                                '& input': {
+                                    fontWeight: 500,
+                                    fontSize: '1rem',
+                                },
                             }}
-                            disabled={props.isBalanceStock}
-                            sx={{minWidth: 80, marginLeft: 1, background: '#fff'}}
-                        >
-                            <MenuItem value="quả">quả</MenuItem>
-                            <MenuItem value="khay">khay</MenuItem>
-                        </Select>
+                        />
+
                         {!props.isBalanceStock && (
                             <Tooltip title="Thêm sản phẩm">
-                                <IconButton onClick={handleOpenProductDialog}>
+                                <IconButton 
+                                    onClick={handleOpenProductDialog}
+                                    sx={{
+                                        color: '#1976d2',
+                                        backgroundColor: '#f8f9fa',
+                                        '&:hover': {
+                                            backgroundColor: '#e3f0ff',
+                                            transform: 'scale(1.05)'
+                                        },
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
                                     <FiPlus/>
                                 </IconButton>
                             </Tooltip>
@@ -876,7 +1150,8 @@ const AddSalePage = (props) => {
                             </div>
                         )}
                     </div>
-                    <div className="ml-auto">
+                </div>
+                <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
                             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
                                 <FaEye/>
@@ -1065,7 +1340,7 @@ const AddSalePage = (props) => {
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
                     note: note,
-                    saleDate: new Date().toISOString(),
+                    saleDate: saleDate || new Date().toISOString(),
                 }}
                 formatCurrency={formatCurrency}
                 loading={loading}
@@ -1147,6 +1422,68 @@ const AddSalePage = (props) => {
                 <DialogActions>
                     <Button onClick={handleCloseCategoryDialog} color="primary">
                         Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog xác nhận khi có thay đổi chưa lưu */}
+            <Dialog
+                open={showBackConfirm}
+                onClose={handleCancelBack}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ 
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    <span className="text-orange-600 text-2xl">⚠️</span>
+                    Xác nhận rời khỏi
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <div className="text-gray-700">
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div className="text-orange-600 text-2xl">⚠️</div>
+                            <div>
+                                <p className="font-semibold text-orange-800">Bạn có thay đổi chưa lưu</p>
+                                <p className="text-sm text-orange-700">Nếu rời khỏi, tất cả thay đổi sẽ bị mất</p>
+                            </div>
+                        </div>
+                        <p className="text-gray-600">
+                            Bạn có chắc chắn muốn rời khỏi trang này? Tất cả thay đổi chưa được lưu sẽ bị mất vĩnh viễn.
+                        </p>
+                    </div>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 1 }}>
+                    <Button 
+                        onClick={handleConfirmBack} 
+                        color="inherit"
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Rời khỏi
+                    </Button>
+                    <Button 
+                        onClick={handleSaveAndBack} 
+                        variant="contained" 
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Lưu tạm thời & Rời khỏi
                     </Button>
                 </DialogActions>
             </Dialog>

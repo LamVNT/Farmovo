@@ -159,9 +159,22 @@ export const useSaleTransaction = (props = {}) => {
     const handleQuantityChange = useCallback((id, delta) => {
         setSelectedProducts(prev => prev.map(p => {
             if (String(p.id) !== String(id)) return p;
-            const newQty = Math.max(1, (p.quantity || 1) + delta);
+            
+            const currentQty = p.quantity || 1;
+            const newQty = Math.max(1, currentQty + delta);
             const unit = p.unit || 'quả';
             const price = p.price || 0;
+            
+            // Kiểm tra số lượng không vượt quá tồn kho
+            const maxQuantity = unit === 'khay' ? Math.floor((p.remainQuantity || 0) / 30) : (p.remainQuantity || 0);
+            if (newQty > maxQuantity) {
+                // Nếu vượt quá, giữ nguyên số lượng cũ và hiển thị thông báo
+                setError(`Số lượng không thể vượt quá tồn kho hiện có: ${maxQuantity} ${unit}`);
+                return p;
+            }
+            
+            // Xóa thông báo lỗi nếu thành công
+            setError(null);
             const total = price * (unit === 'khay' ? newQty * 30 : newQty);
             return {...p, quantity: newQty, total};
         }));
@@ -170,9 +183,21 @@ export const useSaleTransaction = (props = {}) => {
     const handleQuantityInputChange = useCallback((id, value) => {
         setSelectedProducts(prev => prev.map(p => {
             if (String(p.id) !== String(id)) return p;
+            
             const newQty = Math.max(1, Number(value) || 1);
             const unit = p.unit || 'quả';
             const price = p.price || 0;
+            
+            // Kiểm tra số lượng không vượt quá tồn kho
+            const maxQuantity = unit === 'khay' ? Math.floor((p.remainQuantity || 0) / 30) : (p.remainQuantity || 0);
+            if (newQty > maxQuantity) {
+                // Nếu vượt quá, giữ nguyên số lượng cũ và hiển thị thông báo
+                setError(`Số lượng không thể vượt quá tồn kho hiện có: ${maxQuantity} ${unit}`);
+                return p;
+            }
+            
+            // Xóa thông báo lỗi nếu thành công
+            setError(null);
             const total = price * (unit === 'khay' ? newQty * 30 : newQty);
             return {...p, quantity: newQty, total};
         }));
@@ -195,22 +220,8 @@ export const useSaleTransaction = (props = {}) => {
     // Product dialog handlers
     const handleSelectProductInDialog = useCallback(async (product) => {
         setSelectedProduct(product);
-        // Load available batches for this product
-        try {
-            const batches = await saleTransactionService.getBatchesByProductId(product.proId || product.id);
-            
-            // Đảm bảo mỗi batch có id duy nhất
-            const uniqueBatches = (batches || []).map((batch, idx) => ({
-                ...batch,
-                id: batch.id || batch.batchId || batch.proId || (Date.now() + idx),
-                uniqueKey: `${batch.id || batch.batchId || batch.proId || 'unknown'}_${idx}_${batch.name || batch.batchCode || 'batch'}`
-            }));
-            
-            setAvailableBatches(uniqueBatches);
-        } catch (error) {
-            console.error('Error loading batches:', error);
-            setAvailableBatches([]);
-        }
+        // Không cần gọi API nữa, availableBatches sẽ được xử lý trong SaleProductDialog
+        // setAvailableBatches([]); // Để trống để SaleProductDialog xử lý
     }, []);
 
     const handleSelectBatches = useCallback((batches) => {
@@ -225,7 +236,7 @@ export const useSaleTransaction = (props = {}) => {
             detail: selectedProducts,
             totalAmount: totalAmount,
             paidAmount: paidAmount,
-            saleDate: getVNISOString(),
+            saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
             customerId: selectedCustomer || null,
             storeId: selectedStore || null,
             status: action === 'DRAFT' ? 'DRAFT' : (isBalanceStock ? 'WAITING_FOR_APPROVE' : 'COMPLETE'),
@@ -233,7 +244,7 @@ export const useSaleTransaction = (props = {}) => {
         };
         setSummaryData(saleData);
         setShowSummaryDialog(true);
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, isBalanceStock, note]);
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, isBalanceStock, note, saleDate]);
 
     const validateData = (saleData) => {
         if (!saleData.storeId) throw new Error('Vui lòng chọn cửa hàng');
@@ -246,7 +257,7 @@ export const useSaleTransaction = (props = {}) => {
             detail: selectedProducts,
             totalAmount,
             paidAmount,
-            saleDate: getVNISOString(),
+            saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
             customerId: selectedCustomer || null,
             storeId: selectedStore || null,
             status: 'DRAFT',
@@ -263,16 +274,24 @@ export const useSaleTransaction = (props = {}) => {
             }))
         };
         
-        await saleTransactionService.create(processedSaleData);
-        setSuccess('Đã lưu phiếu bán hàng tạm thời!');
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note]);
+        try {
+            await saleTransactionService.create(processedSaleData);
+            setSuccess('Đã lưu phiếu bán hàng tạm thời!');
+            // Lưu thông báo để hiển thị ở trang index
+            localStorage.setItem('saleSuccessMessage', 'Đã lưu phiếu bán hàng tạm thời!');
+            try { navigate('/sale'); } catch (e) {}
+        } catch (err) {
+            console.error('Error saving draft:', err);
+            setError(`Không thể lưu phiếu bán hàng tạm thời: ${err.response?.data?.message || err.message}`);
+        }
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, saleDate, navigate]);
 
     const handleComplete = useCallback(async () => {
         const saleData = {
             detail: selectedProducts,
             totalAmount,
             paidAmount,
-            saleDate: getVNISOString(),
+            saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
             customerId: selectedCustomer || null,
             storeId: selectedStore || null,
             status: isBalanceStock ? 'WAITING_FOR_APPROVE' : 'COMPLETE',
@@ -303,6 +322,9 @@ export const useSaleTransaction = (props = {}) => {
                 await saleTransactionService.createFromBalance(payload);
             }
             setSuccess('Đã tạo phiếu cân bằng chờ duyệt!');
+            // Lưu thông báo để hiển thị ở trang index
+            localStorage.setItem('saleSuccessMessage', 'Đã tạo phiếu cân bằng chờ duyệt!');
+            try { navigate('/sale'); } catch (e) {}
         } else {
             // Đảm bảo proId luôn có giá trị cho sale transaction thường
             const processedSaleData = {
@@ -316,9 +338,11 @@ export const useSaleTransaction = (props = {}) => {
             console.log('handleComplete - processedSaleData:', processedSaleData);
             await saleTransactionService.create(processedSaleData);
             setSuccess('Đã hoàn thành phiếu bán hàng!');
+            // Lưu thông báo để hiển thị ở trang index
+            localStorage.setItem('saleSuccessMessage', 'Đã hoàn thành phiếu bán hàng!');
             try { navigate('/sale'); } catch (e) {}
         }
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp]);
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp, saleDate]);
 
     const handleCancel = useCallback(() => {
         navigate(-1);
@@ -370,6 +394,8 @@ export const useSaleTransaction = (props = {}) => {
                 : (isBalanceStock ? 'Đã tạo phiếu cân bằng chờ duyệt!' : 'Đã hoàn thành phiếu bán hàng!');
 
             setSuccess(successMessage);
+            // Lưu thông báo để hiển thị ở trang index
+            localStorage.setItem('saleSuccessMessage', successMessage);
             setSelectedProducts([]);
             setSelectedCustomer('');
             setSelectedStore('');
@@ -379,6 +405,9 @@ export const useSaleTransaction = (props = {}) => {
             setShowSummaryDialog(false);
             setSummaryData(null);
             setPendingAction(null);
+            
+            // Chuyển hướng về trang index sau khi hoàn thành
+            try { navigate('/sale'); } catch (e) {}
         } catch (err) {
             console.error('Error creating sale transaction:', err);
             setError(`Không thể lưu phiếu bán hàng: ${err.response?.data?.message || err.message}`);

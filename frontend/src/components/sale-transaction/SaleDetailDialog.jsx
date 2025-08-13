@@ -76,10 +76,13 @@ const SaleDetailDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        Ngày bán: {(transaction.saleDate || transaction.saleTransactionDate || saleDate) ? new Date(transaction.saleDate || transaction.saleTransactionDate || saleDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {saleDate ? new Date(saleDate).toLocaleTimeString('vi-VN') : 'N/A'}
+                        Ngày tạo: {transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600">
+                        Giờ tạo: {transaction.createdAt ? new Date(transaction.createdAt).toLocaleTimeString('vi-VN') : 'N/A'}
                     </Typography>
                 </div>
             </DialogTitle>

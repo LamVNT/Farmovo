@@ -153,6 +153,20 @@ const SaleTransactionPage = () => {
         loadStores();
     }, [isAdmin]);
 
+    // Kiểm tra thông báo thành công từ localStorage khi vào trang
+    useEffect(() => {
+        const successMessage = localStorage.getItem('saleSuccessMessage');
+        if (successMessage) {
+            setSuccess(successMessage);
+            // Xóa thông báo khỏi localStorage sau khi hiển thị
+            localStorage.removeItem('saleSuccessMessage');
+            // Tự động ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+        }
+    }, []);
+
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -1301,7 +1315,7 @@ const SaleTransactionPage = () => {
                                                 <td style={tdStyles}>{row.name}</td>
                                                 <td style={tdStyles}>{row.customerName}</td>
                                                 <td style={tdStyles}>{row.storeName}</td>
-                                                <td style={tdStyles}>{row.saleDate ? new Date(row.saleDate).toLocaleString('vi-VN') : ''}</td>
+                                                <td style={tdStyles}>{row.createdAt ? new Date(row.createdAt).toLocaleString('vi-VN') : (row.saleDate ? new Date(row.saleDate).toLocaleString('vi-VN') : '')}</td>
                                                 <td style={tdStyles}>{row.totalAmount ? row.totalAmount.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
                                                 <td style={{ ...tdStyles, color: paidColor }}>{paid.toLocaleString('vi-VN') + ' VNĐ'}</td>
                                                 <td style={tdStyles}>
