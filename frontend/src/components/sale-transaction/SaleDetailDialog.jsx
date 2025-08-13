@@ -25,7 +25,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import CancelIcon from '@mui/icons-material/Cancel';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
+
 import SaveIcon from '@mui/icons-material/Save';
 
 const SaleDetailDialog = ({
@@ -39,7 +39,6 @@ const SaleDetailDialog = ({
     onCancel,
     onComplete,
     onExportPdf,
-    onOpenTransaction, // Thêm prop mới
     onCloseTransaction, // Thêm prop mới
     loading = false, // Thêm prop loading
 }) => {
@@ -218,15 +217,18 @@ const SaleDetailDialog = ({
             </DialogContent>
 
             <DialogActions className="p-4 bg-gray-50">
-                {transaction.status === 'DRAFT' && onOpenTransaction && (
+                {transaction.status === 'DRAFT' && onComplete && (
                     <Button 
                         variant="contained"
-                        color="primary"
-                        onClick={onOpenTransaction}
+                        color="success"
+                        onClick={() => {
+                            setConfirmType('complete');
+                            setConfirmOpen(true);
+                        }}
                         disabled={loading}
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon />}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
                     >
-                        {loading ? 'Đang xử lý...' : 'Mở phiếu'}
+                        {loading ? 'Đang xử lý...' : 'Hoàn thành'}
                     </Button>
                 )}
                 {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (

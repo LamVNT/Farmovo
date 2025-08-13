@@ -501,7 +501,9 @@ const SaleTransactionPage = () => {
     const handleComplete = async (row) => {
         if (!row) return;
         try {
+            // Backend sẽ tự động xử lý chuyển trạng thái nếu cần
             await saleTransactionService.complete(row.id);
+            console.log('Transaction completed successfully');
             setSuccess('Hoàn thành phiếu thành công!');
             setOpenDetailDialog(false);
             setSelectedTransaction(null);
@@ -509,6 +511,7 @@ const SaleTransactionPage = () => {
             setCustomerDetails(null);
             loadTransactions();
         } catch (error) {
+            console.error('Error completing transaction:', error);
             setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
         }
     };
@@ -622,6 +625,32 @@ const SaleTransactionPage = () => {
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'close'
+            });
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteDraftTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hoàn thành phiếu bản nháp',
+                message: `Bạn có chắc chắn muốn hoàn thành phiếu bán hàng "${actionRow.name}"? Hành động này sẽ cập nhật trạng thái lên COMPLETE và cập nhật tồn kho.`,
+                onConfirm: async () => {
+                    try {
+                        // Backend sẽ tự động xử lý chuyển từ DRAFT sang COMPLETE
+                        await saleTransactionService.complete(actionRow.id);
+                        console.log('Transaction completed successfully');
+                        loadTransactions();
+                        setSuccess('Hoàn thành phiếu bản nháp thành công!');
+                    } catch (err) {
+                        console.error('Error completing draft transaction:', err);
+                        setError('Không thể hoàn thành phiếu bản nháp. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'complete'
             });
         }
         handleActionClose();
@@ -1382,7 +1411,6 @@ const SaleTransactionPage = () => {
                 customerDetails={customerDetails}
                 onCancel={() => handleCancel(selectedTransaction)}
                 onComplete={() => handleComplete(selectedTransaction)}
-                onOpenTransaction={handleOpenTransaction}
                 onCloseTransaction={handleCloseTransaction}
                 loading={loading}
             />
@@ -1410,11 +1438,11 @@ const SaleTransactionPage = () => {
                     <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
-                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là DRAFT */}
                 {actionRow?.status === 'DRAFT' && (
-                    <MenuItem onClick={handleOpenTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                        <ListItemIcon><LockOpenIcon fontSize="small" /></ListItemIcon>
-                        <ListItemText primary="Mở phiếu" />
+                    <MenuItem onClick={handleCompleteDraftTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText primary="Hoàn thành" />
                     </MenuItem>
                 )}
                 

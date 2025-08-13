@@ -48,14 +48,33 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, cur
             axios.get(`${import.meta.env.VITE_API_URL}/categories`, { withCredentials: true })
                 .then(res => setCategories(res.data))
                 .catch(() => setCategories([]));
-            // Fetch stores
-            axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, { withCredentials: true })
-                .then(res => {
-                    setStores(res.data);
-                })
-                .catch(() => setStores([]));
+            // Fetch stores - Admin/Manager có thể xem tất cả, Staff chỉ xem store của mình
+            const isAdmin = currentUser?.roles?.includes('ADMIN') || currentUser?.roles?.includes('ROLE_ADMIN');
+            const isManager = currentUser?.roles?.includes('MANAGER') || currentUser?.roles?.includes('ROLE_MANAGER');
+            
+            if (isAdmin || isManager) {
+                // Admin/Manager xem tất cả stores
+                axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, { withCredentials: true })
+                    .then(res => {
+                        setStores(res.data);
+                    })
+                    .catch(() => setStores([]));
+            } else {
+                // Staff chỉ cần store của mình (nếu có)
+                if (currentUser?.storeId) {
+                    axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, { withCredentials: true })
+                        .then(res => {
+                            // Filter chỉ store của staff này
+                            const userStore = res.data.find(store => store.id === currentUser.storeId);
+                            setStores(userStore ? [userStore] : []);
+                        })
+                        .catch(() => setStores([]));
+                } else {
+                    setStores([]);
+                }
+            }
         }
-    }, [open]);
+    }, [open, currentUser]);
 
     // useEffect riêng để set store mặc định cho staff
     useEffect(() => {
@@ -64,8 +83,8 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, cur
         console.log('AddProductDialog - roles:', currentUser?.roles);
         console.log('AddProductDialog - storeId:', currentUser?.storeId);
         
-        // Kiểm tra cả ROLE_STAFF và STAFF, hoặc nếu có storeId thì coi như là staff
-        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF') || currentUser?.storeId;
+        // Chỉ kiểm tra role STAFF, không kiểm tra storeId cho ADMIN/MANAGER
+        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
         console.log('AddProductDialog - isStaff:', isStaff);
         
         if (open && isStaff && currentUser?.storeId) {
@@ -77,27 +96,29 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, cur
         }
     }, [open, currentUser]);
 
-    // useEffect riêng để set store khi currentUser thay đổi
+    // useEffect riêng để set store khi currentUser thay đổi (chỉ cho STAFF)
     useEffect(() => {
-        if (currentUser?.storeId) {
+        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
+        if (isStaff && currentUser?.storeId) {
             console.log('AddProductDialog - currentUser changed, setting store:', currentUser.storeId);
             setProduct(prev => ({
                 ...prev,
                 store: currentUser.storeId
             }));
         }
-    }, [currentUser?.storeId]);
+    }, [currentUser?.storeId, currentUser?.roles]);
 
-    // useEffect để set store khi stores được load
+    // useEffect để set store khi stores được load (chỉ cho STAFF)
     useEffect(() => {
-        if (stores.length > 0 && currentUser?.storeId && open) {
+        const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
+        if (stores.length > 0 && isStaff && currentUser?.storeId && open) {
             console.log('AddProductDialog - stores loaded, setting store:', currentUser.storeId);
             setProduct(prev => ({
                 ...prev,
                 store: currentUser.storeId
             }));
         }
-    }, [stores, currentUser?.storeId, open]);
+    }, [stores, currentUser?.storeId, currentUser?.roles, open]);
 
     // Reset form khi mở dialog
     useEffect(() => {
@@ -129,7 +150,7 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, cur
             return;
         }
         if (!product.store) {
-            const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF') || currentUser?.storeId;
+            const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF');
             if (isStaff) {
                 alert('Không thể xác định cửa hàng của bạn. Vui lòng liên hệ quản trị viên.');
             } else {
@@ -288,14 +309,14 @@ const AddProductDialog = ({ open, onClose, onProductCreated, onProductAdded, cur
                                     displayEmpty
                                     variant="standard"
                                     fullWidth
-                                    disabled={currentUser?.storeId ? true : false}
+                                    disabled={currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF')}
                                 >
                                     <MenuItem value="">---Cửa hàng---</MenuItem>
                                     {stores.map((store) => (
                                         <MenuItem key={store.id} value={store.id}>{store.name || store.storeName}</MenuItem>
                                     ))}
                                 </Select>
-                                {!currentUser?.storeId && (
+                                {!(currentUser?.roles?.includes('STAFF') || currentUser?.roles?.includes('ROLE_STAFF')) && (
                                     <IconButton size="small" onClick={() => setAddStoreOpen(true)}>
                                         <AiOutlinePlus />
                                     </IconButton>

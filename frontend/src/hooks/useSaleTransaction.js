@@ -93,10 +93,20 @@ export const useSaleTransaction = (props = {}) => {
 
     // Product handlers
     const handleSelectProduct = useCallback((product, options = {}) => {
+        console.log('handleSelectProduct - input product:', product);
+        
+        // Đảm bảo id luôn là số hợp lệ
+        const validId = (/^\d+$/.test(String(product.id))) ? Number(product.id) : (product.batchId || product.batch?.id || Date.now());
+        // Đảm bảo proId luôn có giá trị
+        const validProId = product.proId || product.batch?.proId || product.id || validId;
+        const productWithValidId = { ...product, id: validId, proId: validProId };
+        
+        console.log('handleSelectProduct - productWithValidId:', productWithValidId);
+        
         setSelectedProducts(prev => {
-            const exists = prev.find(p => String(p.id) === String(product.id));
+            const exists = prev.find(p => String(p.id) === String(validId));
             if (exists) {
-                return prev.map(p => String(p.id) === String(product.id)
+                return prev.map(p => String(p.id) === String(validId)
                     ? {
                         ...p,
                         quantity: (p.quantity || 0) + (product.quantity || 1),
@@ -109,13 +119,42 @@ export const useSaleTransaction = (props = {}) => {
             const quantity = product.quantity || 1;
             const price = product.price || 0;
             const total = price * (unit === 'khay' ? quantity * 30 : quantity);
-            return [...prev, {...product, unit, quantity, price, total}];
+            return [...prev, {...productWithValidId, unit, quantity, price, total}];
         });
     }, []);
 
     const handleAddProductsFromDialog = useCallback((list) => {
-        (list || []).forEach(item => handleSelectProduct(item, {directAdd: true}));
-    }, [handleSelectProduct]);
+        console.log('handleAddProductsFromDialog - list:', list);
+        console.log('handleAddProductsFromDialog - selectedProduct:', selectedProduct);
+        
+        (list || []).forEach(item => {
+            // Đảm bảo có đầy đủ thông tin sản phẩm từ batch
+            const productInfo = {
+                ...item,
+                // Đảm bảo id luôn là số hợp lệ
+                id: (/^\d+$/.test(String(item.id))) ? Number(item.id) : (item.batchId || item.batch?.id || Date.now()),
+                // Đảm bảo proId luôn có giá trị
+                proId: item.proId || item.batch?.proId || selectedProduct?.proId || selectedProduct?.id,
+                // Lấy thông tin sản phẩm từ batch nếu có
+                productName: item.batch?.productName || item.productName || selectedProduct?.productName,
+                productCode: item.batch?.productCode || item.productCode || selectedProduct?.productCode,
+                name: item.batch?.productName || item.productName || selectedProduct?.productName,
+                // Lấy thông tin batch
+                batchCode: item.batch?.name || item.batch?.batchCode || item.name,
+                batchId: item.batchId || item.batch?.id,
+                // Lấy giá từ batch
+                price: item.batch?.unitSalePrice || item.price || 0,
+                unitSalePrice: item.batch?.unitSalePrice || item.unitSalePrice || 0,
+                // Các thông tin khác từ batch
+                remainQuantity: item.batch?.remainQuantity,
+                expireDate: item.batch?.expireDate,
+                createAt: item.batch?.createAt,
+            };
+            
+            console.log('handleAddProductsFromDialog - productInfo:', productInfo);
+            handleSelectProduct(productInfo, {directAdd: true});
+        });
+    }, [handleSelectProduct, selectedProduct]);
 
     const handleQuantityChange = useCallback((id, delta) => {
         setSelectedProducts(prev => prev.map(p => {
@@ -153,6 +192,32 @@ export const useSaleTransaction = (props = {}) => {
         setSelectedProducts(prev => prev.filter(p => String(p.id) !== String(id)));
     }, []);
 
+    // Product dialog handlers
+    const handleSelectProductInDialog = useCallback(async (product) => {
+        setSelectedProduct(product);
+        // Load available batches for this product
+        try {
+            const batches = await saleTransactionService.getBatchesByProductId(product.proId || product.id);
+            
+            // Đảm bảo mỗi batch có id duy nhất
+            const uniqueBatches = (batches || []).map((batch, idx) => ({
+                ...batch,
+                id: batch.id || batch.batchId || batch.proId || (Date.now() + idx),
+                uniqueKey: `${batch.id || batch.batchId || batch.proId || 'unknown'}_${idx}_${batch.name || batch.batchCode || 'batch'}`
+            }));
+            
+            setAvailableBatches(uniqueBatches);
+        } catch (error) {
+            console.error('Error loading batches:', error);
+            setAvailableBatches([]);
+        }
+    }, []);
+
+    const handleSelectBatches = useCallback((batches) => {
+        // This can be used if needed for batch selection logic
+        // Currently handled in SaleProductDialog
+    }, []);
+
     // Summary
     const handleShowSummary = useCallback((action) => {
         setPendingAction(action);
@@ -188,7 +253,17 @@ export const useSaleTransaction = (props = {}) => {
             saleTransactionNote: note,
         };
         validateData(saleData);
-        await saleTransactionService.create(saleData);
+        
+        // Đảm bảo proId luôn có giá trị cho draft
+        const processedSaleData = {
+            ...saleData,
+            detail: saleData.detail.map(item => ({
+                ...item,
+                proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+            }))
+        };
+        
+        await saleTransactionService.create(processedSaleData);
         setSuccess('Đã lưu phiếu bán hàng tạm thời!');
     }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note]);
 
@@ -208,8 +283,8 @@ export const useSaleTransaction = (props = {}) => {
             const payload = {
                 ...saleData,
                 detail: saleData.detail.map(item => ({
-                    id: (/^\d+$/.test(String(item.id))) ? Number(item.id) : null,
-                    proId: item.proId,
+                    id: (/^\d+$/.test(String(item.id))) ? Number(item.id) : (item.batchId || item.proId || Date.now()),
+                    proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
                     productName: item.productName,
                     productCode: item.productCode,
                     remainQuantity: item.remainQuantity,
@@ -229,7 +304,17 @@ export const useSaleTransaction = (props = {}) => {
             }
             setSuccess('Đã tạo phiếu cân bằng chờ duyệt!');
         } else {
-            await saleTransactionService.create(saleData);
+            // Đảm bảo proId luôn có giá trị cho sale transaction thường
+            const processedSaleData = {
+                ...saleData,
+                detail: saleData.detail.map(item => ({
+                    ...item,
+                    proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                }))
+            };
+            
+            console.log('handleComplete - processedSaleData:', processedSaleData);
+            await saleTransactionService.create(processedSaleData);
             setSuccess('Đã hoàn thành phiếu bán hàng!');
             try { navigate('/sale'); } catch (e) {}
         }
@@ -250,8 +335,8 @@ export const useSaleTransaction = (props = {}) => {
 
             if (isBalanceStock) {
                 saleData.detail = saleData.detail.map(item => ({
-                    id: (/^\d+$/.test(String(item.id))) ? Number(item.id) : null,
-                    proId: item.proId,
+                    id: (/^\d+$/.test(String(item.id))) ? Number(item.id) : (item.batchId || item.proId || Date.now()),
+                    proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
                     productName: item.productName,
                     productCode: item.productCode,
                     remainQuantity: item.remainQuantity,
@@ -269,7 +354,15 @@ export const useSaleTransaction = (props = {}) => {
                     await saleTransactionService.createFromBalance(saleData);
                 }
             } else {
-                await saleTransactionService.create(saleData);
+                // Đảm bảo proId luôn có giá trị cho sale transaction thường
+                const processedSaleData = {
+                    ...saleData,
+                    detail: saleData.detail.map(item => ({
+                        ...item,
+                        proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                    }))
+                };
+                await saleTransactionService.create(processedSaleData);
             }
 
             const successMessage = pendingAction === 'DRAFT'
@@ -348,5 +441,7 @@ export const useSaleTransaction = (props = {}) => {
         handleCancel,
         handleConfirmSummary,
         handleCloseSummary,
+        handleSelectProductInDialog,
+        handleSelectBatches,
     };
 };

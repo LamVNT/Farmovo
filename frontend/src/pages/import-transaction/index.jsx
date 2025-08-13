@@ -1588,12 +1588,15 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                <MenuItem onClick={handleEdit}>
-                    <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Sửa</ListItemText>
-                </MenuItem>
+                {/* Hiển thị nút "Sửa" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleEdit}>
+                        <ListItemIcon>
+                            <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Sửa</ListItemText>
+                    </MenuItem>
+                )}
                 <MenuItem onClick={handleDelete}>
                     <ListItemIcon>
                         <DeleteIcon fontSize="small" />
