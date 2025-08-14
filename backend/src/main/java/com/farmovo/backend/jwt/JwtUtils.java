@@ -99,6 +99,8 @@ public class JwtUtils {
         try {
             Jwts.parser().verifyWith(key()).build().parseSignedClaims(authToken);
             return true;
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            logger.error("Invalid JWT signature: {}", e.getMessage());
         } catch (MalformedJwtException e) {
             logger.error("Invalid JWT signature: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
@@ -111,16 +113,11 @@ public class JwtUtils {
         return false;
     }
 
-    // Ưu tiên lấy token từ header, nếu không có thì lấy từ cookie
+    // Ưu tiên lấy token từ cookie, nếu không có thì lấy từ header
     public String getJwtFromRequest(HttpServletRequest request) {
-        String token = getJwtFromHeader(request);
-        if (token == null && request.getCookies() != null) {
-            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
-                if ("jwt".equals(cookie.getName())) {
-                    token = cookie.getValue();
-                    break;
-                }
-            }
+        String token = getJwtFromCookies(request);
+        if (token == null) {
+            token = getJwtFromHeader(request);
         }
         return token;
     }

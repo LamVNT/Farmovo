@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 import {
     TextField,
     Button,
@@ -101,6 +101,10 @@ const ImportPage = () => {
     const [filteredStores, setFilteredStores] = useState([]);
     const [zoneSearch, setZoneSearch] = useState('');
     const [showBackConfirm, setShowBackConfirm] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [isNavigatingAway, setIsNavigatingAway] = useState(false);
 
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
@@ -208,39 +212,51 @@ const ImportPage = () => {
         }
     };
 
-    // Cập nhật category products khi products thay đổi
+    // Cập nhật category products khi products, selectedCategory hoặc selectedStore thay đổi
     useEffect(() => {
         if (selectedCategory) {
-            const filteredProducts = products.filter(product => 
-                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
-            );
+            const filteredProducts = products.filter(product => {
+                // Lọc theo category
+                const matchesCategory = product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id;
+                
+                // Lọc theo store (nếu đã chọn store)
+                const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+                
+                return matchesCategory && matchesStore;
+            });
             setCategoryProducts(filteredProducts);
         }
-    }, [products, selectedCategory]);
+    }, [products, selectedCategory, selectedStore]);
 
-    // Cập nhật search results khi products hoặc searchTerm hoặc isSearchFocused thay đổi
+    // Cập nhật search results khi products, searchTerm, isSearchFocused hoặc selectedStore thay đổi
     useEffect(() => {
         if (searchTerm.trim() !== '') {
-            // Ưu tiên lọc searchTerm nếu có nhập
+            // Ưu tiên lọc searchTerm nếu có nhập, và lọc theo store
             const results = products.filter(
                 (p) => {
                     const name = p.name || p.productName || '';
                     const code = p.code || '';
-                    return (
-                        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        code.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
+                    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        code.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    // Lọc theo store (nếu đã chọn store)
+                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                    
+                    return matchesSearch && matchesStore;
                 }
             );
             setFilteredProducts(results);
         } else if (isSearchFocused) {
-            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên
-            setFilteredProducts(products.slice(0, 5));
+            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên (theo store)
+            const storeProducts = selectedStore ? 
+                products.filter(p => p.storeId === selectedStore) : 
+                products;
+            setFilteredProducts(storeProducts.slice(0, 5));
         } else {
             // Không focus và không nhập thì không gợi ý gì
             setFilteredProducts([]);
         }
-    }, [products, searchTerm, isSearchFocused]);
+    }, [products, searchTerm, isSearchFocused, selectedStore]);
 
     // Cập nhật filteredSuppliers khi search hoặc focus
     useEffect(() => {
@@ -282,18 +298,22 @@ const ImportPage = () => {
             setZones([]);
         }
 
-        // Clear zone selection khi store thay đổi
-        setSelectedProducts(prev => prev.map(product => ({
-            ...product,
-            zoneIds: []
-        })));
-
         // Clear error và highlight khi store được chọn
         if (selectedStore) {
             setError(null);
             setHighlightStore(false);
         }
     }, [selectedStore, allZones, currentUser]);
+
+    // Clear zone selection khi store thay đổi - tách riêng để tránh infinite loop
+    useEffect(() => {
+        if (selectedStore) {
+            setSelectedProducts(prev => prev.map(product => ({
+                ...product,
+                zoneIds: []
+            })));
+        }
+    }, [selectedStore]);
 
     // Set client-side rendering
     useEffect(() => {
@@ -408,7 +428,7 @@ const ImportPage = () => {
         );
     };
 
-    const handleQuantityInputChange = (id, newQuantity) => {
+    const handleQuantityInputChange = useCallback((id, newQuantity) => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
@@ -425,9 +445,9 @@ const ImportPage = () => {
                 return p;
             })
         );
-    };
+    }, []);
 
-    const handlePriceChange = (id, newPrice) => {
+    const handlePriceChange = useCallback((id, newPrice) => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
@@ -443,7 +463,7 @@ const ImportPage = () => {
                 return p;
             })
         );
-    };
+    }, []);
 
     const handleSalePriceChange = (id, newSalePrice) => {
         setSelectedProducts((prev) =>
@@ -458,7 +478,7 @@ const ImportPage = () => {
         );
     };
 
-    const handleUnitChange = (id, newUnit) => {
+    const handleUnitChange = useCallback((id, newUnit) => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
@@ -475,7 +495,7 @@ const ImportPage = () => {
                 return p;
             })
         );
-    };
+    }, []);
 
 
     const handleDeleteProduct = (id) => {
@@ -483,6 +503,16 @@ const ImportPage = () => {
     };
 
     const handleOpenCategoryDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm từ nhóm hàng');
+            setHighlightStore(true);
+            return;
+        }
+        
         setShowCategoryDialog(true);
         setSelectedCategory(null);
         setCategoryProducts([]);
@@ -496,10 +526,16 @@ const ImportPage = () => {
 
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
-        // Lọc sản phẩm theo category
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
+        // Lọc sản phẩm theo category và store
+        const filteredProducts = products.filter(product => {
+            // Lọc theo category
+            const matchesCategory = product.categoryId === category.id || product.category?.id === category.id;
+            
+            // Lọc theo store (nếu đã chọn store)
+            const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+            
+            return matchesCategory && matchesStore;
+        });
         setCategoryProducts(filteredProducts);
     };
 
@@ -1504,6 +1540,18 @@ const ImportPage = () => {
         } else {
             setHighlightProducts(false);
         }
+
+        // Kiểm tra tất cả sản phẩm đều có zone
+        const productsWithoutZone = selectedProducts.filter(product => 
+            !product.zoneIds || product.zoneIds.length === 0
+        );
+        
+        if (productsWithoutZone.length > 0) {
+            setError(`Sản phẩm "${productsWithoutZone[0].name || productsWithoutZone[0].productName}" chưa được chọn zone. Vui lòng chọn zone cho tất cả sản phẩm.`);
+            setHighlightProducts(true);
+            missing = true;
+        }
+
         if (missing) return;
         await fetchSupplierDetails(selectedSupplier);
         setSummaryData({
@@ -1563,6 +1611,18 @@ const ImportPage = () => {
                 return;
             }
         }
+
+        // Kiểm tra tất cả sản phẩm đều có zone
+        const productsWithoutZone = selectedProducts.filter(product => 
+            !product.zoneIds || product.zoneIds.length === 0
+        );
+        
+        if (productsWithoutZone.length > 0) {
+            setError(`Sản phẩm "${productsWithoutZone[0].name || productsWithoutZone[0].productName}" chưa được chọn zone. Vui lòng chọn zone cho tất cả sản phẩm.`);
+            setHighlightProducts(true);
+            setLoading(false);
+            return;
+        }
         
         try {
             const importData = {
@@ -1602,36 +1662,224 @@ const ImportPage = () => {
         }
     };
 
+    // Theo dõi thay đổi để hiển thị dialog xác nhận - tối ưu hóa
+    useEffect(() => {
+        const shouldCheckStore = currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN';
+        const hasChanges = selectedProducts.length > 0 || 
+                          selectedSupplier !== '' || 
+                          (shouldCheckStore && selectedStore !== '') || 
+                          (note && note.trim() !== '') || 
+                          paidAmount > 0;
+        
+        setHasUnsavedChanges(hasChanges);
+    }, [selectedProducts, selectedSupplier, selectedStore, note, paidAmount, currentUser?.role]);
+
+    // Xử lý lưu tạm thời riêng biệt để tránh re-render không cần thiết
+    useEffect(() => {
+        if (shouldSaveTemp && hasUnsavedChanges) {
+            const tempData = {
+                selectedProducts,
+                selectedSupplier,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('importPage_tempData', JSON.stringify(tempData));
+            setShouldSaveTemp(false);
+        }
+    }, [shouldSaveTemp, hasUnsavedChanges, selectedProducts, selectedSupplier, selectedStore, note, paidAmount]);
+
+    // Khôi phục dữ liệu tạm thời khi vào lại trang - tối ưu hóa
+    useEffect(() => {
+        const tempData = localStorage.getItem('importPage_tempData');
+        if (!tempData) return;
+
+        try {
+            const parsed = JSON.parse(tempData);
+            const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000; // 24 giờ
+            
+            if (isExpired) {
+                localStorage.removeItem('importPage_tempData');
+                return;
+            }
+
+            // Sử dụng React 18 batch updates để tối ưu performance
+            startTransition(() => {
+                if (parsed.selectedProducts?.length > 0) {
+                    setSelectedProducts(parsed.selectedProducts);
+                }
+                if (parsed.selectedSupplier) {
+                    setSelectedSupplier(parsed.selectedSupplier);
+                }
+                if (parsed.selectedStore) {
+                    setSelectedStore(parsed.selectedStore);
+                }
+                if (parsed.note) {
+                    setNote(parsed.note);
+                }
+                if (parsed.paidAmount) {
+                    setPaidAmount(parsed.paidAmount);
+                    setPaidAmountInput(parsed.paidAmount.toString());
+                }
+            });
+            
+            setSuccess('Đã khôi phục dữ liệu tạm thời!');
+        } catch (error) {
+            console.error('Lỗi khi khôi phục dữ liệu tạm thời:', error);
+            localStorage.removeItem('importPage_tempData');
+        }
+    }, []);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    useEffect(() => {
+        if (success && (success.includes('thành công') || success.includes('Đã lưu phiếu'))) {
+            clearTempData();
+        }
+    }, [success]);
+
+    // Xử lý khi dialog xác nhận đóng - tối ưu hóa
+    useEffect(() => {
+        if (!showBackConfirm) {
+            setShouldSaveTemp(false);
+        }
+    }, [showBackConfirm]);
+
+    // Bắt sự kiện browser back button và beforeunload - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listeners khi cần thiết
+        if (!hasUnsavedChanges) return;
+
+        const handleBeforeUnload = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                event.returnValue = '';
+                return '';
+            }
+        };
+
+        const handlePopState = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                setShowBackConfirm(true);
+                window.history.pushState(null, '', window.location.pathname);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('popstate', handlePopState);
+        
+        // Push state ban đầu để có thể bắt sự kiện back
+        window.history.pushState(null, '', window.location.pathname);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges, showBackConfirm, isNavigatingAway]);
+
+    // Bắt sự kiện click vào sidebar navigation - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listener khi cần thiết
+        if (!hasUnsavedChanges || showBackConfirm) return;
+
+        const handleSidebarClick = (event) => {
+            const sidebarLink = event.target.closest('a[href]');
+            const isSidebarClick = sidebarLink || 
+                                  event.target.closest('[data-testid*="sidebar"]') ||
+                                  event.target.closest('.sidebar') ||
+                                  event.target.closest('nav');
+            
+            if (isSidebarClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                if (sidebarLink?.href) {
+                    setPendingNavigation(sidebarLink.href);
+                }
+                
+                setShowBackConfirm(true);
+                return false;
+            }
+        };
+
+        document.addEventListener('click', handleSidebarClick, true);
+        
+        return () => {
+            document.removeEventListener('click', handleSidebarClick, true);
+        };
+    }, [hasUnsavedChanges, showBackConfirm]);
+
     // Hàm xử lý quay lại
     const handleBack = () => {
-        // Kiểm tra thực sự có thay đổi hay không
-        const hasChanges = (
-            selectedProducts.length > 0 || // Có sản phẩm được chọn
-            selectedSupplier || // Có nhà cung cấp được chọn
-            (note && note.trim() !== '') || // Có ghi chú
-            paidAmount > 0 // Có số tiền đã trả
-        );
-        
-        // Với role STAFF, selectedStore luôn có giá trị mặc định nên không cần kiểm tra
-        // Chỉ kiểm tra selectedStore nếu user có thể chọn nhiều cửa hàng (MANAGER/ADMIN)
-        const shouldCheckStore = currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN';
-        const hasStoreChanges = shouldCheckStore ? selectedStore : false;
-        
-        if (hasChanges || hasStoreChanges) {
+        if (hasUnsavedChanges) {
             setShowBackConfirm(true);
         } else {
             navigate('/import');
         }
     };
 
-    const handleConfirmBack = () => {
+    const handleConfirmBack = useCallback(() => {
+        // Xóa dữ liệu tạm thời khi chọn rời khỏi
+        localStorage.removeItem('importPage_tempData');
+        
+        // Chuyển hướng ngay lập tức
         setShowBackConfirm(false);
-        navigate('/import');
-    };
+        setIsNavigatingAway(true);
+        
+        if (pendingNavigation) {
+            // Sử dụng window.location.href để chuyển hướng nhanh hơn
+            window.location.href = pendingNavigation;
+        } else {
+            navigate('/import');
+        }
+        
+        setPendingNavigation(null);
+    }, [pendingNavigation, navigate]);
 
-    const handleCancelBack = () => {
+    const handleCancelBack = useCallback(() => {
         setShowBackConfirm(false);
-    };
+        setPendingNavigation(null);
+        setIsNavigatingAway(false);
+    }, []);
+
+    const handleSaveAndBack = useCallback(async () => {
+        try {
+            // Lưu dữ liệu ngay lập tức thay vì đợi useEffect
+            const tempData = {
+                selectedProducts,
+                selectedSupplier,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('importPage_tempData', JSON.stringify(tempData));
+            
+            // Hiển thị thông báo ngắn gọn
+            setSuccess('Đã lưu tạm thời!');
+            
+            // Chuyển hướng ngay lập tức
+            setShowBackConfirm(false);
+            setIsNavigatingAway(true);
+            
+            if (pendingNavigation) {
+                window.location.href = pendingNavigation;
+            } else {
+                navigate('/import');
+            }
+            
+            setPendingNavigation(null);
+        } catch (error) {
+            setError('Không thể lưu tạm thời. Vui lòng thử lại.');
+        }
+    }, [pendingNavigation, navigate, selectedProducts, selectedSupplier, selectedStore, note, paidAmount]);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    const clearTempData = useCallback(() => {
+        localStorage.removeItem('importPage_tempData');
+        setHasUnsavedChanges(false);
+    }, []);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -1954,7 +2202,11 @@ const ImportPage = () => {
                                         >
                                             <div className="font-medium text-base">{category.name}</div>
                                             <div className="text-sm text-gray-500 font-semibold bg-blue-100 rounded-full px-3 py-1 ml-2">
-                                                {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                                {products.filter(p => {
+                                                    const matchesCategory = p.categoryId === category.id || p.category?.id === category.id;
+                                                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                                                    return matchesCategory && matchesStore;
+                                                }).length} sản phẩm
                                             </div>
                                         </div>
                                     ))
@@ -2230,27 +2482,33 @@ const ImportPage = () => {
                 <DialogActions sx={{ p: 3, pt: 1 }}>
                     <Button 
                         onClick={handleCancelBack}
-                        variant="outlined"
+                        color="inherit"
                         sx={{
-                            borderColor: '#ddd',
                             color: '#666',
-                            '&:hover': {
-                                borderColor: '#999',
-                                backgroundColor: '#f5f5f5'
-                            }
+                            '&:hover': { backgroundColor: '#f5f5f5' }
                         }}
                     >
-                        Ở lại
+                        Hủy
                     </Button>
                     <Button 
-                        onClick={handleConfirmBack}
-                        variant="contained"
+                        onClick={handleConfirmBack} 
+                        color="inherit"
                         sx={{
-                            background: 'linear-gradient(45deg, #f57c00 30%, #ff9800 90%)',
-                            boxShadow: '0 3px 15px rgba(245, 124, 0, 0.3)',
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Rời khỏi
+                    </Button>
+                    <Button 
+                        onClick={handleSaveAndBack} 
+                        variant="contained" 
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #ef6c00 30%, #f57c00 90%)',
-                                boxShadow: '0 5px 20px rgba(245, 124, 0, 0.4)',
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
                                 transform: 'translateY(-1px)'
                             },
                             fontWeight: 600,
@@ -2258,7 +2516,7 @@ const ImportPage = () => {
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        Rời khỏi
+                        Lưu tạm thời & Rời khỏi
                     </Button>
                 </DialogActions>
             </Dialog>

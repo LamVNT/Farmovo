@@ -263,14 +263,41 @@ const ImportTransactionPage = () => {
             if (statusKeys.length === 1) query.status = statusKeys[0];
             // Date range
             if (customDate && customDate[0]) {
-                query.fromDate = customDate[0].startDate.toISOString();
-                query.toDate = customDate[0].endDate.toISOString();
+                const toLocalString = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    const mm = pad(d.getMonth() + 1);
+                    const dd = pad(d.getDate());
+                    const HH = pad(d.getHours());
+                    const MM = pad(d.getMinutes());
+                    const SS = pad(d.getSeconds());
+                    return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+                };
+                
+                const start = customDate[0].startDate;
+                const end = customDate[0].endDate;
+                
+                // Tạo start và end của ngày để lọc chính xác
+                const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+                const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+                
+                query.fromDate = toLocalString(startOfDay);
+                query.toDate = toLocalString(endOfDay);
             }
             // Filter by store for staff
             if (isStaff() && user?.storeId) {
                 query.storeId = user.storeId;
                 console.log('Staff - filtering by store:', user.storeId);
             }
+            
+            console.log('Query params for API:', query);
+            console.log('Date range:', customDate && customDate[0] ? {
+                start: customDate[0].startDate,
+                end: customDate[0].endDate,
+                fromDate: query.fromDate,
+                toDate: query.toDate
+            } : 'No date filter');
+            
             const data = await importTransactionService.listPaged(query);
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', data); // log API data
             setTransactions(data.content || []);
@@ -1588,12 +1615,15 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                <MenuItem onClick={handleEdit}>
-                    <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Sửa</ListItemText>
-                </MenuItem>
+                {/* Hiển thị nút "Sửa" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleEdit}>
+                        <ListItemIcon>
+                            <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Sửa</ListItemText>
+                    </MenuItem>
+                )}
                 <MenuItem onClick={handleDelete}>
                     <ListItemIcon>
                         <DeleteIcon fontSize="small" />

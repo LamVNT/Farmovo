@@ -40,7 +40,7 @@ public class DebtNoteController {
 
         logger.debug("Debt notes search: cust={}, page={}, size={}, src={}, type={}, store={}, from={}, to={}", customerId, page, size, fromSource, debtType, storeId, fromDate, toDate);
 
-        Page<DebtNoteResponseDto> pageResult = debtNoteService.searchDebtNotes(customerId, fromSource, debtType, storeId, fromDate, toDate, page, size);
+        Page<DebtNoteResponseDto> pageResult = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, fromSource, debtType, storeId, fromDate, toDate, page, size);
         PageResponse<DebtNoteResponseDto> response = PageResponse.fromPage(pageResult);
 
         return ResponseEntity.ok(response);
