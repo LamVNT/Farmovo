@@ -9,7 +9,7 @@ skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 skinparam actorBackgroundColor #FFD700
 
-title Cancel StockTake - Sequence Diagram
+title Cancel StockTake - Sequence Diagram (Status Change)
 
 actor Staff
 participant ":StockTake Page" as UI
@@ -23,9 +23,9 @@ Staff -> UI: Nhấn "Hủy kiểm kê"
 activate Staff
 activate UI
 
-UI -> Controller: PUT /api/stocktakes/{id}/cancel
+UI -> Controller: PUT /api/stocktakes/{id}/status?status=CANCELLED
 activate Controller
-Controller -> Service: cancelStocktake(id)
+Controller -> Service: updateStocktakeStatus(id, CANCELLED, userId)
 activate Service
 
 Service -> StocktakeRepo: findById(id)
@@ -34,58 +34,39 @@ StocktakeRepo --> Service: Optional<Stocktake>
 deactivate StocktakeRepo
 
 alt Không tìm thấy
-    Service --> Controller: throw StocktakeNotFoundException
+    Service --> Controller: throw ValidationException("Stocktake not found")
     Controller --> UI: 404 Not Found
     UI --> Staff: Hiển thị lỗi
     deactivate Service
     deactivate Controller
 else Tìm thấy
-    Service -> Service: check status == DRAFT
+    Service -> Service: validateStatusTransition(old, CANCELLED, user)
+    Service -> Service: setStatus(CANCELLED)
+    Service -> StocktakeRepo: save(stocktake)
+    activate StocktakeRepo
+    StocktakeRepo --> Service: Stocktake
+    deactivate StocktakeRepo
 
-    alt Status không hợp lệ
-        Service --> Controller: throw InvalidStatusException
-        Controller --> UI: 400 Bad Request {"Only DRAFT can be cancelled"}
-        UI --> Staff: Hiển thị lỗi
-        deactivate Service
-        deactivate Controller
-    else Status hợp lệ
-        Service -> Service: setStatus(CANCELLED), setUpdatedAt
-        Service -> StocktakeRepo: save(stocktake)
-        activate StocktakeRepo
+    Service -> Mapper: toResponseDto(stocktake)
+    activate Mapper
+    Mapper --> Service: StocktakeResponseDto
+    deactivate Mapper
 
-        alt Lỗi khi lưu
-            StocktakeRepo --> Service: throw SaveException
-            Service --> Controller: 500 Internal Server Error
-            Controller --> UI: 500 Internal Server Error
-            UI --> Staff: Hiển thị lỗi
-            deactivate StocktakeRepo
-            deactivate Service
-            deactivate Controller
-        else Lưu thành công
-            StocktakeRepo --> Service: Stocktake
-            deactivate StocktakeRepo
+    Service --> Controller: StocktakeResponseDto
+    deactivate Service
 
-            Service -> Mapper: toResponseDto(stocktake)
-            activate Mapper
-            Mapper --> Service: StocktakeResponseDto
-            deactivate Mapper
-
-            Service --> Controller: StocktakeResponseDto
-            deactivate Service
-
-            Controller --> UI: 200 OK StocktakeResponseDto
-            UI --> Staff: Hiển thị trạng thái CANCELLED
-            deactivate Controller
-        end
-    end
+    Controller --> UI: 200 OK StocktakeResponseDto
+    UI --> Staff: Hiển thị trạng thái CANCELLED
+    deactivate Controller
 end
+
 
 deactivate UI
 deactivate Staff
 
 note right of UI
 StocktakeResponseDto:
-- id, stocktakeDate, detail, note, storeId, status
+- id, name, stocktakeDate, detail, note, storeName, status
 - status gồm: DRAFT, CANCELLED, COMPLETED
 end note
 

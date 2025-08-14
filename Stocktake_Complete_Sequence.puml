@@ -8,55 +8,33 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-title Complete StockTake - Sequence Diagram
+title Complete StockTake - Sequence Diagram (Status Change)
 
 actor Staff
-participant "StockTake Page" as UI
+participant "StockTake Detail Page" as UI
 participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
 participant ":StocktakeRepository" as CR
 participant ":StocktakeMapper" as CM
-database "Database" as DB
 
 Staff -> UI : Nhấn 'Hoàn thành kiểm kê'
-UI -> CC : PUT /api/stocktakes/{id}/complete
+UI -> CC : PUT /api/stocktakes/{id}/status?status=COMPLETED
 activate CC
-CC -> CS : completeStocktake(id)
+CC -> CS : updateStocktakeStatus(id, COMPLETED, userId)
 activate CS
 CS -> CR : findById(id)
-activate CR
-CR -> DB : SELECT * FROM stocktakes WHERE id = ?
-DB --> CR : return Stocktake or null
-CR --> CS : return Optional<Stocktake>
-deactivate CR
-alt Stocktake Not Found
-    CS -> CS : throw new StocktakeNotFoundException(...)
-    CS --> CC : return StocktakeNotFoundException
-    CC --> UI : return 404 Not Found {error message}
-    UI --> Staff : return error
-else Stocktake Found
-    CS -> CS : check status == INPROGRESS
-    alt Status Not Valid
-        CS --> CC : return InvalidStatusException
-        CC --> UI : return 400 Bad Request {error message}
-        UI --> Staff : return error
-    else Status Valid
-        CS -> CS : setStatus(COMPLETED), setUpdatedAt
-        CS -> CR : save(stocktake)
-        activate CR
-        CR -> DB : UPDATE stocktakes SET status=COMPLETED WHERE id=?
-        DB --> CR : return updated stocktake
-        CR --> CS : return Stocktake entity
-        deactivate CR
-        CS -> CM : toResponseDto(stocktake)
-        activate CM
-        CM --> CS : return StocktakeResponseDto
-        deactivate CM
-        CS --> CC : return StocktakeResponseDto
-        CC --> UI : return 200 OK StocktakeResponseDto
-        UI --> Staff : return StocktakeResponseDto
-    end
-end
-deactivate CS
-deactivate CC
+CR --> CS : Stocktake
+CS -> CS : validateStatusTransition(old, COMPLETED, user)
+CS -> CS : set status = COMPLETED
+CS -> CR : save(stocktake)
+CR --> CS : saved
+CS -> CS : buildStocktakeResponseDto(saved)
+note right
+  - Trả về detail đã group
+  - hasBalance = count PCB COMPLETE theo stocktakeId (tham chiếu động)
+end note
+CS -> CC : StocktakeResponseDto
+CC -> UI : 200 OK
+UI -> Staff : Hiển thị trạng thái COMPLETED + ẩn/hiện nút Cân bằng kho theo diff/hasBalance
+
 @enduml 

@@ -1,0 +1,31 @@
+@startuml Report_2_StockByCategory_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report 2: Stock By Category
+
+actor User
+participant ":Reports Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+
+User -> UI: Chọn xem tồn theo nhóm
+UI -> RC: GET /api/reports/stock-by-category
+activate RC
+RC -> RS: getStockByCategory()
+activate RS
+RS -> DetailRepo: Tổng hợp tồn theo category
+DetailRepo --> RS: Aggregated rows
+RS -> RS: Map -> List<StockByCategoryDto>
+RS --> RC: List<StockByCategoryDto>
+RC --> UI: 200 OK
+UI --> User: Render Bar Chart
+
+@enduml
