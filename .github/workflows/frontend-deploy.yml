@@ -136,27 +136,14 @@ jobs:
           du -sh build/
           find build -type f | wc -l
 
-      # 7. Deploy to Azure SWA
-      - name: Deploy to Azure Static Web App
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          app_location: "frontend"
-          output_location: "build"
-          skip_app_build: true
-          action: "upload"
-
-      # 7.1. Azure login for alternative deployment
+      # 7. Azure login for deployment
       - name: Azure login
-        if: failure()
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 7.2. Alternative deployment if static-web-apps fails
-      - name: Alternative Azure deployment
-        if: failure()
+      # 8. Deploy to Azure Web App
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'farmovo-frontend'
