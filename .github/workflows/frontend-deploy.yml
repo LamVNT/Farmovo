@@ -45,3 +45,4 @@ jobs:
           app_location: "frontend"
           output_location: "frontend/dist"
           skip_app_build: true
+          deployment_action: "upload"
