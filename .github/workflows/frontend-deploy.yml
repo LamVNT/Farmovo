@@ -116,6 +116,23 @@ jobs:
             echo "No large JS files found"
           fi
 
+      # 6.3. Force zip deployment to avoid Azure limits
+      - name: Force zip deployment
+        working-directory: frontend
+        run: |
+          echo "Creating zip archive to avoid Azure file limits..."
+          # Tạo zip archive
+          zip -r dist.zip dist/
+          # Xóa dist folder
+          rm -rf dist/
+          # Tạo dist folder mới
+          mkdir dist
+          # Move zip vào dist
+          mv dist.zip dist/
+          echo "After zip deployment:"
+          du -sh dist/
+          find dist -type f | wc -l
+
       # 7. Deploy to Azure SWA
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
@@ -125,4 +142,13 @@ jobs:
           app_location: "frontend"
           output_location: "dist"
           skip_app_build: true
+
+      # 7.1. Alternative deployment if static-web-apps fails
+      - name: Alternative Azure deployment
+        if: failure()
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'farmovo-frontend'
+          package: frontend/dist
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           action: "upload"
