@@ -3,10 +3,10 @@ name: Deploy Backend to Azure
 on:
   push:
     branches: [ main ]
-    paths: [ 'backend/**' ]
+    paths: [ 'backend/**', '.github/workflows/backend-deploy.yml' ]
   pull_request:
     branches: [ main ]
-    paths: [ 'backend/**' ]
+    paths: [ 'backend/**', '.github/workflows/backend-deploy.yml' ]
 
 env:
   REGISTRY: farmovoregistry.azurecr.io
