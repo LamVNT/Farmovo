@@ -1,2 +1,2 @@
-# Farmovo
+# Farmovo - Clean Repository
 Capstone project
