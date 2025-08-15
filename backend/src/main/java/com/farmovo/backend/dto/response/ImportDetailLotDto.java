@@ -17,6 +17,7 @@ public class ImportDetailLotDto {
     private String storeName;
     private String name; // mã lô
     private LocalDateTime expireDate; // hạn dùng
+    private LocalDateTime createdAt; // ngày tạo
     private Integer remainQuantity;
     private Boolean isCheck;
     private List<Long> zonesId;

@@ -355,6 +355,7 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
                 storeName,
                 name,
                 expireDate,
+                row.getCreatedAt(), // thêm trường createdAt
                 row.getRemainQuantity(),
                 row.getIsCheck(),
                 zones
