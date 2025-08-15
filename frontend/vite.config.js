@@ -22,10 +22,14 @@ export default defineConfig({
       }
     },
     // Chunk size warning limit
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     // Minify - sử dụng esbuild (default, không cần cài thêm)
     minify: 'esbuild',
     // Source maps cho production
-    sourcemap: false
+    sourcemap: false,
+    // Tối ưu hóa thêm
+    target: 'es2015',
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096
   }
 });
