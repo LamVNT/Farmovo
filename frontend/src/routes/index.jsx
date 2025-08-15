@@ -29,7 +29,7 @@ import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
 import CustomerManagementPage from "../pages/customer";
-import ForgotPassword from "../pages/ForgotPassword";
+import ForgotPassword from "../pages/forgotpassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
 import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
