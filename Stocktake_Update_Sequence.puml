@@ -7,117 +7,123 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
 
 title Update Stocktake
 
-actor User
-participant "StockTake Page" as ListUI
-participant "Stocktake Edit Page" as EditUI
-participant "StocktakeController" as Controller
-participant "StocktakeService" as Service
-participant "StocktakeRepo" as Repo
-participant "APIs (Products/Zones/Stores/Categories)" as MasterAPI
-participant "ImportDetail API" as LotAPI
+actor Staff
+participant ":StockTake Page" as ListUI
+participant ":Stocktake Edit Page" as EditUI
+participant ":StocktakeController" as Controller
+participant ":StocktakeServiceImpl" as Service
+participant ":StocktakeRepository" as Repo
+participant ":StocktakeMapper" as Mapper
+participant ":MasterDataController" as MasterDataCtrl
+participant ":MasterDataService" as MasterDataSvc
+participant ":MasterDataRepository" as MasterDataRepo
 
-== A. Prefetch Master Data ==
-activate User
-User -> ListUI: Chọn phiếu DRAFT → "Cập nhật"
+== A. Load dữ liệu ban đầu ==
+activate Staff
+Staff -> ListUI: Chọn phiếu DRAFT → "Cập nhật"
 activate ListUI
-par Products
-  ListUI -> MasterAPI: GET /api/products
-  activate MasterAPI
-  MasterAPI --> ListUI: List<ProductDTO>
-  deactivate MasterAPI
-else Zones
-  ListUI -> MasterAPI: GET /api/zones
-  activate MasterAPI
-  MasterAPI --> ListUI: List<ZoneDTO>
-  deactivate MasterAPI
-else Stores (Owner/Admin)
-  ListUI -> MasterAPI: GET /api/admin/storeList
-  activate MasterAPI
-  MasterAPI --> ListUI: List<StoreDTO>
-  deactivate MasterAPI
-else Categories
-  ListUI -> MasterAPI: GET /api/categories
-  activate MasterAPI
-  MasterAPI --> ListUI: List<CategoryDTO>
-  deactivate MasterAPI
-end
-ListUI -> EditUI: Điều hướng /edit/{id} (truyền cache)
+ListUI -> EditUI: Điều hướng /edit/{id}
 deactivate ListUI
 activate EditUI
 
+EditUI -> MasterDataCtrl: GET /api/master-data
+activate MasterDataCtrl
+MasterDataCtrl -> MasterDataSvc: getMasterData(userRole)
+activate MasterDataSvc
+MasterDataSvc -> MasterDataRepo: fetchAllMasterData()
+activate MasterDataRepo
+MasterDataRepo --> MasterDataSvc: MasterDataDTO
+deactivate MasterDataRepo
+MasterDataSvc --> MasterDataCtrl: MasterDataDTO {Products, Zones, Stores?, Categories}
+deactivate MasterDataSvc
+MasterDataCtrl --> EditUI: MasterDataDTO
+deactivate MasterDataCtrl
+
+EditUI --> Staff: Hiển thị form + dữ liệu master
+
 == B. Load Stocktake & Details ==
-EditUI -> Controller: GET /stocktakes/{id}
+EditUI -> Controller: GET /api/stocktakes/{id}
 activate Controller
-Controller -> Service: getStocktakeById
+Controller -> Service: getStocktakeById(id)
 activate Service
-Service -> Repo: findById
+Service -> Repo: findById(id)
 activate Repo
-Repo --> Service: entity
+Repo --> Service: Optional<Stocktake>
 deactivate Repo
-Service --> Controller: StocktakeResponseDto
-deactivate Service
-Controller --> EditUI: 200 OK
-deactivate Controller
+alt Không tìm thấy
+    Service --> Controller: throw ValidationException("Stocktake not found")
+    Controller --> EditUI: 404 Not Found
+    EditUI --> Staff: Hiển thị lỗi
+    deactivate Service
+    deactivate Controller
+else Tìm thấy
+    Service -> Mapper: toResponseDto(stocktake)
+    activate Mapper
+    Mapper --> Service: StocktakeResponseDto
+    deactivate Mapper
+    Service --> Controller: StocktakeResponseDto
+    deactivate Service
+    Controller --> EditUI: 200 OK
+    deactivate Controller
+    EditUI --> Staff: Hiển thị dữ liệu phiếu để chỉnh sửa
+end
 
-== C. Load Lots theo filter ==
+== C. Load Lots theo filter (tùy chọn) ==
 opt Có filter
-  EditUI -> LotAPI: GET /stocktake-lot
-  activate LotAPI
-  LotAPI --> EditUI: List<LotDTO>
-  deactivate LotAPI
+  EditUI -> Controller: GET /api/stocktakes/products-by-zone?zoneId=...
+  activate Controller
+  Controller --> EditUI: List<ProductResponseDto>
+  deactivate Controller
 end
 
-== D. User chỉnh sửa ==
-User -> EditUI: Nhập Real, tick check, đổi filter
-opt Đổi filter
-  EditUI -> LotAPI: GET /stocktake-lot
-  activate LotAPI
-  LotAPI --> EditUI: List<LotDTO>
-  deactivate LotAPI
+== D. Submit Update ==
+Staff -> EditUI: Nhấn "Lưu nháp"/"Hoàn thành"
+EditUI -> Controller: PUT /api/stocktakes/{id} {requestDto}
+activate Controller
+Controller -> Service: updateStocktake(id, requestDto)
+activate Service
+
+Service -> Service: validate request (status/editable rules)
+alt Không hợp lệ
+  Service --> Controller: ValidationException
+  Controller --> EditUI: 400 Bad Request
+  EditUI --> Staff: Hiển thị lỗi
+  deactivate Service
+  deactivate Controller
+else Hợp lệ
+  Service -> Repo: findById(id)
+  activate Repo
+  Repo --> Service: Stocktake
+  deactivate Repo
+  Service -> Mapper: mergeFromDto(stocktake, requestDto)
+  activate Mapper
+  Mapper --> Service: Stocktake (merged)
+  deactivate Mapper
+  Service -> Service: updateStocktakeDetails(...)
+  Service -> Repo: save(stocktake)
+  activate Repo
+  Repo --> Service: saved
+  deactivate Repo
+  Service -> Mapper: toResponseDto(saved)
+  activate Mapper
+  Mapper --> Service: StocktakeResponseDto
+  deactivate Mapper
+  Service --> Controller: StocktakeResponseDto
+  deactivate Service
+  Controller --> EditUI: 200 OK
+  deactivate Controller
+  EditUI --> Staff: Thông báo thành công + điều hướng về danh sách
 end
-
-== E. Submit Update ==
-User -> EditUI: Nhấn "Lưu nháp"/"Hoàn thành"
-EditUI -> Controller: PUT /stocktakes/{id}
-activate Controller
-Controller -> Service: updateStocktake
-activate Service
-Service -> Repo: save
-activate Repo
-Repo --> Service: saved entity
-deactivate Repo
-Service --> Controller: Updated DTO
-deactivate Service
-Controller --> EditUI: 200 OK
-deactivate Controller
-EditUI --> User: Thông báo thành công + điều hướng về danh sách
-
-== F. (Optional) Đổi trạng thái ==
-User -> EditUI: PUT /status?status=...
-EditUI -> Controller: updateStocktakeStatus
-activate Controller
-Controller -> Service: validate & save
-activate Service
-Service -> Repo: save
-activate Repo
-Repo --> Service: saved entity
-deactivate Repo
-Service --> Controller: Updated DTO
-deactivate Service
-Controller --> EditUI: 200 OK
-deactivate Controller
-EditUI --> User: Thông báo đổi trạng thái thành công
 
 deactivate EditUI
-deactivate User
+deactivate Staff
 
 note right of EditUI
   Không update tồn kho ở đây.
-  Cân bằng kho xử lý qua PCB sau khi COMPLETED.
+  Cân bằng kho sẽ qua PCB sau khi COMPLETED.
 end note
 
 @enduml

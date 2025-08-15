@@ -7,34 +7,37 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
 
-title Report 1: Revenue Trend (Day/Month/Year)
+title Report – Revenue Trend (day/month/year)
 
-actor User
-participant ":Reports Page" as UI
+actor Staff
+participant ":Report Dashboard Page" as UI
 participant ":ReportController" as RC
 participant ":ReportServiceImpl" as RS
 participant ":SaleTransactionRepository" as SaleRepo
 
-User -> UI: Chọn type (day/month/year), from, to
-UI -> RC: GET /api/reports/revenue-trend?type=...&from=...&to=...
+== A. Load chart ==
+Staff -> UI: Chọn type, from, to
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/revenue-trend?type={day|month|year}&from&to
 activate RC
-RC -> RS: getRevenueTrend(type, from.atStartOfDay, to.atEndOfDay)
+RC -> RS: getRevenueTrend(type, from, to)
 activate RS
-alt type == "day"
-  RS -> SaleRepo: getRevenueByDay(from, to)
-  SaleRepo --> RS: List<Object[]>
-else type == "month"
-  RS -> SaleRepo: getRevenueByMonth(from, to)
-  SaleRepo --> RS: List<Object[]>
-else type == "year"
-  RS -> SaleRepo: getRevenueByYear(from, to)
-  SaleRepo --> RS: List<Object[]>
-end
-RS -> RS: Map -> List<RevenueTrendDto>
+
+RS -> SaleRepo: getRevenueBy{Day|Month|Year}(from, to)
+activate SaleRepo
+SaleRepo --> RS: List<Object[]>
+deactivate SaleRepo
+
+RS -> RS: map to List<RevenueTrendDto>
 RS --> RC: List<RevenueTrendDto>
-RC --> UI: 200 OK
-UI --> User: Render Line Chart
+deactivate RS
+RC --> UI: 200 OK List<RevenueTrendDto>
+deactivate RC
+UI --> Staff: Render line chart
+
+deactivate UI
+deactivate Staff
 
 @enduml

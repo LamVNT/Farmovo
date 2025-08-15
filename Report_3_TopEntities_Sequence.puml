@@ -8,38 +8,51 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-title Report 3: Top Entities (Products / Customers)
+title Report – Top Products / Top Customers
 
-actor User
-participant ":Reports Page" as UI
+actor Staff
+participant ":Report Dashboard Page" as UI
 participant ":ReportController" as RC
 participant ":ReportServiceImpl" as RS
 participant ":ImportTransactionDetailRepository" as DetailRepo
 participant ":SaleTransactionRepository" as SaleRepo
 
-User -> UI: Chọn khoảng thời gian + limit; chọn tab [Products|Customers]
-alt Tab = Products
-  UI -> RC: GET /api/reports/top-products?from=...&to=...&limit=...
-  activate RC
-  RC -> RS: getTopProducts(from.atStartOfDay, to.atEndOfDay, limit)
-  activate RS
-  RS -> DetailRepo: Aggregate quantity by product
-  DetailRepo --> RS: List<Object[]>
-  RS -> RS: Map -> List<TopProductDto>
-  RS --> RC: List<TopProductDto>
-  RC --> UI: 200 OK
-  UI --> User: Render bảng/biểu đồ Top sản phẩm
-else Tab = Customers
-  UI -> RC: GET /api/reports/top-customers?from=...&to=...&limit=...
-  activate RC
-  RC -> RS: getTopCustomers(from.atStartOfDay, to.atEndOfDay, limit)
-  activate RS
-  RS -> SaleRepo: Aggregate amount/count by customer
-  SaleRepo --> RS: List<Object[]>
-  RS -> RS: Map -> List<TopCustomerDto>
-  RS --> RC: List<TopCustomerDto>
-  RC --> UI: 200 OK
-  UI --> User: Render bảng Top khách hàng
-end
+== A. Top Products ==
+Staff -> UI: Chọn khoảng thời gian + limit (Top N)
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/top-products?from&to&limit
+activate RC
+RC -> RS: getTopProducts(from, to, limit)
+activate RS
+RS -> DetailRepo: getTopProducts(from, to, PageRequest(0, limit))
+activate DetailRepo
+DetailRepo --> RS: List<Object[]>
+deactivate DetailRepo
+RS -> RS: map to List<TopProductDto>
+RS --> RC: List<TopProductDto>
+deactivate RS
+RC --> UI: 200 OK List<TopProductDto>
+deactivate RC
+UI --> Staff: Render table/chart
+
+== B. Top Customers ==
+UI -> RC: GET /api/reports/top-customers?from&to&limit
+activate RC
+RC -> RS: getTopCustomers(from, to, limit)
+activate RS
+RS -> SaleRepo: getTopCustomers(from, to, PageRequest(0, limit))
+activate SaleRepo
+SaleRepo --> RS: List<Object[]>
+deactivate SaleRepo
+RS -> RS: map to List<TopCustomerDto>
+RS --> RC: List<TopCustomerDto>
+deactivate RS
+RC --> UI: 200 OK List<TopCustomerDto>
+deactivate RC
+UI --> Staff: Render table/chart
+
+deactivate UI
+deactivate Staff
 
 @enduml

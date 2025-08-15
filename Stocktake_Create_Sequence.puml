@@ -1,29 +1,28 @@
 @startuml Create_StockTake_SequenceDiagram
+skinparam {
+  backgroundColor white
+  sequenceArrowThickness 2
+  sequenceMessageAlign center
+  sequenceGroupBodyBackgroundColor #F8F9FA
+  sequenceParticipantBorderColor #6C757D
+  sequenceParticipantBackgroundColor #E9ECEF
+  sequenceLifeLineStroke dash
+}
 
-skinparam backgroundColor white
-skinparam sequenceArrowThickness 2
-skinparam sequenceMessageAlign center
-skinparam sequenceGroupBodyBackgroundColor #F8F9FA
-skinparam sequenceParticipantBorderColor #6C757D
-skinparam sequenceParticipantBackgroundColor #E9ECEF
-skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
-
-title Create StockTake – Sequence Diagram (Load + Create)
+title Create StockTake – Sequence Diagram
 
 actor Staff
-participant ":StockTake Page" as UI
-participant ":Create Stocktake UI" as CreateUI
-participant ":StocktakeController" as Controller
-participant ":StocktakeServiceImpl" as Service
-participant ":Product API (/products)" as ProductAPI
-participant ":Zone API (/zones)" as ZoneAPI
-participant ":Store API (/admin/storeList)" as StoreAPI
-participant ":Category API (/categories)" as CategoryAPI
+participant ":StockTake Page (View)" as UI
+participant ":Create Stocktake UI (View)" as CreateUI
+participant ":StocktakeController" as StocktakeCtrl
+participant ":StocktakeServiceImpl" as StocktakeSvc
+participant ":StocktakeMapper" as StocktakeMapper
 participant ":StocktakeRepository" as StocktakeRepo
-participant ":StocktakeMapper" as Mapper
+participant ":MasterDataController" as MasterDataCtrl
+participant ":MasterDataService" as MasterDataSvc
+participant ":MasterDataRepository" as MasterDataRepo
 
-== A. Load dữ liệu ban đầu (Products/Zones/Categories/Stores) ==
+== A. Load dữ liệu ban đầu ==
 Staff -> UI: Truy cập StockTake Page
 activate Staff
 activate UI
@@ -33,51 +32,62 @@ UI -> CreateUI: Điều hướng sang Create Stocktake Page
 deactivate UI
 activate CreateUI
 
-alt User là Staff
-  group Load Products/Zones/Categories
-    CreateUI -> ProductAPI: GET /api/products
-    ProductAPI --> CreateUI: List<ProductDTO>
-    CreateUI -> ZoneAPI: GET /api/zones
-    ZoneAPI --> CreateUI: List<ZoneDTO>
-    CreateUI -> CategoryAPI: GET /api/categories
-    CategoryAPI --> CreateUI: List<CategoryDTO>
-  end
-else User là Owner/Admin
-  group Load Products/Zones/Stores/Categories
-    CreateUI -> ProductAPI: GET /api/products
-    ProductAPI --> CreateUI: List<ProductDTO>
-    CreateUI -> ZoneAPI: GET /api/zones
-    ZoneAPI --> CreateUI: List<ZoneDTO>
-    CreateUI -> StoreAPI: GET /api/admin/storeList
-    StoreAPI --> CreateUI: List<StoreDTO>
-    CreateUI -> CategoryAPI: GET /api/categories
-    CategoryAPI --> CreateUI: List<CategoryDTO>
-  end
-end
+CreateUI -> MasterDataCtrl: GET /api/master-data
+activate MasterDataCtrl
+MasterDataCtrl -> MasterDataSvc: getMasterData(userRole)
+activate MasterDataSvc
+MasterDataSvc -> MasterDataRepo: fetchAllMasterData()
+activate MasterDataRepo
+MasterDataRepo --> MasterDataSvc: MasterDataDTO
+deactivate MasterDataRepo
+MasterDataSvc --> MasterDataCtrl: MasterDataDTO {Products, Zones, Stores?, Categories}
+deactivate MasterDataSvc
+MasterDataCtrl --> CreateUI: MasterDataDTO
+deactivate MasterDataCtrl
 
 CreateUI --> Staff: Hiển thị form tạo kiểm kê với dữ liệu master
 
-== B. Submit tạo mới StockTake (Draft hoặc Completed) ==
+== B. Submit tạo mới StockTake ==
 Staff -> CreateUI: Nhập thông tin phiếu kiểm kê
-CreateUI -> Controller: POST /api/stocktakes {requestDto}
-activate Controller
-Controller -> Service: createStocktake(requestDto, userId)
-activate Service
-Service -> Mapper: toEntity(requestDto)
-Mapper --> Service: Stocktake entity
-Service -> StocktakeRepo: save(stocktake)
-StocktakeRepo --> Service: saved entity
-Service -> Mapper: toResponseDto(stocktake)
-Mapper --> Service: StocktakeResponseDto
-Service --> Controller: StocktakeResponseDto
-deactivate Service
-Controller --> CreateUI: 201 Created + StocktakeResponseDto
-CreateUI --> UI: Cập nhật trang StockTake
-UI --> Staff: Thông báo tạo thành công phiếu kiểm kê (Draft hoặc Completed)
+CreateUI -> StocktakeCtrl: POST /api/stocktakes {requestDto}
+activate StocktakeCtrl
+StocktakeCtrl -> StocktakeSvc: createStocktake(requestDto, userId)
+activate StocktakeSvc
 
-deactivate Controller
+alt Dữ liệu không hợp lệ
+    StocktakeSvc -> StocktakeSvc: validateStocktakeData(requestDto)
+    note right: Kiểm tra dữ liệu thiếu/bị sai
+    StocktakeSvc --> StocktakeCtrl: ValidationException
+    StocktakeCtrl --> CreateUI: HTTP 400 + Error message
+    CreateUI --> Staff: Hiển thị thông báo lỗi
+else Dữ liệu hợp lệ
+    StocktakeSvc -> StocktakeSvc: validateStocktakeData(requestDto)
+    note right: Pass validation
+
+    StocktakeSvc -> StocktakeMapper: toEntity(requestDto, userId)
+    activate StocktakeMapper
+    StocktakeMapper --> StocktakeSvc: StocktakeEntity
+    deactivate StocktakeMapper
+
+    StocktakeSvc -> StocktakeRepo: save(stocktake entity)
+    activate StocktakeRepo
+    StocktakeRepo --> StocktakeSvc: StocktakeEntity
+    deactivate StocktakeRepo
+
+    StocktakeSvc -> StocktakeMapper: toResponseDto(StocktakeEntity)
+    activate StocktakeMapper
+    StocktakeMapper --> StocktakeSvc: StocktakeResponseDto
+    deactivate StocktakeMapper
+
+    StocktakeSvc --> StocktakeCtrl: StocktakeResponseDto
+    StocktakeCtrl --> CreateUI: HTTP 201 + StocktakeResponseDto
+    CreateUI --> UI: Cập nhật trang StockTake
+    UI --> Staff: Thông báo tạo thành công phiếu kiểm kê (Draft hoặc Completed)
+end
+
+deactivate StocktakeSvc
+deactivate StocktakeCtrl
 deactivate CreateUI
 deactivate UI
 deactivate Staff
-
 @enduml

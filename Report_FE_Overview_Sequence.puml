@@ -1,0 +1,111 @@
+@startuml Report_FE_Overview_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Frontend – Report Module Overview (4 Reports)
+
+actor Staff
+participant ":Report Dashboard Page" as DashboardUI
+participant ":Remain Summary Page" as RemainUI
+participant ":InOut Summary Page" as InOutUI
+participant ":Stocktake Diff Page" as DiffUI
+participant ":Expiring Lots Page" as ExpiringUI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+participant ":ImportTransactionRepository" as ImportRepo
+participant ":SaleTransactionRepository" as SaleRepo
+
+== A. Dashboard điều hướng ==
+Staff -> DashboardUI: Mở Dashboard Report
+activate Staff
+activate DashboardUI
+DashboardUI --> Staff: Hiển thị 4 thẻ: Remain Summary, In/Out, Stocktake Diff, Expiring Lots
+
+== B. Remain Summary ==
+Staff -> DashboardUI: Click Remain Summary
+DashboardUI -> RemainUI: Điều hướng /reports/remain-summary
+activate RemainUI
+RemainUI -> RC: GET /api/reports/remain-summary
+activate RC
+RC -> RS: getRemainSummary()
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: group Category→Product→Zone
+RS --> RC: List<CategoryRemainSummaryDto>
+deactivate RS
+RC --> RemainUI: 200 OK
+RemainUI --> Staff: Render bảng nested
+
+== C. In/Out Summary ==
+Staff -> DashboardUI: Click In/Out Summary
+DashboardUI -> InOutUI: Điều hướng /reports/inout-summary
+activate InOutUI
+InOutUI -> RC: GET /api/reports/inout-summary?from&to
+activate RC
+RC -> RS: getInOutSummary(from, to)
+activate RS
+RS -> ImportRepo: findAllImportActive()
+activate ImportRepo
+ImportRepo --> RS: List<ImportTransaction>
+deactivate ImportRepo
+RS -> SaleRepo: findAllSaleActive()
+activate SaleRepo
+SaleRepo --> RS: List<SaleTransaction>
+deactivate SaleRepo
+RS -> RS: compute opening/import/export/remain
+RS --> RC: List<InOutSummaryDto>
+deactivate RS
+RC --> InOutUI: 200 OK
+InOutUI --> Staff: Render bảng/biểu đồ
+
+== D. Stocktake Diff ==
+Staff -> DashboardUI: Click Stocktake Diff
+DashboardUI -> DiffUI: Điều hướng /reports/stocktake-diff
+activate DiffUI
+DiffUI -> RC: GET /api/reports/stocktake-diff
+activate RC
+RC -> RS: getStocktakeDiffById(null|latest)
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0) [gián tiếp qua stocktake]
+DetailRepo --> RS: filtered details (diff != 0)
+RS --> RC: List<StocktakeDetailDto>
+deactivate RS
+RC --> DiffUI: 200 OK
+DiffUI --> Staff: Render bảng diff
+
+== E. Expiring Lots ==
+Staff -> DashboardUI: Click Expiring Lots
+DashboardUI -> ExpiringUI: Điều hướng /reports/expiring-lots
+activate ExpiringUI
+ExpiringUI -> RC: GET /api/reports/expiring-lots?days=7
+activate RC
+RC -> RS: getExpiringLots(days)
+activate RS
+RS -> DetailRepo: findExpiringLots(now, now+days)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: map to List<ExpiringLotDto>
+RS --> RC: List<ExpiringLotDto>
+deactivate RS
+RC --> ExpiringUI: 200 OK
+ExpiringUI --> Staff: Render bảng highlight
+
+deactivate DashboardUI
+deactivate RemainUI
+deactivate InOutUI
+deactivate DiffUI
+deactivate ExpiringUI
+deactivate Staff
+
+@enduml 

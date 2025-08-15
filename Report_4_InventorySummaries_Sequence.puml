@@ -8,85 +8,94 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-title Report 4: Inventory Summaries (Remain/In-Out/Diff)
+title Report – Inventory Summaries
 
-actor User
-participant ":Reports Page" as UI
+actor Staff
+participant ":Report Dashboard Page" as UI
 participant ":ReportController" as RC
 participant ":ReportServiceImpl" as RS
 participant ":ImportTransactionDetailRepository" as DetailRepo
 participant ":ImportTransactionRepository" as ImportRepo
 participant ":SaleTransactionRepository" as SaleRepo
-participant ":StocktakeRepository" as StockRepo
+participant ":ProductRepository" as ProductRepo
+participant ":ZoneRepository" as ZoneRepo
 participant ":CategoryRepository" as CategoryRepo
 
-== Tab A: Remain By Product (Basic) ==
-User -> UI: Chọn tab "Remain By Product"
-UI -> RC: GET /api/reports/remain-by-product
+== A. In/Out Summary ==
+Staff -> UI: Chọn from, to
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/inout-summary?from&to
 activate RC
-RC -> RS: getRemainByProduct()
+RC -> RS: getInOutSummary(from, to)
 activate RS
-RS -> DetailRepo: getRemainByProduct()
-DetailRepo --> RS: List<Object[]>
-RS -> RS: Map -> List<ProductRemainDto>
-RS --> RC: List<ProductRemainDto>
-RC --> UI: 200 OK
-
-== Tab B: Remain By Product (Advanced) ==
-User -> UI: Chọn filters (zoneId, categoryId, status)
-UI -> RC: GET /api/reports/remain-by-product-advanced?zoneId=...&categoryId=...&status=...
-activate RC
-RC -> RS: getRemainByProductAdvanced(zoneId, categoryId, status)
-activate RS
-RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
-DetailRepo --> RS: List<ImportTransactionDetail>
-RS -> RS: Filter + Map -> List<RemainByProductReportDto>
-RS --> RC: List<RemainByProductReportDto>
-RC --> UI: 200 OK
-
-== Tab C: In-Out Summary ==
-User -> UI: Chọn from/to
-UI -> RC: GET /api/reports/inout-summary?from=...&to=...
-activate RC
-RC -> RS: getInOutSummary(from.atStartOfDay,to.atEndOfDay)
-activate RS
-RS -> ImportRepo: Aggregate nhập theo ngày
-ImportRepo --> RS: List<Object[]>
-RS -> SaleRepo: Aggregate xuất theo ngày
-SaleRepo --> RS: List<Object[]>
-RS -> RS: Join -> List<InOutSummaryDto>
+RS -> ImportRepo: findAllImportActive()
+activate ImportRepo
+ImportRepo --> RS: List<ImportTransaction>
+deactivate ImportRepo
+RS -> SaleRepo: findAllSaleActive()
+activate SaleRepo
+SaleRepo --> RS: List<SaleTransaction>
+deactivate SaleRepo
+RS -> RS: compute openingStock + per-day import/export + remain
 RS --> RC: List<InOutSummaryDto>
-RC --> UI: 200 OK
+deactivate RS
+RC --> UI: 200 OK List<InOutSummaryDto>
+deactivate RC
+UI --> Staff: Render area/line chart
 
-== Tab D: Remain Summary (by Category) ==
-User -> UI: Chọn tab "Remain Summary"
+== B. Category Remain Summary ==
 UI -> RC: GET /api/reports/remain-summary
 activate RC
 RC -> RS: getRemainSummary()
 activate RS
 RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
 DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> ProductRepo: findAll()
+RS -> ZoneRepo: findAll()
 RS -> CategoryRepo: findAll()
-CategoryRepo --> RS: List<Category>
-RS -> RS: Group by category -> List<CategoryRemainSummaryDto>
+RS -> RS: group Category → Product → Zone, sum remain
 RS --> RC: List<CategoryRemainSummaryDto>
-RC --> UI: 200 OK
+deactivate RS
+RC --> UI: 200 OK List<CategoryRemainSummaryDto>
+deactivate RC
+UI --> Staff: Render nested tables
 
-== Tab E: Stocktake Diff ==
-User -> UI: Chọn Stocktake
-UI -> RC: GET /api/reports/stocktake-diff?stocktakeId=...
+== C. Expiring Lots ==
+UI -> RC: GET /api/reports/expiring-lots?days=7
 activate RC
-RC -> RS: getStocktakeDiffById(stocktakeId)
+RC -> RS: getExpiringLots(days)
 activate RS
-RS -> StockRepo: findById(stocktakeId)
-StockRepo --> RS: Optional<Stocktake>
-alt Not Found
-  RS --> RC: []
-  RC --> UI: 200 OK []
-else Found
-  RS -> RS: Parse/Filter diff != 0 -> List<StocktakeDetailDto>
-  RS --> RC: List<StocktakeDetailDto>
-  RC --> UI: 200 OK
-end
+RS -> DetailRepo: findExpiringLots(now, now+days)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: map to List<ExpiringLotDto>
+RS --> RC: List<ExpiringLotDto>
+deactivate RS
+RC --> UI: 200 OK List<ExpiringLotDto>
+deactivate RC
+UI --> Staff: Render table + highlight gần hết hạn
+
+== D. Remain by Product (Advanced) ==
+UI -> RC: GET /api/reports/remain-by-product-advanced?zoneId&categoryId&status
+activate RC
+RC -> RS: getRemainByProductAdvanced(zoneId, categoryId, status)
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: filter by zone/category/status → map to RemainByProductReportDto
+RS --> RC: List<RemainByProductReportDto>
+deactivate RS
+RC --> UI: 200 OK List<RemainByProductReportDto>
+deactivate RC
+UI --> Staff: Render table + filters
+
+deactivate UI
+deactivate Staff
 
 @enduml

@@ -7,7 +7,6 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
 
 title Get/List StockTake - Sequence Diagram (Paged + Role Filter)
 
@@ -17,62 +16,56 @@ participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
 participant ":StocktakeMapper" as CM
 participant ":StocktakeRepository" as CR
-participant ":Zone API (/zones)" as ZoneAPI
-participant ":Store API (/admin/storeList)" as StoreAPI
-participant ":Category API (/categories)" as CategoryAPI
+participant ":Zone/Store/Category API" as ExtAPI
 
 User -> UI: Mở StockTake Page
 activate User
 activate UI
 
-alt User là Owner/Admin
-  UI -> StoreAPI: GET /api/admin/storeList
-  StoreAPI --> UI: List<StoreDTO>
+par Fetch data cho filter
+  UI -> ExtAPI: GET Store/Zone/Category
+  activate ExtAPI
+  ExtAPI --> UI: Trả danh sách filter
+  deactivate ExtAPI
 end
-UI -> ZoneAPI: GET /api/zones
-ZoneAPI --> UI: List<ZoneDTO>
-UI -> CategoryAPI: GET /api/categories
-CategoryAPI --> UI: List<CategoryDTO>
 
 UI -> CC: GET /api/stocktakes/paged?filters&page&size
 activate CC
-CC -> CS: searchStocktakes(storeId,status,note,from,to,userId,pageable)
+CC -> CM: toFilterObject(filters)
+activate CM
+CM --> CC: StocktakeFilter
+deactivate CM
+
+CC -> CS: searchStocktakes(filter, pageable)
 activate CS
+
+CS -> CS: validateRequest(filter, pageable)
+note right: Kiểm tra quyền, tham số
+
 CS -> CR: findAll(Specification, Pageable)
 activate CR
-alt Repository Error
-    CR --> CS: throw RepositoryException
-    CS --> CC: return 500 Internal Server Error
-    CC --> UI: return 500 Internal Server Error
-    UI --> User: Hiển thị lỗi
-else Success
-    CR --> CS: Page<Stocktake>
-    deactivate CR
-    loop For each Stocktake in page
-        CS -> CM: toResponseDto(stocktake)
-        activate CM
-        CM --> CS: StocktakeResponseDto
-        deactivate CM
-        CS -> CS: Tính hasBalance/balanceCount
-        note right
-            hasBalance = countByStocktakeIdAndStatus(COMPLETED) > 0
-        end note
-    end
-    CS --> CC: Page<StocktakeResponseDto>
-    deactivate CS
-    CC --> UI: 200 OK PageResponse
-    UI --> User: Hiển thị danh sách + phân trang
-end
+CR --> CS: Page<Stocktake>
+deactivate CR
+
+CS -> CM: toResponseDto(list<Stocktake>)
+activate CM
+CM --> CS: List<StocktakeResponseDto>
+deactivate CM
+
+CS --> CC: Page<StocktakeResponseDto>
+deactivate CS
+
+CC --> UI: 200 OK
+UI --> User: Hiển thị danh sách + phân trang
 
 deactivate CC
 deactivate UI
 deactivate User
 
 note right of UI
-    StocktakeResponseDto includes:
-    - id, name, stocktakeDate, status, note, storeName
-    - detail (grouped), rawDetail
-    - hasBalance, balanceCount
+    StocktakeResponseDto:
+    - id, name, date, status, note
+    - storeName, detail, hasBalance
 end note
 
 @enduml

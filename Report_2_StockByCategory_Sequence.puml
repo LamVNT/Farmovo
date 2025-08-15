@@ -8,24 +8,34 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-title Report 2: Stock By Category
+title Report – Stock By Category
 
-actor User
-participant ":Reports Page" as UI
+actor Staff
+participant ":Report Dashboard Page" as UI
 participant ":ReportController" as RC
 participant ":ReportServiceImpl" as RS
 participant ":ImportTransactionDetailRepository" as DetailRepo
 
-User -> UI: Chọn xem tồn theo nhóm
+== A. Load chart ==
+Staff -> UI: Mở biểu đồ Tồn theo danh mục
+activate Staff
+activate UI
 UI -> RC: GET /api/reports/stock-by-category
 activate RC
 RC -> RS: getStockByCategory()
 activate RS
-RS -> DetailRepo: Tổng hợp tồn theo category
-DetailRepo --> RS: Aggregated rows
-RS -> RS: Map -> List<StockByCategoryDto>
+RS -> DetailRepo: getStockByCategory()
+activate DetailRepo
+DetailRepo --> RS: List<Object[]>
+deactivate DetailRepo
+RS -> RS: map to List<StockByCategoryDto>
 RS --> RC: List<StockByCategoryDto>
-RC --> UI: 200 OK
-UI --> User: Render Bar Chart
+deactivate RS
+RC --> UI: 200 OK List<StockByCategoryDto>
+deactivate RC
+UI --> Staff: Render bar chart
+
+deactivate UI
+deactivate Staff
 
 @enduml
