@@ -36,13 +36,15 @@ jobs:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./backend
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        platforms: linux/amd64
+            - name: Build and push Docker image
+          uses: docker/build-push-action@v5
+          with:
+            context: ./backend
+            push: true
+            tags: |
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            platforms: linux/amd64
 
     - name: Azure Login
       uses: azure/login@v1
