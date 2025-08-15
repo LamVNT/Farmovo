@@ -18,7 +18,11 @@ export default defineConfig({
         // Đặt tên file đơn giản
         chunkFileNames: 'assets/[name].js',
         entryFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]'
+        assetFileNames: 'assets/[name].[ext]',
+        // Giảm file count
+        preserveModules: false,
+        // Bundle tất cả vào 1 file
+        inlineDynamicImports: true
       }
     },
     // Tăng chunk size limit để ít chunk hơn
@@ -31,15 +35,10 @@ export default defineConfig({
     target: 'es2015',
     cssCodeSplit: false, // Tắt CSS splitting để ít file hơn
     assetsInlineLimit: 32768, // Tăng inline limit để ít file hơn
-    // Tắt chunk splitting hoàn toàn
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-        // Giảm file count
-        preserveModules: false,
-        // Bundle tất cả vào 1 file
-        inlineDynamicImports: true
-      }
+    // Tối ưu hóa bundle
+    lib: {
+      entry: 'src/main.jsx',
+      formats: ['es']
     }
   }
 });

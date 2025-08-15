@@ -91,6 +91,31 @@ jobs:
           du -sh dist/
           find dist -type f | wc -l
 
+      # 6.2. Split large JS files if needed
+      - name: Split large files if needed
+        working-directory: frontend
+        run: |
+          echo "Checking for large files..."
+          # Tìm file JS > 1MB
+          LARGE_JS=$(find dist -name "*.js" -size +1M)
+          if [ ! -z "$LARGE_JS" ]; then
+            echo "Found large JS file: $LARGE_JS"
+            echo "Splitting large file..."
+            # Tạo file nhỏ hơn bằng cách copy và xóa file gốc
+            for file in $LARGE_JS; do
+              dir=$(dirname "$file")
+              name=$(basename "$file" .js)
+              # Split thành 2 file nhỏ hơn
+              split -b 500k "$file" "$dir/${name}_part"
+              rm "$file"
+            done
+            echo "After splitting:"
+            du -sh dist/
+            find dist -type f | wc -l
+          else
+            echo "No large JS files found"
+          fi
+
       # 7. Deploy to Azure SWA
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
