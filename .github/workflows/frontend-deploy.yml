@@ -28,14 +28,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm install
+        working-directory: frontend
+        run: npm ci
 
       - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
+        working-directory: frontend
+        run: npx vite build
 
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
