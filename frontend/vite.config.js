@@ -23,8 +23,8 @@ export default defineConfig({
     },
     // Chunk size warning limit
     chunkSizeWarningLimit: 1000,
-    // Minify
-    minify: 'terser',
+    // Minify - sử dụng esbuild (default, không cần cài thêm)
+    minify: 'esbuild',
     // Source maps cho production
     sourcemap: false
   }
