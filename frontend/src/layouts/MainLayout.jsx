@@ -1,6 +1,6 @@
 import React, {useContext} from 'react'
 import Header from '../components/header'
-import Sidebar from '../components/sidebar'
+import Sidebar from '../components/Sidebar'
 import {MyContext} from '../App'
 
 const MainLayout = ({children}) => {
