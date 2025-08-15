@@ -46,8 +46,14 @@ jobs:
           echo "Removing unnecessary files..."
           find dist -name "*.map" -type f -delete
           find dist -name "*.test.*" -type f -delete
-          find dist -type f -size +2M -delete
+          find dist -type f -size +1M -delete
           find dist -name "*.chunk.*" -type f -delete
+          find dist -name "*.DS_Store" -type f -delete
+          find dist -name "*.log" -type f -delete
+          # Xóa empty directories
+          find dist -type d -empty -delete
+          # Xóa file có hash dài
+          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
 
       # 6. Check build size
       - name: Check build size
@@ -59,6 +65,15 @@ jobs:
           find dist -type f | wc -l
           echo "Largest files:"
           find dist -type f -exec ls -lh {} \; | sort -k5 -hr | head -10
+          
+          # Nếu quá nhiều file, zip lại
+          if [ $(find dist -type f | wc -l) -gt 500 ]; then
+            echo "Too many files, creating zip archive..."
+            zip -r dist.zip dist/
+            rm -rf dist/
+            mkdir dist
+            mv dist.zip dist/
+          fi
 
       # 7. Deploy to Azure SWA
       - name: Deploy to Azure Static Web App

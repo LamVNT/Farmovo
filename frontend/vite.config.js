@@ -10,23 +10,19 @@ export default defineConfig({
     open: true,
   },
   build: {
-    // Tối ưu build size - giảm chunk
+    // Tối ưu build size - giảm chunk mạnh mẽ
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          mui: ['@mui/material', '@mui/icons-material'],
-          charts: ['@nivo/core', '@nivo/bar', '@nivo/pie', '@nivo/geo'],
-          utils: ['axios', 'date-fns', 'formik', 'yup']
-        },
-        // Giảm số lượng chunk
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        // Chỉ giữ 1 chunk chính
+        manualChunks: undefined,
+        // Đặt tên file đơn giản
+        chunkFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
       }
     },
     // Tăng chunk size limit để ít chunk hơn
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
     // Minify - sử dụng esbuild
     minify: 'esbuild',
     // Tắt source maps
@@ -34,17 +30,11 @@ export default defineConfig({
     // Tối ưu hóa thêm
     target: 'es2015',
     cssCodeSplit: false, // Tắt CSS splitting để ít file hơn
-    assetsInlineLimit: 8192, // Tăng inline limit
-    // Giảm chunk
-    minify: 'esbuild',
+    assetsInlineLimit: 16384, // Tăng inline limit để ít file hơn
+    // Tắt chunk splitting
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          mui: ['@mui/material', '@mui/icons-material'],
-          charts: ['@nivo/core', '@nivo/bar', '@nivo/pie', '@nivo/geo'],
-          utils: ['axios', 'date-fns', 'formik', 'yup']
-        }
+        manualChunks: undefined
       }
     }
   }
