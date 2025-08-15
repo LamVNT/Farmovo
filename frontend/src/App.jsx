@@ -1,7 +1,7 @@
 import { RouterProvider } from "react-router-dom";
 import router from "./routes";
 import { createContext, useState, useEffect } from "react";
-import './app.css';
+import './App.css';
 import {Toaster} from "react-hot-toast";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
