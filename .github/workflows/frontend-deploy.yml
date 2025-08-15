@@ -75,6 +75,22 @@ jobs:
             mv dist.zip dist/
           fi
 
+      # 6.1. Force cleanup if still too large
+      - name: Force cleanup if needed
+        working-directory: frontend
+        run: |
+          echo "Force cleanup of large files..."
+          # Xóa file > 1MB
+          find dist -type f -size +1M -delete
+          # Xóa file có hash dài
+          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
+          # Xóa empty directories
+          find dist -type d -empty -delete
+          
+          echo "After cleanup:"
+          du -sh dist/
+          find dist -type f | wc -l
+
       # 7. Deploy to Azure SWA
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1

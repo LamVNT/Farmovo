@@ -10,7 +10,7 @@ export default defineConfig({
     open: true,
   },
   build: {
-    // Tối ưu build size - giảm chunk mạnh mẽ
+    // Tối ưu build size - giảm file count mạnh mẽ
     rollupOptions: {
       output: {
         // Chỉ giữ 1 chunk chính
@@ -22,7 +22,7 @@ export default defineConfig({
       }
     },
     // Tăng chunk size limit để ít chunk hơn
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 5000,
     // Minify - sử dụng esbuild
     minify: 'esbuild',
     // Tắt source maps
@@ -30,11 +30,15 @@ export default defineConfig({
     // Tối ưu hóa thêm
     target: 'es2015',
     cssCodeSplit: false, // Tắt CSS splitting để ít file hơn
-    assetsInlineLimit: 16384, // Tăng inline limit để ít file hơn
-    // Tắt chunk splitting
+    assetsInlineLimit: 32768, // Tăng inline limit để ít file hơn
+    // Tắt chunk splitting hoàn toàn
     rollupOptions: {
       output: {
-        manualChunks: undefined
+        manualChunks: undefined,
+        // Giảm file count
+        preserveModules: false,
+        // Bundle tất cả vào 1 file
+        inlineDynamicImports: true
       }
     }
   }
