@@ -34,25 +34,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # 3.1. Optimize API dependencies (if exists)
-      - name: Optimize API dependencies
-        working-directory: api
-        run: |
-          if [ -f "package.json" ]; then
-            echo "Optimizing API dependencies..."
-            npm install --production
-            # Xóa dev dependencies
-            rm -rf node_modules/.cache
-            rm -rf node_modules/.bin
-            # Xóa source maps và test files
-            find . -name "*.map" -type f -delete
-            find . -name "*.test.*" -type f -delete
-            echo "API size after optimization:"
-            du -sh .
-          else
-            echo "No API directory found, skipping..."
-          fi
-
       # 4. Build frontend
       - name: Build frontend
         working-directory: frontend
@@ -92,23 +73,6 @@ jobs:
             rm -rf dist/
             mkdir dist
             mv dist.zip dist/
-          fi
-
-      # 6.1. Check API size (if exists)
-      - name: Check API size
-        working-directory: api
-        run: |
-          if [ -d "." ]; then
-            echo "API directory size:"
-            du -sh .
-            echo "API node_modules size:"
-            if [ -d "node_modules" ]; then
-              du -sh node_modules/
-            else
-              echo "No node_modules found"
-            fi
-          else
-            echo "No API directory found"
           fi
 
       # 7. Deploy to Azure SWA
