@@ -1,2 +1,2 @@
 # Farmovo - Clean Repository
-Capstone project
+Capstone project - Ready for Azure deployment
