@@ -84,15 +84,15 @@ jobs:
         run: |
           echo "Force cleanup of large files..."
           # Xóa file > 1MB
-          find dist -type f -size +1M -delete
+          find build -type f -size +1M -delete
           # Xóa file có hash dài
-          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
+          find build -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
           # Xóa empty directories
-          find dist -type d -empty -delete
+          find build -type d -empty -delete
           
           echo "After cleanup:"
-          du -sh dist/
-          find dist -type f | wc -l
+          du -sh build/
+          find build -type f | wc -l
 
       # 6.2. Split large JS files if needed
       - name: Split large files if needed
@@ -100,7 +100,7 @@ jobs:
         run: |
           echo "Checking for large files..."
           # Tìm file JS > 1MB
-          LARGE_JS=$(find dist -name "*.js" -size +1M)
+          LARGE_JS=$(find build -name "*.js" -size +1M)
           if [ ! -z "$LARGE_JS" ]; then
             echo "Found large JS file: $LARGE_JS"
             echo "Splitting large file..."
@@ -113,8 +113,8 @@ jobs:
               rm "$file"
             done
             echo "After splitting:"
-            du -sh dist/
-            find dist -type f | wc -l
+            du -sh build/
+            find build -type f | wc -l
           else
             echo "No large JS files found"
           fi
@@ -125,16 +125,16 @@ jobs:
         run: |
           echo "Creating zip archive to avoid Azure file limits..."
           # Tạo zip archive
-          zip -r dist.zip dist/
-          # Xóa dist folder
-          rm -rf dist/
-          # Tạo dist folder mới
-          mkdir dist
-          # Move zip vào dist
-          mv dist.zip dist/
+          zip -r build.zip build/
+          # Xóa build folder
+          rm -rf build/
+          # Tạo build folder mới
+          mkdir build
+          # Move zip vào build
+          mv build.zip build/
           echo "After zip deployment:"
-          du -sh dist/
-          find dist -type f | wc -l
+          du -sh build/
+          find build -type f | wc -l
 
       # 7. Deploy to Azure SWA
       - name: Deploy to Azure Static Web App
@@ -147,11 +147,18 @@ jobs:
           skip_app_build: true
           action: "upload"
 
-      # 7.1. Alternative deployment if static-web-apps fails
+      # 7.1. Azure login for alternative deployment
+      - name: Azure login
+        if: failure()
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 7.2. Alternative deployment if static-web-apps fails
       - name: Alternative Azure deployment
         if: failure()
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'farmovo-frontend'
-          package: frontend/dist
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: frontend/build
+          slot-name: 'production'
