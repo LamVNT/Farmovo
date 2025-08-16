@@ -19,4 +19,6 @@ public class StocktakeResponseDto {
     private java.time.LocalDateTime updatedAt; // ngày cân bằng (lấy từ entity Base)
     private Boolean hasBalance; // Có PCB liên kết không
     private Long balanceCount;  // Số lượng PCB liên kết (thường 0 hoặc 1)
+    private Boolean hasImport;  // Có phiếu nhập điều chỉnh liên kết không
+    private Long importCount;   // Số lượng phiếu nhập liên kết
 }

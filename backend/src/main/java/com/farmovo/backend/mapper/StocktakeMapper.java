@@ -8,12 +8,15 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface StocktakeMapper {
-    StocktakeMapper INSTANCE = Mappers.getMapper(StocktakeMapper.class);
+	StocktakeMapper INSTANCE = Mappers.getMapper(StocktakeMapper.class);
 
-    // Bỏ mapping trường detail, để service tự set
-    @Mapping(target = "detail", ignore = true)
-    @Mapping(target = "rawDetail", ignore = true)
-    @Mapping(target = "updatedAt", source = "updatedAt")
-    // Không ignore trường name, để MapStruct tự map
-    StocktakeResponseDto toResponseDto(Stocktake stocktake);
+	// Bỏ mapping trường detail, để service tự set
+	@Mapping(target = "detail", ignore = true)
+	@Mapping(target = "rawDetail", ignore = true)
+	@Mapping(target = "updatedAt", source = "updatedAt")
+	// Map store.id -> storeId và store.storeName -> storeName để frontend có storeId khi hủy phiếu
+	@Mapping(target = "storeId", source = "store.id")
+	@Mapping(target = "storeName", source = "store.storeName")
+	// Không ignore trường name, để MapStruct tự map
+	StocktakeResponseDto toResponseDto(Stocktake stocktake);
 } 

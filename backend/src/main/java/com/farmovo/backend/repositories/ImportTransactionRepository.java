@@ -31,4 +31,6 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
 
     @Query("SELECT i FROM ImportTransaction i WHERE i.deletedAt IS NULL AND i.deletedBy IS NULL ORDER BY i.importDate DESC")
     List<ImportTransaction> findRecentImports(org.springframework.data.domain.Pageable pageable);
+
+    long countByStocktakeId(Long stocktakeId);
 }

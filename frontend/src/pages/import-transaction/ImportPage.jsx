@@ -1628,6 +1628,7 @@ const ImportPage = () => {
         try {
             const importData = {
                 name: nextImportCode,
+                stocktakeId: (location.state?.surplusFromStocktake?.stocktakeId) || undefined,
                 supplierId: selectedSupplier,
                 storeId: selectedStore,
                 staffId: currentUser?.id || 1,

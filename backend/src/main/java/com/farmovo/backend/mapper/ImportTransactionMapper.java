@@ -17,6 +17,7 @@ public interface ImportTransactionMapper {
     @Mapping(source = "supplierId", target = "supplier.id")
     @Mapping(source = "storeId", target = "store.id")
     @Mapping(source = "staffId", target = "staff.id")
+    @Mapping(source = "stocktakeId", target = "stocktakeId")
     @Mapping(target = "details", source = "details")
     ImportTransaction toEntity(CreateImportTransactionRequestDto dto);
 
@@ -36,6 +37,7 @@ public interface ImportTransactionMapper {
     @Mapping(source = "staff.id", target = "staffId")
     @Mapping(source = "details", target = "details")
     @Mapping(source = "importDate", target = "importDate")
+    @Mapping(source = "stocktakeId", target = "stocktakeId")
     CreateImportTransactionRequestDto toDto(ImportTransaction entity);
 
 
@@ -50,6 +52,7 @@ public interface ImportTransactionMapper {
     @Mapping(source = "importDate", target = "importDate")
     @Mapping(source = "importTransactionNote", target = "importTransactionNote")
     @Mapping(source = "status", target = "status")
+    @Mapping(source = "stocktakeId", target = "stocktakeId")
     ImportTransactionResponseDto toResponseDto(ImportTransaction entity);
 
 
