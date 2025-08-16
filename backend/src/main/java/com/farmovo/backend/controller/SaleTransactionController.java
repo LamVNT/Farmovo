@@ -50,7 +50,6 @@ public class SaleTransactionController {
     private final ProductMapper productMapper;
     private final SaleTransactionService saleTransactionService;
     private final CustomerService customerService;
-    private final ProductService productService;
     private final StoreService storeService;
     private final ProductRepository productRepository;
     private final JwtUtils jwtUtils;

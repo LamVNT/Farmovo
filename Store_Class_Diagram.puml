@@ -1,0 +1,223 @@
+@startuml Store_Class_Diagram
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam classFontSize 12
+skinparam classFontName Arial
+skinparam backgroundColor white
+skinparam classBackgroundColor #F8F9FA
+skinparam classBorderColor #6C757D
+skinparam arrowColor #495057
+
+' ======================== Base Class ========================
+abstract class Base {
+    #createdAt: LocalDateTime
+    #createdBy: Long
+    #updatedAt: LocalDateTime
+    #deletedAt: LocalDateTime
+    #deletedBy: Long
+}
+
+' ======================== DTO Package ========================
+package "DTO" {
+    class StoreRequestDto {
+        - id: Long
+        - storeName: String
+        - storeDescription: String
+        - storeAddress: String
+        - createBy: Long
+        - createAt: LocalDateTime
+        - updateAt: LocalDateTime
+        - deleteAt: LocalDateTime
+        - deleteBy: Long
+    }
+
+    class StoreResponseDto {
+        - id: Long
+        - storeName: String
+        - storeDescription: String
+        - storeAddress: String
+        - createBy: Long
+        - createAt: LocalDateTime
+        - updateAt: LocalDateTime
+        - deleteAt: LocalDateTime
+        - deleteBy: Long
+    }
+}
+
+' ======================== Service Package ========================
+package "Service" {
+    interface StoreService {
+        +getAllStores(): List<Store>
+        +getStoreById(id: Long): Optional<Store>
+        +saveStore(store: Store): Store
+        +updateStore(id: Long, store: Store): Optional<Store>
+        +deleteStore(id: Long): boolean
+        +convertToEntity(dto: StoreRequestDto): Store
+        +getAllStoreDto(): List<StoreRequestDto>
+        +getAllStoreResponseDto(): List<StoreResponseDto>
+    }
+
+    class StoreServiceImpl {
+        -storeRepository: StoreRepository
+        -storeMapper: StoreMapper
+        +getAllStores(): List<Store>
+        +getStoreById(id: Long): Optional<Store>
+        +saveStore(store: Store): Store
+        +updateStore(id: Long, store: Store): Optional<Store>
+        +deleteStore(id: Long): boolean
+        +convertToEntity(dto: StoreRequestDto): Store
+        +getAllStoreDto(): List<StoreRequestDto>
+        +getAllStoreResponseDto(): List<StoreResponseDto>
+    }
+}
+
+' ======================== Repository Package ========================
+package "Repository" {
+    interface StoreRepository {
+        +findById(id: Long): Optional<Store>
+        +save(store: Store): Store
+        +deleteById(id: Long): void
+        +existsById(id: Long): boolean
+        +findAll(): List<Store>
+    }
+}
+
+' ======================== Controller Package ========================
+package "Controller" {
+    class StoreController {
+        -storeService: StoreService
+        -userRepository: UserRepository
+        +getAllStores(): List<StoreResponseDto>
+        +getStoreById(id: Long): ResponseEntity<StoreResponseDto>
+        +createStore(dto: StoreRequestDto, principal: Principal): StoreResponseDto
+        +updateStore(id: Long, dto: StoreRequestDto): ResponseEntity<StoreResponseDto>
+        +deleteStore(id: Long): ResponseEntity<Void>
+        -convertToResponseDTO(store: Store): StoreResponseDto
+        +handleUserManagementException(ex: UserManagementException): ResponseEntity<String>
+    }
+}
+
+' ======================== Mapper Package ========================
+package "Mapper" {
+    interface StoreMapper {
+        +toDto(store: Store): StoreRequestDto
+        +toResponseDto(store: Store): StoreResponseDto
+        +toDtoList(stores: List<Store>): List<StoreRequestDto>
+    }
+}
+
+' ======================== Entity Package ========================
+package "Entity" {
+    class Store {
+        - id: Long
+        - storeName: String
+        - storeDescription: String
+        - storeAddress: String
+        - products: List<Product>
+        - importTransactions: List<ImportTransaction>
+        - saleTransactions: List<SaleTransaction>
+        - stocktakes: List<Stocktake>
+        - debtNotes: List<DebtNote>
+        - users: List<User>
+        - zones: List<Zone>
+    }
+
+    class Product {
+        - id: Long
+        - productName: String
+        - productDescription: String
+        - productQuantity: Integer
+        - store: Store
+    }
+
+    class ImportTransaction {
+        - id: Long
+        - name: String
+        - status: ImportTransactionStatus
+        - store: Store
+    }
+
+    class SaleTransaction {
+        - id: Long
+        - name: String
+        - status: SaleTransactionStatus
+        - store: Store
+    }
+
+    class Stocktake {
+        - id: Long
+        - name: String
+        - status: StocktakeStatus
+        - store: Store
+    }
+
+    class DebtNote {
+        - id: Long
+        - amount: BigDecimal
+        - store: Store
+    }
+
+    class User {
+        - id: Long
+        - username: String
+        - fullName: String
+        - store: Store
+    }
+
+    class Zone {
+        - id: Long
+        - zoneName: String
+        - zoneDescription: String
+        - store: Store
+    }
+}
+
+' ======================== Exception Package ========================
+package "Exception" {
+    class UserManagementException {
+        -message: String
+        +getMessage(): String
+    }
+}
+
+' ======================== Relationships ========================
+' Inheritance
+Store --|> Base
+
+' Service Implementation
+StoreServiceImpl ..|> StoreService
+
+' Controller Dependencies
+StoreController --> StoreService : uses
+StoreController --> UserRepository : uses
+
+' Service Dependencies
+StoreServiceImpl --> StoreRepository : uses
+StoreServiceImpl --> StoreMapper : uses
+
+' Repository Dependencies
+StoreRepository --> Store : manages
+
+' Mapper Dependencies
+StoreMapper --> StoreRequestDto : maps to
+StoreMapper --> StoreResponseDto : maps to
+
+' Entity Relationships
+Store "1" o-- "*" Product : contains
+Store "1" o-- "*" ImportTransaction : has
+Store "1" o-- "*" SaleTransaction : has
+Store "1" o-- "*" Stocktake : has
+Store "1" o-- "*" DebtNote : has
+Store "1" o-- "*" User : employs
+Store "1" o-- "*" Zone : contains
+
+' DTO Relationships
+StoreRequestDto --> Store : creates/updates
+StoreResponseDto --> Store : represents
+
+' Exception Handling
+StoreController --> UserManagementException : throws
+StoreServiceImpl --> UserManagementException : throws
+
+@enduml
+

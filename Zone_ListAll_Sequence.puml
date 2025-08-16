@@ -1,0 +1,104 @@
+@startuml Zone_ListAll_Sequence
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 150
+
+title Zone Management - List All Zones Sequence Diagram
+
+actor User
+participant "ZonePage" as Frontend
+participant "ZoneService" as FrontendService
+participant "ZoneController" as Controller
+participant "ZoneService" as Service
+participant "ZoneRepository" as Repository
+participant "JwtUtils" as JWT
+participant "UserService" as UserSvc
+
+User -> Frontend: Open Zone Management Page
+activate Frontend
+
+Frontend -> Frontend: useEffect() - fetch zones
+Frontend -> FrontendService: getZones()
+activate FrontendService
+
+FrontendService -> Controller: GET /api/zones
+activate Controller
+
+Controller -> JWT: getJwtFromRequest(request)
+activate JWT
+JWT --> Controller: token
+deactivate JWT
+
+alt token exists
+    Controller -> JWT: getUserIdFromJwtToken(token)
+    activate JWT
+    JWT --> Controller: userId
+    deactivate JWT
+    
+    Controller -> UserSvc: getUserById(userId)
+    activate UserSvc
+    UserSvc --> Controller: user
+    deactivate UserSvc
+    
+    alt user is STAFF
+        Controller -> Service: getZonesByStoreId(user.storeId)
+        activate Service
+        Service -> Repository: findByStoreId(storeId)
+        activate Repository
+        Repository --> Service: List<Zone>
+        deactivate Repository
+        
+        Service -> Service: convert to ZoneResponseDto
+        Service --> Controller: List<ZoneResponseDto>
+        deactivate Service
+        
+    else user is OWNER or other
+        Controller -> Service: getAllZones()
+        activate Service
+        Service -> Repository: findAll()
+        activate Repository
+        Repository --> Service: List<Zone>
+        deactivate Repository
+        
+        Service -> Service: convert to ZoneResponseDto
+        Service --> Controller: List<ZoneResponseDto>
+        deactivate Service
+    end
+    
+else no token
+    Controller -> Service: getAllZones()
+    activate Service
+    Service -> Repository: findAll()
+    activate Repository
+    Repository --> Service: List<Zone>
+    deactivate Repository
+    
+    Service -> Service: convert to ZoneResponseDto
+    Service --> Controller: List<ZoneResponseDto>
+    deactivate Service
+end
+
+Controller -> Controller: ResponseEntity.ok(zones)
+Controller --> FrontendService: 200 OK + List<ZoneResponseDto>
+deactivate Controller
+
+FrontendService --> Frontend: zones data
+deactivate FrontendService
+
+Frontend -> Frontend: setZones(zones)
+Frontend -> Frontend: setLoading(false)
+
+Frontend -> Frontend: render ZoneTable with zones
+Frontend -> Frontend: display pagination controls
+
+note right of Frontend
+    Frontend displays:
+    - Zone table with pagination
+    - Search functionality
+    - Add/Edit/Delete buttons
+    - Store information for each zone
+end note
+
+@enduml

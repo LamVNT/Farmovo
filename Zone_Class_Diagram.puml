@@ -1,0 +1,137 @@
+@startuml Zone_Backend_Class_Diagram
+
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classFontName Arial
+skinparam packageStyle rectangle
+
+package "Models" {
+    abstract class Base {
+        +createdAt: LocalDateTime
+        +createdBy: Long
+        +updatedAt: LocalDateTime
+        +deletedAt: LocalDateTime
+        +deletedBy: Long
+    }
+
+    class Zone {
+        +id: Long
+        +zoneName: String
+        +zoneDescription: String
+        +store: Store
+    }
+
+    class Store {
+        +id: Long
+        +storeName: String
+        +storeDescription: String
+        +storeAddress: String
+        +products: List<Product>
+        +importTransactions: List<ImportTransaction>
+        +saleTransactions: List<SaleTransaction>
+        +stocktakes: List<Stocktake>
+        +debtNotes: List<DebtNote>
+        +users: List<User>
+        +zones: List<Zone>
+    }
+}
+
+package "DTOs" {
+    class ZoneRequestDto {
+        +zoneName: String
+        +zoneDescription: String
+        +storeId: Long
+    }
+
+    class ZoneResponseDto {
+        +id: Long
+        +zoneName: String
+        +zoneDescription: String
+        +createBy: Long
+        +createAt: LocalDateTime
+        +updateAt: LocalDateTime
+        +deleteAt: LocalDateTime
+        +deleteBy: Long
+        +storeId: Long
+        +storeName: String
+    }
+
+    class ZoneDto {
+        +id: Long
+        +zoneName: String
+        +zoneDescription: String
+        +storeId: Long
+    }
+}
+
+package "Services" {
+    interface IZoneService {
+        +getAllZoneDtos(): List<ZoneDto>
+        +getAllZones(): List<ZoneResponseDto>
+        +createZone(request): ZoneResponseDto
+        +updateZone(id, request): ZoneResponseDto
+        +deleteZone(id): void
+        +getAllZoneEntities(): List<Zone>
+        +getZonesByStoreId(storeId): List<ZoneResponseDto>
+    }
+
+    class ZoneServiceImpl {
+        +getAllZoneDtos(): List<ZoneDto>
+        +getAllZones(): List<ZoneResponseDto>
+        +createZone(request): ZoneResponseDto
+        +updateZone(id, request): ZoneResponseDto
+        +deleteZone(id): void
+        +getAllZoneEntities(): List<Zone>
+        +getZonesByStoreId(storeId): List<ZoneResponseDto>
+    }
+}
+
+package "Controllers" {
+    class ZoneController {
+        +zoneService: ZoneService
+        +userService: UserService
+        +jwtUtils: JwtUtils
+        +getAllZones(): ResponseEntity<List<ZoneResponseDto>>
+        +createZone(request): ResponseEntity<ZoneResponseDto>
+        +updateZone(id, request): ResponseEntity<ZoneResponseDto>
+        +deleteZone(id): ResponseEntity<Void>
+        +getZonesByStore(storeId): ResponseEntity<List<ZoneResponseDto>>
+    }
+}
+
+package "Repositories" {
+    interface ZoneRepository {
+        +findAll(): List<Zone>
+        +findById(id): Optional<Zone>
+        +save(zone): Zone
+        +deleteById(id): void
+        +findByStoreId(storeId): List<Zone>
+    }
+}
+
+package "Validation" {
+    class ZoneValidation {
+        +validateZoneName(zoneName): boolean
+        +validateZoneDescription(description): boolean
+        +validateStoreId(storeId): boolean
+    }
+}
+
+' Relationships
+Zone --> Base : extends
+Store --> Base : extends
+Zone --> Store : many-to-one
+
+ZoneController --> IZoneService : uses
+ZoneController --> ZoneValidation : uses
+ZoneServiceImpl ..|> IZoneService : implements
+ZoneServiceImpl --> ZoneRepository : uses
+
+ZoneRepository --> Zone : manages
+ZoneValidation --> ZoneRequestDto : validates
+
+ZoneRequestDto --> ZoneResponseDto : converts to
+ZoneDto --> ZoneResponseDto : converts to
+
+@enduml

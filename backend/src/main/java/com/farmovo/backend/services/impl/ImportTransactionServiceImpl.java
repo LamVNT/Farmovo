@@ -211,7 +211,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         importTransactionRepository.save(transaction);
         //tạo công nợ
         handleCompleteStatus(transaction);
-        // Cập nhật số lượng sản phẩm khi hoàn thành phiếu nhập
         updateProductStockIfComplete(transaction);
 
         log.info("Import transaction completed successfully. ID: {}, Old status: {}, New status: {}",

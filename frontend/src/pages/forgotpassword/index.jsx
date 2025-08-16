@@ -189,7 +189,7 @@ const ForgotPassword = () => {
 
     return (
         <div className="max-w-md mx-auto mt-20 p-6 border rounded shadow bg-white space-y-4">
-            <h2 className="text-2xl font-semibold text-center mb-4">Forgot Password</h2>
+            <h2 className="text-2xl font-semibold text-center mb-4">Quên mật khẩu</h2>
 
             {message && <p className="text-green-600 text-sm">{message}</p>}
             {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -209,7 +209,7 @@ const ForgotPassword = () => {
                         disabled={loading}
                         className={`w-full py-2 rounded text-white ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}
                     >
-                        {loading ? "Sending OTP..." : "Send OTP"}
+                        {loading ? "Sending OTP..." : "Gửi mã OTP"}
                     </button>
                 </>
             )}
