@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Card, Grid, Typography, Select, MenuItem, Box, Button } from '@mui/material';
+import { Card, Grid, Typography, Select, MenuItem, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { MyContext } from '../../App';
 import api from '../../services/axiosClient';
-import { FaBoxOpen, FaExclamationTriangle, FaClock, FaExchangeAlt } from 'react-icons/fa';
+import { FaChartLine, FaBoxes } from 'react-icons/fa';
 
 const DashboardReport = () => {
   const context = useContext(MyContext);
@@ -13,7 +13,6 @@ const DashboardReport = () => {
   const [role, setRole] = useState('');
 
   useEffect(() => {
-    // Lấy role và danh sách kho từ context hoặc API
     if (context.user) {
       setRole(context.user.role);
       if (context.user.role === 'OWNER') {
@@ -28,48 +27,51 @@ const DashboardReport = () => {
     setSelectedStore(e.target.value);
   };
 
-  // Card cấu hình
-  const reportCards = [
-    {
-      title: 'Tồn kho tổng hợp',
-      icon: <FaBoxOpen size={28} color="#1976d2" />,
-      link: '/reports/remain-summary',
-      desc: 'Xem tồn kho tổng hợp theo danh mục, sản phẩm, zone.'
-    },
-    {
-      title: 'Nhập xuất kho',
-      icon: <FaExchangeAlt size={28} color="#388e3c" />,
-      link: '/reports/inout-summary',
-      desc: 'Theo dõi số lượng nhập, xuất, tồn cuối mỗi ngày.'
-    },
-    {
-      title: 'Sản phẩm sai lệch',
-      icon: <FaExclamationTriangle size={28} color="#fbc02d" />,
-      link: '/reports/stocktake-diff',
-      desc: 'Kiểm tra các sản phẩm có chênh lệch khi kiểm kho.'
-    },
-    {
-      title: 'Lô sắp hết hạn',
-      icon: <FaClock size={28} color="#d32f2f" />,
-      link: '/reports/expiring-lots',
-      desc: 'Danh sách lô sản phẩm sắp hết hạn sử dụng.'
-    }
-  ];
+  const BigCard = ({ title, icon, desc, onClick, color }) => (
+    <Card
+      sx={{
+        p: 5,
+        height: '100%',
+        cursor: 'pointer',
+        border: `2px solid ${color}`,
+        borderRadius: 4,
+        boxShadow: 3,
+        transition: 'all 0.25s',
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: 6,
+          backgroundColor: `${color}10`,
+        },
+      }}
+      onClick={onClick}
+    >
+      <Box display="flex" alignItems="center" justifyContent="center" flexDirection="column" textAlign="center">
+        <Box mb={2}>{icon}</Box>
+        <Typography variant="h5" fontWeight={800} gutterBottom>{title}</Typography>
+        <Typography variant="body2" color="text.secondary">{desc}</Typography>
+      </Box>
+    </Card>
+  );
 
   return (
-    <Box p={2}>
-      <Typography variant="h5" fontWeight={700} mb={2}>Báo cáo tổng hợp</Typography>
-      <Typography variant="body1" mb={3} color="text.secondary">
-        Chọn loại báo cáo bạn muốn xem hoặc lọc theo kho (nếu có quyền).
-      </Typography>
+    <Box p={3} sx={{ backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      {/* Header */}
+      <Box mb={4} textAlign="center">
+        <Typography variant="h4" fontWeight={700} color="primary.main">Báo cáo</Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          Tổng quan báo cáo tài chính và tồn kho theo từng kho
+        </Typography>
+      </Box>
+
+      {/* Store filter */}
       {role === 'OWNER' && (
-        <Box mb={3}>
+        <Box mb={4} textAlign="center">
           <Typography variant="subtitle1" mb={1}>Chọn kho</Typography>
           <Select
             value={selectedStore}
             onChange={handleStoreChange}
             displayEmpty
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 240, backgroundColor: 'white', borderRadius: 2 }}
           >
             <MenuItem value="">Tất cả kho</MenuItem>
             {stores.map(store => (
@@ -78,29 +80,30 @@ const DashboardReport = () => {
           </Select>
         </Box>
       )}
-      {role === 'STAFF' && (
-        <Box mb={3}>
-          <Typography variant="subtitle1">Kho: {context.user?.storeName || '---'}</Typography>
-        </Box>
-      )}
-      <Grid container spacing={3}>
-        {reportCards.map(card => (
-          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={card.title}>
-            <Card sx={{ p: 3, cursor: 'pointer', height: '100%' }} onClick={() => navigate(card.link)}>
-              <Box display="flex" alignItems="center" mb={2}>
-                {card.icon}
-                <Typography variant="h6" ml={2}>{card.title}</Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary">{card.desc}</Typography>
-              <Button variant="text" sx={{ mt: 2 }} onClick={() => navigate(card.link)}>
-                Xem chi tiết
-              </Button>
-            </Card>
-          </Grid>
-        ))}
+
+      {/* Cards */}
+      <Grid container spacing={4} justifyContent="center">
+        <Grid item xs={12} sm={6} md={4}>
+          <BigCard
+            title="Tài chính"
+            desc="Theo dõi doanh thu, thu chi theo ngày/ca"
+            icon={<FaChartLine size={64} color="#1976d2" />}
+            color="#1976d2"
+            onClick={() => navigate('/reports/financial')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <BigCard
+            title="Tồn kho"
+            desc="Kiểm tra tồn kho và sản phẩm sắp hết hạn"
+            icon={<FaBoxes size={64} color="#388e3c" />}
+            color="#388e3c"
+            onClick={() => navigate('/reports/inventory')}
+          />
+        </Grid>
       </Grid>
     </Box>
   );
 };
 
-export default DashboardReport; 
+export default DashboardReport;
