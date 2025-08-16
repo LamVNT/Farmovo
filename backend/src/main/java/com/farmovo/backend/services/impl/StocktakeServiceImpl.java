@@ -271,8 +271,8 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setNote(base.getNote());
         dto.setZoneReal(base.getZoneReal());
         dto.setExpireDate(lot.getExpireDate() != null ? lot.getExpireDate().toString() : null);
-        // Mặc định isCheck = false nếu null để frontend hiển thị chưa kiểm
-        dto.setIsCheck(lot.getIsCheck() != null ? lot.getIsCheck() : Boolean.FALSE);
+        // Giữ nguyên trạng thái isCheck từ yêu cầu; mặc định false nếu null
+        dto.setIsCheck(base.getIsCheck() != null ? base.getIsCheck() : Boolean.FALSE);
 
         log.debug("Enriched detail: lot={}, productId={}, remain={}, real={}, diff={}",
                 dto.getBatchCode(), dto.getProductId(), dto.getRemain(), dto.getReal(), dto.getDiff());
