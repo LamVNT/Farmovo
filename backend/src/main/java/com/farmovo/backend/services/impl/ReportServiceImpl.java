@@ -41,6 +41,10 @@ import com.farmovo.backend.dto.response.ProductSaleResponseDto;
 import com.farmovo.backend.dto.response.ExpiringLotDto;
 
 import java.util.Optional;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.StringUtils;
+import com.farmovo.backend.repositories.UserRepository;
 
 @Service
 public class ReportServiceImpl implements ReportService {
@@ -58,10 +62,35 @@ public class ReportServiceImpl implements ReportService {
     private CategoryRepository categoryRepository;
     @Autowired
     private ImportTransactionRepository importTransactionRepository;
+	@Autowired(required = false)
+	private HttpServletRequest request;
+	@Autowired
+	private UserRepository userRepository;
+
+	private Long getCurrentUserStoreIdIfStaff() {
+		try {
+			if (request == null) return null;
+			String userIdHeader = request.getHeader("X-User-Id");
+			if (!StringUtils.hasText(userIdHeader)) return null;
+			Long userId = Long.valueOf(userIdHeader);
+			return userRepository.findById(userId)
+					.filter(u -> u.getAuthorities() != null && u.getAuthorities().stream().anyMatch(a -> {
+						String r = a.getAuthority();
+						return r != null && (r.equalsIgnoreCase("STAFF") || r.equalsIgnoreCase("ROLE_STAFF"));
+					}))
+					.map(u -> u.getStore() != null ? u.getStore().getId() : null)
+					.orElse(null);
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
     @Override
-    public List<ProductRemainDto> getRemainByProduct() {
-        List<Object[]> result = importTransactionDetailRepository.getRemainByProduct();
+	    public List<ProductRemainDto> getRemainByProduct(Long storeIdParam) {
+        Long storeId = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
+        List<Object[]> result = (storeId != null)
+                ? importTransactionDetailRepository.getRemainByProductByStore(storeId)
+                : importTransactionDetailRepository.getRemainByProduct();
         List<ProductRemainDto> dtos = new ArrayList<>();
         for (Object[] row : result) {
             dtos.add(new ProductRemainDto((Long) row[0], ((Number) row[1]).intValue()));
@@ -155,10 +184,13 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<ExpiringLotDto> getExpiringLots(int days) {
+	    public List<ExpiringLotDto> getExpiringLots(int days, Long storeIdParam) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime soon = now.plusDays(days);
-        List<ImportTransactionDetail> lots = importTransactionDetailRepository.findExpiringLots(now, soon);
+        Long storeId = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
+        List<ImportTransactionDetail> lots = (storeId != null)
+                ? importTransactionDetailRepository.findExpiringLotsByStore(storeId, now, soon)
+                : importTransactionDetailRepository.findExpiringLots(now, soon);
         List<ExpiringLotDto> result = new ArrayList<>();
         for (ImportTransactionDetail lot : lots) {
             int daysLeft = lot.getExpireDate() != null ? (int) java.time.temporal.ChronoUnit.DAYS.between(now, lot.getExpireDate()) : 0;
@@ -180,7 +212,7 @@ public class ReportServiceImpl implements ReportService {
         List<Object[]> raw;
 
         switch (type) {
-            case "day":
+			case "day": {
                 raw = saleTransactionRepository.getRevenueByDay(from, to);
                 for (Object[] row : raw) {
                     RevenueTrendDto dto = new RevenueTrendDto();
@@ -189,7 +221,8 @@ public class ReportServiceImpl implements ReportService {
                     result.add(dto);
                 }
                 break;
-            case "month":
+			}
+			case "month": {
                 raw = saleTransactionRepository.getRevenueByMonth(from, to);
                 for (Object[] row : raw) {
                     String label = row[0] + "-" + String.format("%02d", row[1]);
@@ -199,7 +232,8 @@ public class ReportServiceImpl implements ReportService {
                     result.add(dto);
                 }
                 break;
-            case "year":
+			}
+			case "year": {
                 raw = saleTransactionRepository.getRevenueByYear(from, to);
                 for (Object[] row : raw) {
                     RevenueTrendDto dto = new RevenueTrendDto();
@@ -208,6 +242,7 @@ public class ReportServiceImpl implements ReportService {
                     result.add(dto);
                 }
                 break;
+			}
         }
 
         return result;
@@ -255,11 +290,17 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to) {
+	    public List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to, Long storeIdParam) {
         // 1. Lấy tồn đầu trước ngày from
         Integer openingStock = 0;
+        Long storeIdFilter = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
         List<ImportTransactionDetail> allDetails = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
         for (ImportTransactionDetail detail : allDetails) {
+			if (storeIdFilter != null) {
+				if (detail.getProduct() == null || detail.getProduct().getStore() == null || !storeIdFilter.equals(detail.getProduct().getStore().getId())) {
+					continue;
+				}
+			}
             ImportTransaction importTransaction = detail.getImportTransaction();
             if (importTransaction != null && importTransaction.getImportDate() != null && importTransaction.getImportDate().isBefore(from)) {
                 openingStock += detail.getRemainQuantity() != null ? detail.getRemainQuantity() : 0;
@@ -276,7 +317,9 @@ public class ReportServiceImpl implements ReportService {
         }
 
         // 3. Tổng hợp nhập kho từng ngày
-        List<ImportTransaction> importList = importTransactionRepository.findAllImportActive();
+		List<ImportTransaction> importList = (storeIdFilter != null)
+				? importTransactionRepository.findAllImportActiveByStore(storeIdFilter)
+				: importTransactionRepository.findAllImportActive();
         for (ImportTransaction imp : importList) {
             if (imp.getImportDate() == null) continue;
             LocalDate date = imp.getImportDate().toLocalDate();
@@ -292,7 +335,9 @@ public class ReportServiceImpl implements ReportService {
         }
 
         // 4. Tổng hợp xuất kho từng ngày
-        List<SaleTransaction> saleList = saleTransactionRepository.findAllSaleActive();
+		List<SaleTransaction> saleList = (storeIdFilter != null)
+				? saleTransactionRepository.findAllSaleActiveByStore(storeIdFilter)
+				: saleTransactionRepository.findAllSaleActive();
         ObjectMapper objectMapper = new ObjectMapper();
         for (SaleTransaction sale : saleList) {
             if (sale.getSaleDate() == null) continue;

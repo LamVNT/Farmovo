@@ -17,6 +17,9 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL")
     List<SaleTransaction> findAllSaleActive();
 
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.store.id = :storeId")
+    List<SaleTransaction> findAllSaleActiveByStore(@Param("storeId") Long storeId);
+
     @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL")
     BigDecimal sumTotalAmount();
 

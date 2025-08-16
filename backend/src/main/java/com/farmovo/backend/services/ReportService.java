@@ -8,13 +8,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ReportService {
-    List<ProductRemainDto> getRemainByProduct();
+    List<ProductRemainDto> getRemainByProduct(Long storeId);
 
     List<StocktakeDetailDto> getStocktakeDiff();
 
     List<StocktakeDetailDto> getStocktakeDiffById(Long stocktakeId);
 
-    List<ExpiringLotDto> getExpiringLots(int days);
+    List<ExpiringLotDto> getExpiringLots(int days, Long storeId);
 
     List<RevenueTrendDto> getRevenueTrend(String type, LocalDateTime from, LocalDateTime to);
 
@@ -26,7 +26,7 @@ public interface ReportService {
 
     List<RemainByProductReportDto> getRemainByProductAdvanced(String zoneId, Long categoryId, String status);
 
-    List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to);
+    List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to, Long storeId);
 
     List<CategoryRemainSummaryDto> getRemainSummary();
 } 

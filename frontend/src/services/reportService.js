@@ -1,7 +1,15 @@
 import axios from './axiosClient';
 
 export const getRemainByProduct = () => {
-    return axios.get('/reports/remain-by-product');
+    let storeId;
+    try {
+        const userRaw = localStorage.getItem('user');
+        const user = userRaw ? JSON.parse(userRaw) : null;
+        if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
+            storeId = user.storeId;
+        }
+    } catch (_) {}
+    return axios.get('/reports/remain-by-product', { params: { storeId } });
 };
 
 export const getStocktakeDiff = () => {
@@ -9,5 +17,13 @@ export const getStocktakeDiff = () => {
 };
 
 export const getExpiringLots = () => {
-    return axios.get('/reports/expiring-lots');
+    let storeId;
+    try {
+        const userRaw = localStorage.getItem('user');
+        const user = userRaw ? JSON.parse(userRaw) : null;
+        if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
+            storeId = user.storeId;
+        }
+    } catch (_) {}
+    return axios.get('/reports/expiring-lots', { params: { storeId } });
 }; 

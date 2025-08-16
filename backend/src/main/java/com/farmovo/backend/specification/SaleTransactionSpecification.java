@@ -34,6 +34,13 @@ public class SaleTransactionSpecification {
         };
     }
 
+    public static Specification<SaleTransaction> hasStoreId(Long storeId) {
+        return (root, query, cb) -> {
+            if (storeId == null) return cb.conjunction();
+            return cb.equal(root.get("store").get("id"), storeId);
+        };
+    }
+
     public static Specification<SaleTransaction> hasStatus(SaleTransactionStatus status) {
         return (root, query, cb) -> {
             if (status == null) return cb.conjunction();
@@ -98,6 +105,7 @@ public class SaleTransactionSpecification {
             String name,
             String customerName,
             String storeName,
+            Long storeId,
             SaleTransactionStatus status,
             LocalDateTime fromDate,
             LocalDateTime toDate,
@@ -113,6 +121,7 @@ public class SaleTransactionSpecification {
                 hasName(name),
                 hasCustomerName(customerName),
                 hasStoreName(storeName),
+                hasStoreId(storeId),
                 hasStatus(status),
                 hasSaleDateBetween(fromDate, toDate),
                 hasTotalAmountBetween(minTotalAmount, maxTotalAmount),

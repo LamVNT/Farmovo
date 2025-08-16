@@ -26,6 +26,7 @@ public interface SaleTransactionService {
     Page<SaleTransactionResponseDto> getAll(String name,
                                             String customerName,
                                             String storeName,
+                                            Long storeId,
                                             SaleTransactionStatus status,
                                             LocalDateTime fromDate,
                                             LocalDateTime toDate,

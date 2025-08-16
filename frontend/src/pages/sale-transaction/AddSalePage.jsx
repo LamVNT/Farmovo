@@ -1258,7 +1258,7 @@ const AddSalePage = (props) => {
             </div>
             <SaleSidebar
                 currentUser={currentUser}
-                customers={props.isBalanceStock && khachLe ? [khachLe] : customers}
+                customers={customers}
                 stores={stores}
                 selectedCustomer={selectedCustomer}
                 selectedStore={selectedStore}

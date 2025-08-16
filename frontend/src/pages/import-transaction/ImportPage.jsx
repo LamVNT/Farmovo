@@ -35,7 +35,7 @@ import AddProductDialog from '../../components/import-transaction/AddProductDial
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import importTransactionService from '../../services/importTransactionService';
 import { userService } from '../../services/userService';
@@ -44,6 +44,7 @@ import ImportSummaryDialog from '../../components/import-transaction/ImportSumma
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 const ImportPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -1880,6 +1881,42 @@ const ImportPage = () => {
         localStorage.removeItem('importPage_tempData');
         setHasUnsavedChanges(false);
     }, []);
+    
+    // Prefill from Stocktake surplus
+    useEffect(() => {
+        const surplus = location.state?.surplusFromStocktake;
+        if (!surplus) return;
+        try {
+            // Prefill store if provided
+            if (surplus.storeId) {
+                setSelectedStore(surplus.storeId);
+            }
+            // Build selectedProducts from surplus items
+            if (Array.isArray(surplus.items) && surplus.items.length > 0) {
+                const mapped = surplus.items.map((d, idx) => ({
+                    id: d.productId || d.id || idx,
+                    name: d.productName || d.name,
+                    productCode: d.productCode || '',
+                    productDescription: '',
+                    unit: 'quả',
+                    // Quantity equals surplus diff (>0)
+                    quantity: Number(d.diff) || 0,
+                    total: 0,
+                    productId: d.productId,
+                    salePrice: 0,
+                    zoneIds: Array.isArray(d.zoneReal)
+                        ? d.zoneReal.map(z => String(z))
+                        : (typeof d.zoneReal === 'string' && d.zoneReal.includes(',')
+                            ? d.zoneReal.split(',').map(s => s.trim()).filter(Boolean)
+                            : (d.zoneReal ? [String(d.zoneReal)] : [])),
+                    expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
+                    price: 0,
+                }));
+                setSelectedProducts(mapped);
+                setNote(prev => prev && prev.length > 0 ? prev : `Điều chỉnh nhập từ kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''}`);
+            }
+        } catch (_) {}
+    }, [location.state]);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">

@@ -156,6 +156,7 @@ public class SaleTransactionController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String customerName,
             @RequestParam(required = false) String storeName,
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) SaleTransactionStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
@@ -167,8 +168,17 @@ public class SaleTransactionController {
             @RequestParam(required = false) Long createdBy,
             @PageableDefault(page = 0, size = 20, sort = "saleDate", direction = Sort.Direction.DESC) Pageable pageable
     ) {
+        // Enforce staff-only store scoping
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            List<String> roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+
         Page<SaleTransactionResponseDto> result = saleTransactionService.getAll(
-                name, customerName, storeName, status, fromDate,
+                name, customerName, storeName, storeId, status, fromDate,
                 toDate, minTotalAmount, maxTotalAmount, minPaidAmount,
                 maxPaidAmount, note, createdBy, pageable
         );

@@ -13,6 +13,14 @@ const saleTransactionService = {
 
     async listPaged(params) {
         try {
+            // If current user is staff, enforce storeId from local storage token payload
+            try {
+                const userRaw = localStorage.getItem('user');
+                const user = userRaw ? JSON.parse(userRaw) : null;
+                if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
+                    params = { ...params, storeId: user.storeId };
+                }
+            } catch (_) {}
             const res = await api.get('/sale-transactions/list-all', {params});
             return res.data;
         } catch (error) {
