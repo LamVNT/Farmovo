@@ -54,11 +54,9 @@ public class SaleTransaction extends Base {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    // Link ngược về phiếu kiểm kê nguồn (nếu là PCB tạo từ Stocktake)
     @Column(name = "stocktake_id")
     private Long stocktakeId;
-
-    // Quan hệ chỉ để sinh FK/Schema; không dùng trong logic (tránh N+1).
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stocktake_id", insertable = false, updatable = false,
             foreignKey = @ForeignKey(name = "fk_sale_stocktake"))

@@ -9,7 +9,15 @@ const InOutSummaryReport = () => {
   const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
 
   const fetchData = () => {
-    api.get('/reports/inout-summary', { params: { from, to } }).then(res => setData(res.data));
+    const userRaw = localStorage.getItem('user');
+    let storeId;
+    try {
+      const user = userRaw ? JSON.parse(userRaw) : null;
+      if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
+        storeId = user.storeId;
+      }
+    } catch (_) {}
+    api.get('/reports/inout-summary', { params: { from, to, storeId } }).then(res => setData(res.data));
   };
 
   useEffect(() => {

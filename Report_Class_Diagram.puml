@@ -1,0 +1,138 @@
+@startuml Report_Class_Diagram
+
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+title Report Module - Class Diagram
+
+package "API Layer" {
+  class ReportController {
+    +getRemainByProduct(): List<ProductRemainDto>
+    +getStocktakeDiff(stocktakeId: Long): List<StocktakeDetailDto>
+    +getExpiringLots(days: int): List<ExpiringLotDto>
+    +getRevenueTrend(type: String, from: LocalDate, to: LocalDate): List<RevenueTrendDto>
+    +getStockByCategory(): List<StockByCategoryDto>
+    +getTopProducts(from: LocalDate, to: LocalDate, limit: int): List<TopProductDto>
+    +getTopCustomers(from: LocalDate, to: LocalDate, limit: int): List<TopCustomerDto>
+    +getRemainByProductAdvanced(zoneId: String, categoryId: Long, status: String): List<RemainByProductReportDto>
+    +getInOutSummary(from: LocalDate, to: LocalDate): List<InOutSummaryDto>
+    +getRemainSummary(): List<CategoryRemainSummaryDto>
+  }
+}
+
+package "Service Layer" {
+  interface ReportService {
+    +getRemainByProduct(): List<ProductRemainDto>
+    +getStocktakeDiff(): List<StocktakeDetailDto>
+    +getStocktakeDiffById(stocktakeId: Long): List<StocktakeDetailDto>
+    +getExpiringLots(days: int): List<ExpiringLotDto>
+    +getRevenueTrend(type: String, from: LocalDateTime, to: LocalDateTime): List<RevenueTrendDto>
+    +getStockByCategory(): List<StockByCategoryDto>
+    +getTopProducts(from: LocalDateTime, to: LocalDateTime, limit: int): List<TopProductDto>
+    +getTopCustomers(from: LocalDateTime, to: LocalDateTime, limit: int): List<TopCustomerDto>
+    +getRemainByProductAdvanced(zoneId: String, categoryId: Long, status: String): List<RemainByProductReportDto>
+    +getInOutSummary(from: LocalDateTime, to: LocalDateTime): List<InOutSummaryDto>
+    +getRemainSummary(): List<CategoryRemainSummaryDto>
+  }
+
+  class ReportServiceImpl {
+    -importTransactionDetailRepository: ImportTransactionDetailRepository
+    -stocktakeRepository: StocktakeRepository
+    -saleTransactionRepository: SaleTransactionRepository
+    -productRepository: ProductRepository
+    -zoneRepository: ZoneRepository
+    -categoryRepository: CategoryRepository
+    -importTransactionRepository: ImportTransactionRepository
+    -objectMapper: ObjectMapper
+  }
+}
+
+package "Repository Layer" {
+  interface ImportTransactionDetailRepository
+  interface StocktakeRepository
+  interface SaleTransactionRepository
+  interface ProductRepository
+  interface ZoneRepository
+  interface CategoryRepository
+  interface ImportTransactionRepository
+}
+
+package "DTOs" {
+  class ProductRemainDto {
+    -productId: Long
+    -remain: int
+  }
+  class StocktakeDetailDto {
+    -id: Long
+    -batchCode: String
+    -productId: Long
+    -productName: String
+    -zones_id: List<String>
+    -remain: Integer
+    -real: Integer
+    -diff: Integer
+    -note: String
+    -zoneReal: String
+    -expireDate: String
+    -isCheck: Boolean
+  }
+  class ExpiringLotDto
+  class RevenueTrendDto {
+    -label: String
+    -revenue: BigDecimal
+  }
+  class StockByCategoryDto {
+    -category: String
+    -stock: Integer
+  }
+  class TopProductDto {
+    -productName: String
+    -category: String
+    -quantity: Long
+  }
+  class TopCustomerDto {
+    -customerName: String
+    -totalAmount: BigDecimal
+    -orderCount: Long
+  }
+  class RemainByProductReportDto
+  class InOutSummaryDto {
+    -date: LocalDate
+    -importQuantity: int
+    -exportQuantity: int
+    -remainQuantity: int
+  }
+  class CategoryRemainSummaryDto {
+    -category: String
+    -totalRemain: Integer
+    -products: List<ProductRemainSummaryDto>
+  }
+  class ProductRemainSummaryDto
+}
+
+ReportController --> ReportService : uses
+ReportService <|.. ReportServiceImpl : implements
+
+' Repositories used by service impl
+ReportServiceImpl ..> ImportTransactionDetailRepository
+ReportServiceImpl ..> StocktakeRepository
+ReportServiceImpl ..> SaleTransactionRepository
+ReportServiceImpl ..> ProductRepository
+ReportServiceImpl ..> ZoneRepository
+ReportServiceImpl ..> CategoryRepository
+ReportServiceImpl ..> ImportTransactionRepository
+
+' Service returns DTOs
+ReportService ..> ProductRemainDto
+ReportService ..> StocktakeDetailDto
+ReportService ..> ExpiringLotDto
+ReportService ..> RevenueTrendDto
+ReportService ..> StockByCategoryDto
+ReportService ..> TopProductDto
+ReportService ..> TopCustomerDto
+ReportService ..> RemainByProductReportDto
+ReportService ..> InOutSummaryDto
+ReportService ..> CategoryRemainSummaryDto
+
+@enduml 

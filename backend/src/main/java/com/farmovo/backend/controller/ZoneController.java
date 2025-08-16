@@ -38,6 +38,11 @@ public class ZoneController {
                 return ResponseEntity.ok(zoneService.getAllZones());
             }
             
+            if (!jwtUtils.validateJwtToken(token)) {
+                // Token không hợp lệ -> coi như không đăng nhập, trả về all zones (public)
+                return ResponseEntity.ok(zoneService.getAllZones());
+            }
+
             Long userId = jwtUtils.getUserIdFromJwtToken(token);
             if (userId == null) {
                 return ResponseEntity.ok(zoneService.getAllZones());

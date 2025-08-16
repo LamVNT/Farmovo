@@ -26,6 +26,7 @@ public class SaleTransactionResponseDto {
     private String storeName;
     private String storeAddress;
     private Long createdBy;
+    private LocalDateTime createdAt; // Thêm field ngày tạo
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
 
     // Link ngược về Stocktake nếu là PCB

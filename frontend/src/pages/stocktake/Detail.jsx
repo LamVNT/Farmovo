@@ -60,6 +60,11 @@ const StockTakeDetailPage = () => {
         && hasDiff
         && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
 
+    // Surplus (dư hàng): real > remain
+    const surplusItems = Array.isArray(detail?.detail)
+        ? detail.detail.filter(d => Number(d.diff) > 0)
+        : [];
+
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">Đang tải chi tiết...</Typography>
@@ -113,6 +118,73 @@ const StockTakeDetailPage = () => {
                     <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
                 </Box>
             </Box>
+
+            {/* Surplus banner & actions */}
+            {surplusItems.length > 0 && (
+                <Box sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid #fde68a',
+                    background: '#fffbeb'
+                }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
+                        Phát hiện dư hàng: {surplusItems.length} dòng có thực tế &gt; tồn kho
+                    </Typography>
+                    {userRole === 'STAFF' ? (
+                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => setSnackbar({ isOpen: true, message: 'Đã thông báo cho Owner về dư hàng.', severity: 'success' })}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                Thông báo Owner
+                            </Button>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                Staff không thể tự cân bằng dư hàng. Chủ kho/Owner sẽ quyết định xử lý.
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => {
+                                    // Điều hướng sang trang nhập hàng với dữ liệu dư để prefill
+                                    navigate('/import', {
+                                        state: {
+                                            surplusFromStocktake: {
+                                                stocktakeId: detail.id,
+                                                stocktakeCode: detail.name,
+                                                storeId: detail.storeId,
+                                                items: surplusItems
+                                            }
+                                        }
+                                    });
+                                }}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                Tạo phiếu nhập điều chỉnh
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                size="small"
+                                onClick={() => setSnackbar({ isOpen: true, message: 'Đã ghi nhận bỏ qua phần dư (không điều chỉnh tồn).', severity: 'info' })}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                Bỏ qua
+                            </Button>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                Owner quyết định: nhập bù hoặc bỏ qua. Nhập bù sẽ tạo phiếu nhập mới và liên kết kiểm kê.
+                            </Typography>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
             {/* Bộ lọc tìm kiếm */}
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2 }}>
                 <TextField

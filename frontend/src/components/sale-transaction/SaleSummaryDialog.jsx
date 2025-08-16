@@ -62,10 +62,13 @@ const SaleSummaryDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : currentTime.toLocaleDateString('vi-VN')}
+                        Ngày bán: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : 'Chưa chọn'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {currentTime.toLocaleTimeString('vi-VN')}
+                        Ngày tạo: {currentTime.toLocaleDateString('vi-VN')}
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600">
+                        Giờ tạo: {currentTime.toLocaleTimeString('vi-VN')}
                     </Typography>
                 </div>
             </DialogTitle>

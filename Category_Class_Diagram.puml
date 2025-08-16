@@ -1,143 +1,155 @@
 @startuml Category_Class_Diagram
 
+' ===== GLOBAL STYLE =====
+skinparam backgroundColor white
+skinparam linetype ortho
 skinparam classAttributeIconSize 0
 skinparam classFontSize 12
 skinparam classFontName Arial
-skinparam backgroundColor white
 skinparam classBackgroundColor #F8F9FA
 skinparam classBorderColor #6C757D
 skinparam arrowColor #495057
+skinparam packageStyle rectangle
+skinparam ranksep 20
+skinparam nodesep 15
+top to bottom direction
 
-' === ENTITY CLASSES ===
-abstract class Base {
-    + LocalDateTime createdAt
-    + Long createdBy
-    + LocalDateTime updatedAt
-    + LocalDateTime deletedAt
-    + Long deletedBy
+' ===== CONTROLLER =====
+package "Controller" {
+    class CategoryController {
+        - categoryService : CategoryService
+        + getAllCategories() : ResponseEntity<List<CategoryResponseDto>>
+        + createCategory(dto : CategoryRequestDto) : ResponseEntity<CategoryResponseDto>
+        + updateCategory(id : Long, dto : CategoryRequestDto) : ResponseEntity<CategoryResponseDto>
+        + deleteCategory(id : Long) : ResponseEntity<Void>
+    }
 }
 
-class Category {
-    + Long id
-    + String categoryName
-    + String categoryDescription
-    + List<Product> products
+' ===== SERVICE =====
+package "Service" {
+    interface CategoryService {
+        + getAllActiveCategories() : List<CategoryResponseDto>
+        + createCategory(dto : CategoryRequestDto) : CategoryResponseDto
+        + updateCategory(id : Long, dto : CategoryRequestDto) : CategoryResponseDto
+        + deleteCategory(id : Long) : void
+    }
+
+    class CategoryServiceImpl {
+        - categoryRepository : CategoryRepository
+        - categoryMapper : CategoryMapper
+        + getAllActiveCategories() : List<CategoryResponseDto>
+        + createCategory(dto : CategoryRequestDto) : CategoryResponseDto
+        + updateCategory(id : Long, dto : CategoryRequestDto) : CategoryResponseDto
+        + deleteCategory(id : Long) : void
+    }
+
+    CategoryService <|.. CategoryServiceImpl
 }
 
-class Product {
-    + Long id
-    + String productName
-    + String productDescription
-    + Integer productQuantity
-    + List<ImportTransactionDetail> importTransactionDetails
-    + Category category
-    + Store store
+' ===== MAPPER & DTO =====
+package "Mapper & DTO" {
+    interface CategoryMapper {
+        + toEntity(dto : CategoryRequestDto) : Category
+        + toResponseDto(entity : Category) : CategoryResponseDto
+    }
+
+    class CategoryRequestDto {
+        - name : String
+        - description : String
+    }
+
+    class CategoryResponseDto {
+        - id : Long
+        - name : String
+        - description : String
+        - createAt : LocalDateTime
+        - updateAt : LocalDateTime
+    }
+
+    CategoryMapper --> CategoryRequestDto
+    CategoryMapper --> CategoryResponseDto
+    CategoryMapper --> Category
 }
 
-class Store {
-    + Long id
-    + String storeName
-    + String storeDescription
-    + String storeAddress
-    + List<Product> products
-    + List<ImportTransaction> importTransactions
-    + List<SaleTransaction> saleTransactions
-    + List<Stocktake> stocktakes
-    + List<DebtNote> debtNotes
-    + List<User> users
+' ===== REPOSITORY =====
+package "Repository" {
+    interface CategoryRepository {
+        + findByCategoryName(name : String) : Optional<Category>
+    }
 }
 
-' === DTO CLASSES ===
-class CategoryRequestDto {
-    + String name
-    + String description
+' ===== UTILS =====
+package "Utils" {
+    class CategoryValidator {
+        + validate(dto : CategoryRequestDto) : void
+    }
+
+    class CategoryUtils {
+        + filterActiveCategories(categories : List<Category>) : List<Category>
+    }
+
+    CategoryValidator --> CategoryRequestDto
 }
 
-class CategoryResponseDto {
-    + Long id
-    + String name
-    + String description
-    + LocalDateTime createAt
-    + LocalDateTime updateAt
+' ===== EXCEPTION =====
+package "Exception" {
+    class CategoryNotFoundException <<exception>> {
+        + CategoryNotFoundException(message : String)
+    }
 }
 
-' === SERVICE CLASSES ===
-interface CategoryService {
-    + getAllActiveCategories() : List<CategoryResponseDto>
-    + createCategory(CategoryRequestDto) : CategoryResponseDto
-    + updateCategory(Long, CategoryRequestDto) : CategoryResponseDto
-    + deleteCategory(Long) : void
+' ===== ENTITY =====
+package "Entity" {
+    abstract class Base {
+        - createdAt : LocalDateTime
+        - createdBy : Long
+        - updatedAt : LocalDateTime
+        - deletedAt : LocalDateTime
+        - deletedBy : Long
+    }
+
+    class Category {
+        - id : Long
+        - categoryName : String
+        - categoryDescription : String
+        - products : List<Product>
+    }
+
+    class Product {
+        - id : Long
+        - productName : String
+        - productDescription : String
+        - productQuantity : Integer
+        - importTransactionDetails : List<ImportTransactionDetail>
+        - category : Category
+        - store : Store
+    }
+
+    class Store {
+        - id : Long
+        - storeName : String
+        - storeDescription : String
+        - storeAddress : String
+        - products : List<Product>
+        - importTransactions : List<ImportTransaction>
+        - saleTransactions : List<SaleTransaction>
+        - stocktakes : List<Stocktake>
+        - debtNotes : List<DebtNote>
+        - users : List<User>
+    }
+
+    Base <|-- Category
+    Base <|-- Product
+    Base <|-- Store
+
+    Category ||--o{ Product : "1..*"
+    Store ||--o{ Product : "1..*"
 }
 
-class CategoryServiceImpl {
-    - CategoryRepository categoryRepository
-    - CategoryMapper categoryMapper
-    + getAllActiveCategories() : List<CategoryResponseDto>
-    + createCategory(CategoryRequestDto) : CategoryResponseDto
-    + updateCategory(Long, CategoryRequestDto) : CategoryResponseDto
-    + deleteCategory(Long) : void
-}
-
-' === CONTROLLER CLASS ===
-class CategoryController {
-    - CategoryService categoryService
-    + getAllCategories() : ResponseEntity<List<CategoryResponseDto>>
-    + createCategory(CategoryRequestDto) : ResponseEntity<CategoryResponseDto>
-    + updateCategory(Long, CategoryRequestDto) : ResponseEntity<CategoryResponseDto>
-    + deleteCategory(Long) : ResponseEntity<Void>
-}
-
-' === REPOSITORY ===
-interface CategoryRepository {
-    + findByCategoryName(String) : Optional<Category>
-}
-
-' === MAPPER ===
-interface CategoryMapper {
-    + toEntity(CategoryRequestDto) : Category
-    + toResponseDto(Category) : CategoryResponseDto
-}
-
-' === VALIDATOR & UTILS ===
-class CategoryValidator {
-    + validate(CategoryRequestDto) : void
-}
-
-class CategoryUtils {
-    + filterActiveCategories(List<Category>) : List<Category>
-}
-
-' === EXCEPTION ===
-class CategoryNotFoundException {
-    + CategoryNotFoundException(String)
-}
-
-' === RELATIONSHIPS ===
-
-Base <|-- Category : extends
-Base <|-- Product : extends
-Base <|-- Store : extends
-
-Category ||--o{ Product : "1 to many"
-Store ||--o{ Product : "1 to many"
-
-CategoryService <|.. CategoryServiceImpl : implements
-
-CategoryController --> CategoryService : uses
-CategoryServiceImpl --> CategoryRepository : uses
-CategoryServiceImpl --> CategoryMapper : uses
+' ===== RELATIONSHIPS =====
+CategoryController --> CategoryService
+CategoryServiceImpl --> CategoryRepository
+CategoryServiceImpl --> CategoryMapper
 CategoryServiceImpl --> CategoryNotFoundException : throws
-
-CategoryMapper --> CategoryRequestDto : maps from
-CategoryMapper --> CategoryResponseDto : maps to
-CategoryMapper --> Category : maps to/from
-
-CategoryValidator --> CategoryRequestDto : validates
-
-' === NOTES ===
-note top of Category : "Entity class for product categories"
-note top of CategoryService : "Business logic interface"
-note top of CategoryController : "REST API endpoints"
-note top of CategoryRepository : "Data access interface"
 
 @enduml

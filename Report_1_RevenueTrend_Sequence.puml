@@ -1,0 +1,43 @@
+@startuml Report_1_RevenueTrend_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report – Revenue Trend (day/month/year)
+
+actor Staff
+participant ":Report Dashboard Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":SaleTransactionRepository" as SaleRepo
+
+== A. Load chart ==
+Staff -> UI: Chọn type, from, to
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/revenue-trend?type={day|month|year}&from&to
+activate RC
+RC -> RS: getRevenueTrend(type, from, to)
+activate RS
+
+RS -> SaleRepo: getRevenueBy{Day|Month|Year}(from, to)
+activate SaleRepo
+SaleRepo --> RS: List<Object[]>
+deactivate SaleRepo
+
+RS -> RS: map to List<RevenueTrendDto>
+RS --> RC: List<RevenueTrendDto>
+deactivate RS
+RC --> UI: 200 OK List<RevenueTrendDto>
+deactivate RC
+UI --> Staff: Render line chart
+
+deactivate UI
+deactivate Staff
+
+@enduml
