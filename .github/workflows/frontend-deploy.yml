@@ -34,48 +34,51 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # 4. Build frontend
-      - name: Build frontend
+      # 4. Build frontend & cleanup
+      - name: Build and optimize
         working-directory: frontend
         run: |
+          rm -rf dist
           npm run build
-          # Rename dist to build để match Azure config
-          mv dist build
-
-      # 5. Optimize build
-      - name: Cleanup build
-        working-directory: frontend
-        run: |
-          echo "Removing unnecessary files..."
-          find build -name "*.map" -type f -delete
-          find build -name "*.test.*" -type f -delete
-          find build -type f -size +1M -delete
-          find build -name "*.chunk.*" -type f -delete
-          find build -name "*.DS_Store" -type f -delete
-          find build -name "*.log" -type f -delete
-          # Xóa empty directories
-          find build -type d -empty -delete
-          # Xóa file có hash dài
-          find build -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
+          # Kiểm tra build output
+          echo "Build output:"
+          ls -la dist/
+          echo "Checking for index.html:"
+          find dist -name "index.html" -type f
+          echo "Checking for JS files:"
+          find dist -name "*.js" -type f
+          # Xóa sourcemaps để giảm số lượng file
+          find dist -name "*.map" -type f -delete
+          # Xóa test files (nếu có)
+          find dist -name "*.test.*" -type f -delete
+          # Giảm asset thừa (VD: ảnh quá lớn > 2MB)
+          find dist -type f -size +2M -delete
+          # Xóa các chunk JS/CSS không cần thiết
+          find dist -name "*.chunk.*" -type f -delete
+          # Additional cleanup for very large files/dirs
+          find dist -name "*.DS_Store" -type f -delete
+          find dist -name "*.log" -type f -delete
+          find dist -type d -empty -delete
+          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
 
       # 6. Check build size
       - name: Check build size
         working-directory: frontend
         run: |
           echo "Frontend build size:"
-          du -sh build/
+          du -sh dist/
           echo "Number of files:"
-          find build -type f | wc -l
+          find dist -type f | wc -l
           echo "Largest files:"
-          find build -type f -exec ls -lh {} \; | sort -k5 -hr | head -10
+          find dist -type f -exec ls -lh {} \; | sort -k5 -hr | head -10
           
           # Nếu quá nhiều file, zip lại
-          if [ $(find build -type f | wc -l) -gt 500 ]; then
+          if [ $(find dist -type f | wc -l) -gt 500 ]; then
             echo "Too many files, creating zip archive..."
-            zip -r build.zip build/
-            rm -rf build/
-            mkdir build
-            mv build.zip build/
+            zip -r dist.zip dist/
+            rm -rf dist/
+            mkdir dist
+            mv dist.zip dist/
           fi
 
       # 6.1. Force cleanup if still too large
@@ -84,15 +87,15 @@ jobs:
         run: |
           echo "Force cleanup of large files..."
           # Xóa file > 1MB
-          find build -type f -size +1M -delete
+          find dist -type f -size +1M -delete
           # Xóa file có hash dài
-          find build -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
+          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
           # Xóa empty directories
-          find build -type d -empty -delete
+          find dist -type d -empty -delete
           
           echo "After cleanup:"
-          du -sh build/
-          find build -type f | wc -l
+          du -sh dist/
+          find dist -type f | wc -l
 
       # 6.2. Split large JS files if needed
       - name: Split large files if needed
@@ -100,7 +103,7 @@ jobs:
         run: |
           echo "Checking for large files..."
           # Tìm file JS > 1MB
-          LARGE_JS=$(find build -name "*.js" -size +1M)
+          LARGE_JS=$(find dist -name "*.js" -size +1M)
           if [ ! -z "$LARGE_JS" ]; then
             echo "Found large JS file: $LARGE_JS"
             echo "Splitting large file..."
@@ -113,8 +116,8 @@ jobs:
               rm "$file"
             done
             echo "After splitting:"
-            du -sh build/
-            find build -type f | wc -l
+            du -sh dist/
+            find dist -type f | wc -l
           else
             echo "No large JS files found"
           fi
@@ -125,16 +128,16 @@ jobs:
         run: |
           echo "Creating zip archive to avoid Azure file limits..."
           # Tạo zip archive
-          zip -r build.zip build/
+          zip -r dist.zip dist/
           # Xóa build folder
-          rm -rf build/
+          rm -rf dist/
           # Tạo build folder mới
-          mkdir build
+          mkdir dist
           # Move zip vào build
-          mv build.zip build/
+          mv dist.zip dist/
           echo "After zip deployment:"
-          du -sh build/
-          find build -type f | wc -l
+          du -sh dist/
+          find dist -type f | wc -l
 
       # 7. Azure login for deployment
       - name: Azure login
@@ -147,5 +150,5 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'farmovo-frontend'
-          package: frontend/build
+          package: frontend/dist
           slot-name: 'production'
