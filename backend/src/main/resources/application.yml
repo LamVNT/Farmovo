@@ -1,6 +1,9 @@
 spring:
   application:
     name: demo
+  # Profile selection - default to local
+  profiles:
+    active: local
   servlet:
     multipart:
       enabled: true
@@ -24,6 +27,7 @@ spring:
     jwtSecret: 7J2d8K3vN9wF4mL7xZ1qA5dR3uI6oE8tY0jB9cV7nM2lS4hG6vN8wF1mL4xZ2qA5dR0uI9oE6tY3jB8cV5nM7lS1hGfP2q=
     jwtExpirationMs: 86400000
 
+  # Local PostgreSQL Database Configuration (unchanged)
   datasource:
     url: jdbc:postgresql://localhost:5432/farmovo
     username: admin

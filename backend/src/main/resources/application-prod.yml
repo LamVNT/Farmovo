@@ -1,0 +1,40 @@
+# Production Configuration - Extends Azure config
+spring:
+  profiles:
+    include: azure
+  
+  # Override specific production settings
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      show-sql: false
+    properties:
+      hibernate:
+        # Production optimizations
+        jdbc:
+          batch_size: 50
+        # Disable second-level cache in production
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+
+# Production logging
+logging:
+  level:
+    root: WARN
+    com.farmovo.backend: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Production server settings
+server:
+  # Disable error pages in production
+  error:
+    include-stacktrace: never
+    include-message: never
+  # Security headers
+  servlet:
+    session:
+      timeout: 30m

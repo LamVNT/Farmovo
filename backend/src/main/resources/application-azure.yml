@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: farmovo-backend
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "khongmanhphuc2003@gmail.com"
+    password: "zrml hcle xogz qfxe"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          timeout: 5000
+          connectiontimeout: 5000
+          writetimeout: 5000
+  app:
+    jwtSecret: 7J2d8K3vN9wF4mL7xZ1qA5dR3uI6oE8tY0jB9cV7nM2lS4hG6vN8wF1mL4xZ2qA5dR0uI9oE6tY3jB8cV5nM7lS1hGfP2q=
+    jwtExpirationMs: 86400000
+
+  # Azure PostgreSQL Database Configuration
+  datasource:
+    url: jdbc:postgresql://farmovo-postgres.postgres.database.azure.com:5432/farmovo
+    username: farmovo@farmovo-postgres
+    password: ${AZURE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Use 'validate' for production
+      show-sql: false     # Disable SQL logging in production
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+        # Azure PostgreSQL specific optimizations
+        connection:
+          provider_disables_autocommit: true
+        jdbc:
+          batch_size: 20
+          batch_versioned_data: true
+
+# AWS Configuration (keep same as local)
+aws:
+  access-key-id: AKIAZ7OLKUTVXKNKW4W7
+  secret-access-key: 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
+  region: eu-north-1
+  s3:
+    bucket: my-debt-images
+
+# Server Configuration
+server:
+  port: 8080
+  # Azure App Service specific settings
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 8192
+    accept-count: 100
+
+# Logging Configuration for Azure
+logging:
+  level:
+    com.farmovo.backend: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/farmovo-backend.log

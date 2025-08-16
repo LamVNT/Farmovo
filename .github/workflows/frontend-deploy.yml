@@ -62,45 +62,13 @@ jobs:
           echo "Zip created: frontend/frontend.zip"
           ls -la frontend.zip
 
-      # 7. Create web.config for Azure Web App SPA routing
-      - name: Create web.config for SPA routing
-        working-directory: frontend
-        run: |
-          cat > web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <rewrite>
-                <rules>
-                  <rule name="SPA Routes" stopProcessing="true">
-                    <match url=".*" />
-                    <conditions logicalGrouping="MatchAll">
-                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-                      <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-                    </conditions>
-                    <action type="Rewrite" url="/" />
-                  </rule>
-                </rules>
-              </rewrite>
-              <staticContent>
-                <mimeMap fileExtension=".json" mimeType="application/json" />
-              </staticContent>
-            </system.webServer>
-          </configuration>
-          EOF
-          
-          # Add web.config to the zip
-          zip -r frontend.zip web.config
-          echo "web.config added to zip"
-          ls -la frontend.zip
-
-      # 8. Azure login
+      # 7. Azure login
       - name: Azure login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 9. Deploy to Azure Web App
+      # 8. Deploy to Azure Web App
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:

@@ -1,0 +1,35 @@
+# Local Development Configuration
+spring:
+  # Local PostgreSQL Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/farmovo
+    username: admin
+    password: 123123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+      show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+        # Local development optimizations
+        format_sql: true
+        use_sql_comments: true
+
+# Local logging - more verbose for development
+logging:
+  level:
+    com.farmovo.backend: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
