@@ -206,8 +206,13 @@ public class SaleTransactionController {
 
     @GetMapping("/next-code")
     public ResponseEntity<String> getNextImportTransactionCode() {
-        // Lấy mã phiếu nhập tiếp theo từ service
         String nextCode = saleTransactionService.getNextSaleTransactionCode();
+        return ResponseEntity.ok(nextCode);
+    }
+
+    @GetMapping("/next-code-balance")
+    public ResponseEntity<String> getNextBalanceSaleTransactionCode() {
+        String nextCode = saleTransactionService.getNextBalanceSaleTransactionCode();
         return ResponseEntity.ok(nextCode);
     }
 

@@ -1,0 +1,40 @@
+@startuml Report_1_RevenueTrend_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+skinparam actorBackgroundColor #FFD700
+
+title Report 1: Revenue Trend (Day/Month/Year)
+
+actor User
+participant ":Reports Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":SaleTransactionRepository" as SaleRepo
+
+User -> UI: Chọn type (day/month/year), from, to
+UI -> RC: GET /api/reports/revenue-trend?type=...&from=...&to=...
+activate RC
+RC -> RS: getRevenueTrend(type, from.atStartOfDay, to.atEndOfDay)
+activate RS
+alt type == "day"
+  RS -> SaleRepo: getRevenueByDay(from, to)
+  SaleRepo --> RS: List<Object[]>
+else type == "month"
+  RS -> SaleRepo: getRevenueByMonth(from, to)
+  SaleRepo --> RS: List<Object[]>
+else type == "year"
+  RS -> SaleRepo: getRevenueByYear(from, to)
+  SaleRepo --> RS: List<Object[]>
+end
+RS -> RS: Map -> List<RevenueTrendDto>
+RS --> RC: List<RevenueTrendDto>
+RC --> UI: 200 OK
+UI --> User: Render Line Chart
+
+@enduml

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useMemo} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback, startTransition} from 'react';
 import {
     TextField,
     Button,
@@ -23,6 +23,8 @@ import {FiPlus} from 'react-icons/fi';
 import {DataGrid} from '@mui/x-data-grid';
 import {FaRegTrashCan} from "react-icons/fa6";
 import {format} from 'date-fns';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 // Components
 import SaleProductDialog from '../../components/sale-transaction/SaleProductDialog';
@@ -37,6 +39,7 @@ import {formatCurrency, isValidValue} from '../../utils/formatters';
 import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = (props) => {
+    const navigate = useNavigate();
     const searchRef = useRef(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [batches, setBatches] = useState([]);
@@ -47,7 +50,7 @@ const AddSalePage = (props) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryProducts, setCategoryProducts] = useState([]);
     const [dataGridKey, setDataGridKey] = useState(0);
-    const [nextCode, setNextCode] = useState('');
+    const [nextCode, setNextCode] = useState(props.initialCode || '');
     const [unit, setUnit] = useState('quả');
     const [paidAmountInput, setPaidAmountInput] = useState('0');
     const [columnVisibility, setColumnVisibility] = useState({
@@ -64,6 +67,12 @@ const AddSalePage = (props) => {
     const [highlightProducts, setHighlightProducts] = useState(false);
     const [balanceModeInitialized, setBalanceModeInitialized] = useState(false);
     const [invalidProductIds, setInvalidProductIds] = useState([]);
+    const [isClient, setIsClient] = useState(false);
+    const [showBackConfirm, setShowBackConfirm] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [isNavigatingAway, setIsNavigatingAway] = useState(false);
 
     const {
         currentUser,
@@ -109,18 +118,21 @@ const AddSalePage = (props) => {
         handleQuantityInputChange,
         handlePriceChange,
         handleDeleteProduct,
+        handleShowSummary,
         handleSaveDraft,
         handleComplete,
         handleCancel,
         handleConfirmSummary,
         handleCloseSummary,
-    } = useSaleTransaction();
+        handleSelectProductInDialog,
+        handleSelectBatches,
+    } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
 
     useEffect(() => {
         if (props.isBalanceStock && !balanceModeInitialized) {
             if (props.initialProducts) setSelectedProducts(props.initialProducts);
             if (props.initialNote) setNote(props.initialNote);
-            if (props.initialCustomer) setSelectedCustomer(props.initialCustomer);
+            if (props.initialCustomer) setSelectedCustomer(props.initialCustomer?.id || props.initialCustomer);
             setBalanceModeInitialized(true);
         }
     }, [props.isBalanceStock, props.initialProducts, props.initialNote, props.initialCustomer, balanceModeInitialized]);
@@ -136,7 +148,8 @@ const AddSalePage = (props) => {
             setSelectedProducts(props.initialProducts.map((p, idx) => ({
                 ...p,
                 price: p.unitSalePrice || 0,
-                id: p.id || p.batchId || `temp_${idx}_${Date.now()}` // Gán id hợp lệ
+                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
+                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
             })));
         }
     }, [props.isBalanceStock, props.initialProducts]);
@@ -168,8 +181,26 @@ const AddSalePage = (props) => {
     }, []);
 
     useEffect(() => {
-        saleTransactionService.getNextCode?.().then(setNextCode).catch(() => setNextCode(''));
-    }, []);
+        const fetchNext = async () => {
+            try {
+                const isBalance = props.isBalanceStock || (props.initialNote && props.initialNote.toLowerCase().includes('cân bằng kho'));
+                if (isBalance) {
+                    try {
+                        const pcb = await saleTransactionService.getNextBalanceCode?.();
+                        if (pcb) { setNextCode(pcb); return; }
+                    } catch {}
+                    const pb = await saleTransactionService.getNextCode?.();
+                    setNextCode((pb || '').replace(/^PB/, 'PCB'));
+                } else {
+                    const pb = await saleTransactionService.getNextCode?.();
+                    setNextCode(pb || '');
+                }
+            } catch (e) {
+                setNextCode('');
+            }
+        };
+        fetchNext();
+    }, [props.isBalanceStock]);
 
     useEffect(() => {
         const storeFilteredBatches = batches.filter(batch => {
@@ -203,6 +234,16 @@ const AddSalePage = (props) => {
         }
     }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
 
+    // Reset selectedProducts khi store thay đổi (chỉ reset bảng datagrid, giữ nguyên thông tin khác)
+    useEffect(() => {
+        if (selectedStore) {
+            // Reset selectedProducts khi store thay đổi
+            setSelectedProducts([]);
+            // Reset dataGridKey để refresh datagrid
+            setDataGridKey(prev => prev + 1);
+        }
+    }, [selectedStore]);
+
     useEffect(() => {
         if (error || success) {
             const timer = setTimeout(() => {
@@ -216,7 +257,13 @@ const AddSalePage = (props) => {
         }
     }, [error, success]);
 
-    const handleShowSummary = async (status) => {
+    // Set client-side rendering
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // Validate trước khi mở popup tóm tắt qua handleShowSummary từ hook
+    const openSummaryAfterValidate = (status) => {
         let missing = false;
         if (!selectedCustomer) {
             setError('Vui lòng chọn khách hàng');
@@ -240,15 +287,32 @@ const AddSalePage = (props) => {
             setHighlightProducts(false);
         }
         if (missing) return;
-        if (status === 'DRAFT') {
-            await handleSaveDraft();
-        } else if (status === 'COMPLETE') {
-            await handleComplete();
+        // Mở popup tóm tắt, để hook chuẩn bị summaryData
+        if (props.isBalanceStock) {
+            handleShowSummary('COMPLETE');
+        } else if (status === 'DRAFT') {
+            handleShowSummary('DRAFT');
+        } else {
+            handleShowSummary('COMPLETE');
         }
     };
 
     const toggleColumn = (col) => {
         setColumnVisibility((prev) => ({...prev, [col]: !prev[col]}));
+    };
+
+    const handleOpenProductDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm sản phẩm');
+            setHighlightStore(true);
+            return;
+        }
+        
+        setShowProductDialog(true);
     };
 
     const handleSearchChange = (e) => {
@@ -273,12 +337,15 @@ const AddSalePage = (props) => {
     };
 
     const handleSelectBatch = (batch) => {
+        // Đảm bảo batch.id là số hợp lệ
+        const validBatchId = (/^\d+$/.test(String(batch.id))) ? Number(batch.id) : (batch.batchId || batch.proId || Date.now());
+        
         if (unit === 'khay') {
             const remainKhay = Math.floor(batch.remainQuantity / 30);
             if (remainKhay < 1) return;
             handleSelectProduct({
-                id: batch.id,
-                proId: batch.proId,
+                id: validBatchId,
+                proId: batch.proId || batch.productId || batch.id || validBatchId, // Đảm bảo proId luôn có giá trị
                 name: batch.productName,
                 unit: 'khay',
                 price: batch.unitSalePrice || 0,
@@ -292,8 +359,8 @@ const AddSalePage = (props) => {
             }, {directAdd: true});
         } else {
             handleSelectProduct({
-                id: batch.id,
-                proId: batch.proId,
+                id: validBatchId,
+                proId: batch.proId || batch.productId || batch.id || validBatchId, // Đảm bảo proId luôn có giá trị
                 name: batch.productName,
                 unit: 'quả',
                 price: batch.unitSalePrice || 0,
@@ -312,10 +379,90 @@ const AddSalePage = (props) => {
     };
 
     const handleOpenCategoryDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm từ nhóm hàng');
+            setHighlightStore(true);
+            return;
+        }
+        
         setShowCategoryDialog(true);
         setSelectedCategory(null);
         setCategoryProducts([]);
     };
+
+    const handleBack = useCallback(() => {
+        if (hasUnsavedChanges) {
+            setShowBackConfirm(true);
+        } else {
+            navigate('/sale');
+        }
+    }, [hasUnsavedChanges, navigate]);
+
+    const handleConfirmBack = useCallback(() => {
+        // Xóa dữ liệu tạm thời khi chọn rời khỏi
+        localStorage.removeItem('addSalePage_tempData');
+        
+        // Chuyển hướng ngay lập tức
+        setShowBackConfirm(false);
+        setIsNavigatingAway(true);
+        
+        if (pendingNavigation) {
+            // Sử dụng window.location.href để chuyển hướng nhanh hơn
+            window.location.href = pendingNavigation;
+        } else {
+            navigate('/sale');
+        }
+        
+        setPendingNavigation(null);
+    }, [pendingNavigation, navigate]);
+
+    const handleCancelBack = useCallback(() => {
+        setShowBackConfirm(false);
+        setPendingNavigation(null);
+        setIsNavigatingAway(false);
+    }, []);
+
+    const handleSaveAndBack = useCallback(async () => {
+        try {
+            // Lưu dữ liệu ngay lập tức thay vì đợi useEffect
+            const tempData = {
+                selectedProducts,
+                selectedCustomer,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('addSalePage_tempData', JSON.stringify(tempData));
+            
+            // Hiển thị thông báo ngắn gọn
+            setSuccess('Đã lưu tạm thời!');
+            
+            // Chuyển hướng ngay lập tức
+            setShowBackConfirm(false);
+            setIsNavigatingAway(true);
+            
+            if (pendingNavigation) {
+                window.location.href = pendingNavigation;
+            } else {
+                navigate('/sale');
+            }
+            
+            setPendingNavigation(null);
+        } catch (error) {
+            setError('Không thể lưu tạm thời. Vui lòng thử lại.');
+        }
+    }, [pendingNavigation, navigate, selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    const clearTempData = useCallback(() => {
+        localStorage.removeItem('addSalePage_tempData');
+        setHasUnsavedChanges(false);
+    }, []);
 
     const handleCloseCategoryDialog = () => {
         setShowCategoryDialog(false);
@@ -337,7 +484,11 @@ const AddSalePage = (props) => {
     };
 
     const handleSelectCategoryProduct = (product) => {
-        handleSelectProduct({...product, unit: 'quả'}, {directAdd: true});
+        handleSelectProduct({
+            ...product, 
+            unit: 'quả',
+            proId: product.proId || product.id // Đảm bảo proId luôn có giá trị
+        }, {directAdd: true});
     };
 
     const handleUnitChange = (id, newUnit) => {
@@ -375,66 +526,113 @@ const AddSalePage = (props) => {
             field: 'stt',
             headerName: 'STT',
             width: 80,
-            renderCell: (params) => params.row.stt,
-            sortable: false,
-            filterable: false,
+            renderCell: (params) => {
+                let stt = '';
+                if (typeof params.rowIndex === 'number') {
+                    stt = params.rowIndex + 1;
+                } else if (params.id) {
+                    const idx = selectedProducts.findIndex(row => row.id === params.id);
+                    stt = idx >= 0 ? idx + 1 : '';
+                }
+                
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                    }}>
+                        {stt}
+                    </div>
+                );
+            }
         },
-        ...(props.isBalanceStock && columnVisibility['Mã lô'] ? [{
-            field: 'batchCode',
-            headerName: 'Mã lô',
-            width: 120,
-        }] : []),
-        columnVisibility['Tên hàng'] && {
-            field: 'name',
-            headerName: 'Tên hàng',
-            flex: 1,
-            renderCell: (params) => (
-                <div className="flex flex-col w-full">
-                    <div className="font-medium text-gray-900">{params.row.name}</div>
-                    {params.row.batchCode && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.batchCode}
+
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 150, 
+            minWidth: 150,
+            renderCell: (params) => {
+                // Lấy tên sản phẩm từ nhiều nguồn có thể
+                const productName = params.row.productName || 
+                                  params.row.name || 
+                                  params.row.batch?.productName || 
+                                  'Sản phẩm';
+                
+                // Lấy mã lô từ nhiều nguồn có thể
+                const batchCode = params.row.batch?.name || 
+                                params.row.batch?.batchCode || 
+                                params.row.batchCode || 
+                                params.row.name ||
+                                params.row.batchId || 
+                                params.row.id;
+                
+                                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        padding: '0 8px'
+                    }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#111827' }}>
+                            {productName}
                         </div>
-                    )}
-                    {!params.row.batchCode && params.row.batchId && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.batchId}
-                        </div>
-                    )}
-                    {!params.row.batchCode && !params.row.batchId && params.row.id && (
-                        <div className="text-xs text-gray-500 font-mono">
-                            Lô: {params.row.id}
-                        </div>
-                    )}
-                </div>
-            )
+                    </div>
+                );
+            }
         },
-        columnVisibility['ĐVT'] && {
-            field: 'unit',
-            headerName: 'ĐVT',
+        columnVisibility['ĐVT'] && { 
+            field: 'unit', 
+            headerName: 'ĐVT', 
             width: 120,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
                     <Select
                         size="small"
                         value={params.row.unit || 'quả'}
                         onChange={(e) => handleUnitChange(params.row.id, e.target.value)}
+                        disabled={props.isBalanceStock}
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
-                            '& .MuiOutlinedInput-notchedOutline': {borderColor: 'transparent'},
-                            '&:hover .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2'},
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {borderColor: '#1976d2'},
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            '& .MuiSelect-select': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'transparent',
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#1976d2',
+                            },
                         }}
                     >
-                        <MenuItem value="quả">quả</MenuItem>
-                        <MenuItem
-                            value="khay"
-                            disabled={params.row.remainQuantity < 30}
-                            sx={{'&.Mui-disabled': {color: '#999', fontStyle: 'italic'}}}
-                        >
-                            khay {params.row.remainQuantity < 30 && '(cần ≥30 quả)'}
-                        </MenuItem>
+                        <MenuItem value="quả" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>quả</MenuItem>
+                        <MenuItem value="khay" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>khay</MenuItem>
                     </Select>
                 </div>
             )
@@ -444,10 +642,33 @@ const AddSalePage = (props) => {
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full gap-1">
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, -1)}
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%', 
+                    gap: '4px'
+                }}>
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, -1); }} 
+                        disabled={props.isBalanceStock}
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         –
                     </button>
@@ -457,18 +678,55 @@ const AddSalePage = (props) => {
                         variant="standard"
                         value={params.row.quantity || 1}
                         onChange={(e) => handleQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
+                        disabled={props.isBalanceStock}
+                        onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
-                            '& .MuiInput-underline:before': {borderBottomColor: 'transparent'},
-                            '& .MuiInput-underline:after': {borderBottomColor: '#1976d2'},
-                            '& .MuiInput-underline:hover:before': {borderBottomColor: 'transparent'},
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {display: 'none'},
-                            '& input[type=number]': {MozAppearance: 'textfield'}
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                display: 'none',
+                            },
+                            '& input[type=number]': {
+                                MozAppearance: 'textfield',
+                            }
                         }}
                     />
-                    <button
-                        onClick={() => handleQuantityChange(params.row.id, 1)}
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                    <button 
+                        onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, 1); }} 
+                        disabled={props.isBalanceStock}
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         +
                     </button>
@@ -479,25 +737,53 @@ const AddSalePage = (props) => {
             field: 'price',
             headerName: 'Đơn giá',
             renderHeader: () => (
-                <span>Đơn giá<span style={{color: '#6b7280', fontSize: '0.875em'}}>/quả</span></span>
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
             ),
             width: 150,
+            valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center', 
+                    height: '100%' 
+                }}>
                     <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         variant="standard"
-                        value={params.row.price || 0}
-                        onChange={(e) => handlePriceChange(params.row.id, Number(e.target.value) || 0)}
-                        InputProps={{endAdornment: <span className="text-gray-500">VND</span>}}
+                        value={(params.row.price || 0).toLocaleString('vi-VN')}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '');
+                            handlePriceChange(params.row.id, Number(value) || 0);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        InputProps={{
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
+                        }}
                         sx={{
                             width: '100px',
-                            '& .MuiInput-underline:before': {borderBottomColor: 'transparent'},
-                            '& .MuiInput-underline:after': {borderBottomColor: '#1976d2'},
-                            '& .MuiInput-underline:hover:before': {borderBottomColor: 'transparent'},
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {display: 'none'},
-                            '& input[type=number]': {MozAppearance: 'textfield'}
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
+                            '& .MuiInput-underline:before': {
+                                borderBottomColor: 'transparent',
+                            },
+                            '& .MuiInput-underline:after': {
+                                borderBottomColor: '#1976d2',
+                            },
+                            '& .MuiInput-underline:hover:before': {
+                                borderBottomColor: 'transparent',
+                            },
                         }}
                     />
                 </div>
@@ -512,6 +798,7 @@ const AddSalePage = (props) => {
                 const price = parseFloat(row.price) || 0;
                 const quantity = parseInt(row.quantity) || 0;
                 const unit = row.unit || 'quả';
+                
                 const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
                 return price * quantityInQua;
             },
@@ -520,93 +807,306 @@ const AddSalePage = (props) => {
                 const price = parseFloat(params.row.price) || 0;
                 const quantity = parseInt(params.row.quantity) || 0;
                 const unit = params.row.unit || 'quả';
+                
                 const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
                 const total = price * quantityInQua;
-                return <div className="text-right w-full">{formatCurrency(total)}</div>;
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textAlign: 'center'
+                    }}>
+                        {formatCurrency(total)}
+                    </div>
+                );
             },
         },
-        ...(props.isBalanceStock && columnVisibility['Zone'] ? [{
-            field: 'zoneReal',
-            headerName: 'Zone',
-            width: 120,
-            renderCell: (params) => <span>{params.row.zoneReal}</span>,
-        }] : []),
+
         !props.isBalanceStock && {
             field: 'actions',
             headerName: '',
             width: 60,
             renderCell: (params) => (
-                <Tooltip title="Xóa">
-                    <IconButton size="small" onClick={() => handleDeleteProduct(params.row.id)}>
-                        <FaRegTrashCan/>
-                    </IconButton>
-                </Tooltip>
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
+                    <Tooltip title="Xóa">
+                        <IconButton size="small" onClick={e => { e.stopPropagation(); handleDeleteProduct(params.row.id); }}>
+                            <FaRegTrashCan />
+                        </IconButton>
+                    </Tooltip>
+                </div>
             ),
         },
     ].filter(Boolean), [columnVisibility, handleQuantityChange, handleQuantityInputChange, handlePriceChange, handleDeleteProduct, handleUnitChange, props.isBalanceStock]);
 
+    // Lấy khách lẻ từ danh sách customers nếu có
+    const khachLe = customers.find(c => c.name === 'Khách lẻ') || null;
+
+    useEffect(() => {
+        if (props.isBalanceStock && khachLe) {
+            setSelectedCustomer(khachLe.id);
+        }
+    }, [props.isBalanceStock, khachLe]);
+
+    // Theo dõi thay đổi để hiển thị dialog xác nhận - tối ưu hóa
+    useEffect(() => {
+        const hasChanges = selectedProducts.length > 0 || 
+                          selectedCustomer !== '' || 
+                          selectedStore !== '' || 
+                          note !== '' || 
+                          paidAmount > 0;
+        
+        setHasUnsavedChanges(hasChanges);
+    }, [selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Xử lý lưu tạm thời riêng biệt để tránh re-render không cần thiết
+    // useEffect này không còn cần thiết vì đã xử lý trực tiếp trong handleSaveAndBack
+    // useEffect(() => {
+    //     if (shouldSaveTemp && hasUnsavedChanges) {
+    //         const tempData = {
+    //             selectedProducts,
+    //             selectedCustomer,
+    //             selectedStore,
+    //             note,
+    //             paidAmount,
+    //             timestamp: Date.now()
+    //     };
+    //         localStorage.setItem('addSalePage_tempData', JSON.stringify(tempData));
+    //         setShouldSaveTemp(false);
+    //     }
+    // }, [shouldSaveTemp, hasUnsavedChanges, selectedProducts, selectedCustomer, selectedStore, note, paidAmount]);
+
+    // Khôi phục dữ liệu tạm thời khi vào lại trang - tối ưu hóa
+    useEffect(() => {
+        const tempData = localStorage.getItem('addSalePage_tempData');
+        if (!tempData) return;
+
+        try {
+            const parsed = JSON.parse(tempData);
+            const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000; // 24 giờ
+            
+            if (isExpired) {
+                localStorage.removeItem('addSalePage_tempData');
+                return;
+            }
+
+            // Sử dụng React 18 batch updates để tối ưu performance
+            startTransition(() => {
+                if (parsed.selectedProducts?.length > 0) {
+                    setSelectedProducts(parsed.selectedProducts);
+                }
+                if (parsed.selectedCustomer) {
+                    setSelectedCustomer(parsed.selectedCustomer);
+                }
+                if (parsed.selectedStore) {
+                    setSelectedStore(parsed.selectedStore);
+                }
+                if (parsed.note) {
+                    setNote(parsed.note);
+                }
+                if (parsed.paidAmount) {
+                    setPaidAmount(parsed.paidAmount);
+                    setPaidAmountInput(parsed.paidAmount.toString());
+                }
+            });
+            
+            setSuccess('Đã khôi phục dữ liệu tạm thời!');
+        } catch (error) {
+            console.error('Lỗi khi khôi phục dữ liệu tạm thời:', error);
+            localStorage.removeItem('addSalePage_tempData');
+        }
+    }, []);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công - tối ưu hóa
+    useEffect(() => {
+        if (success && (success.includes('thành công') || success.includes('Đã lưu phiếu'))) {
+            clearTempData();
+        }
+    }, [success]);
+
+    // Xử lý khi dialog xác nhận đóng - tối ưu hóa
+    // useEffect này không còn cần thiết vì đã xử lý trực tiếp
+    // useEffect(() => {
+    //     if (!showBackConfirm) {
+    //         setShouldSaveTemp(false);
+    //     }
+    // }, [showBackConfirm]);
+
+    // Bắt sự kiện browser back button và beforeunload - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listeners khi cần thiết
+        if (!hasUnsavedChanges) return;
+
+        const handleBeforeUnload = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                event.returnValue = '';
+                return '';
+            }
+        };
+
+        const handlePopState = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                setShowBackConfirm(true);
+                window.history.pushState(null, '', window.location.pathname);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('popstate', handlePopState);
+        
+        // Push state ban đầu để có thể bắt sự kiện back
+        window.history.pushState(null, '', window.location.pathname);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges, showBackConfirm, isNavigatingAway]);
+
+    // Bắt sự kiện click vào sidebar navigation - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listener khi cần thiết
+        if (!hasUnsavedChanges || showBackConfirm) return;
+
+        const handleSidebarClick = (event) => {
+            const sidebarLink = event.target.closest('a[href]');
+            const isSidebarClick = sidebarLink || 
+                                  event.target.closest('[data-testid*="sidebar"]') ||
+                                  event.target.closest('.sidebar') ||
+                                  event.target.closest('nav');
+            
+            if (isSidebarClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                if (sidebarLink?.href) {
+                    setPendingNavigation(sidebarLink.href);
+                }
+                
+                setShowBackConfirm(true);
+                return false;
+            }
+        };
+
+        document.addEventListener('click', handleSidebarClick, true);
+        
+        return () => {
+            document.removeEventListener('click', handleSidebarClick, true);
+        };
+    }, [hasUnsavedChanges, showBackConfirm]);
+
+
+
     return (
         <div className="flex w-full h-screen bg-gray-100">
             {error && <Alert severity="error"
-                             className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
+                             className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{error}</Alert>}
             {success && <Alert severity="success"
-                               className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
+                               className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-500">{success}</Alert>}
 
             <div className="flex-1 p-4 bg-white rounded-md m-4 shadow-md overflow-auto">
-                <div className="flex justify-between items-center mb-2">
-                    <div ref={searchRef} className="relative w-full max-w-2xl flex items-center gap-2">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                    <div className="flex items-center gap-4 flex-1">
+                        <Button
+                            variant="text"
+                            startIcon={<ArrowBackIcon />}
+                            onClick={handleBack}
+                            sx={{
+                                color: '#1976d2',
+                                fontWeight: 600,
+                                fontSize: '1.1rem',
+                                textTransform: 'none',
+                                padding: '8px 16px',
+                                borderRadius: 2,
+                                '&:hover': {
+                                    backgroundColor: '#e3f0ff',
+                                    color: '#1565c0'
+                                }
+                            }}
+                        >
+                            {props.isBalanceStock ? 'Cân bằng kho' : 'Bán hàng'}
+                        </Button>
+                        
+                        <div ref={searchRef} className="relative flex-1 max-w-2xl flex items-center gap-3">
                         <TextField
                             size="small"
                             fullWidth
                             placeholder="Tìm lô hàng theo mã hoặc tên sản phẩm"
                             value={searchTerm}
                             onChange={handleSearchChange}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            onFocus={() => {
+                                // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+                                const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                                        currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+                                
+                                if (isAdminOrManager && !selectedStore) {
+                                    setError('Vui lòng chọn cửa hàng trước khi tìm kiếm sản phẩm');
+                                    setHighlightStore(true);
+                                    return;
+                                }
+                                
+                                setIsSearchFocused(true);
+                            }}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
+                            variant="outlined"
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <FaSearch className="text-gray-500"/>
+                                        <FaSearch className="text-gray-500" />
                                     </InputAdornment>
                                 ),
                             }}
-                            sx={{borderRadius: 2, background: '#f9fafb'}}
-                        />
-                        <Select
-                            size="small"
-                            value={unit}
-                            onChange={e => {
-                                const newUnit = e.target.value;
-                                setUnit(newUnit);
-                                setSelectedProducts(prev => prev.map(p => {
-                                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                                        return {
-                                            ...p,
-                                            unit: 'khay',
-                                            quantity: Math.ceil((p.quantity || 1) / 30),
-                                            price: (p.price || 0),
-                                            total: (p.price || 0) * Math.ceil((p.quantity || 1) / 30) * 30
-                                        };
-                                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                                        return {
-                                            ...p,
-                                            unit: 'quả',
-                                            quantity: (p.quantity || 1) * 30,
-                                            price: (p.price || 0),
-                                            total: (p.price || 0) * ((p.quantity || 1) * 30)
-                                        };
-                                    }
-                                    return p;
-                                }));
+                            sx={{
+                                background: '#fff',
+                                borderRadius: 2,
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    boxShadow: 'none',
+                                    '& fieldset': {
+                                        borderColor: '#bcd0ee',
+                                        borderWidth: 2,
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: '#1976d2',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#1976d2',
+                                        boxShadow: '0 0 0 2px #e3f0ff',
+                                    },
+                                },
+                                '& input': {
+                                    fontWeight: 500,
+                                    fontSize: '1rem',
+                                },
                             }}
-                            sx={{minWidth: 80, marginLeft: 1, background: '#fff'}}
-                        >
-                            <MenuItem value="quả">quả</MenuItem>
-                            <MenuItem value="khay">khay</MenuItem>
-                        </Select>
+                        />
+
                         {!props.isBalanceStock && (
                             <Tooltip title="Thêm sản phẩm">
-                                <IconButton onClick={() => setShowProductDialog(true)}>
+                                <IconButton 
+                                    onClick={handleOpenProductDialog}
+                                    sx={{
+                                        color: '#1976d2',
+                                        backgroundColor: '#f8f9fa',
+                                        '&:hover': {
+                                            backgroundColor: '#e3f0ff',
+                                            transform: 'scale(1.05)'
+                                        },
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
                                     <FiPlus/>
                                 </IconButton>
                             </Tooltip>
@@ -650,7 +1150,8 @@ const AddSalePage = (props) => {
                             </div>
                         )}
                     </div>
-                    <div className="ml-auto">
+                </div>
+                <div className="ml-auto">
                         <Tooltip title="Ẩn/hiện cột hiển thị">
                             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
                                 <FaEye/>
@@ -668,31 +1169,96 @@ const AddSalePage = (props) => {
                         </Menu>
                     </div>
                 </div>
-                <div style={{height: 400, width: '100%'}}>
-                    <DataGrid
-                        key={dataGridKey}
-                        rows={selectedProducts.map((row, idx) => ({
-                            ...row,
-                            stt: idx + 1,
-                            id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất
-                        }))}
-                        columns={columns}
-                        pageSize={5}
-                        rowsPerPageOptions={[5]}
-                        disableSelectionOnClick
-                        getRowId={(row) => row.id}
-                        sx={highlightProducts ? {
-                            boxShadow: '0 0 0 3px #ffbdbd',
-                            borderRadius: 4,
-                            background: '#fff6f6'
-                        } : {}}
-                        getRowClassName={(params) => invalidProductIds.includes(params.row.id) ? 'row-error' : ''}
-                    />
+                <div style={{ height: 400, width: '100%' }}>
+                    {isClient ? (
+                        <DataGrid
+                            key={dataGridKey}
+                            rows={selectedProducts.map((row, idx) => ({
+                                ...row,
+                                stt: idx + 1,
+                                id: row.id || row.batchId || `temp_${idx}_${Date.now()}` // Đảm bảo id duy nhất (DataGrid key)
+                            }))}
+                            columns={columns}
+                            pageSize={5}
+                            rowsPerPageOptions={[5]}
+                            disableSelectionOnClick
+                            getRowId={(row) => row.id}
+                            sx={{
+                                ...(highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}),
+                                '& .MuiDataGrid-cell': {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    borderBottom: '1px solid #e0e0e0',
+                                    padding: '8px 4px'
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600',
+                                    backgroundColor: '#f8f9fa',
+                                    borderBottom: '2px solid #dee2e6'
+                                },
+                                '& .MuiDataGrid-row': {
+                                    minHeight: '52px',
+                                    '&:hover': {
+                                        backgroundColor: '#f8f9fa'
+                                    }
+                                }
+                            }}
+                            componentsProps={{
+                                basePopper: {
+                                    sx: {
+                                        '& .MuiDataGrid-panel': {
+                                            '& .MuiDataGrid-panelContent': {
+                                                '& .MuiDataGrid-panelFooter': {
+                                                    display: 'none'
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }}
+                            disableColumnMenu={false}
+                            disableColumnFilter={false}
+                            disableColumnSelector={false}
+                            disableDensitySelector={false}
+                            disableColumnReorder={true}
+                            disableColumnResize={true}
+                            disableExtendRowFullWidth={true}
+                            disableIgnoreModificationsIfProcessingProps={true}
+                            disableRowSelectionOnClick={true}
+                            disableVirtualization={false}
+                            hideFooter={false}
+                            hideFooterPagination={false}
+                            hideFooterSelectedRowCount={false}
+                            loading={false}
+                            rowHeight={52}
+                            rowSpacingType="border"
+                            showCellVerticalBorder={false}
+                            showColumnVerticalBorder={false}
+                            columnVisibilityModel={columnVisibility}
+                            onColumnVisibilityModelChange={(newModel) => setColumnVisibility(newModel)}
+                            getRowClassName={(params) => invalidProductIds.includes(params.row.id) ? 'row-error' : ''}
+                        />
+                    ) : (
+                        <div style={{ 
+                            height: 400, 
+                            width: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px'
+                        }}>
+                            <div>Loading...</div>
+                        </div>
+                    )}
                 </div>
             </div>
             <SaleSidebar
                 currentUser={currentUser}
-                customers={customers}
+                customers={props.isBalanceStock && khachLe ? [khachLe] : customers}
                 stores={stores}
                 selectedCustomer={selectedCustomer}
                 selectedStore={selectedStore}
@@ -716,8 +1282,8 @@ const AddSalePage = (props) => {
                     setPaidAmount(Math.max(0, value));
                     setPaidAmountInput(e.target.value);
                 }}
-                onSaveDraft={() => handleShowSummary('DRAFT')}
-                onComplete={() => handleShowSummary('COMPLETE')}
+                onSaveDraft={() => { openSummaryAfterValidate('DRAFT'); }}
+                onComplete={() => { openSummaryAfterValidate('COMPLETE'); }}
                 onCancel={handleCancel}
                 formatCurrency={formatCurrency}
                 isValidValue={isValidValue}
@@ -727,6 +1293,7 @@ const AddSalePage = (props) => {
                 setCustomers={setCustomers}
                 paidAmountInput={paidAmountInput}
                 setPaidAmountInput={setPaidAmountInput}
+                isBalanceStock={props.isBalanceStock}
             />
             <SaleProductDialog
                 open={showProductDialog}
@@ -740,17 +1307,41 @@ const AddSalePage = (props) => {
                 selectedProduct={selectedProduct}
                 availableBatches={availableBatches}
                 selectedBatchesForDialog={[]}
-                onSelectProduct={handleSelectProduct}
-                onSelectBatches={() => {
-                }}
+                onSelectProduct={handleSelectProductInDialog}
+                onSelectBatches={handleSelectBatches}
                 onAddProducts={handleAddProductsFromDialog}
                 formatCurrency={formatCurrency}
             />
             <SaleSummaryDialog
                 open={showSummaryDialog}
                 onClose={handleCloseSummary}
-                onConfirm={handleConfirmSummary}
-                saleData={summaryData}
+                onConfirm={async () => {
+                    try {
+                        const ok = await handleConfirmSummary();
+                        if (!ok) return;
+                        if (props.isBalanceStock) {
+                            props.onSuccess && props.onSuccess();
+                        } else {
+                            window.location.href = '/sale';
+                        }
+                    } finally {
+                        setShowSummaryDialog(false);
+                    }
+                }}
+                saleData={{
+                    name: nextCode,
+                    status: pendingAction,
+                    customer: customers.find(c => String(c.id) === String(selectedCustomer)) || null,
+                    store: stores.find(s => String(s.id) === String(selectedStore)) || null,
+                    products: selectedProducts.map(p => ({
+                        ...p,
+                        price: p.price || p.unitSalePrice || 0,
+                    })),
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    note: note,
+                    saleDate: saleDate || new Date().toISOString(),
+                }}
                 formatCurrency={formatCurrency}
                 loading={loading}
                 currentUser={currentUser}
@@ -831,6 +1422,68 @@ const AddSalePage = (props) => {
                 <DialogActions>
                     <Button onClick={handleCloseCategoryDialog} color="primary">
                         Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog xác nhận khi có thay đổi chưa lưu */}
+            <Dialog
+                open={showBackConfirm}
+                onClose={handleCancelBack}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ 
+                    pb: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    <span className="text-orange-600 text-2xl">⚠️</span>
+                    Xác nhận rời khỏi
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <div className="text-gray-700">
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div className="text-orange-600 text-2xl">⚠️</div>
+                            <div>
+                                <p className="font-semibold text-orange-800">Bạn có thay đổi chưa lưu</p>
+                                <p className="text-sm text-orange-700">Nếu rời khỏi, tất cả thay đổi sẽ bị mất</p>
+                            </div>
+                        </div>
+                        <p className="text-gray-600">
+                            Bạn có chắc chắn muốn rời khỏi trang này? Tất cả thay đổi chưa được lưu sẽ bị mất vĩnh viễn.
+                        </p>
+                    </div>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 1 }}>
+                    <Button 
+                        onClick={handleConfirmBack} 
+                        color="inherit"
+                        sx={{
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Rời khỏi
+                    </Button>
+                    <Button 
+                        onClick={handleSaveAndBack} 
+                        variant="contained" 
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Lưu tạm thời & Rời khỏi
                     </Button>
                 </DialogActions>
             </Dialog>

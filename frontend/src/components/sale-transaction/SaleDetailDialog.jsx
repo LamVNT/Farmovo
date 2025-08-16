@@ -25,7 +25,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import CancelIcon from '@mui/icons-material/Cancel';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
+
 import SaveIcon from '@mui/icons-material/Save';
 
 const SaleDetailDialog = ({
@@ -39,7 +39,6 @@ const SaleDetailDialog = ({
     onCancel,
     onComplete,
     onExportPdf,
-    onOpenTransaction, // Thêm prop mới
     onCloseTransaction, // Thêm prop mới
     loading = false, // Thêm prop loading
 }) => {
@@ -77,10 +76,13 @@ const SaleDetailDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        Ngày bán: {(transaction.saleDate || transaction.saleTransactionDate || saleDate) ? new Date(transaction.saleDate || transaction.saleTransactionDate || saleDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {saleDate ? new Date(saleDate).toLocaleTimeString('vi-VN') : 'N/A'}
+                        Ngày tạo: {transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600">
+                        Giờ tạo: {transaction.createdAt ? new Date(transaction.createdAt).toLocaleTimeString('vi-VN') : 'N/A'}
                     </Typography>
                 </div>
             </DialogTitle>
@@ -151,7 +153,7 @@ const SaleDetailDialog = ({
                                         <div>
                                             <div className="font-medium">{product.productName || product.name}</div>
                                             <div className="text-xs text-gray-500">
-                                                Mã: {product.code || product.productCode || 'N/A'}
+                                                Mã: {product.code || product.productCode || product.batchCode || product.name || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>
@@ -218,15 +220,18 @@ const SaleDetailDialog = ({
             </DialogContent>
 
             <DialogActions className="p-4 bg-gray-50">
-                {transaction.status === 'DRAFT' && onOpenTransaction && (
+                {transaction.status === 'DRAFT' && onComplete && (
                     <Button 
                         variant="contained"
-                        color="primary"
-                        onClick={onOpenTransaction}
+                        color="success"
+                        onClick={() => {
+                            setConfirmType('complete');
+                            setConfirmOpen(true);
+                        }}
                         disabled={loading}
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon />}
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
                     >
-                        {loading ? 'Đang xử lý...' : 'Mở phiếu'}
+                        {loading ? 'Đang xử lý...' : 'Hoàn thành'}
                     </Button>
                 )}
                 {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (

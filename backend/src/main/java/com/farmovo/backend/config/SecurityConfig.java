@@ -68,10 +68,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/change-statuslog/**").authenticated()
 
                         // Admin-only paths (backup security)
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users").hasRole("ADMIN")
-                        .requestMatchers("/api/stores/**").hasRole("ADMIN")
-                        .requestMatchers("/api/zones/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        .requestMatchers("/api/users").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        .requestMatchers("/api/stores/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        .requestMatchers("/api/zones/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
                         .anyRequest().authenticated()
                 )

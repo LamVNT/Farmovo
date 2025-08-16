@@ -35,6 +35,7 @@ import EditPage from '../pages/import-transaction/EditPage';
 import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
+import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
 
 const router = createBrowserRouter([
     {
@@ -352,6 +353,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <ChangeStatusLogPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/balance",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <BalanceTransactionPage/>
                 </MainLayout>
             </ProtectedRoute>
         ),

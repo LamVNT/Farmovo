@@ -29,14 +29,14 @@ const StyledTextField = styled(TextField)(({theme}) => ({
 
 const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) => {
     const validateName = () => {
-        if (!form.name.trim()) return "Name is required";
-        if (form.name.length > 255) return "Name must not exceed 255 characters";
+        if (!form.name.trim()) return "Tên danh mục không được để trống";
+        if (form.name.length > 255) return "Tên danh mục không vượt quá 255 ký tự";
         return null;
     };
 
     const validateDescription = () => {
         if (form.description && form.description.length > 1000) {
-            return "Description must not exceed 1000 characters";
+            return "Mô tả không vượt quá 1000 ký tự";
         }
         return null;
     };
@@ -50,7 +50,7 @@ const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) 
             <DialogTitle>
                 {/* Sửa lỗi: Không lồng <h6> trong <h2> */}
                 <span style={{fontWeight: 'bold', color: 'inherit', fontSize: 20}}>
-                    {editMode ? "Edit Category" : "Create Category"}
+                    {editMode ? "Chỉnh sửa danh mục" : "Tạo mới danh mục"}
                 </span>
             </DialogTitle>
             <DialogContent>
@@ -58,7 +58,7 @@ const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) 
                     <StyledTextField
                         autoFocus
                         margin="dense"
-                        label="Category Name"
+                        label="Tên danh mục"
                         fullWidth
                         value={form.name}
                         onChange={(e) => setForm({...form, name: e.target.value})}
@@ -70,7 +70,7 @@ const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) 
                     />
                     <StyledTextField
                         margin="dense"
-                        label="Description"
+                        label="Mô tả"
                         fullWidth
                         multiline
                         rows={3}
@@ -78,14 +78,14 @@ const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) 
                         onChange={(e) => setForm({...form, description: e.target.value})}
                         variant="outlined"
                         error={!!descriptionError}
-                        helperText={descriptionError || `${form.description?.length || 0}/1000`}
+                        helperText={descriptionError || `${form.description?.length || 0}/1000 ký tự`}
                         inputProps={{maxLength: 1000}}
                     />
                 </Box>
             </DialogContent>
             <DialogActions sx={{padding: 2}}>
                 <Button onClick={onClose} variant="outlined" color="secondary">
-                    Cancel
+                    Hủy
                 </Button>
                 <Button
                     onClick={onSubmit}
@@ -93,7 +93,7 @@ const CategoryFormDialog = ({open, onClose, form, setForm, onSubmit, editMode}) 
                     color="primary"
                     disabled={!isFormValid}
                 >
-                    {editMode ? "Update" : "Create"}
+                    {editMode ? "Cập nhật" : "Tạo mới"}
                 </Button>
             </DialogActions>
         </StyledDialog>

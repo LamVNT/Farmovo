@@ -261,6 +261,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             String supplierName,
             Long storeId,
             Long staffId,
+            Long createdBy,
             ImportTransactionStatus status,
             LocalDateTime fromDate,
             LocalDateTime toDate,
@@ -273,7 +274,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         }
 
         Specification<ImportTransaction> spec =
-                ImportTransactionSpecification.buildSpecification(name, supplierName, storeId, staffId,
+                ImportTransactionSpecification.buildSpecification(name, supplierName, storeId, staffId, createdBy,
                         status, fromDate, toDate,
                         minTotalAmount, maxTotalAmount);
 
@@ -310,6 +311,7 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
 
     @Override
     @Transactional
+    @LogStatusChange
     public void softDeleteImportTransaction(Long id, Long userId) {
         ImportTransaction transaction = importTransactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phiếu nhập với ID: " + id));
@@ -578,8 +580,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
             detail.setCreatedBy(userId);
         }
 
-        // false là cần kiểm hàng
-        detail.setIsCheck(true);
+        // false là cần kiểm hàng: khởi tạo tất cả là chưa kiểm
+        detail.setIsCheck(false);
         return detail;
     }
     private void mapDtoToTransaction(ImportTransaction transaction, CreateImportTransactionRequestDto dto, boolean isCreate, Long userId) {

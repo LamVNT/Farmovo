@@ -17,4 +17,6 @@ public class StocktakeResponseDto {
     private String storeName; // tên kho
     private String createdByName; // tên người kiểm kê
     private java.time.LocalDateTime updatedAt; // ngày cân bằng (lấy từ entity Base)
+    private Boolean hasBalance; // Có PCB liên kết không
+    private Long balanceCount;  // Số lượng PCB liên kết (thường 0 hoặc 1)
 }

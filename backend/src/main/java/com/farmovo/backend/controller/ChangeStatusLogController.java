@@ -27,7 +27,7 @@ public class ChangeStatusLogController {
     private final SourceEntityResolverService sourceEntityResolverService;
 
     @PostMapping("/list-all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<PageResponse<ChangeStatusLogResponseDTO>> searchLogs(
             @RequestBody ChangeStatusLogFilterRequestDTO filterRequest,
             Pageable pageable) {
@@ -37,14 +37,14 @@ public class ChangeStatusLogController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<ChangeStatusLogResponseDTO> getById(@PathVariable Long id) {
         ChangeStatusLogResponseDTO dto = changeStatusLogService.getChangeStatusLogById(id);
         return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/{id}/source")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<SourceEntityInfo> getSourceEntity(@PathVariable Long id) {
         ChangeStatusLogResponseDTO log = changeStatusLogService.getChangeStatusLogById(id);
         SourceEntityInfo sourceInfo = sourceEntityResolverService.resolveSourceEntity(
@@ -53,7 +53,7 @@ public class ChangeStatusLogController {
     }
 
     @PostMapping("/by-model")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
     public ResponseEntity<List<ChangeStatusLogResponseDTO>> getByModel(
             @RequestBody ChangeStatusLogByModelRequestDTO request) {
         List<ChangeStatusLogResponseDTO> logs = changeStatusLogService.getLogsByModel(request.getModelName(), request.getModelId());

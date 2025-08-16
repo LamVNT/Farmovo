@@ -9,124 +9,121 @@ skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 skinparam actorBackgroundColor #FFD700
 
-title Get Stocktake Detail - Sequence Diagram
+title Get Stocktake Detail - Sequence Diagram (Detail + CanBalance + Export)
 
 actor Staff
-participant ":StockTake Page" as UI
-participant ":Edit StockTake Page" as EditUI
+participant ":StockTake List Page" as ListUI
 participant ":Detail StockTake Page" as DetailUI
+participant ":Stocktake Edit Page" as EditUI
 participant ":StocktakeController" as Controller
 participant ":StocktakeServiceImpl" as Service
 participant ":StocktakeRepository" as StocktakeRepo
-participant ":ProductRepository" as ProductRepo
-participant ":ZoneRepository" as ZoneRepo
 participant ":StocktakeMapper" as Mapper
+participant ":Zone API (/zones)" as ZoneAPI
+participant ":Store API (/admin/storeList)" as StoreAPI
+participant ":Category API (/categories)" as CategoryAPI
 
-== Nhân viên chọn phiếu kiểm kê ==
-Staff -> UI: Chọn kiểm kê, nhấn "Xem chi tiết"
+== Chọn phiếu kiểm kê ==
+Staff -> ListUI: Click một dòng kiểm kê
 activate Staff
-activate UI
+activate ListUI
 
-UI -> Controller: GET /api/stocktakes/{id}
+alt Hàng được chọn có status == DRAFT (biết sẵn từ list)
+  group Prefetch Master Data (song song)
+    par Zones
+      ListUI -> ZoneAPI: GET /api/zones
+      ZoneAPI --> ListUI: List<ZoneDTO>
+    else Categories
+      ListUI -> CategoryAPI: GET /api/categories
+      CategoryAPI --> ListUI: List<CategoryDTO>
+    else Stores (Owner/Admin)
+      ListUI -> StoreAPI: GET /api/admin/storeList
+      StoreAPI --> ListUI: List<StoreDTO>
+  end
+  ListUI -> EditUI: Điều hướng /stocktake/edit/{id} (truyền/cached master data)
+  deactivate ListUI
+  activate EditUI
+  note right of EditUI
+    Nếu có dữ liệu đã prefetch, tái sử dụng để hiển thị ngay.
+    Nếu thiếu, gọi bổ sung endpoints tương ứng.
+  end note
+  stop
+else Status != DRAFT
+  ListUI -> DetailUI: Điều hướng /stocktake/{id}
+  deactivate ListUI
+  activate DetailUI
+end
+
+== Load master data cho Detail ==
+alt User là Owner/Admin
+  DetailUI -> StoreAPI: GET /api/admin/storeList
+  StoreAPI --> DetailUI: List<StoreDTO>
+end
+DetailUI -> ZoneAPI: GET /api/zones
+ZoneAPI --> DetailUI: List<ZoneDTO>
+DetailUI -> CategoryAPI: GET /api/categories
+CategoryAPI --> DetailUI: List<CategoryDTO>
+
+== Tải chi tiết ==
+DetailUI -> Controller: GET /api/stocktakes/{id}
 activate Controller
-Controller -> Service: getStocktake(id)
+Controller -> Service: getStocktakeById(id)
 activate Service
 Service -> StocktakeRepo: findById(id)
 activate StocktakeRepo
 StocktakeRepo --> Service: Optional<Stocktake>
 deactivate StocktakeRepo
-
 alt Không tìm thấy
-    Service --> Controller: throw StocktakeNotFound
-    Controller --> UI: 404 Not Found
-    UI --> Staff: Hiển thị lỗi
+    Service --> Controller: throw ValidationException("Stocktake not found")
+    Controller --> DetailUI: 404 Not Found
+    DetailUI --> Staff: Hiển thị lỗi
     deactivate Service
     deactivate Controller
-    deactivate UI
 else Tìm thấy
+    Service -> Service: buildStocktakeResponseDto(entity)
+    note right
+      - Parse detail JSON
+      - groupDetailsByProduct(details)
+      - set hasBalance/balanceCount bằng count PCB COMPLETE theo stocktakeId
+    end note
     Service -> Mapper: toResponseDto(stocktake)
     activate Mapper
     Mapper --> Service: StocktakeResponseDto
     deactivate Mapper
     Service --> Controller: StocktakeResponseDto
     deactivate Service
-    Controller --> UI: 200 OK
+    Controller --> DetailUI: 200 OK
     deactivate Controller
+    DetailUI -> Staff: Hiển thị thông tin + bảng chi tiết (grouped)
 end
 
-== Xử lý theo trạng thái phiếu ==
+== Logic hiển thị hành động ==
+opt Điều kiện nút "Cân bằng kho"
+    note right of DetailUI
+      canBalance = (status == COMPLETED)
+                   AND (tồn tại dòng có diff != 0)
+                   AND (hasBalance == false)
+    end note
+    DetailUI -> Staff: Hiển thị nút "Cân bằng kho (Tạo PCB)" nếu canBalance
+end
 
-alt Status == DRAFT
-    UI -> EditUI: Điều hướng đến Edit StockTake Page
-    deactivate UI
-    activate EditUI
+opt Staff bấm Cân bằng kho
+    DetailUI -> BALANCE_UI: Điều hướng /sale/balance/{stocktakeId}
+    note right
+      Truyền state: { stocktakeId, stocktakeCode }
+    end note
+end
 
-    EditUI -> Service: fetchProducts(storeId)
-    activate Service
-    Service -> ProductRepo: fetchProducts(storeId)
-    activate ProductRepo
-    ProductRepo --> Service: List<ProductDTO>
-    deactivate ProductRepo
-    Service --> EditUI: List<ProductDTO>
-
-    EditUI -> Service: fetchZones(storeId)
-    Service -> ZoneRepo: fetchZones(storeId)
-    activate ZoneRepo
-    ZoneRepo --> Service: List<ZoneDTO>
-    deactivate ZoneRepo
-    Service --> EditUI: List<ZoneDTO>
-    deactivate Service
-
-    EditUI -> Staff: Hiển thị form chỉnh sửa + dữ liệu
-
-else Status == COMPLETED hoặc CANCELLED
-    UI -> Controller: GET /api/stocktakes/{id}/details
-    activate Controller
-    Controller -> Service: getStocktakeDetails(id)
-    activate Service
-    Service -> StocktakeRepo: findById(id)
-    activate StocktakeRepo
-    StocktakeRepo --> Service: Optional<Stocktake>
-    deactivate StocktakeRepo
-
-    alt Không tìm thấy
-        Service --> Controller: throw StocktakeNotFound
-        Controller --> UI: 404 Not Found
-        UI --> Staff: Hiển thị lỗi
-        deactivate Service
-        deactivate Controller
-    else Tìm thấy
-        Service -> Service: parse JSON detail
-        Service -> Mapper: toDetailDto(detail)
-        activate Mapper
-        Mapper --> Service: List<StocktakeDetailDto>
-        deactivate Mapper
-        Service --> Controller: List<StocktakeDetailDto>
-        deactivate Service
-        Controller --> UI: 200 OK
-        deactivate Controller
-
-        UI -> DetailUI: Điều hướng đến Detail Page
-        deactivate UI
-        activate DetailUI
-        DetailUI -> Staff: Hiển thị dữ liệu chi tiết (readonly)
-    end
+opt Export Excel (khi COMPLETED)
+    Staff -> DetailUI: Bấm "Export Excel"
+    DetailUI -> Controller: GET /api/stocktakes/{id}/export-excel
+    Controller -> Service: exportStocktakeToExcel(id)
+    Service --> Controller: ByteArrayResource (xlsx)
+    Controller --> DetailUI: 200 OK (file)
+    DetailUI --> Staff: Tải file Excel
 end
 
 deactivate DetailUI
-deactivate EditUI
 deactivate Staff
-
-note right of EditUI
-StocktakeResponseDto:
-- id, stocktakeDate
-- detail, note
-- storeId, status (DRAFT, COMPLETED, CANCELLED)
-end note
-
-note right of DetailUI
-StocktakeDetailDto:
-- Thông tin chi tiết, chỉ đọc
-end note
 
 @enduml

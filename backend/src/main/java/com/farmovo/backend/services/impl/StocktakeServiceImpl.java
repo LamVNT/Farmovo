@@ -11,6 +11,7 @@ import com.farmovo.backend.repositories.ProductRepository;
 import com.farmovo.backend.repositories.StocktakeRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
+import com.farmovo.backend.repositories.SaleTransactionRepository;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -34,6 +35,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import com.farmovo.backend.models.SaleTransactionStatus;
+import com.farmovo.backend.utils.RoleUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +50,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     private final ProductRepository productRepository;
     private final ImportTransactionDetailService importTransactionDetailService;
     private final ObjectMapper objectMapper;
+    private final SaleTransactionRepository saleTransactionRepository;
 
     @Override
     public StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId) {
@@ -56,10 +60,8 @@ public class StocktakeServiceImpl implements StocktakeService {
         List<StocktakeDetailDto> enriched = enrichStocktakeDetails(details);
         Stocktake stocktake = createStocktakeEntity(requestDto, userId, enriched);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
-        // GỘP LOGIC: Nếu tạo mới với status COMPLETED thì cân bằng kho luôn
-        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-        //     updateImportDetailsForCompletedStocktake(savedStocktake);
-        // }
+        // Lưu ý: tạo phiếu kiểm kê chỉ phục vụ hiển thị; không cập nhật DB lô ở bước này
+
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -67,12 +69,9 @@ public class StocktakeServiceImpl implements StocktakeService {
     public List<StocktakeResponseDto> getAllStocktakes(String storeId, String status, String note, String fromDate, String toDate, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ValidationException("User not found"));
-        String role = user.getAuthorities().stream()
-                .findFirst()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .orElse("");
+        boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
         String effectiveStoreId = storeId;
-        if ("STAFF".equals(role)) {
+        if (isStaff) {
             if (user.getStore() == null) {
                 throw new ValidationException("User does not have a store assigned");
             }
@@ -88,12 +87,9 @@ public class StocktakeServiceImpl implements StocktakeService {
     public Page<StocktakeResponseDto> searchStocktakes(String storeId, String status, String note, String fromDate, String toDate, Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ValidationException("User not found"));
-        String role = user.getAuthorities().stream()
-                .findFirst()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .orElse("");
+        boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
         String effectiveStoreId = storeId;
-        if ("STAFF".equals(role)) {
+        if (isStaff) {
             if (user.getStore() == null) {
                 throw new ValidationException("User does not have a store assigned");
             }
@@ -119,10 +115,8 @@ public class StocktakeServiceImpl implements StocktakeService {
                 .orElseThrow(() -> new ValidationException("User not found"));
         validateStatusTransition(stocktake.getStatus(), StocktakeStatus.valueOf(status), user);
         stocktake.setStatus(StocktakeStatus.valueOf(status));
-        // ENRICH: Nếu chuyển sang COMPLETED thì cập nhật remainQuantity và isCheck cho ImportTransactionDetail
-        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-        //     updateImportDetailsForCompletedStocktake(stocktake);
-        // }
+        // Chuyển trạng thái chỉ phục vụ hiển thị; không cập nhật DB lô ở bước này
+
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
         return buildStocktakeResponseDto(savedStocktake);
     }
@@ -277,7 +271,8 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setNote(base.getNote());
         dto.setZoneReal(base.getZoneReal());
         dto.setExpireDate(lot.getExpireDate() != null ? lot.getExpireDate().toString() : null);
-        dto.setIsCheck(lot.getIsCheck());
+        // Mặc định isCheck = false nếu null để frontend hiển thị chưa kiểm
+        dto.setIsCheck(lot.getIsCheck() != null ? lot.getIsCheck() : Boolean.FALSE);
 
         log.debug("Enriched detail: lot={}, productId={}, remain={}, real={}, diff={}",
                 dto.getBatchCode(), dto.getProductId(), dto.getRemain(), dto.getReal(), dto.getDiff());
@@ -298,17 +293,15 @@ public class StocktakeServiceImpl implements StocktakeService {
         stocktake.setStatus(StocktakeStatus.valueOf(requestDto.getStatus()));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ValidationException("User not found"));
-        String role = user.getAuthorities().stream()
-                .findFirst()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .orElse("");
         Long storeId;
-        if ("OWNER".equals(role)) {
+        boolean isOwner = RoleUtils.hasRole(user.getAuthorities(), "OWNER");
+        boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
+        if (isOwner) {
             if (requestDto.getStoreId() == null) {
                 throw new ValidationException("storeId is required for OWNER");
             }
             storeId = requestDto.getStoreId();
-        } else if ("STAFF".equals(role)) {
+        } else if (isStaff) {
             if (user.getStore() == null) {
                 throw new ValidationException("User does not have a store assigned");
             }
@@ -342,6 +335,18 @@ public class StocktakeServiceImpl implements StocktakeService {
         }
         dto.setDetail(groupDetailsByProduct(details)); // trả về dạng gộp
         dto.setRawDetail(details); // trả về dạng gốc
+        // Ánh xạ thông tin liên kết cân bằng để frontend ẩn nút
+        // Các trạng thái cân bằng sẽ được suy ra bằng exists/count sale_transactions theo stocktakeId
+        try {
+            Long stId = stocktake.getId();
+            long count = saleTransactionRepository.countByStocktakeIdAndStatus(stId, SaleTransactionStatus.COMPLETE);
+            dto.setBalanceCount(count);
+            dto.setHasBalance(count > 0);
+        } catch (Exception e) {
+            log.warn("Failed to check PCB linkage for stocktake {}: {}", stocktake.getId(), e.getMessage());
+            dto.setHasBalance(false);
+            dto.setBalanceCount(0L);
+        }
         return dto;
     }
 
@@ -376,19 +381,17 @@ public class StocktakeServiceImpl implements StocktakeService {
 
     // Validate chuyển trạng thái
     private void validateStatusTransition(StocktakeStatus currentStatus, StocktakeStatus newStatus, User user) {
-        String role = user.getAuthorities().stream()
-                .findFirst()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .orElseThrow(() -> new ValidationException("User role not found"));
+        boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
+        boolean isOwner = RoleUtils.hasRole(user.getAuthorities(), "OWNER");
         if (newStatus == StocktakeStatus.CANCELLED && currentStatus == StocktakeStatus.COMPLETED) {
             throw new ValidationException("Không thể hủy phiếu đã được duyệt hoàn thành!");
         }
-        if ("STAFF".equals(role)) {
+        if (isStaff) {
             if (!(currentStatus == StocktakeStatus.DRAFT &&
                     (newStatus == StocktakeStatus.COMPLETED || newStatus == StocktakeStatus.CANCELLED))) {
                 throw new ValidationException("Staff chỉ được chuyển DRAFT sang COMPLETED hoặc CANCELLED");
             }
-        } else if ("OWNER".equals(role)) {
+        } else if (isOwner) {
             if (!(currentStatus == StocktakeStatus.DRAFT &&
                     (newStatus == StocktakeStatus.COMPLETED || newStatus == StocktakeStatus.CANCELLED))) {
                 throw new ValidationException("Owner không có quyền thực hiện thao tác này!");
@@ -433,42 +436,9 @@ public class StocktakeServiceImpl implements StocktakeService {
             log.info("[BUG-DEBUG] Tìm thấy {} lô từ database", allLots.size());
 
             for (StocktakeDetailDto detail : details) {
-                if (detail.getReal() == null) {
-                    log.warn("[BUG-DEBUG] Bỏ qua lô do thiếu giá trị real: {}", detail.getBatchCode());
-                    continue;
-                }
-
-                String batchCode = detail.getBatchCode();
-                if (batchCode == null) {
-                    log.warn("[BUG-DEBUG] Bỏ qua lô do thiếu batchCode");
-                    continue;
-                }
-
-                // Tìm lô theo batchCode (cả có và không có dấu gạch ngang)
-                ImportTransactionDetail lot = lotsByName.get(batchCode);
-                if (lot == null) {
-                    lot = lotsByName.get(batchCode.replace("-", ""));
-                }
-
-                if (lot != null) {
-                    log.info("[BUG-DEBUG] Cập nhật lô {}: tồn kho {} -> {}", lot.getName(), lot.getRemainQuantity(), detail.getReal());
-
-                    // Cập nhật trực tiếp trong transaction hiện tại
-                    lot.setRemainQuantity(detail.getReal());
-                    lot.setIsCheck(true);
-
-                    if (detail.getZoneReal() != null && !detail.getZoneReal().isEmpty()) {
-                        log.info("[BUG-DEBUG] Cập nhật khu vực lô {}: {} -> {}", lot.getName(), lot.getZones_id(), detail.getZoneReal());
-                        lot.setZones_id(detail.getZoneReal());
-                    }
-
-                    // Lưu trực tiếp để đảm bảo cập nhật
-                    importTransactionDetailRepository.saveAndFlush(lot);
-
-                    log.info("[BUG-DEBUG] Đã cập nhật thành công lô {} (remainQuantity={})", lot.getName(), lot.getRemainQuantity());
-                } else {
-                    log.warn("[BUG-DEBUG] Không tìm thấy lô nào với mã {}", batchCode);
-                }
+                // Stocktake hoàn thành chỉ phục vụ hiển thị; không cập nhật DB lô ở bước này
+                // Để cân bằng kho, thao tác cập nhật sẽ được thực hiện khi tạo/duyệt phiếu cân bằng (PCB)
+                continue;
             }
 
             log.info("[BUG-DEBUG] Hoàn thành cập nhật tồn kho cho phiếu #{}", stocktake.getId());

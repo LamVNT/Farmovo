@@ -42,16 +42,19 @@ const SaleSummaryDialog = ({
     }, [open]);
 
     return (
-        <Dialog 
-            open={open} 
+        <Dialog
+            open={open}
             onClose={onClose}
             maxWidth="md"
             fullWidth
         >
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div className="flex flex-col items-start">
-                    <Typography variant="h6" className="font-bold text-gray-800" style={{display: 'inline', fontWeight: 700}}>
-                        PHIẾU BÁN HÀNG: {name || nextCode || '---'}
+                    <Typography variant="h6" className="font-bold text-gray-800" style={{ display: 'inline', fontWeight: 700 }}>
+                        {(note || '').toLowerCase().includes('cân bằng kho')
+                            ? 'PHIẾU CÂN BẰNG: '
+                            : 'PHIẾU BÁN HÀNG: '}
+                        {name || nextCode || '---'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
@@ -59,10 +62,13 @@ const SaleSummaryDialog = ({
                 </div>
                 <div className="text-right">
                     <Typography variant="body2" className="text-gray-600">
-                        Ngày: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : currentTime.toLocaleDateString('vi-VN')}
+                        Ngày bán: {saleDate ? new Date(saleDate).toLocaleDateString('vi-VN') : 'Chưa chọn'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        Giờ: {currentTime.toLocaleTimeString('vi-VN')}
+                        Ngày tạo: {currentTime.toLocaleDateString('vi-VN')}
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600">
+                        Giờ tạo: {currentTime.toLocaleTimeString('vi-VN')}
                     </Typography>
                 </div>
             </DialogTitle>
@@ -116,7 +122,7 @@ const SaleSummaryDialog = ({
                 <Typography variant="subtitle1" className="font-semibold mb-3 text-gray-800">
                     📦 DANH SÁCH SẢN PHẨM
                 </Typography>
-                
+
                 <TableContainer component={Paper} className="mb-4">
                     <Table size="small">
                         <TableHead>
@@ -141,7 +147,7 @@ const SaleSummaryDialog = ({
                                         <div>
                                             <div className="font-medium">{product.name}</div>
                                             <div className="text-xs text-gray-500">
-                                                Mã: {product.productCode || product.code || 'N/A'}
+                                                Mã: {product.productCode || product.code || product.batchCode || product.name || 'N/A'}
                                             </div>
                                         </div>
                                     </TableCell>
@@ -167,7 +173,7 @@ const SaleSummaryDialog = ({
                             {formatCurrency(totalAmount)}
                         </Typography>
                     </div>
-                    
+
                     <div className="flex justify-between items-center mb-2">
                         <Typography variant="body1" className="font-semibold">
                             Số tiền đã trả:
@@ -176,18 +182,17 @@ const SaleSummaryDialog = ({
                             {formatCurrency(paidAmount)}
                         </Typography>
                     </div>
-                    
+
                     <Divider className="my-2" />
-                    
+
                     <div className="flex justify-between items-center">
                         <Typography variant="body1" className="font-semibold">
                             Còn lại:
                         </Typography>
-                        <Typography 
-                            variant="body1" 
-                            className={`font-bold text-lg ${
-                                totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'
-                            }`}
+                        <Typography
+                            variant="body1"
+                            className={`font-bold text-lg ${totalAmount - paidAmount > 0 ? 'text-red-600' : 'text-green-600'
+                                }`}
                         >
                             {formatCurrency(totalAmount - paidAmount)}
                         </Typography>
@@ -208,22 +213,21 @@ const SaleSummaryDialog = ({
             </DialogContent>
 
             <DialogActions className="p-4 bg-gray-50">
-                <Button 
-                    onClick={onClose} 
-                    variant="outlined" 
+                <Button
+                    onClick={onClose}
+                    variant="outlined"
                     startIcon={<FaTimes />}
                     disabled={loading}
                 >
                     Hủy bỏ
                 </Button>
-                <Button 
-                    onClick={onConfirm} 
-                    variant="contained" 
-                    className={`${
-                        status === 'DRAFT' 
-                            ? '!bg-blue-600 hover:!bg-blue-700' 
-                            : '!bg-green-600 hover:!bg-green-700'
-                    } text-white`}
+                <Button
+                    onClick={onConfirm}
+                    variant="contained"
+                    className={`${status === 'DRAFT'
+                        ? '!bg-blue-600 hover:!bg-blue-700'
+                        : '!bg-green-600 hover:!bg-green-700'
+                        } text-white`}
                     startIcon={loading ? null : (status === 'DRAFT' ? <FaPrint /> : <FaCheck />)}
                     disabled={loading}
                 >

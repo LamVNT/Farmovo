@@ -6,11 +6,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 const CategoryTable = ({rows, onEdit, onDelete}) => {
     const columns = [
-        {field: "name", headerName: "Category Name", flex: 1, headerAlign: 'center', align: 'left'},
-        {field: "description", headerName: "Description", flex: 2, headerAlign: 'center', align: 'left'},
+        {field: "name", headerName: "Tên danh mục", flex: 1, headerAlign: 'center', align: 'left'},
+        {field: "description", headerName: "Mô tả", flex: 2, headerAlign: 'center', align: 'left'},
         {
             field: "actions",
-            headerName: "Actions",
+            headerName: "Thao tác",
             flex: 1,
             headerAlign: 'center',
             align: 'center',

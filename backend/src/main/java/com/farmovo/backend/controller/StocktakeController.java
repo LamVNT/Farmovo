@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -118,8 +117,10 @@ public class StocktakeController {
 
     private Long extractUserIdFromRequest(HttpServletRequest request) {
         String token = jwtUtils.getJwtFromRequest(request);
-        if (token == null) {
-            throw new IllegalArgumentException("JWT token is missing");
+        if (token == null || !jwtUtils.validateJwtToken(token)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "JWT token is missing or invalid");
         }
         return jwtUtils.getUserIdFromJwtToken(token);
     }

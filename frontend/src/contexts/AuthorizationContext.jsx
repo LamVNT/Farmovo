@@ -19,23 +19,27 @@ export const AuthorizationProvider = ({ children }) => {
 
     useEffect(() => {
         fetchCurrentUser();
-        
-        // Listen for authentication changes
-        const handleAuthChange = () => {
-            fetchCurrentUser();
-        };
-        
-        // Listen for storage changes (for multi-tab support)
+        const handleAuthChange = () => { fetchCurrentUser(); };
         window.addEventListener('storage', handleAuthChange);
-        
-        // Custom event for login/logout
         window.addEventListener('auth-change', handleAuthChange);
-        
         return () => {
             window.removeEventListener('storage', handleAuthChange);
             window.removeEventListener('auth-change', handleAuthChange);
         };
     }, []);
+
+    const expandRoles = (roles = []) => {
+        const set = new Set();
+        roles.forEach(r => {
+            if (!r) return;
+            const upper = r.toString().toUpperCase();
+            const plain = upper.startsWith('ROLE_') ? upper.slice(5) : upper;
+            set.add(upper);
+            set.add(plain);
+            set.add('ROLE_' + plain);
+        });
+        return Array.from(set);
+    };
 
     const fetchCurrentUser = async () => {
         try {
@@ -43,25 +47,21 @@ export const AuthorizationProvider = ({ children }) => {
             setError(null);
             const userData = await userService.getCurrentUser();
             if (userData) {
+                const roles = Array.isArray(userData.roles) ? userData.roles : [];
                 setUser(userData);
-                setPermissions(userData.roles || []);
-                // Update localStorage for consistency
-                localStorage.setItem("user", JSON.stringify(userData));
+                setPermissions(expandRoles(roles));
+                localStorage.setItem("user", JSON.stringify({ ...userData, roles: expandRoles(roles) }));
                 console.log('Current user loaded:', userData);
             } else {
-                // Not authenticated
                 setUser(null);
                 setPermissions([]);
                 localStorage.removeItem("user");
-
             }
         } catch (error) {
-            // Nếu lỗi do chưa đăng nhập, coi như user = null, không ghi log lỗi khó hiểu
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
                 setUser(null);
                 setPermissions([]);
                 localStorage.removeItem("user");
-
             } else {
                 console.error('Error fetching user:', error);
                 setError(error.message);
@@ -75,49 +75,45 @@ export const AuthorizationProvider = ({ children }) => {
     };
 
     const hasRole = (role) => {
-        return permissions.includes(role);
+        if (!role) return false;
+        const upper = role.toString().toUpperCase();
+        const plain = upper.startsWith('ROLE_') ? upper.slice(5) : upper;
+        return permissions.includes(upper) || permissions.includes(plain) || permissions.includes('ROLE_' + plain);
     };
 
     const hasAnyRole = (roles) => {
         if (!Array.isArray(roles)) {
             return hasRole(roles);
         }
-        return roles.some(role => permissions.includes(role));
+        return roles.some(r => hasRole(r));
     };
 
     const hasAllRoles = (roles) => {
         if (!Array.isArray(roles)) {
             return hasRole(roles);
         }
-        return roles.every(role => permissions.includes(role));
+        return roles.every(r => hasRole(r));
     };
 
-    const isAdmin = () => hasRole('ROLE_ADMIN');
-    const isStaff = () => hasRole('ROLE_STAFF');
+    const isAdmin = () => hasRole('ADMIN');
+    const isStaff = () => hasRole('STAFF');
     const isAuthenticated = () => !!user;
 
     const logout = () => {
         setUser(null);
         setPermissions([]);
         setError(null);
-        // Clear localStorage
         localStorage.removeItem("user");
-        // Dispatch auth change event
         window.dispatchEvent(new CustomEvent('auth-change'));
     };
-    
+
     const updateUser = async () => {
         await fetchCurrentUser();
-        // Dispatch auth change event
         window.dispatchEvent(new CustomEvent('auth-change'));
     };
-    
-    const refreshAuth = () => {
-        // Manually trigger auth refresh (useful for debugging)
-        fetchCurrentUser();
-    };
-    
-    // Expose refresh function to window for debugging
+
+    const refreshAuth = () => { fetchCurrentUser(); };
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             window.refreshAuth = refreshAuth;
@@ -130,21 +126,16 @@ export const AuthorizationProvider = ({ children }) => {
     }, []);
 
     const contextValue = {
-        // User data
         user,
         permissions,
         loading,
         error,
-        
-        // Permission checking functions
         hasRole,
         hasAnyRole,
         hasAllRoles,
         isAdmin,
         isStaff,
         isAuthenticated,
-        
-        // Actions
         refetch: fetchCurrentUser,
         updateUser,
         refreshAuth,

@@ -1,0 +1,92 @@
+@startuml Report_4_InventorySummaries_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report 4: Inventory Summaries (Remain/In-Out/Diff)
+
+actor User
+participant ":Reports Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+participant ":ImportTransactionRepository" as ImportRepo
+participant ":SaleTransactionRepository" as SaleRepo
+participant ":StocktakeRepository" as StockRepo
+participant ":CategoryRepository" as CategoryRepo
+
+== Tab A: Remain By Product (Basic) ==
+User -> UI: Chọn tab "Remain By Product"
+UI -> RC: GET /api/reports/remain-by-product
+activate RC
+RC -> RS: getRemainByProduct()
+activate RS
+RS -> DetailRepo: getRemainByProduct()
+DetailRepo --> RS: List<Object[]>
+RS -> RS: Map -> List<ProductRemainDto>
+RS --> RC: List<ProductRemainDto>
+RC --> UI: 200 OK
+
+== Tab B: Remain By Product (Advanced) ==
+User -> UI: Chọn filters (zoneId, categoryId, status)
+UI -> RC: GET /api/reports/remain-by-product-advanced?zoneId=...&categoryId=...&status=...
+activate RC
+RC -> RS: getRemainByProductAdvanced(zoneId, categoryId, status)
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+DetailRepo --> RS: List<ImportTransactionDetail>
+RS -> RS: Filter + Map -> List<RemainByProductReportDto>
+RS --> RC: List<RemainByProductReportDto>
+RC --> UI: 200 OK
+
+== Tab C: In-Out Summary ==
+User -> UI: Chọn from/to
+UI -> RC: GET /api/reports/inout-summary?from=...&to=...
+activate RC
+RC -> RS: getInOutSummary(from.atStartOfDay,to.atEndOfDay)
+activate RS
+RS -> ImportRepo: Aggregate nhập theo ngày
+ImportRepo --> RS: List<Object[]>
+RS -> SaleRepo: Aggregate xuất theo ngày
+SaleRepo --> RS: List<Object[]>
+RS -> RS: Join -> List<InOutSummaryDto>
+RS --> RC: List<InOutSummaryDto>
+RC --> UI: 200 OK
+
+== Tab D: Remain Summary (by Category) ==
+User -> UI: Chọn tab "Remain Summary"
+UI -> RC: GET /api/reports/remain-summary
+activate RC
+RC -> RS: getRemainSummary()
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+DetailRepo --> RS: List<ImportTransactionDetail>
+RS -> CategoryRepo: findAll()
+CategoryRepo --> RS: List<Category>
+RS -> RS: Group by category -> List<CategoryRemainSummaryDto>
+RS --> RC: List<CategoryRemainSummaryDto>
+RC --> UI: 200 OK
+
+== Tab E: Stocktake Diff ==
+User -> UI: Chọn Stocktake
+UI -> RC: GET /api/reports/stocktake-diff?stocktakeId=...
+activate RC
+RC -> RS: getStocktakeDiffById(stocktakeId)
+activate RS
+RS -> StockRepo: findById(stocktakeId)
+StockRepo --> RS: Optional<Stocktake>
+alt Not Found
+  RS --> RC: []
+  RC --> UI: 200 OK []
+else Found
+  RS -> RS: Parse/Filter diff != 0 -> List<StocktakeDetailDto>
+  RS --> RC: List<StocktakeDetailDto>
+  RC --> UI: 200 OK
+end
+
+@enduml

@@ -15,15 +15,15 @@ actor Staff
 participant ":StockTake Page" as UI
 participant ":Create Stocktake UI" as CreateUI
 participant ":StocktakeController" as Controller
-participant ":StocktakeService" as Service
-participant ":ProductRepository" as ProductRepo
-participant ":ZoneRepository" as ZoneRepo
-participant ":StocktakeValidator" as Validator
-participant ":StocktakeMapper" as Mapper
+participant ":StocktakeServiceImpl" as Service
+participant ":Product API (/products)" as ProductAPI
+participant ":Zone API (/zones)" as ZoneAPI
+participant ":Store API (/admin/storeList)" as StoreAPI
+participant ":Category API (/categories)" as CategoryAPI
 participant ":StocktakeRepository" as StocktakeRepo
+participant ":StocktakeMapper" as Mapper
 
-== A. Load dữ liệu ban đầu (load danh sách sản phẩm & khu vực) ==
-
+== A. Load dữ liệu ban đầu (Products/Zones/Categories/Stores) ==
 Staff -> UI: Truy cập StockTake Page
 activate Staff
 activate UI
@@ -33,72 +33,48 @@ UI -> CreateUI: Điều hướng sang Create Stocktake Page
 deactivate UI
 activate CreateUI
 
-group Gọi API lấy danh sách sản phẩm
-    CreateUI -> Controller: GET /api/products?storeId=xxx
-    activate Controller
-    Controller -> Service: getProductsByStore(storeId)
-    activate Service
-    Service -> ProductRepo: findByStoreId(storeId)
-    ProductRepo --> Service: List<ProductDTO>
-    Service --> Controller: List<ProductDTO>
-    deactivate Service
-    Controller --> CreateUI: List<ProductDTO>
-    deactivate Controller
+alt User là Staff
+  group Load Products/Zones/Categories
+    CreateUI -> ProductAPI: GET /api/products
+    ProductAPI --> CreateUI: List<ProductDTO>
+    CreateUI -> ZoneAPI: GET /api/zones
+    ZoneAPI --> CreateUI: List<ZoneDTO>
+    CreateUI -> CategoryAPI: GET /api/categories
+    CategoryAPI --> CreateUI: List<CategoryDTO>
+  end
+else User là Owner/Admin
+  group Load Products/Zones/Stores/Categories
+    CreateUI -> ProductAPI: GET /api/products
+    ProductAPI --> CreateUI: List<ProductDTO>
+    CreateUI -> ZoneAPI: GET /api/zones
+    ZoneAPI --> CreateUI: List<ZoneDTO>
+    CreateUI -> StoreAPI: GET /api/admin/storeList
+    StoreAPI --> CreateUI: List<StoreDTO>
+    CreateUI -> CategoryAPI: GET /api/categories
+    CategoryAPI --> CreateUI: List<CategoryDTO>
+  end
 end
 
-group Gọi API lấy danh sách khu vực (zones)
-    CreateUI -> Controller: GET /api/zones?storeId=xxx
-    activate Controller
-    Controller -> Service: getZonesByStore(storeId)
-    activate Service
-    Service -> ZoneRepo: findByStoreId(storeId)
-    ZoneRepo --> Service: List<ZoneDTO>
-    Service --> Controller: List<ZoneDTO>
-    deactivate Service
-    Controller --> CreateUI: List<ZoneDTO>
-    deactivate Controller
-end
+CreateUI --> Staff: Hiển thị form tạo kiểm kê với dữ liệu master
 
-CreateUI --> Staff: Hiển thị form tạo phiếu kiểm kê với danh sách sản phẩm và khu vực
-
-== B. Submit tạo mới StockTake (Draft hoặc Complete) ==
-
+== B. Submit tạo mới StockTake (Draft hoặc Completed) ==
 Staff -> CreateUI: Nhập thông tin phiếu kiểm kê
-CreateUI -> Controller: POST /api/stocktakes {requestDto, status}
+CreateUI -> Controller: POST /api/stocktakes {requestDto}
 activate Controller
+Controller -> Service: createStocktake(requestDto, userId)
+activate Service
+Service -> Mapper: toEntity(requestDto)
+Mapper --> Service: Stocktake entity
+Service -> StocktakeRepo: save(stocktake)
+StocktakeRepo --> Service: saved entity
+Service -> Mapper: toResponseDto(stocktake)
+Mapper --> Service: StocktakeResponseDto
+Service --> Controller: StocktakeResponseDto
+deactivate Service
+Controller --> CreateUI: 201 Created + StocktakeResponseDto
+CreateUI --> UI: Cập nhật trang StockTake
+UI --> Staff: Thông báo tạo thành công phiếu kiểm kê (Draft hoặc Completed)
 
-group Kiểm tra hợp lệ
-    Controller -> Validator: validate(requestDto)
-    activate Validator
-    Validator --> Controller: Validation OK
-    deactivate Validator
-end
-
-alt Validation Failed
-    Controller --> CreateUI: 400 Bad Request + Error message
-    CreateUI --> Staff: Hiển thị lỗi nhập liệu
-else Validation Passed
-    group Tạo mới StockTake
-        Controller -> Service: createStockTake(requestDto)
-        activate Service
-
-        Service -> Mapper: toEntity(requestDto)
-        Mapper --> Service: Stocktake entity
-
-        Service -> StocktakeRepo: save(stocktake)
-        StocktakeRepo --> Service: saved entity
-
-        Service -> Mapper: toResponseDto(stocktake)
-        Mapper --> Service: StocktakeResponseDto
-
-        Service --> Controller: StocktakeResponseDto
-        deactivate Service
-    end
-
-    Controller --> CreateUI: 201 Created + StocktakeResponseDto
-    CreateUI --> UI: Cập nhật trang StockTake
-    UI --> Staff: Thông báo tạo thành công phiếu kiểm kê (Draft hoặc Completed)
-end
 deactivate Controller
 deactivate CreateUI
 deactivate UI

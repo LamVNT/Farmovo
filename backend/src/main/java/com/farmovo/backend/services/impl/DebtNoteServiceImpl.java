@@ -65,16 +65,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         }
     }
 
-    @Override
-    public List<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
-        Specification<DebtNote> spec = defaultFilter(customerId);
-        return debtNoteRepository.findAll(spec, pageable)
-                .getContent()
-                .stream()
-                .map(this::mapToDebtNoteResponseDto)
-                .collect(Collectors.toList());
-    }
+    // Removed legacy List-returning paged method
 
     @Override
     public Page<DebtNoteResponseDto> getDebtNotesPage(Long customerId, int page, int size) {
@@ -85,7 +76,7 @@ public class DebtNoteServiceImpl implements DebtNoteService {
     }
 
     @Override
-    public Page<DebtNoteResponseDto> searchDebtNotes(Long customerId, String fromSource, String debtType, Long storeId,
+    public Page<DebtNoteResponseDto> findDebtNotesByCustomerIdPaged(Long customerId, String fromSource, String debtType, Long storeId,
                                                      LocalDateTime fromDate, LocalDateTime toDate, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("debtDate").descending());
 
