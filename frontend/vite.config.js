@@ -10,6 +10,7 @@ export default defineConfig({
     open: true,
   },
   build: {
+    outDir: 'dist', // Đảm bảo output là 'dist'
     // Tối ưu build size - giảm file count mạnh mẽ
     rollupOptions: {
       output: {
@@ -34,11 +35,6 @@ export default defineConfig({
     // Tối ưu hóa thêm
     target: 'es2015',
     cssCodeSplit: false, // Tắt CSS splitting để ít file hơn
-    assetsInlineLimit: 32768, // Tăng inline limit để ít file hơn
-    // Tối ưu hóa bundle
-    lib: {
-      entry: 'src/main.jsx',
-      formats: ['es']
-    }
+    assetsInlineLimit: 32768 // Tăng inline limit để ít file hơn
   }
 });

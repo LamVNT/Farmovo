@@ -61,7 +61,7 @@ jobs:
           find dist -type d -empty -delete
           find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
 
-      # 6. Check build size
+      # 6. Check build size (debug nếu cần)
       - name: Check build size
         working-directory: frontend
         run: |
@@ -72,72 +72,15 @@ jobs:
           echo "Largest files:"
           find dist -type f -exec ls -lh {} \; | sort -k5 -hr | head -10
           
-          # Nếu quá nhiều file, zip lại
-          if [ $(find dist -type f | wc -l) -gt 500 ]; then
-            echo "Too many files, creating zip archive..."
-            zip -r dist.zip dist/
-            rm -rf dist/
-            mkdir dist
-            mv dist.zip dist/
-          fi
-
-      # 6.1. Force cleanup if still too large
-      - name: Force cleanup if needed
-        working-directory: frontend
-        run: |
-          echo "Force cleanup of large files..."
-          # Xóa file > 1MB
-          find dist -type f -size +1M -delete
-          # Xóa file có hash dài
-          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
-          # Xóa empty directories
-          find dist -type d -empty -delete
-          
-          echo "After cleanup:"
-          du -sh dist/
-          find dist -type f | wc -l
-
-      # 6.2. Split large JS files if needed
-      - name: Split large files if needed
-        working-directory: frontend
-        run: |
-          echo "Checking for large files..."
-          # Tìm file JS > 1MB
-          LARGE_JS=$(find dist -name "*.js" -size +1M)
-          if [ ! -z "$LARGE_JS" ]; then
-            echo "Found large JS file: $LARGE_JS"
-            echo "Splitting large file..."
-            # Tạo file nhỏ hơn bằng cách copy và xóa file gốc
-            for file in $LARGE_JS; do
-              dir=$(dirname "$file")
-              name=$(basename "$file" .js)
-              # Split thành 2 file nhỏ hơn
-              split -b 500k "$file" "$dir/${name}_part"
-              rm "$file"
-            done
-            echo "After splitting:"
-            du -sh dist/
-            find dist -type f | wc -l
-          else
-            echo "No large JS files found"
-          fi
-
-      # 6.3. Force zip deployment to avoid Azure limits
-      - name: Force zip deployment
-        working-directory: frontend
-        run: |
-          echo "Creating zip archive to avoid Azure file limits..."
-          # Tạo zip archive
-          zip -r dist.zip dist/
-          # Xóa build folder
-          rm -rf dist/
-          # Tạo build folder mới
-          mkdir dist
-          # Move zip vào build
-          mv dist.zip dist/
-          echo "After zip deployment:"
-          du -sh dist/
-          find dist -type f | wc -l
+          echo "=== DEBUGGING BUILD OUTPUT ==="
+          echo "Full directory structure:"
+          find dist -type f
+          echo "Checking for index.html specifically:"
+          ls -la dist/index.html || echo "index.html NOT FOUND!"
+          echo "Checking for main.js:"
+          ls -la dist/assets/main.js || echo "main.js NOT FOUND!"
+          echo "Checking for CSS:"
+          ls -la dist/assets/frontend.css || echo "CSS NOT FOUND!"
 
       # 7. Azure login for deployment
       - name: Azure login
