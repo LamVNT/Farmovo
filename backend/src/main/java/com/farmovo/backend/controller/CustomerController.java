@@ -20,7 +20,7 @@ import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/customer")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:5173", "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net"}, allowedHeaders = "*", allowCredentials = "true")
 public class CustomerController {
     private static final Logger logger = LogManager.getLogger(CustomerController.class);
 
