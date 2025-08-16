@@ -41,6 +41,8 @@ jobs:
           echo "=== BUILDING FRONTEND ==="
           rm -rf dist
           npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       # 5. Debug build output
       - name: Debug build output
