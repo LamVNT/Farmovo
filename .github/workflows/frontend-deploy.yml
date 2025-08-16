@@ -34,55 +34,33 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # 4. Build frontend & cleanup
-      - name: Build and optimize
+      # 4. Build frontend
+      - name: Build frontend
         working-directory: frontend
         run: |
+          echo "=== BUILDING FRONTEND ==="
           rm -rf dist
           npm run build
-          # Kiểm tra build output
-          echo "Build output:"
-          ls -la dist/
-          echo "Checking for index.html:"
-          find dist -name "index.html" -type f
-          echo "Checking for JS files:"
-          find dist -name "*.js" -type f
-          # Xóa sourcemaps để giảm số lượng file
-          find dist -name "*.map" -type f -delete
-          # Xóa test files (nếu có)
-          find dist -name "*.test.*" -type f -delete
-          # Giảm asset thừa (VD: ảnh quá lớn > 2MB)
-          find dist -type f -size +2M -delete
-          # Xóa các chunk JS/CSS không cần thiết
-          find dist -name "*.chunk.*" -type f -delete
-          # Additional cleanup for very large files/dirs
-          find dist -name "*.DS_Store" -type f -delete
-          find dist -name "*.log" -type f -delete
-          find dist -type d -empty -delete
-          find dist -name "*[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*" -type f -delete
 
-      # 6. Check build size (debug nếu cần)
-      - name: Check build size
+      # 5. Debug build output
+      - name: Debug build output
         working-directory: frontend
         run: |
-          echo "Frontend build size:"
-          du -sh dist/
-          echo "Number of files:"
-          find dist -type f | wc -l
-          echo "Largest files:"
-          find dist -type f -exec ls -lh {} \; | sort -k5 -hr | head -10
-          
-          echo "=== DEBUGGING BUILD OUTPUT ==="
-          echo "Full directory structure:"
-          find dist -type f
-          echo "Checking for index.html specifically:"
+          echo "Dist folder exists: $(test -d dist && echo 'YES' || echo 'NO')"
+          echo "Listing dist folder:"
+          ls -R dist
+          echo "Checking index.html:"
           ls -la dist/index.html || echo "index.html NOT FOUND!"
-          echo "Checking for main.js:"
-          ls -la dist/assets/main.js || echo "main.js NOT FOUND!"
-          echo "Checking for CSS:"
-          ls -la dist/assets/frontend.css || echo "CSS NOT FOUND!"
 
-      # 7. Azure login for deployment
+      # 6. Zip the dist folder
+      - name: Zip frontend build
+        working-directory: frontend
+        run: |
+          zip -r frontend.zip dist
+          echo "Zip created: frontend/frontend.zip"
+          ls -la frontend.zip
+
+      # 7. Azure login
       - name: Azure login
         uses: azure/login@v1
         with:
@@ -93,5 +71,5 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'farmovo-frontend'
-          package: frontend/dist
+          package: frontend/frontend.zip
           slot-name: 'production'
