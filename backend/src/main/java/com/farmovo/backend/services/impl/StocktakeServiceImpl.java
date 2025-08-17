@@ -239,6 +239,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setId(lot.getId());
         dto.setBatchCode(lot.getName());
         dto.setProductId(product.getId());
+        dto.setProductCode(product.getProductCode());
         dto.setProductName(product.getProductName());
 
         // Chuyển đổi zones_id

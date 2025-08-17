@@ -152,6 +152,13 @@ public class ReportServiceImpl implements ReportService {
             List<StocktakeDetailDto> details = mapper.readValue(latest.getDetail(), new com.fasterxml.jackson.core.type.TypeReference<List<StocktakeDetailDto>>() {});
             for (StocktakeDetailDto d : details) {
                 if (d.getDiff() != null && d.getDiff() != 0) {
+                    // backfill product fields if absent
+                    if ((d.getProductName() == null || d.getProductCode() == null) && d.getProductId() != null) {
+                        productRepository.findById(d.getProductId()).ifPresent(p -> {
+                            if (d.getProductName() == null) d.setProductName(p.getProductName());
+                            if (d.getProductCode() == null) d.setProductCode(p.getProductCode());
+                        });
+                    }
                     diffList.add(d);
                 }
             }
@@ -176,6 +183,13 @@ public class ReportServiceImpl implements ReportService {
                 stocktake.getDetail(), new com.fasterxml.jackson.core.type.TypeReference<List<StocktakeDetailDto>>() {});
             for (StocktakeDetailDto d : details) {
                 if (d.getDiff() != null && d.getDiff() != 0) {
+                    // backfill product fields if absent
+                    if ((d.getProductName() == null || d.getProductCode() == null) && d.getProductId() != null) {
+                        productRepository.findById(d.getProductId()).ifPresent(p -> {
+                            if (d.getProductName() == null) d.setProductName(p.getProductName());
+                            if (d.getProductCode() == null) d.setProductCode(p.getProductCode());
+                        });
+                    }
                     diffList.add(d);
                 }
             }

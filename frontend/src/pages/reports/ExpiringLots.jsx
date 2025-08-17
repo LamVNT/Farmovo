@@ -24,8 +24,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 
 const toCSV = (rows) => {
-    const header = ["lotId","productName","zoneName","remainQuantity","expireDate","daysLeft"]; 
-    const body = rows.map(r => [r.id || "", r.productName || "", r.zoneName || "", r.remainQuantity ?? "", r.expireDate || "", r.daysLeft ?? ""]).map(a => a.join(","));
+    const header = ["lotCode","productName","zoneName","remainQuantity","expireDate","daysLeft"]; 
+    const body = rows.map(r => [r.lotCode || r.name || "", r.productName || "", r.zoneName || "", r.remainQuantity ?? "", r.expireDate || "", r.daysLeft ?? ""]).map(a => a.join(","));
     return [header.join(","), ...body].join("\n");
 };
 
@@ -55,7 +55,7 @@ const ExpiringLotsReport = () => {
         let rows = Array.isArray(data) ? [...data] : [];
         if (search) {
             const q = search.toLowerCase();
-            rows = rows.filter(r => (r.productName || "").toLowerCase().includes(q) || (r.zoneName || "").toLowerCase().includes(q));
+            rows = rows.filter(r => (r.productName || "").toLowerCase().includes(q) || (r.zoneName || "").toLowerCase().includes(q) || (r.lotCode || r.name || "").toLowerCase().includes(q));
         }
         rows.sort((a,b) => {
             const da = a.expireDate ? new Date(a.expireDate).getTime() : Infinity;
@@ -122,7 +122,7 @@ const ExpiringLotsReport = () => {
                         ))}
                     </Stack>
                     <TextField
-                        placeholder="Tìm theo sản phẩm/khu vực"
+                        placeholder="Tìm theo mã lô/sản phẩm/khu vực"
                         value={search}
                         onChange={e => { setSearch(e.target.value); setPage(0); }}
                         size="small"
@@ -176,7 +176,7 @@ const ExpiringLotsReport = () => {
                                     ) : (
                                         pagedRows.map((row, idx) => (
                                             <TableRow key={idx} sx={{ '&:hover': { backgroundColor: '#fafafa' } }}>
-                                                <TableCell>{row.lotId || row.id}</TableCell>
+                                                <TableCell>{row.lotCode || row.name || row.id}</TableCell>
                                                 <TableCell>{row.productName || row.name}</TableCell>
                                                 <TableCell>{row.zoneName || row.zone}</TableCell>
                                                 <TableCell align="right">{row.remainQuantity || row.remain}</TableCell>

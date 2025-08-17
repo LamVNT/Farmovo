@@ -12,8 +12,8 @@ export const getRemainByProduct = () => {
     return axios.get('/reports/remain-by-product', { params: { storeId } });
 };
 
-export const getStocktakeDiff = () => {
-    return axios.get('/reports/stocktake-diff');
+export const getStocktakeDiff = (params) => {
+    return axios.get('/reports/stocktake-diff', { params });
 };
 
 export const getExpiringLots = () => {

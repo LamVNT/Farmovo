@@ -27,8 +27,16 @@ import { useNavigate } from 'react-router-dom';
 import { FaExclamationTriangle } from 'react-icons/fa';
 
 const toCSV = (rows) => {
-    const header = ["productId", "productName", "real", "remain", "diff", "note"]; 
-    const body = rows.map(r => [r.productId || r.id || "", r.productName || r.name || "", r.real ?? "", r.remain ?? "", r.diff ?? "", r.note ?? ""]).map(a => a.join(","));
+    const header = ["productId", "productCode", "productName", "real", "remain", "diff", "note"]; 
+    const body = rows.map(r => [
+        r.productId || r.id || "",
+        r.productCode || "",
+        r.productName || r.name || "",
+        r.real ?? "",
+        r.remain ?? "",
+        r.diff ?? "",
+        r.note ?? ""
+    ]).map(a => a.join(","));
     return [header.join(","), ...body].join("\n");
 };
 
@@ -62,7 +70,7 @@ const StocktakeDiffReport = () => {
         let data = Array.isArray(rows) ? [...rows] : [];
         if (search) {
             const q = search.toLowerCase();
-            data = data.filter(r => (r.productName || r.name || "").toLowerCase().includes(q));
+            data = data.filter(r => (r.productName || r.name || "").toLowerCase().includes(q) || (r.productCode || "").toLowerCase().includes(q));
         }
         if (sortBy === "absdesc") {
             data.sort((a,b) => Math.abs(b.diff || 0) - Math.abs(a.diff || 0));
@@ -189,7 +197,7 @@ const StocktakeDiffReport = () => {
                                         pagedRows.map((row, idx) => (
                                             <TableRow key={idx} sx={{ '&:hover': { backgroundColor: '#fafafa' } }}>
                                                 <TableCell>{page * rowsPerPage + idx + 1}</TableCell>
-                                                <TableCell>{row.productId || row.id}</TableCell>
+                                                <TableCell>{row.productCode || row.productId || row.id}</TableCell>
                                                 <TableCell>{row.productName || row.name}</TableCell>
                                                 <TableCell>{row.real}</TableCell>
                                                 <TableCell>{row.remain}</TableCell>
