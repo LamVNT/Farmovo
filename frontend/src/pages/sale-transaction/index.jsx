@@ -240,6 +240,7 @@ const SaleTransactionPage = () => {
             setError('Hãy chọn ít nhất một phiếu để xóa.');
             return;
         }
+        console.log('Bulk delete - eligible transactions:', eligible);
         setConfirmDialog({
             open: true,
             title: `Xác nhận xóa ${eligible.length} phiếu`,
@@ -247,7 +248,9 @@ const SaleTransactionPage = () => {
             onConfirm: async () => {
                 setLoading(true);
                 try {
+                    console.log('Starting bulk soft delete for:', eligible.map(t => ({ id: t.id, name: t.name })));
                     const results = await Promise.allSettled(eligible.map(e => saleTransactionService.softDelete(e.id)));
+                    console.log('Bulk soft delete results:', results);
                     const succeeded = results.filter(r => r.status === 'fulfilled').length;
                     const failed = results.length - succeeded;
                     if (succeeded > 0) setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
@@ -278,7 +281,18 @@ const SaleTransactionPage = () => {
                 try {
                     // Tải trang đầu để tìm nhanh
                     const data = await saleTransactionService.listPaged({ page: 0, size: 50 });
-                    const list = Array.isArray(data) ? data : (data?.content || []);
+                    console.log('PCB search response:', data);
+                    
+                    // Xử lý response từ PageResponse format
+                    let list = [];
+                    if (data && data.content) {
+                        list = data.content || [];
+                    } else if (Array.isArray(data)) {
+                        list = data;
+                    } else {
+                        list = data?.content || data?.data || [];
+                    }
+                    
                     const pcb = list.find(r => (r.name || '').startsWith('PCB') && (r.stocktakeId === Number(idByStocktake)));
                     if (pcb) {
                         await handleAutoOpenDetail(pcb.id);
@@ -395,14 +409,38 @@ const SaleTransactionPage = () => {
 
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', queryParams);
             const data = await saleTransactionService.listPaged(queryParams);
-            let transactions = Array.isArray(data) ? data : (data?.content || []);
+            console.log('API response:', data);
+            console.log('API response type:', typeof data);
+            console.log('API response keys:', data ? Object.keys(data) : 'null/undefined');
+            
+            // Xử lý response từ PageResponse format
+            let transactions = [];
+            let totalElements = 0;
+            
+            if (data && data.content) {
+                // Backend trả về PageResponse format
+                transactions = data.content || [];
+                totalElements = data.totalElements || 0;
+                console.log('Using PageResponse format - content length:', transactions.length, 'total:', totalElements);
+            } else if (Array.isArray(data)) {
+                // Fallback: nếu response là array trực tiếp
+                transactions = data;
+                totalElements = data.length;
+                console.log('Using array format - length:', transactions.length);
+            } else {
+                // Fallback: nếu response có cấu trúc khác
+                transactions = data?.content || data?.data || [];
+                totalElements = data?.totalElements || data?.total || transactions.length;
+                console.log('Using fallback format - content length:', transactions.length, 'total:', totalElements);
+            }
+            
             // Lọc bỏ phiếu Cân Bằng kho (chỉ theo Note), vẫn hiển thị các phiếu bán cho 'Khách lẻ'
             transactions = transactions.filter(row => {
                 const note = (row.saleTransactionNote || '').toLowerCase();
                 return !note.includes('cân bằng kho');
             });
             setTransactions(transactions);
-            setTotal(data?.totalElements || transactions.length);
+            setTotal(totalElements);
         } catch (err) {
             console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu bán hàng');
@@ -599,6 +637,28 @@ const SaleTransactionPage = () => {
     };
 
     const handleDelete = () => {
+        if (!actionRow) return;
+        
+        console.log('Single delete - transaction:', actionRow);
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận xóa phiếu',
+            message: `Bạn có chắc chắn muốn xóa phiếu bán hàng "${actionRow.name}"? Hành động này không thể hoàn tác.`,
+            onConfirm: async () => {
+                try {
+                    console.log('Starting single soft delete for:', actionRow.id, actionRow.name);
+                    await saleTransactionService.softDelete(actionRow.id);
+                    console.log('Single soft delete successful');
+                    setSuccess('Đã xóa phiếu thành công!');
+                    await loadTransactions();
+                } catch (err) {
+                    console.error('Error in single soft delete:', err);
+                    setError('Không thể xóa phiếu. Vui lòng thử lại!');
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'delete'
+        });
         handleActionClose();
     };
 
