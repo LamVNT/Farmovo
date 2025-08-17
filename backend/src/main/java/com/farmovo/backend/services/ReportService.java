@@ -29,4 +29,13 @@ public interface ReportService {
     List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to, Long storeId);
 
     List<CategoryRemainSummaryDto> getRemainSummary();
+
+    // --- New reports ---
+    DailyRevenueDto getDailyRevenue(LocalDateTime from, LocalDateTime to, Long storeId);
+
+    List<SalesShiftTotalDto> getSalesTotal(LocalDateTime from, LocalDateTime to, String groupBy, Long storeId, Long cashierId);
+
+    List<GroupTotalDto> getImportsTotal(LocalDateTime from, LocalDateTime to, String groupBy, Long storeId, Long supplierId);
+
+    List<ExpiringLotExtendedDto> getExpiringLotsAdvanced(int days, Long storeId, Long categoryId, Long productId, Boolean includeZeroRemain);
 } 

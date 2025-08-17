@@ -56,8 +56,14 @@ const StockTakeDetailPage = () => {
         ? detail.detail.some(d => d.diff !== 0)
         : false;
 
+    const hasShortage = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) < 0)
+        : false;
+    const hasSurplus = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) > 0)
+        : false;
     const canBalance = detail?.status === 'COMPLETED'
-        && hasDiff
+        && hasShortage
         && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
 
     // Surplus (dư hàng): real > remain
@@ -84,7 +90,19 @@ const StockTakeDetailPage = () => {
                     size="medium"
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
-                {/* Nút Cân bằng kho */}
+                {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
+                {hasSurplus && detail?.hasImport !== true && (
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate('/import/new', {
+                            state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
+                        })}
+                    >
+                        Tạo phiếu nhập hàng
+                    </Button>
+                )}
                 {canBalance && (
                     <Button
                         variant="contained"
@@ -105,6 +123,18 @@ const StockTakeDetailPage = () => {
                         title="Mở phiếu cân bằng đã liên kết"
                     >
                         Xem phiếu cân bằng
+                    </Button>
+                )}
+                {/* Nút mở Phiếu nhập đã liên kết nếu có */}
+                {detail?.hasImport && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/import?view=detail&stocktakeId=${detail.id}`)}
+                        title="Mở phiếu nhập đã liên kết"
+                    >
+                        Xem phiếu nhập
                     </Button>
                 )}
             </Box>
@@ -129,59 +159,8 @@ const StockTakeDetailPage = () => {
                     background: '#fffbeb'
                 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
-                        Phát hiện dư hàng: {surplusItems.length} dòng có thực tế &gt; tồn kho
+                        Phát hiện dư hàng: {surplusItems.length} lô có thực tế &gt; tồn kho
                     </Typography>
-                    {userRole === 'STAFF' ? (
-                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => setSnackbar({ isOpen: true, message: 'Đã thông báo cho Owner về dư hàng.', severity: 'success' })}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                Thông báo Owner
-                            </Button>
-                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                                Staff không thể tự cân bằng dư hàng. Chủ kho/Owner sẽ quyết định xử lý.
-                            </Typography>
-                        </Box>
-                    ) : (
-                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick={() => {
-                                    // Điều hướng sang trang nhập hàng với dữ liệu dư để prefill
-                                    navigate('/import', {
-                                        state: {
-                                            surplusFromStocktake: {
-                                                stocktakeId: detail.id,
-                                                stocktakeCode: detail.name,
-                                                storeId: detail.storeId,
-                                                items: surplusItems
-                                            }
-                                        }
-                                    });
-                                }}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                Tạo phiếu nhập điều chỉnh
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                color="warning"
-                                size="small"
-                                onClick={() => setSnackbar({ isOpen: true, message: 'Đã ghi nhận bỏ qua phần dư (không điều chỉnh tồn).', severity: 'info' })}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                Bỏ qua
-                            </Button>
-                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                                Owner quyết định: nhập bù hoặc bỏ qua. Nhập bù sẽ tạo phiếu nhập mới và liên kết kiểm kê.
-                            </Typography>
-                        </Box>
-                    )}
                 </Box>
             )}
 

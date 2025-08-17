@@ -12,6 +12,7 @@ import com.farmovo.backend.repositories.StocktakeRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.repositories.SaleTransactionRepository;
+import com.farmovo.backend.repositories.ImportTransactionRepository;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -51,6 +52,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     private final ImportTransactionDetailService importTransactionDetailService;
     private final ObjectMapper objectMapper;
     private final SaleTransactionRepository saleTransactionRepository;
+    private final ImportTransactionRepository importTransactionRepository;
 
     @Override
     public StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId) {
@@ -237,6 +239,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setId(lot.getId());
         dto.setBatchCode(lot.getName());
         dto.setProductId(product.getId());
+        dto.setProductCode(product.getProductCode());
         dto.setProductName(product.getProductName());
 
         // Chuyển đổi zones_id
@@ -342,10 +345,21 @@ public class StocktakeServiceImpl implements StocktakeService {
             long count = saleTransactionRepository.countByStocktakeIdAndStatus(stId, SaleTransactionStatus.COMPLETE);
             dto.setBalanceCount(count);
             dto.setHasBalance(count > 0);
+            // Kiểm tra phiếu nhập điều chỉnh đã liên kết (nếu có)
+            try {
+                long importCount = importTransactionRepository.countByStocktakeId(stId);
+                dto.setImportCount(importCount);
+                dto.setHasImport(importCount > 0);
+            } catch (Exception ignored) {
+                dto.setImportCount(0L);
+                dto.setHasImport(false);
+            }
         } catch (Exception e) {
             log.warn("Failed to check PCB linkage for stocktake {}: {}", stocktake.getId(), e.getMessage());
             dto.setHasBalance(false);
             dto.setBalanceCount(0L);
+            dto.setHasImport(false);
+            dto.setImportCount(0L);
         }
         return dto;
     }

@@ -22,6 +22,9 @@ public class ImportTransaction extends Base {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "stocktake_id")
+    private Long stocktakeId; // Liên kết phiếu nhập với phiếu kiểm kê (nếu tạo từ kiểm kê dư)
+
     @Column(name = "total_amount")
     private BigDecimal totalAmount;
 
