@@ -24,62 +24,62 @@ const orders = [
     {
         id: 1,
         product: 'Apple MacBook Pro 17"',
-        customer: 'Silver',
+        customer: 'Bạc',
         category: 'Laptop',
         price: 2999,
         created: '2023-06-15',
-        status: 'Paid'
+        status: 'Đã thanh toán'
     },
     {
         id: 2,
         product: 'Microsoft Surface Pro',
-        customer: 'White',
+        customer: 'Trắng',
         category: 'Laptop PC',
         price: 1999,
         created: '2023-06-14',
-        status: 'Pending'
+        status: 'Chờ xử lý'
     },
     {
         id: 3,
         product: 'Magic Mouse 2',
-        customer: 'Black',
-        category: 'Accessories',
+        customer: 'Đen',
+        category: 'Phụ kiện',
         price: 99,
         created: '2023-06-13',
-        status: 'Failed'
+        status: 'Thất bại'
     },
     {
         id: 4,
         product: 'Google Pixel Phone',
-        customer: 'Gray',
-        category: 'Phone',
+        customer: 'Xám',
+        category: 'Điện thoại',
         price: 799,
         created: '2023-06-12',
-        status: 'Paid'
+        status: 'Đã thanh toán'
     },
     {
         id: 5,
         product: 'Apple Watch 5',
-        customer: 'Red',
-        category: 'Wearables',
+        customer: 'Đỏ',
+        category: 'Đồ đeo',
         price: 999,
         created: '2023-06-11',
-        status: 'Pending'
+        status: 'Chờ xử lý'
     },
 ];
 
 const products = [
     {id: 101, name: "MacBook Pro", stock: 20, category: "Laptop", price: 2999},
     {id: 102, name: "Surface Laptop", stock: 15, category: "Laptop", price: 1999},
-    {id: 103, name: "iPhone 14", stock: 30, category: "Phone", price: 1099},
-    {id: 104, name: "Magic Mouse", stock: 40, category: "Accessories", price: 99},
-    {id: 105, name: "AirPods Pro", stock: 50, category: "Wearables", price: 249},
+    {id: 103, name: "iPhone 14", stock: 30, category: "Điện thoại", price: 1099},
+    {id: 104, name: "Magic Mouse", stock: 40, category: "Phụ kiện", price: 99},
+    {id: 105, name: "AirPods Pro", stock: 50, category: "Đồ đeo", price: 249},
 ];
 
 const orderStatusData = [
-    {name: 'Paid', value: orders.filter(o => o.status === 'Paid').length},
-    {name: 'Pending', value: orders.filter(o => o.status === 'Pending').length},
-    {name: 'Failed', value: orders.filter(o => o.status === 'Failed').length},
+    {name: 'Đã thanh toán', value: orders.filter(o => o.status === 'Đã thanh toán').length},
+    {name: 'Chờ xử lý', value: orders.filter(o => o.status === 'Chờ xử lý').length},
+    {name: 'Thất bại', value: orders.filter(o => o.status === 'Thất bại').length},
 ];
 
 
@@ -136,21 +136,21 @@ const Dashboard = () => {
                 className="w-full py-4 px-6 bg-gradient-to-r from-[#f8fafc] to-[#e0e7ff] rounded-xl shadow-lg flex items-center gap-6 mb-6 justify-between">
                 <div className="flex-1 pl-2">
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-2 drop-shadow-sm">
-                        Hello,
+                        Xin chào,
                         <br/>
                         <span className="text-indigo-700">{user ? user.fullName || user.username : "..."}</span>
                     </h1>
                     {isStaff() && storeName && (
                         <p className="text-xl font-semibold text-indigo-600 mt-2">Kho: {storeName}</p>
                     )}
-                    <p className="text-lg text-gray-600 mt-3">Here’s what’s happening on your store today.</p>
+                    <p className="text-lg text-gray-600 mt-3">Đây là những gì đang diễn ra tại cửa hàng của bạn hôm nay.</p>
                 </div>
                 <img src="/shop-illustration.webp" alt="Shop Illustration"
                      className="w-64 h-auto rounded-2xl shadow-xl border border-indigo-100"/>
             </div>
 
             {loading ? (
-                <div className="text-center text-gray-500 text-lg py-10">Loading dashboard summary...</div>
+                <div className="text-center text-gray-500 text-lg py-10">Đang tải tổng quan dashboard...</div>
             ) : (
                 <DashboardBoxes
                     totalProducts={summary?.totalProducts}
@@ -273,7 +273,7 @@ const Dashboard = () => {
             {/* Latest Import Transactions */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold">Latest Import Transactions</h2>
+                    <h2 className="text-2xl font-bold">Phiếu Nhập Hàng Gần Đây</h2>
                     <Link to="/import" className="inline-block" style={{textDecoration: 'none'}}>
                         <Button variant="contained" color="primary"
                                 className="!bg-green-600 hover:!bg-green-700 !rounded-full !shadow-md !capitalize">
@@ -302,7 +302,7 @@ const Dashboard = () => {
             {/* Latest Sale Transactions */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold">Latest Sale Transactions</h2>
+                    <h2 className="text-2xl font-bold">Phiếu Bán Hàng Gần Đây</h2>
                     <Link to="/sale" className="inline-block" style={{textDecoration: 'none'}}>
                         <Button variant="contained" color="primary"
                                 className="!bg-blue-600 hover:!bg-blue-700 !rounded-full !shadow-md !capitalize">
