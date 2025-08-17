@@ -321,7 +321,7 @@ const Dashboard = () => {
                         customer: item.customerName || "",
                         category: item.storeName || "",
                         price: item.totalAmount,
-                        created: item.saleDate?.slice(0, 10),
+                        created: item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : (item.saleDate?.slice(0, 10) || ''),
                         status: item.status,
                     }))}/>
                 )}

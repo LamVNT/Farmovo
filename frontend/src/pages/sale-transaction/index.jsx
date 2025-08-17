@@ -389,6 +389,10 @@ const SaleTransactionPage = () => {
             // Loại bỏ phiếu Cân Bằng kho
             queryParams.note = '';
 
+            // Thêm tham số sắp xếp để đảm bảo mới nhất lên đầu
+            queryParams.sort = 'createdAt';
+            queryParams.direction = 'desc';
+
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', queryParams);
             const data = await saleTransactionService.listPaged(queryParams);
             let transactions = Array.isArray(data) ? data : (data?.content || []);
@@ -1266,7 +1270,7 @@ const SaleTransactionPage = () => {
                                     <col style={{ width: 160 }} />
                                     {/* Cửa hàng */}
                                     <col style={{ width: 150 }} />
-                                    {/* Thời gian */}
+                                    {/* Ngày tạo */}
                                     <col style={{ width: 170 }} />
                                     {/* Tổng tiền */}
                                     <col style={{ width: 130 }} />
@@ -1290,7 +1294,7 @@ const SaleTransactionPage = () => {
                                         <th style={thStyles}>Mã phiếu bán</th>
                                         <th style={thStyles}>Khách hàng</th>
                                         <th style={thStyles}>Cửa hàng</th>
-                                        <th style={thStyles}>Thời gian</th>
+                                        <th style={thStyles}>Ngày tạo</th>
                                         <th style={thStyles}>Tổng tiền</th>
                                         <th style={thStyles}>Đã thanh toán</th>
                                         <th style={thStyles}>Trạng thái</th>
