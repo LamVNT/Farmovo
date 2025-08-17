@@ -1,0 +1,209 @@
+@startuml BalanceStock_Class_Diagram
+
+' ===== GLOBAL STYLE =====
+skinparam backgroundColor white
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classFontName Arial
+skinparam classBackgroundColor #F8F9FA
+skinparam classBorderColor #6C757D
+skinparam arrowColor #495057
+skinparam packageStyle rectangle
+skinparam ranksep 20
+skinparam nodesep 15
+top to bottom direction
+
+' ===== SERVICE =====
+package "Service" {
+	interface BalanceStockService {
+		+ buildSaleTransactionFromStocktake(stocktakeId : Long, diffDetails : List<ProductSaleResponseDto>, storeId : Long) : CreateSaleTransactionRequestDto
+		+ updateZoneAndStockOnApprove(saleTransactionId : Long) : void
+	}
+
+	class BalanceStockServiceImpl {
+		- stocktakeRepository : StocktakeRepository
+		- saleTransactionRepository : SaleTransactionRepository
+		- importTransactionDetailRepository : ImportTransactionDetailRepository
+		- objectMapper : ObjectMapper
+		+ buildSaleTransactionFromStocktake(stocktakeId : Long, diffDetails : List<ProductSaleResponseDto>, storeId : Long) : CreateSaleTransactionRequestDto
+		+ updateZoneAndStockOnApprove(saleTransactionId : Long) : void
+	}
+
+	BalanceStockService <|.. BalanceStockServiceImpl
+}
+
+' ===== RELATED SERVICE (reuse deduct + complete flow) =====
+package "Service (Sale)" {
+	interface SaleTransactionService {
+		+ getNextBalanceSaleTransactionCode() : String
+		+ save(dto : CreateSaleTransactionRequestDto, userId : Long) : void
+		+ updateSaleTransaction(id : Long, dto : CreateSaleTransactionRequestDto) : void
+		+ cancel(id : Long) : void
+	}
+
+	class SaleTransactionServiceImpl {
+		- importTransactionDetailRepository : ImportTransactionDetailRepository
+		- saleTransactionRepository : SaleTransactionRepository
+		- deductStockFromBatch(items : List<ProductSaleResponseDto>) : void
+		- deductStockFromProduct(items : List<ProductSaleResponseDto>) : void
+		+ updateSaleTransaction(id : Long, dto : CreateSaleTransactionRequestDto) : void
+		+ save(dto : CreateSaleTransactionRequestDto, userId : Long) : void
+	}
+}
+
+' ===== DTO =====
+package "DTO" {
+	class CreateSaleTransactionRequestDto {
+		- id : Long
+		- customerId : Long
+		- storeId : Long
+		- totalAmount : BigDecimal
+		- paidAmount : BigDecimal
+		- detail : List<ProductSaleResponseDto>
+		- saleTransactionNote : String
+		- status : SaleTransactionStatus
+		- saleDate : LocalDateTime
+		- name : String
+		- stocktakeId : Long
+	}
+
+	class ProductSaleResponseDto {
+		- id : Long
+		- proId : Long
+		- productName : String
+		- productCode : String
+		- remainQuantity : Integer
+		- quantity : Integer
+		- unitSalePrice : BigDecimal
+		- categoryName : String
+		- storeName : String
+		- name : String
+		- batchCode : String
+		- zoneReal : String
+		- createAt : LocalDateTime
+		- expireDate : LocalDateTime
+	}
+
+	class StocktakeDetailDto {
+		- id : Long
+		- batchCode : String
+		- productId : Long
+		- productName : String
+		- zones_id : List<String>
+		- remain : Integer
+		- real : Integer
+		- diff : Integer
+		- note : String
+		- zoneReal : String
+		- expireDate : String
+		- isCheck : Boolean
+	}
+}
+
+' ===== ENTITY =====
+package "Entity" {
+	abstract class Base {
+		- createdAt : LocalDateTime
+		- createdBy : Long
+		- updatedAt : LocalDateTime
+		- deletedAt : LocalDateTime
+		- deletedBy : Long
+	}
+
+	class SaleTransaction {
+		- id : Long
+		- name : String
+		- totalAmount : BigDecimal
+		- paidAmount : BigDecimal
+		- detail : String
+		- saleTransactionNote : String
+		- status : SaleTransactionStatus
+		- saleDate : LocalDateTime
+		- customer : Customer
+		- store : Store
+		- stocktakeId : Long
+		- stocktakeRef : Stocktake
+	}
+
+	enum SaleTransactionStatus {
+		DRAFT
+		WAITING_FOR_APPROVE
+		COMPLETE
+		CANCEL
+	}
+
+	class ImportTransactionDetail {
+		- id : Long
+		- importQuantity : Integer
+		- remainQuantity : Integer
+		- expireDate : LocalDateTime
+		- unitImportPrice : BigDecimal
+		- unitSalePrice : BigDecimal
+		- zones_id : String
+		- isCheck : Boolean
+		- name : String
+		- importTransaction : ImportTransaction
+		- product : Product
+	}
+
+	class Stocktake {
+		- id : Long
+		- name : String
+		- stocktakeDate : Instant
+		- detail : String
+		- stocktakeNote : String
+		- status : StocktakeStatus
+		- store : Store
+	}
+
+	enum StocktakeStatus {
+		DRAFT
+		COMPLETED
+		CANCELLED
+	}
+
+	class Product
+	class Store
+	class Customer
+	class ImportTransaction
+}
+
+' ===== REPOSITORY =====
+package "Repository" {
+	interface SaleTransactionRepository
+	interface StocktakeRepository
+	interface ImportTransactionDetailRepository
+}
+
+' ===== RELATIONSHIPS =====
+BalanceStockServiceImpl --> StocktakeRepository
+BalanceStockServiceImpl --> SaleTransactionRepository
+BalanceStockServiceImpl --> ImportTransactionDetailRepository
+BalanceStockServiceImpl --> CreateSaleTransactionRequestDto
+BalanceStockServiceImpl ..> ProductSaleResponseDto : «uses»
+
+SaleTransactionServiceImpl --> SaleTransactionRepository
+SaleTransactionServiceImpl --> ImportTransactionDetailRepository
+SaleTransactionServiceImpl ..> ProductSaleResponseDto : «uses»
+SaleTransactionServiceImpl ..> CreateSaleTransactionRequestDto : «uses»
+
+CreateSaleTransactionRequestDto --> SaleTransactionStatus
+CreateSaleTransactionRequestDto --> ProductSaleResponseDto
+CreateSaleTransactionRequestDto --> Store
+CreateSaleTransactionRequestDto --> Customer
+CreateSaleTransactionRequestDto --> Stocktake : stocktakeId
+
+SaleTransaction --> Store
+SaleTransaction --> Customer
+SaleTransaction --> Stocktake : stocktakeRef
+
+ProductSaleResponseDto ..> ImportTransactionDetail : «maps to»
+StocktakeDetailDto ..> ProductSaleResponseDto : «mapped to»
+
+ImportTransactionDetail o--> Product
+ImportTransactionDetail o--> ImportTransaction
+
+Stocktake --> Store
+
+@enduml 

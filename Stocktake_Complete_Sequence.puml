@@ -11,30 +11,58 @@ skinparam sequenceLifeLineStroke dash
 title Complete StockTake - Sequence Diagram (Status Change)
 
 actor Staff
-participant "StockTake Detail Page" as UI
+participant ":StockTake Detail Page" as UI
 participant ":StocktakeController" as CC
 participant ":StocktakeServiceImpl" as CS
 participant ":StocktakeRepository" as CR
 participant ":StocktakeMapper" as CM
 
 Staff -> UI : Nhấn 'Hoàn thành kiểm kê'
+activate Staff
+activate UI
 UI -> CC : PUT /api/stocktakes/{id}/status?status=COMPLETED
 activate CC
 CC -> CS : updateStocktakeStatus(id, COMPLETED, userId)
 activate CS
+
 CS -> CR : findById(id)
-CR --> CS : Stocktake
-CS -> CS : validateStatusTransition(old, COMPLETED, user)
-CS -> CS : set status = COMPLETED
-CS -> CR : save(stocktake)
-CR --> CS : saved
-CS -> CS : buildStocktakeResponseDto(saved)
-note right
-  - Trả về detail đã group
-  - hasBalance = count PCB COMPLETE theo stocktakeId (tham chiếu động)
-end note
-CS -> CC : StocktakeResponseDto
-CC -> UI : 200 OK
-UI -> Staff : Hiển thị trạng thái COMPLETED + ẩn/hiện nút Cân bằng kho theo diff/hasBalance
+activate CR
+CR --> CS : Optional<Stocktake>
+deactivate CR
+
+alt Không tìm thấy
+    CS --> CC : throw ValidationException("Stocktake not found")
+    CC --> UI : 404 Not Found
+    UI --> Staff : Hiển thị lỗi
+    deactivate CS
+    deactivate CC
+else Tìm thấy
+    CS -> CS : validateStatusTransition(old, COMPLETED, user)
+    alt Chuyển trạng thái không hợp lệ
+        CS --> CC : throw ValidationException
+        CC --> UI : 400 Bad Request
+        UI --> Staff : Hiển thị lỗi
+        deactivate CS
+        deactivate CC
+    else Hợp lệ
+        CS -> CS : set status = COMPLETED
+        CS -> CR : save(stocktake)
+        activate CR
+        CR --> CS : Stocktake (saved)
+        deactivate CR
+        CS -> CM : toResponseDto(saved)
+        activate CM
+        CM --> CS : StocktakeResponseDto
+        deactivate CM
+        CS --> CC : StocktakeResponseDto
+        deactivate CS
+        CC --> UI : 200 OK + StocktakeResponseDto
+        deactivate CC
+        UI --> Staff : Hiển thị trạng thái COMPLETED + ẩn/hiện nút Cân bằng kho theo diff/hasBalance
+    end
+end
+
+deactivate UI
+deactivate Staff
 
 @enduml 

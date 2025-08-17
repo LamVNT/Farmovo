@@ -46,7 +46,7 @@ public class BalanceStockServiceImpl implements BalanceStockService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         CreateSaleTransactionRequestDto dto = new CreateSaleTransactionRequestDto();
-        dto.setCustomerId(null); // Khách lẻ (frontend sẽ truyền đúng ID hoặc backend tự lấy ID khách lẻ mặc định)
+        // customerId sẽ được truyền từ frontend (dropdown), không mặc định khách lẻ ở đây
         dto.setStoreId(storeId);
         dto.setTotalAmount(totalAmount);
         dto.setPaidAmount(totalAmount); // Mặc định đã trả hết

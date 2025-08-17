@@ -1,0 +1,65 @@
+@startuml Balance_Detail_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Balance – Detail (Load & Render)
+
+actor Staff
+participant ":Balance List Page" as ListUI
+participant ":Balance Detail Page" as DetailUI
+participant ":SaleTransactionController" as SaleController
+participant ":SaleTransactionServiceImpl" as SaleService
+participant ":SaleTransactionRepository" as SaleRepo
+participant ":SaleTransactionMapper" as SaleMapper
+
+note over DetailUI,SaleService
+  Chỉ hiển thị chi tiết phiếu Balance nếu transaction được tạo từ Stocktake (stocktakeId != null)
+end note
+
+== A. Từ danh sách mở chi tiết ==
+Staff -> ListUI: Mở trang danh sách Balance
+activate Staff
+activate ListUI
+ListUI -> DetailUI: Click một dòng → điều hướng /balance/{id}
+deactivate ListUI
+
+== B. Lấy chi tiết phiếu cân bằng ==
+activate DetailUI
+DetailUI -> SaleController: GET /api/sale-transactions/{id}
+activate SaleController
+SaleController -> SaleService: getById(id)
+activate SaleService
+SaleService -> SaleRepo: findById(id)
+activate SaleRepo
+SaleRepo --> SaleService: Optional<SaleTransaction>
+deactivate SaleRepo
+
+alt Không tìm thấy
+  SaleService --> SaleController: throw NotFound
+  SaleController --> DetailUI: 404 Not Found
+  DetailUI --> Staff: Hiển thị lỗi/điều hướng về list
+  deactivate SaleService
+  deactivate SaleController
+else Tìm thấy
+  SaleService -> SaleMapper: toResponseDto(transaction)
+  activate SaleMapper
+  SaleMapper --> SaleService: SaleTransactionResponseDto
+  deactivate SaleMapper
+  SaleService --> SaleController: SaleTransactionResponseDto
+  deactivate SaleService
+  SaleController --> DetailUI: 200 OK + response
+  deactivate SaleController
+  DetailUI -> DetailUI: parse response.detail (JSON) → List<ProductSaleResponseDto>
+  DetailUI --> Staff: Hiển thị thông tin phiếu và các dòng lô/zone
+end
+
+deactivate DetailUI
+deactivate Staff
+
+@enduml 

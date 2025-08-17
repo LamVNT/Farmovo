@@ -94,9 +94,9 @@ const DebtTableDialog = ({
     const handleNavigateTransaction = (note) => {
         if (!note?.sourceId || !note?.fromSource) return;
         if (note.fromSource === 'SALE') {
-            navigate(`/sale/${note.sourceId}`);
+            navigate(`/sale/${note.sourceId}?view=detail`);
         } else if (note.fromSource === 'IMPORT' || note.fromSource === 'PURCHASE') {
-            navigate(`/import/${note.sourceId}`);
+            navigate(`/import/${note.sourceId}?view=detail`);
         }
     };
 

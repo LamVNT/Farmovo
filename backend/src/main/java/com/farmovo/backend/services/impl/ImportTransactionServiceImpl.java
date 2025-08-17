@@ -588,6 +588,9 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         transaction.setSupplier(getSupplier(dto.getSupplierId()));
         transaction.setStore(getStore(dto.getStoreId()));
         transaction.setStaff(getStaff(dto.getStaffId()));
+        if (dto.getStocktakeId() != null) {
+            transaction.setStocktakeId(dto.getStocktakeId());
+        }
         transaction.setImportTransactionNote(dto.getImportTransactionNote());
         transaction.setImportDate(dto.getImportDate() != null ? dto.getImportDate() : LocalDateTime.now());
         transaction.setStatus(dto.getStatus() != null ? dto.getStatus() : ImportTransactionStatus.DRAFT);

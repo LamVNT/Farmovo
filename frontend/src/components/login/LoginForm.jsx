@@ -33,7 +33,7 @@ const LoginForm = () => {
             navigate("/");
         } catch (err) {
             console.error(err);
-            setError("Invalid username or password.");
+            setError("Tên đăng nhập hoặc mật khẩu không hợp lệ.");
         } finally {
             setLoading(false);
         }
@@ -48,25 +48,25 @@ const LoginForm = () => {
             )}
 
             <div>
-                <label className="block text-sm font-medium mb-1">Username</label>
+                <label className="block text-sm font-medium mb-1">Tên đăng nhập</label>
                 <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="Enter your username"
+                    placeholder="Nhập tên đăng nhập của bạn"
                     required
                 />
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
+                <label className="block text-sm font-medium mb-1">Mật khẩu</label>
                 <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="Enter your password"
+                    placeholder="Nhập mật khẩu của bạn"
                     required
                 />
             </div>
@@ -79,9 +79,9 @@ const LoginForm = () => {
                         onChange={(e) => setRememberMe(e.target.checked)}
                         className="accent-blue-500"
                     />
-                    Remember Me
+                    Ghi nhớ đăng nhập
                 </label>
-                <a onClick={() => navigate("/forgot-password")} className="text-sm text-blue-500 hover:underline">Forgot password?</a>
+                <a onClick={() => navigate("/forgot-password")} className="text-sm text-blue-500 hover:underline">Quên mật khẩu?</a>
             </div>
 
             <button
@@ -89,7 +89,7 @@ const LoginForm = () => {
                 disabled={loading}
                 className={`w-full text-white py-2 rounded transition ${loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
         </form>
     );

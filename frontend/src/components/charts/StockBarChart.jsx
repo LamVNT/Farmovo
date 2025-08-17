@@ -3,7 +3,7 @@ import {BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 const StockBarChart = ({data}) => {
     return (
         <div className="bg-white p-5 shadow-md rounded-lg">
-            <h3 className="font-semibold mb-2">Stock Overview</h3>
+            <h3 className="font-semibold mb-2">Tổng Quan Tồn Kho</h3>
             <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={data}>
                     <CartesianGrid strokeDasharray="3 3"/>

@@ -32,7 +32,9 @@ import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
-import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
+import { DashboardReport, RemainSummaryReport, InOutSummaryReport, DailyRevenue, SalesShiftTotal, ImportsTotal } from '../pages/reports';
+import FinancialReport from '../pages/reports/FinancialReport';
+import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
@@ -308,6 +310,26 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/reports/financial",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <FinancialReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/inventory",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <InventoryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+                ),
+    },
+    {
         path: "/reports/remain-summary",
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
@@ -323,6 +345,36 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <InOutSummaryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/daily-revenue",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <DailyRevenue/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/sales-total",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <SalesShiftTotal/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/imports-total",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <ImportsTotal/>
                 </MainLayout>
             </ProtectedRoute>
         ),

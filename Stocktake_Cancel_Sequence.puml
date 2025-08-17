@@ -7,12 +7,11 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
 
 title Cancel StockTake - Sequence Diagram (Status Change)
 
 actor Staff
-participant ":StockTake Page" as UI
+participant ":StockTake Detail Page" as UI
 participant ":StocktakeController" as Controller
 participant ":StocktakeServiceImpl" as Service
 participant ":StocktakeRepository" as StocktakeRepo
@@ -41,25 +40,32 @@ alt Không tìm thấy
     deactivate Controller
 else Tìm thấy
     Service -> Service: validateStatusTransition(old, CANCELLED, user)
-    Service -> Service: setStatus(CANCELLED)
-    Service -> StocktakeRepo: save(stocktake)
-    activate StocktakeRepo
-    StocktakeRepo --> Service: Stocktake
-    deactivate StocktakeRepo
+    alt Không hợp lệ
+        Service --> Controller: throw ValidationException
+        Controller --> UI: 400 Bad Request
+        UI --> Staff: Hiển thị lỗi
+        deactivate Service
+        deactivate Controller
+    else Hợp lệ
+        Service -> Service: setStatus(CANCELLED)
+        Service -> StocktakeRepo: save(stocktake)
+        activate StocktakeRepo
+        StocktakeRepo --> Service: Stocktake
+        deactivate StocktakeRepo
 
-    Service -> Mapper: toResponseDto(stocktake)
-    activate Mapper
-    Mapper --> Service: StocktakeResponseDto
-    deactivate Mapper
+        Service -> Mapper: toResponseDto(stocktake)
+        activate Mapper
+        Mapper --> Service: StocktakeResponseDto
+        deactivate Mapper
 
-    Service --> Controller: StocktakeResponseDto
-    deactivate Service
+        Service --> Controller: StocktakeResponseDto
+        deactivate Service
 
-    Controller --> UI: 200 OK StocktakeResponseDto
-    UI --> Staff: Hiển thị trạng thái CANCELLED
-    deactivate Controller
+        Controller --> UI: 200 OK StocktakeResponseDto
+        deactivate Controller
+        UI --> Staff: Hiển thị trạng thái CANCELLED
+    end
 end
-
 
 deactivate UI
 deactivate Staff

@@ -1,0 +1,109 @@
+@startuml Balance_Approve_Complete_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Balance – Approve & Complete (Update Zone + Deduct Stock)
+
+actor Owner
+participant ":Balance Detail UI" as DetailUI
+participant ":SaleTransactionController" as SaleController
+participant ":SaleTransactionServiceImpl" as SaleService
+participant ":BalanceStockServiceImpl" as BalanceService
+participant ":ImportTransactionDetailRepository" as ImportDetailRepo
+
+note over DetailUI,SaleService: Chỉ xử lý Approve/Complete cho PCB tạo từ Stocktake (stocktakeId != null)
+
+== A. Approve – Cập nhật Zone & isCheck ==
+Owner -> DetailUI: Nhấn Approve
+activate Owner
+activate DetailUI
+DetailUI -> SaleController: PUT /api/sale-transactions/{id} {approve}
+activate SaleController
+SaleController -> SaleService: updateSaleTransaction(id, dto)
+activate SaleService
+
+alt stocktakeId == null
+  SaleService --> SaleController: 400 Bad Request (Không phải phiếu cân bằng từ Stocktake)
+  SaleController --> DetailUI: 400
+  DetailUI --> Owner: Không thể duyệt
+  deactivate SaleService
+  deactivate SaleController
+  deactivate DetailUI
+  deactivate Owner
+else stocktakeId != null
+  SaleService -> BalanceService: updateZoneAndStockOnApprove(id)
+  activate BalanceService
+  BalanceService -> BalanceService: Parse detail (List<ProductSaleResponseDto>)
+  loop for each item
+    BalanceService -> ImportDetailRepo: findByName(batchCode) | findById(id)
+    activate ImportDetailRepo
+    ImportDetailRepo --> BalanceService: ImportTransactionDetail
+    BalanceService -> BalanceService: set zones_id=zoneReal (nếu khác), isCheck=true
+    BalanceService -> ImportDetailRepo: save(lot)
+    ImportDetailRepo --> BalanceService: saved
+    deactivate ImportDetailRepo
+  end
+  BalanceService --> SaleService: done
+  deactivate BalanceService
+  SaleService -> SaleService: set status = WAITING_FOR_APPROVE (nếu đang DRAFT)
+  SaleService --> SaleController: Updated
+  deactivate SaleService
+  SaleController --> DetailUI: 200 OK
+  deactivate SaleController
+  DetailUI --> Owner: Approve thành công
+end
+
+== B. Complete – Trừ tồn kho & đảm bảo zone thực tế ==
+Owner -> DetailUI: Nhấn Complete
+DetailUI -> SaleController: PUT /api/sale-transactions/{id} {status=COMPLETE}
+activate SaleController
+SaleController -> SaleService: updateSaleTransaction(id, dto)
+activate SaleService
+
+alt stocktakeId == null
+  SaleService --> SaleController: 400 Bad Request (Không phải phiếu cân bằng từ Stocktake)
+  SaleController --> DetailUI: 400
+  DetailUI --> Owner: Không thể hoàn tất
+  deactivate SaleService
+  deactivate SaleController
+else stocktakeId != null
+  SaleService -> SaleService: parseTransactionDetail(transaction.detail)
+  SaleService -> SaleService: deductStockFromBatch(detailList)
+  loop for each item
+    SaleService -> ImportDetailRepo: findById(item.id) | findByName(item.batchCode)
+    activate ImportDetailRepo
+    ImportDetailRepo --> SaleService: ImportTransactionDetail
+    SaleService -> SaleService: validate belongs-to-product & remainQuantity >= quantity
+    SaleService -> ImportDetailRepo: save(lot with new remainQuantity)
+    ImportDetailRepo --> SaleService: saved
+    deactivate ImportDetailRepo
+  end
+  SaleService -> SaleService: deductStockFromProduct(detailList)
+
+  SaleService -> SaleService: ensure zones_id = zoneReal, set isCheck=true
+  loop for each item
+    SaleService -> ImportDetailRepo: findById / findByName
+    activate ImportDetailRepo
+    ImportDetailRepo --> SaleService: ImportTransactionDetail
+    SaleService -> ImportDetailRepo: save(updated lot)
+    ImportDetailRepo --> SaleService: saved
+    deactivate ImportDetailRepo
+  end
+  SaleService -> SaleService: set status = COMPLETE
+  SaleService --> SaleController: Updated (status=COMPLETE)
+  deactivate SaleService
+  SaleController --> DetailUI: 200 OK
+  deactivate SaleController
+  DetailUI --> Owner: Hoàn tất thành công, tồn kho đã cập nhật
+end
+
+deactivate DetailUI
+deactivate Owner
+
+@enduml 

@@ -8,7 +8,7 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-' Improved: Thêm UI, bỏ thao tác DB, alt lỗi rõ ràng, note về DTO
+' Improved: Thêm UI, alt lỗi rõ ràng, note về DTO, validate tại Service
 
 title Create Category - Sequence Diagram
 
@@ -17,7 +17,6 @@ participant ":Category Page" as UI
 participant ":Create Category Dialog" as CUI
 participant ":CategoryController" as CC
 participant ":CategoryService" as CS
-participant ":CategoryValidator" as CV
 participant ":CategoryMapper" as CM
 participant ":CategoryRepository" as CR
 
@@ -33,17 +32,16 @@ U -> CUI: Nhập name, description, nhấn "Lưu"
 CUI -> CC: POST /api/categories {name, description}
 activate CC
 
-CC -> CV: validate(requestDto)
-activate CV
-CV --> CC: validation result
-Deactivate CV
+CC -> CS: createCategory(requestDto)
+activate CS
+
+CS -> CS: validate(requestDto)
 
 alt Validation Failed
+    CS --> CC: ValidationException
     CC --> CUI: 400 Bad Request {error message}
     CUI --> U: Hiển thị lỗi
 else Validation Passed
-    CC -> CS: createCategory(requestDto)
-    activate CS
     CS -> CM: toEntity(requestDto)
     activate CM
     CM --> CS: Category entity
@@ -57,16 +55,16 @@ else Validation Passed
     CM --> CS: CategoryResponseDto
     deactivate CM
     CS --> CC: CategoryResponseDto
-    deactivate CS
-    CC --> CUI: 200 OK CategoryResponseDto
+    CC --> CUI: 201 Created + CategoryResponseDto
     CUI --> UI: Đóng dialog, cập nhật danh sách
     UI --> U: Hiển thị category mới
 end
 
+deactivate CS
 deactivate CC
-Deactivate CUI
-Deactivate UI
-Deactivate U
+deactivate CUI
+deactivate UI
+deactivate U
 
 note right of CUI
     requestDto: name, description

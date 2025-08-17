@@ -322,6 +322,36 @@ const ImportTransactionPage = () => {
         loadTransactions();
     }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate), user?.storeId]);
 
+    // Open detail when navigated from Stocktake with stocktakeId or importId
+    useEffect(() => {
+        const view = searchParams.get('view');
+        const stocktakeId = searchParams.get('stocktakeId');
+        const importId = searchParams.get('id');
+        if (view === 'detail' && (stocktakeId || importId)) {
+            (async () => {
+                try {
+                    if (importId) {
+                        const tx = await importTransactionService.getWithDetails(Number(importId));
+                        setSelectedTransaction(tx);
+                        setSelectedDetails(tx.details || []);
+                        setOpenDetailDialog(true);
+                        return;
+                    }
+                    // fallback by stocktakeId: load list and find first match
+                    const data = await importTransactionService.listPaged({ page: 0, size: 50 });
+                    const list = Array.isArray(data) ? data : (data?.content || []);
+                    const found = list.find(t => String(t.stocktakeId || '') === String(stocktakeId));
+                    if (found) {
+                        const tx = await importTransactionService.getWithDetails(found.id);
+                        setSelectedTransaction(tx);
+                        setSelectedDetails(tx.details || []);
+                        setOpenDetailDialog(true);
+                    }
+                } catch (_) {}
+            })();
+        }
+    }, [searchParams]);
+
     // After transactions load, build creator options depending on role
     useEffect(() => {
         const buildCreatorOptions = async () => {

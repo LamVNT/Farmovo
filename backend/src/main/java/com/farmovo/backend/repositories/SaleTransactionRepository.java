@@ -17,6 +17,9 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL")
     List<SaleTransaction> findAllSaleActive();
 
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.store.id = :storeId")
+    List<SaleTransaction> findAllSaleActiveByStore(@Param("storeId") Long storeId);
+
     @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL")
     BigDecimal sumTotalAmount();
 
@@ -37,7 +40,7 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(name, 4) AS BIGINT)), 0) FROM sale_transactions WHERE name LIKE 'PCB%'", nativeQuery = true)
     Long getMaxPcbSequence();
 
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.saleDate DESC")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.createdAt DESC")
     List<SaleTransaction> findRecentSales(org.springframework.data.domain.Pageable pageable);
 
     // PCB linkage helpers

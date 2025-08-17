@@ -56,9 +56,20 @@ const StockTakeDetailPage = () => {
         ? detail.detail.some(d => d.diff !== 0)
         : false;
 
+    const hasShortage = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) < 0)
+        : false;
+    const hasSurplus = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) > 0)
+        : false;
     const canBalance = detail?.status === 'COMPLETED'
-        && hasDiff
+        && hasShortage
         && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
+
+    // Surplus (dư hàng): real > remain
+    const surplusItems = Array.isArray(detail?.detail)
+        ? detail.detail.filter(d => Number(d.diff) > 0)
+        : [];
 
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
@@ -79,7 +90,19 @@ const StockTakeDetailPage = () => {
                     size="medium"
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
-                {/* Nút Cân bằng kho */}
+                {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
+                {hasSurplus && detail?.hasImport !== true && (
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate('/import/new', {
+                            state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
+                        })}
+                    >
+                        Tạo phiếu nhập hàng
+                    </Button>
+                )}
                 {canBalance && (
                     <Button
                         variant="contained"
@@ -102,6 +125,18 @@ const StockTakeDetailPage = () => {
                         Xem phiếu cân bằng
                     </Button>
                 )}
+                {/* Nút mở Phiếu nhập đã liên kết nếu có */}
+                {detail?.hasImport && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/import?view=detail&stocktakeId=${detail.id}`)}
+                        title="Mở phiếu nhập đã liên kết"
+                    >
+                        Xem phiếu nhập
+                    </Button>
+                )}
             </Box>
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 2 : 6, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <Box>
@@ -113,6 +148,22 @@ const StockTakeDetailPage = () => {
                     <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
                 </Box>
             </Box>
+
+            {/* Surplus banner & actions */}
+            {surplusItems.length > 0 && (
+                <Box sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid #fde68a',
+                    background: '#fffbeb'
+                }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
+                        Phát hiện dư hàng: {surplusItems.length} lô có thực tế &gt; tồn kho
+                    </Typography>
+                </Box>
+            )}
+
             {/* Bộ lọc tìm kiếm */}
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2 }}>
                 <TextField

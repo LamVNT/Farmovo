@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 import java.util.List;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -90,8 +91,8 @@ class SaleTransactionControllerTest {
         Mockito.when(jwtUtils.getUserIdFromJwtToken(token)).thenReturn(1L);
         Mockito.doNothing().when(saleTransactionService).save(any(CreateSaleTransactionRequestDto.class), eq(1L));
         mockMvc.perform(post("/api/sale-transactions/save")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isOk());
     }
 
@@ -106,8 +107,8 @@ class SaleTransactionControllerTest {
     void testUpdateSaleTransaction() throws Exception {
         Mockito.doNothing().when(saleTransactionService).updateSaleTransaction(eq(1L), any(CreateSaleTransactionRequestDto.class));
         mockMvc.perform(put("/api/sale-transactions/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isOk());
     }
 
@@ -146,7 +147,7 @@ class SaleTransactionControllerTest {
 
     @Test
     void testExportSaleTransactionPdf() throws Exception {
-        Mockito.when(saleTransactionService.exportPdf(1L)).thenReturn(new byte[]{1,2,3});
+        Mockito.when(saleTransactionService.exportPdf(1L)).thenReturn(new byte[]{1, 2, 3});
         mockMvc.perform(get("/api/sale-transactions/1/export-pdf"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"));
@@ -174,7 +175,7 @@ class SaleTransactionControllerTest {
                 new org.springframework.data.domain.PageImpl<>(List.of(dto));
 
         Mockito.when(saleTransactionService.getAll(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(org.springframework.data.domain.Pageable.class)
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(org.springframework.data.domain.Pageable.class)
         )).thenReturn(page);
 
         mockMvc.perform(get("/api/sale-transactions/list-all"))
