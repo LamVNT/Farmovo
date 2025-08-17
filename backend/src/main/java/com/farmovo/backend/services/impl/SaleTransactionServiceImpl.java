@@ -369,7 +369,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public SaleTransactionResponseDto getById(Long id) {
         log.debug("Getting sale transaction by ID: {}", id);
 
-        SaleTransaction entity = saleTransactionRepository.findById(id)
+        SaleTransaction entity = saleTransactionRepository.findByIdWithCustomerAndStore(id)
                 .orElseThrow(() -> {
                     log.error("Sale transaction not found with ID: {}", id);
                     return new SaleTransactionNotFoundException("Sale transaction not found with ID: " + id);

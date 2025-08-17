@@ -47,5 +47,9 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     boolean existsByStocktakeId(Long stocktakeId);
     long countByStocktakeId(Long stocktakeId);
     long countByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
+
+    // ✅ Thêm method để load customer và store cùng với sale transaction
+    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id")
+    Optional<SaleTransaction> findByIdWithCustomerAndStore(@Param("id") Long id);
 }
 

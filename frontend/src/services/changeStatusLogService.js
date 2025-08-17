@@ -48,6 +48,48 @@ const changeStatusLogService = {
       console.error('Error getting source entity:', error);
       throw error;
     }
+  },
+  
+  // Lấy bản ghi mới nhất cho mỗi mã nguồn
+  getLatestLogsForEachSource: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/change-statuslog/latest-each-source`, {
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      console.error('Error getting latest logs for each source:', error);
+      throw error;
+    }
+  },
+  
+  // Lấy bản ghi mới nhất cho mỗi mã nguồn theo modelName
+  getLatestLogsForEachSourceByModel: async (modelName) => {
+    try {
+      const response = await axios.get(`${API_URL}/change-statuslog/latest-each-source/${modelName}`, {
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      console.error('Error getting latest logs for each source by model:', error);
+      throw error;
+    }
+  },
+
+  // Lấy tất cả bản ghi thay đổi của một mã nguồn cụ thể
+  getLogsByModel: async (modelName, modelId) => {
+    try {
+      const response = await axios.post(`${API_URL}/change-statuslog/by-model`, {
+        modelName: modelName,
+        modelId: modelId
+      }, {
+        withCredentials: true
+      });
+      return response;
+    } catch (error) {
+      console.error('Error getting logs by model:', error);
+      throw error;
+    }
   }
 };
 
