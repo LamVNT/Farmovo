@@ -39,7 +39,6 @@ import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
-
 const router = createBrowserRouter([
     {
         path: "/",
@@ -430,6 +429,7 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    
 ]);
 
 export default router;

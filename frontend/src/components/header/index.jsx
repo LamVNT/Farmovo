@@ -13,6 +13,7 @@ import Divider from '@mui/material/Divider';
 import {MyContext} from '../../App.jsx'
 import {Link} from "react-router-dom";
 import {getStoreById} from '../../services/storeService';
+import NotificationDropdown from './NotificationDropdown';
 
 
 const StyledBadge = styled(Badge)(({theme}) => ({
@@ -92,11 +93,7 @@ const Header = () => {
 
             <div className='part2 flex items-center justify-end gap-5'>
                 {/* Notifications */}
-                <IconButton aria-label="cart">
-                    <StyledBadge badgeContent={4} color="secondary">
-                        <FaRegBell/>
-                    </StyledBadge>
-                </IconButton>
+                <NotificationDropdown />
 
 
                 {
