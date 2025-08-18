@@ -221,14 +221,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                         </Box>
                     )}
                     
-                    {/* Debug info - chỉ hiển thị trong development */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
-                            <Typography variant="caption" color="text.secondary">
-                                Debug: isAdminOrOwner={isAdminOrOwner.toString()}, stores={stores?.length || 0}
-                            </Typography>
-                        </Box>
-                    )}
+
 
                     {/* Info Alert */}
                     <Alert 
