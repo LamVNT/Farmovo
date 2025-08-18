@@ -20,6 +20,7 @@ import TableChartIcon from '@mui/icons-material/TableChart';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HistoryIcon from '@mui/icons-material/History';
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -42,9 +43,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportSaleTransactions, exportSaleTransactionDetail } from '../../utils/excelExport';
 import SaleDetailDialog from '../../components/sale-transaction/SaleDetailDialog';
+import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import { formatCurrency } from "../../utils/formatters";
 import { customerService, getCustomers, getAllCustomers } from "../../services/customerService";
 import { useAuth } from "../../contexts/AuthorizationContext";
+import changeStatusLogService from "../../services/changeStatusLogService";
 
 const getRange = (key) => {
     const today = new Date();
@@ -187,6 +190,12 @@ const SaleTransactionPage = () => {
         onConfirm: null,
         actionType: ''
     });
+
+    // State cho dialog lịch sử thay đổi
+    const [changeHistoryDialogOpen, setChangeHistoryDialogOpen] = useState(false);
+    const [selectedChangeLog, setSelectedChangeLog] = useState(null);
+    const [sourceLogs, setSourceLogs] = useState([]);
+    const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
 
     // Pagination states
     const [page, setPage] = useState(0);
@@ -625,6 +634,45 @@ const SaleTransactionPage = () => {
     const handleActionClose = () => {
         setActionAnchorEl(null);
         setActionRow(null);
+    };
+
+    // Function xử lý dialog lịch sử thay đổi
+    const handleViewChangeHistory = async () => {
+        if (!actionRow) return;
+        
+        setChangeHistoryDialogOpen(true);
+        setSelectedChangeLog({
+            id: actionRow.id,
+            modelName: 'SALE_TRANSACTION',
+            modelID: actionRow.id,
+            sourceName: actionRow.name || `Phiếu bán hàng #${actionRow.id}`,
+            previousStatus: actionRow.status,
+            nextStatus: actionRow.status,
+            description: `Xem lịch sử thay đổi của phiếu bán hàng: ${actionRow.name}`,
+            createdAt: new Date().toISOString(),
+            createdBy: actionRow.createdBy || 'Hệ thống'
+        });
+        
+        // Lấy tất cả bản ghi thay đổi của mã nguồn này
+        setSourceLogsLoading(true);
+        try {
+            const response = await changeStatusLogService.getLogsByModel('SALE_TRANSACTION', actionRow.id);
+            setSourceLogs(response.data || []);
+        } catch (error) {
+            console.error('Error fetching source logs:', error);
+            setSourceLogs([]);
+        } finally {
+            setSourceLogsLoading(false);
+        }
+        
+        handleActionClose();
+    };
+
+    const handleCloseChangeHistoryDialog = () => {
+        setChangeHistoryDialogOpen(false);
+        setSelectedChangeLog(null);
+        setSourceLogs([]);
+        setSourceLogsLoading(false);
     };
 
     const handleViewDetailMenu = () => {
@@ -1516,6 +1564,16 @@ const SaleTransactionPage = () => {
                     <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
+                {/* Hiển thị nút "Chỉnh sửa" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={() => {
+                        navigate(`/sale/edit/${actionRow.id}`);
+                        handleActionClose();
+                    }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+                        <ListItemText primary="Chỉnh sửa" />
+                    </MenuItem>
+                )}
                 {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là DRAFT */}
                 {actionRow?.status === 'DRAFT' && (
                     <MenuItem onClick={handleCompleteDraftTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
@@ -1560,6 +1618,10 @@ const SaleTransactionPage = () => {
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất PDF" />
+                </MenuItem>
+                <MenuItem onClick={handleViewChangeHistory} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Lịch sử thay đổi" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
@@ -1645,6 +1707,16 @@ const SaleTransactionPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog lịch sử thay đổi */}
+            <ChangeStatusLogDetailDialog
+                open={changeHistoryDialogOpen}
+                log={selectedChangeLog}
+                sourceLogs={sourceLogs}
+                sourceLogsLoading={sourceLogsLoading}
+                onClose={handleCloseChangeHistoryDialog}
+                onViewSource={() => {}} // Không cần xử lý view source ở đây
+            />
         </div>
     );
 };

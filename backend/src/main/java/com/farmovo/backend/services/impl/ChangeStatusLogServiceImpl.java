@@ -85,4 +85,20 @@ public class ChangeStatusLogServiceImpl implements ChangeStatusLogService {
         List<ChangeStatusLog> logs = repository.findByModelNameIgnoreCaseAndModelIDOrderByCreatedAtDesc(modelName, modelId);
         return changeStatusLogMapper.toDtoList(logs);
     }
+    
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLatestLogsForEachSource() {
+        log.info("Fetching latest ChangeStatusLogs for each source");
+        List<ChangeStatusLog> logs = repository.findLatestLogsForEachSource();
+        log.info("Found {} latest logs", logs.size());
+        return changeStatusLogMapper.toDtoList(logs);
+    }
+    
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLatestLogsForEachSourceByModel(String modelName) {
+        log.info("Fetching latest ChangeStatusLogs for each source by modelName={}", modelName);
+        List<ChangeStatusLog> logs = repository.findLatestLogsForEachSourceByModel(modelName);
+        log.info("Found {} latest logs for model {}", logs.size(), modelName);
+        return changeStatusLogMapper.toDtoList(logs);
+    }
 } 

@@ -145,7 +145,7 @@ const SaleSummaryDialog = ({
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <div>
-                                            <div className="font-medium">{product.name}</div>
+                                            <div className="font-medium">{product.name || product.productName || product.batchName || 'Sản phẩm'}</div>
                                             <div className="text-xs text-gray-500">
                                                 Mã: {product.productCode || product.code || product.batchCode || product.name || 'N/A'}
                                             </div>
@@ -224,14 +224,11 @@ const SaleSummaryDialog = ({
                 <Button
                     onClick={onConfirm}
                     variant="contained"
-                    className={`${status === 'DRAFT'
-                        ? '!bg-blue-600 hover:!bg-blue-700'
-                        : '!bg-green-600 hover:!bg-green-700'
-                        } text-white`}
-                    startIcon={loading ? null : (status === 'DRAFT' ? <FaPrint /> : <FaCheck />)}
+                    className="!bg-blue-600 hover:!bg-blue-700 text-white"
+                    startIcon={loading ? null : <FaPrint />}
                     disabled={loading}
                 >
-                    {loading ? 'Đang xử lý...' : (status === 'DRAFT' ? 'Lưu tạm' : 'Hoàn thành')}
+                    {loading ? 'Đang xử lý...' : 'Lưu thay đổi'}
                 </Button>
             </DialogActions>
         </Dialog>
