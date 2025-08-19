@@ -15,7 +15,9 @@ public class CorsConfig implements WebMvcConfigurer {
                 registry.addMapping("/api/**")
                         .allowedOrigins(
                             "http://localhost:5173",
-                            "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net"
+                            "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net",
+                            "https://farmovo.store",
+                            "https://www.farmovo.store"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         .allowedHeaders("*")

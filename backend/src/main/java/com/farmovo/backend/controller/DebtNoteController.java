@@ -20,7 +20,12 @@ import org.springframework.data.domain.Page;
 @RestController
 @RequestMapping("/api/debt/admin")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net"}, allowedHeaders = "*", allowCredentials = "true")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net",
+        "https://farmovo.store",
+        "https://www.farmovo.store"
+}, allowedHeaders = "*", allowCredentials = "true")
 public class DebtNoteController {
 
     private static final Logger logger = LogManager.getLogger(DebtNoteController.class);

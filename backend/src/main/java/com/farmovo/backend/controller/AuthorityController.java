@@ -15,7 +15,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/authorities")
-@CrossOrigin(origins = {"http://localhost:5173", "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net"}, allowedHeaders = "*", allowCredentials = "true")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net",
+        "https://farmovo.store",
+        "https://www.farmovo.store"
+}, allowedHeaders = "*", allowCredentials = "true")
 public class AuthorityController {
     private static final Logger logger = LogManager.getLogger(AuthorityController.class);
 
