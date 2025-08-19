@@ -65,13 +65,13 @@ public class LoginController {
         //Xử lý thời gian sống của cookie
         int expireTime = loginRequest.isRememberMe() ? 7 * 24 * 60 * 60 : -1; // 7 ngày hoặc session
 
-        //Tạo HttpOnly cookie
+        // Tạo HttpOnly cookie cho môi trường production HTTPS (cross-site): SameSite=None; Secure
         ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
                 .httpOnly(true)
-                .secure(false) // true nếu dùng HTTPS
+                .secure(true)
                 .path("/")
                 .maxAge(expireTime)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         LoginResponse loginResponse = new LoginResponse(jwtToken, userDetails.getUsername(), roles);
@@ -85,10 +85,10 @@ public class LoginController {
     public ResponseEntity<?> logoutUser() {
         ResponseCookie cookie = ResponseCookie.from("jwt", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         return ResponseEntity.ok()
