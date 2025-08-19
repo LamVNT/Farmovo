@@ -12,7 +12,7 @@ const SocialLoginButtons = ({onGoogleClick, onFacebookClick, loadingGoogle, load
             variant="outlined"
             className="!bg-none !py-2 !text-[15px] !capitalize !px-5 text-[rgba(0,0,0,0.7)]"
         >
-            Signin with Google
+            Đăng nhập bằng Google
         </Button>
 
         <Button
@@ -22,7 +22,7 @@ const SocialLoginButtons = ({onGoogleClick, onFacebookClick, loadingGoogle, load
             variant="outlined"
             className="!bg-none !py-2 !text-[15px] !capitalize !px-5 text-[rgba(0,0,0,0.7)]"
         >
-            Signin with Facebook
+            Đăng nhập bằng Facebook
         </Button>
     </div>
 );

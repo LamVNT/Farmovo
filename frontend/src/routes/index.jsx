@@ -25,6 +25,7 @@ import CreateStocktakePage from "../pages/stocktake/Create.jsx";
 import Product from "../pages/product/index.jsx";
 import SaleTransactionPage from "../pages/sale-transaction/index.jsx";
 import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
+import EditSalePage from "../pages/sale-transaction/EditSalePage.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
@@ -38,7 +39,6 @@ import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
-
 const router = createBrowserRouter([
     {
         path: "/",
@@ -221,6 +221,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <AddSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/edit/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <EditSalePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
@@ -419,6 +429,7 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    
 ]);
 
 export default router;
