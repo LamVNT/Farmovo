@@ -78,6 +78,9 @@ const CreateStocktakePage = () => {
         setDataLoaded,
         loadMasterData, // <-- thêm loadMasterData từ hook
     } = useStocktake(user, userRole);
+
+    // Dialog sau khi tạo thành công để chuyển trang chi tiết nếu có chênh lệch
+    const [postCreateDialog, setPostCreateDialog] = useState({ open: false, id: null, name: '' });
     const staffStoreId = localStorage.getItem('staff_store_id') || '';
     const [filter, setFilter] = useState({ store: '', zone: '', product: '', search: '', startDate: '', endDate: '' });
     const [loadingLots, setLoadingLots] = useState(false);
@@ -608,25 +611,40 @@ const CreateStocktakePage = () => {
                 storeId: userRole === 'OWNER' ? filter.store : staffStoreIdNum
             };
             if (id) {
-                await updateStocktake(id, payload);
+                const updated = await updateStocktake(id, payload);
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
                     severity: "success"
                 });
                 localStorage.removeItem(`stocktake_edit_${id}`);
+                // Nếu hoàn thành và có chênh lệch thì mở dialog chuyển trang chi tiết
+                const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
+                if (status === 'COMPLETED' && hasDiff) {
+                    setPostCreateDialog({ open: true, id: id, name: updated?.name || '' });
+                } else {
+                    setLots([]);
+                    localStorage.removeItem('stocktake_create_selected_lots');
+                    navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
+                }
             } else {
-                await createStocktake(payload);
+                const created = await createStocktake(payload);
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
                     severity: "success"
                 });
                 localStorage.removeItem('stocktake_create_draft');
+                const createdId = created?.id;
+                const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
+                if (status === 'COMPLETED' && hasDiff && createdId) {
+                    setPostCreateDialog({ open: true, id: createdId, name: created?.name || '' });
+                } else {
+                    setLots([]);
+                    localStorage.removeItem('stocktake_create_selected_lots');
+                    navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
+                }
             }
-            setLots([]);
-            localStorage.removeItem('stocktake_create_selected_lots');
-            navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
         } catch (err) {
             console.error("[ERROR][handleSubmit] Lỗi khi lưu phiếu kiểm kê:", err, err?.response);
             setSnackbar({
@@ -1639,6 +1657,32 @@ const CreateStocktakePage = () => {
                     >
                         Áp dụng
                     </Button>
+                </DialogActions>
+            </Dialog>
+            {/* Dialog gợi ý chuyển trang chi tiết sau khi tạo nếu có chênh lệch */}
+            <Dialog open={postCreateDialog.open} onClose={() => setPostCreateDialog({ open: false, id: null, name: '' })} maxWidth="sm" fullWidth>
+                <DialogTitle className="flex justify-between items-center">
+                    <span>Phiếu kiểm kê đã tạo</span>
+                    <IconButton size="small" onClick={() => setPostCreateDialog({ open: false, id: null, name: '' })}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ py: 1 }}>
+                        <Typography variant="body1">Phiếu <b>{postCreateDialog.name || 'vừa tạo'}</b> có chênh lệch số lượng.</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Bạn có muốn chuyển sang trang chi tiết để xem và cân bằng kho?</Typography>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => {
+                        setPostCreateDialog({ open: false, id: null, name: '' });
+                        navigate('/stocktake');
+                    }} color="inherit">Ở lại</Button>
+                    <Button onClick={() => {
+                        const targetId = postCreateDialog.id || id;
+                        setPostCreateDialog({ open: false, id: null, name: '' });
+                        if (targetId) navigate(`/stocktake/${targetId}`);
+                    }} variant="contained">Xem chi tiết</Button>
                 </DialogActions>
             </Dialog>
         </Box>
