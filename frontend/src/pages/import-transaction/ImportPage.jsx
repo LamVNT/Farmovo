@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 import {
     TextField,
     Button,
@@ -35,7 +35,7 @@ import AddProductDialog from '../../components/import-transaction/AddProductDial
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import importTransactionService from '../../services/importTransactionService';
 import { userService } from '../../services/userService';
@@ -44,6 +44,7 @@ import ImportSummaryDialog from '../../components/import-transaction/ImportSumma
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 const ImportPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -101,6 +102,10 @@ const ImportPage = () => {
     const [filteredStores, setFilteredStores] = useState([]);
     const [zoneSearch, setZoneSearch] = useState('');
     const [showBackConfirm, setShowBackConfirm] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+    const [isNavigatingAway, setIsNavigatingAway] = useState(false);
 
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
@@ -208,39 +213,51 @@ const ImportPage = () => {
         }
     };
 
-    // Cập nhật category products khi products thay đổi
+    // Cập nhật category products khi products, selectedCategory hoặc selectedStore thay đổi
     useEffect(() => {
         if (selectedCategory) {
-            const filteredProducts = products.filter(product => 
-                product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id
-            );
+            const filteredProducts = products.filter(product => {
+                // Lọc theo category
+                const matchesCategory = product.categoryId === selectedCategory.id || product.category?.id === selectedCategory.id;
+                
+                // Lọc theo store (nếu đã chọn store)
+                const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+                
+                return matchesCategory && matchesStore;
+            });
             setCategoryProducts(filteredProducts);
         }
-    }, [products, selectedCategory]);
+    }, [products, selectedCategory, selectedStore]);
 
-    // Cập nhật search results khi products hoặc searchTerm hoặc isSearchFocused thay đổi
+    // Cập nhật search results khi products, searchTerm, isSearchFocused hoặc selectedStore thay đổi
     useEffect(() => {
         if (searchTerm.trim() !== '') {
-            // Ưu tiên lọc searchTerm nếu có nhập
+            // Ưu tiên lọc searchTerm nếu có nhập, và lọc theo store
             const results = products.filter(
                 (p) => {
                     const name = p.name || p.productName || '';
                     const code = p.code || '';
-                    return (
-                        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        code.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
+                    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        code.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    // Lọc theo store (nếu đã chọn store)
+                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                    
+                    return matchesSearch && matchesStore;
                 }
             );
             setFilteredProducts(results);
         } else if (isSearchFocused) {
-            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên
-            setFilteredProducts(products.slice(0, 5));
+            // Nếu chưa nhập gì và đang focus thì gợi ý 5 sản phẩm đầu tiên (theo store)
+            const storeProducts = selectedStore ? 
+                products.filter(p => p.storeId === selectedStore) : 
+                products;
+            setFilteredProducts(storeProducts.slice(0, 5));
         } else {
             // Không focus và không nhập thì không gợi ý gì
             setFilteredProducts([]);
         }
-    }, [products, searchTerm, isSearchFocused]);
+    }, [products, searchTerm, isSearchFocused, selectedStore]);
 
     // Cập nhật filteredSuppliers khi search hoặc focus
     useEffect(() => {
@@ -282,18 +299,22 @@ const ImportPage = () => {
             setZones([]);
         }
 
-        // Clear zone selection khi store thay đổi
-        setSelectedProducts(prev => prev.map(product => ({
-            ...product,
-            zoneIds: []
-        })));
-
         // Clear error và highlight khi store được chọn
         if (selectedStore) {
             setError(null);
             setHighlightStore(false);
         }
     }, [selectedStore, allZones, currentUser]);
+
+    // Clear zone selection khi store thay đổi - tách riêng để tránh infinite loop
+    useEffect(() => {
+        if (selectedStore) {
+            setSelectedProducts(prev => prev.map(product => ({
+                ...product,
+                zoneIds: []
+            })));
+        }
+    }, [selectedStore]);
 
     // Set client-side rendering
     useEffect(() => {
@@ -391,45 +412,59 @@ const ImportPage = () => {
 
     const handleQuantityChange = (id, delta) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const newQuantity = Math.max(1, p.quantity + delta);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? newQuantity * 30 : newQuantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, p.quantity + delta),
-                        total: (p.price || 0) * Math.max(1, p.quantity + delta),
-                    }
-                    : p
-            )
+                        quantity: newQuantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
     };
 
-    const handleQuantityInputChange = (id, newQuantity) => {
+    const handleQuantityInputChange = useCallback((id, newQuantity) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const quantity = Math.max(1, newQuantity);
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                    
+                    return {
                         ...p,
-                        quantity: Math.max(1, newQuantity),
-                        total: (p.price || 0) * Math.max(1, newQuantity),
-                    }
-                    : p
-            )
+                        quantity: quantity,
+                        total: (p.price || 0) * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
-    };
+    }, []);
 
-    const handlePriceChange = (id, newPrice) => {
+    const handlePriceChange = useCallback((id, newPrice) => {
         setSelectedProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
+            prev.map((p) => {
+                if (p.id === id) {
+                    const unit = p.unit || 'quả';
+                    const quantityInQua = unit === 'khay' ? (p.quantity || 0) * 30 : (p.quantity || 0);
+                    
+                    return {
                         ...p,
                         price: newPrice,
-                        total: newPrice * (p.quantity || 0),
-                    }
-                    : p
-            )
+                        total: newPrice * quantityInQua,
+                    };
+                }
+                return p;
+            })
         );
-    };
+    }, []);
 
     const handleSalePriceChange = (id, newSalePrice) => {
         setSelectedProducts((prev) =>
@@ -444,31 +479,24 @@ const ImportPage = () => {
         );
     };
 
-    const handleUnitChange = (id, newUnit) => {
+    const handleUnitChange = useCallback((id, newUnit) => {
         setSelectedProducts((prev) =>
             prev.map((p) => {
                 if (p.id === id) {
-                    let newQuantity = p.quantity;
-                    // Chuyển đổi số lượng khi đổi đơn vị
-                    if (newUnit === 'khay' && p.unit !== 'khay') {
-                        // Từ quả sang khay: chia cho 25, tối thiểu 1 khay
-                        newQuantity = Math.max(1, Math.ceil((p.quantity || 1) / 25));
-                    } else if (newUnit === 'quả' && p.unit !== 'quả') {
-                        // Từ khay sang quả: nhân với 25
-                        newQuantity = (p.quantity || 1) * 25;
-                    }
+                    let newQuantity = 1; // Reset về 1 khi đổi đơn vị
+                    const quantityInQua = newUnit === 'khay' ? newQuantity * 30 : newQuantity;
                     
                     return {
                         ...p,
                         unit: newUnit,
                         quantity: newQuantity,
-                        total: (p.price || 0) * newQuantity
+                        total: (p.price || 0) * quantityInQua
                     };
                 }
                 return p;
             })
         );
-    };
+    }, []);
 
 
     const handleDeleteProduct = (id) => {
@@ -476,6 +504,16 @@ const ImportPage = () => {
     };
 
     const handleOpenCategoryDialog = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi thêm từ nhóm hàng');
+            setHighlightStore(true);
+            return;
+        }
+        
         setShowCategoryDialog(true);
         setSelectedCategory(null);
         setCategoryProducts([]);
@@ -489,10 +527,16 @@ const ImportPage = () => {
 
     const handleSelectCategory = (category) => {
         setSelectedCategory(category);
-        // Lọc sản phẩm theo category
-        const filteredProducts = products.filter(product => 
-            product.categoryId === category.id || product.category?.id === category.id
-        );
+        // Lọc sản phẩm theo category và store
+        const filteredProducts = products.filter(product => {
+            // Lọc theo category
+            const matchesCategory = product.categoryId === category.id || product.category?.id === category.id;
+            
+            // Lọc theo store (nếu đã chọn store)
+            const matchesStore = selectedStore ? product.storeId === selectedStore : true;
+            
+            return matchesCategory && matchesStore;
+        });
         setCategoryProducts(filteredProducts);
     };
 
@@ -675,21 +719,60 @@ const ImportPage = () => {
             width: 80,
             renderCell: (params) => {
                 // Sử dụng rowIndex nếu có, fallback tìm index trong selectedProducts
-                if (typeof params.rowIndex === 'number') return params.rowIndex + 1;
-                if (params.id) {
+                let stt = '';
+                if (typeof params.rowIndex === 'number') {
+                    stt = params.rowIndex + 1;
+                } else if (params.id) {
                     const idx = selectedProducts.findIndex(row => row.id === params.id);
-                    return idx >= 0 ? idx + 1 : '';
+                    stt = idx >= 0 ? idx + 1 : '';
                 }
-                return '';
+                
+                return (
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                    }}>
+                        {stt}
+                    </div>
+                );
             }
         },
-        columnVisibility['Tên hàng'] && { field: 'name', headerName: 'Tên hàng', width: 150, minWidth: 150 },
+        columnVisibility['Tên hàng'] && { 
+            field: 'name', 
+            headerName: 'Tên hàng', 
+            width: 150, 
+            minWidth: 150,
+            renderCell: (params) => (
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    height: '100%',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    padding: '0 8px'
+                }}>
+                    {params.row.name}
+                </div>
+            )
+        },
         columnVisibility['ĐVT'] && { 
             field: 'unit', 
             headerName: 'ĐVT', 
             width: 120,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}>
                     <Select
                         size="small"
                         value={params.row.unit || defaultUnit}
@@ -697,6 +780,17 @@ const ImportPage = () => {
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '80px',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            '& .MuiSelect-select': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                            },
                             '& .MuiOutlinedInput-notchedOutline': {
                                 borderColor: 'transparent',
                             },
@@ -708,8 +802,8 @@ const ImportPage = () => {
                             },
                         }}
                     >
-                        <MenuItem value="quả">quả</MenuItem>
-                        <MenuItem value="khay">khay</MenuItem>
+                        <MenuItem value="quả" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>quả</MenuItem>
+                        <MenuItem value="khay" sx={{ fontSize: '0.875rem', fontWeight: '500' }}>khay</MenuItem>
                     </Select>
                 </div>
             )
@@ -719,10 +813,32 @@ const ImportPage = () => {
             headerName: 'Số lượng',
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full gap-1">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%', 
+                    gap: '4px'
+                }}>
                     <button 
                         onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, -1); }} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         –
                     </button>
@@ -735,6 +851,13 @@ const ImportPage = () => {
                         onClick={e => e.stopPropagation()}
                         sx={{
                             width: '60px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -754,7 +877,24 @@ const ImportPage = () => {
                     />
                     <button 
                         onClick={e => { e.stopPropagation(); handleQuantityChange(params.row.id, 1); }} 
-                        className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#e5e7eb',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            lineHeight: 1
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#d1d5db'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#e5e7eb'}
                     >
                         +
                     </button>
@@ -764,10 +904,19 @@ const ImportPage = () => {
         columnVisibility['Đơn giá'] && {
             field: 'price',
             headerName: 'Đơn giá',
+            renderHeader: () => (
+                <span>
+                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center', 
+                    height: '100%' 
+                }}>
                     <TextField
                         size="small"
                         type="text"
@@ -779,10 +928,21 @@ const ImportPage = () => {
                         }}
                         onClick={e => e.stopPropagation()}
                         InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
                         }}
                         sx={{
                             width: '100px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -800,10 +960,19 @@ const ImportPage = () => {
         columnVisibility['Giá bán'] && {
             field: 'salePrice',
             headerName: 'Giá bán',
+            renderHeader: () => (
+                <span>
+                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                </span>
+            ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
+                <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    height: '100%' ,
+                }}>
                     <TextField
                         size="small"
                         type="text"
@@ -815,10 +984,21 @@ const ImportPage = () => {
                         }}
                         onClick={e => e.stopPropagation()}
                         InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
+                            endAdornment: <span style={{ 
+                                color: '#6b7280', 
+                                fontSize: '0.875rem',
+                                fontWeight: '500'
+                            }}>VND</span>,
                         }}
                         sx={{
                             width: '100px',
+                            '& .MuiInputBase-input': {
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                textAlign: 'center',
+                                padding: '8px 4px',
+                                lineHeight: 1.2
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -839,17 +1019,34 @@ const ImportPage = () => {
             width: 150,
             valueGetter: (params) => {
                 const row = params?.row ?? {};
-                const price = parseFloat(row.price) || 0;
+                const price = parseFloat(row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(row.quantity) || 0;
-                return price * quantity;
+                const unit = row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                return price * quantityInQua;
             },
             valueFormatter: (params) => formatCurrency(params.value || 0),
             renderCell: (params) => {
-                const price = parseFloat(params.row.price) || 0;
+                const price = parseFloat(params.row.price) || 0; // Đơn giá theo quả
                 const quantity = parseInt(params.row.quantity) || 0;
-                const total = price * quantity;
+                const unit = params.row.unit || 'quả';
+                
+                // Quy đổi số lượng về quả để tính thành tiền
+                const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+                const total = price * quantityInQua;
                 return (
-                    <div className="text-right w-full">
+                    <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textAlign: 'center'
+                    }}>
                         {formatCurrency(total)}
                     </div>
                 );
@@ -1310,7 +1507,15 @@ const ImportPage = () => {
     };
 
     // Tổng tiền hàng
-    const totalAmount = selectedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0; // Đơn giá theo quả
+        const quantity = parseInt(p.quantity) || 0;
+        const unit = p.unit || 'quả';
+        
+        // Quy đổi số lượng về quả để tính thành tiền
+        const quantityInQua = unit === 'khay' ? quantity * 30 : quantity;
+        return sum + (price * quantityInQua);
+    }, 0);
 
     // Xử lý mở dialog tổng kết
     const handleShowSummary = async (status) => {
@@ -1336,6 +1541,18 @@ const ImportPage = () => {
         } else {
             setHighlightProducts(false);
         }
+
+        // Kiểm tra tất cả sản phẩm đều có zone
+        const productsWithoutZone = selectedProducts.filter(product => 
+            !product.zoneIds || product.zoneIds.length === 0
+        );
+        
+        if (productsWithoutZone.length > 0) {
+            setError(`Sản phẩm "${productsWithoutZone[0].name || productsWithoutZone[0].productName}" chưa được chọn zone. Vui lòng chọn zone cho tất cả sản phẩm.`);
+            setHighlightProducts(true);
+            missing = true;
+        }
+
         if (missing) return;
         await fetchSupplierDetails(selectedSupplier);
         setSummaryData({
@@ -1395,10 +1612,23 @@ const ImportPage = () => {
                 return;
             }
         }
+
+        // Kiểm tra tất cả sản phẩm đều có zone
+        const productsWithoutZone = selectedProducts.filter(product => 
+            !product.zoneIds || product.zoneIds.length === 0
+        );
+        
+        if (productsWithoutZone.length > 0) {
+            setError(`Sản phẩm "${productsWithoutZone[0].name || productsWithoutZone[0].productName}" chưa được chọn zone. Vui lòng chọn zone cho tất cả sản phẩm.`);
+            setHighlightProducts(true);
+            setLoading(false);
+            return;
+        }
         
         try {
             const importData = {
                 name: nextImportCode,
+                stocktakeId: (location.state?.surplusFromStocktake?.stocktakeId) || undefined,
                 supplierId: selectedSupplier,
                 storeId: selectedStore,
                 staffId: currentUser?.id || 1,
@@ -1434,36 +1664,260 @@ const ImportPage = () => {
         }
     };
 
+    // Theo dõi thay đổi để hiển thị dialog xác nhận - tối ưu hóa
+    useEffect(() => {
+        const shouldCheckStore = currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN';
+        const hasChanges = selectedProducts.length > 0 || 
+                          selectedSupplier !== '' || 
+                          (shouldCheckStore && selectedStore !== '') || 
+                          (note && note.trim() !== '') || 
+                          paidAmount > 0;
+        
+        setHasUnsavedChanges(hasChanges);
+    }, [selectedProducts, selectedSupplier, selectedStore, note, paidAmount, currentUser?.role]);
+
+    // Xử lý lưu tạm thời riêng biệt để tránh re-render không cần thiết
+    useEffect(() => {
+        if (shouldSaveTemp && hasUnsavedChanges) {
+            const tempData = {
+                selectedProducts,
+                selectedSupplier,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('importPage_tempData', JSON.stringify(tempData));
+            setShouldSaveTemp(false);
+        }
+    }, [shouldSaveTemp, hasUnsavedChanges, selectedProducts, selectedSupplier, selectedStore, note, paidAmount]);
+
+    // Khôi phục dữ liệu tạm thời khi vào lại trang - tối ưu hóa
+    useEffect(() => {
+        const tempData = localStorage.getItem('importPage_tempData');
+        if (!tempData) return;
+
+        try {
+            const parsed = JSON.parse(tempData);
+            const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000; // 24 giờ
+            
+            if (isExpired) {
+                localStorage.removeItem('importPage_tempData');
+                return;
+            }
+
+            // Sử dụng React 18 batch updates để tối ưu performance
+            startTransition(() => {
+                if (parsed.selectedProducts?.length > 0) {
+                    setSelectedProducts(parsed.selectedProducts);
+                }
+                if (parsed.selectedSupplier) {
+                    setSelectedSupplier(parsed.selectedSupplier);
+                }
+                if (parsed.selectedStore) {
+                    setSelectedStore(parsed.selectedStore);
+                }
+                if (parsed.note) {
+                    setNote(parsed.note);
+                }
+                if (parsed.paidAmount) {
+                    setPaidAmount(parsed.paidAmount);
+                    setPaidAmountInput(parsed.paidAmount.toString());
+                }
+            });
+            
+            setSuccess('Đã khôi phục dữ liệu tạm thời!');
+        } catch (error) {
+            console.error('Lỗi khi khôi phục dữ liệu tạm thời:', error);
+            localStorage.removeItem('importPage_tempData');
+        }
+    }, []);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    useEffect(() => {
+        if (success && (success.includes('thành công') || success.includes('Đã lưu phiếu'))) {
+            clearTempData();
+        }
+    }, [success]);
+
+    // Xử lý khi dialog xác nhận đóng - tối ưu hóa
+    useEffect(() => {
+        if (!showBackConfirm) {
+            setShouldSaveTemp(false);
+        }
+    }, [showBackConfirm]);
+
+    // Bắt sự kiện browser back button và beforeunload - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listeners khi cần thiết
+        if (!hasUnsavedChanges) return;
+
+        const handleBeforeUnload = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                event.returnValue = '';
+                return '';
+            }
+        };
+
+        const handlePopState = (event) => {
+            if (!showBackConfirm && !isNavigatingAway) {
+                event.preventDefault();
+                setShowBackConfirm(true);
+                window.history.pushState(null, '', window.location.pathname);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('popstate', handlePopState);
+        
+        // Push state ban đầu để có thể bắt sự kiện back
+        window.history.pushState(null, '', window.location.pathname);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges, showBackConfirm, isNavigatingAway]);
+
+    // Bắt sự kiện click vào sidebar navigation - tối ưu hóa
+    useEffect(() => {
+        // Chỉ setup event listener khi cần thiết
+        if (!hasUnsavedChanges || showBackConfirm) return;
+
+        const handleSidebarClick = (event) => {
+            const sidebarLink = event.target.closest('a[href]');
+            const isSidebarClick = sidebarLink || 
+                                  event.target.closest('[data-testid*="sidebar"]') ||
+                                  event.target.closest('.sidebar') ||
+                                  event.target.closest('nav');
+            
+            if (isSidebarClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                if (sidebarLink?.href) {
+                    setPendingNavigation(sidebarLink.href);
+                }
+                
+                setShowBackConfirm(true);
+                return false;
+            }
+        };
+
+        document.addEventListener('click', handleSidebarClick, true);
+        
+        return () => {
+            document.removeEventListener('click', handleSidebarClick, true);
+        };
+    }, [hasUnsavedChanges, showBackConfirm]);
+
     // Hàm xử lý quay lại
     const handleBack = () => {
-        // Kiểm tra thực sự có thay đổi hay không
-        const hasChanges = (
-            selectedProducts.length > 0 || // Có sản phẩm được chọn
-            selectedSupplier || // Có nhà cung cấp được chọn
-            (note && note.trim() !== '') || // Có ghi chú
-            paidAmount > 0 // Có số tiền đã trả
-        );
-        
-        // Với role STAFF, selectedStore luôn có giá trị mặc định nên không cần kiểm tra
-        // Chỉ kiểm tra selectedStore nếu user có thể chọn nhiều cửa hàng (MANAGER/ADMIN)
-        const shouldCheckStore = currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN';
-        const hasStoreChanges = shouldCheckStore ? selectedStore : false;
-        
-        if (hasChanges || hasStoreChanges) {
+        if (hasUnsavedChanges) {
             setShowBackConfirm(true);
         } else {
             navigate('/import');
         }
     };
 
-    const handleConfirmBack = () => {
+    const handleConfirmBack = useCallback(() => {
+        // Xóa dữ liệu tạm thời khi chọn rời khỏi
+        localStorage.removeItem('importPage_tempData');
+        
+        // Chuyển hướng ngay lập tức
         setShowBackConfirm(false);
-        navigate('/import');
-    };
+        setIsNavigatingAway(true);
+        
+        if (pendingNavigation) {
+            // Sử dụng window.location.href để chuyển hướng nhanh hơn
+            window.location.href = pendingNavigation;
+        } else {
+            navigate('/import');
+        }
+        
+        setPendingNavigation(null);
+    }, [pendingNavigation, navigate]);
 
-    const handleCancelBack = () => {
+    const handleCancelBack = useCallback(() => {
         setShowBackConfirm(false);
-    };
+        setPendingNavigation(null);
+        setIsNavigatingAway(false);
+    }, []);
+
+    const handleSaveAndBack = useCallback(async () => {
+        try {
+            // Lưu dữ liệu ngay lập tức thay vì đợi useEffect
+            const tempData = {
+                selectedProducts,
+                selectedSupplier,
+                selectedStore,
+                note,
+                paidAmount,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('importPage_tempData', JSON.stringify(tempData));
+            
+            // Hiển thị thông báo ngắn gọn
+            setSuccess('Đã lưu tạm thời!');
+            
+            // Chuyển hướng ngay lập tức
+            setShowBackConfirm(false);
+            setIsNavigatingAway(true);
+            
+            if (pendingNavigation) {
+                window.location.href = pendingNavigation;
+            } else {
+                navigate('/import');
+            }
+            
+            setPendingNavigation(null);
+        } catch (error) {
+            setError('Không thể lưu tạm thời. Vui lòng thử lại.');
+        }
+    }, [pendingNavigation, navigate, selectedProducts, selectedSupplier, selectedStore, note, paidAmount]);
+
+    // Xóa dữ liệu tạm thời khi lưu thành công
+    const clearTempData = useCallback(() => {
+        localStorage.removeItem('importPage_tempData');
+        setHasUnsavedChanges(false);
+    }, []);
+    
+    // Prefill from Stocktake surplus
+    useEffect(() => {
+        const surplus = location.state?.surplusFromStocktake;
+        if (!surplus) return;
+        try {
+            // Prefill store if provided
+            if (surplus.storeId) {
+                setSelectedStore(surplus.storeId);
+            }
+            // Build selectedProducts from surplus items
+            if (Array.isArray(surplus.items) && surplus.items.length > 0) {
+                const mapped = surplus.items.map((d, idx) => ({
+                    id: d.productId || d.id || idx,
+                    name: d.productName || d.name,
+                    productCode: d.productCode || '',
+                    productDescription: '',
+                    unit: 'quả',
+                    // Quantity equals surplus diff (>0)
+                    quantity: Number(d.diff) || 0,
+                    total: 0,
+                    productId: d.productId,
+                    salePrice: 0,
+                    zoneIds: Array.isArray(d.zoneReal)
+                        ? d.zoneReal.map(z => String(z))
+                        : (typeof d.zoneReal === 'string' && d.zoneReal.includes(',')
+                            ? d.zoneReal.split(',').map(s => s.trim()).filter(Boolean)
+                            : (d.zoneReal ? [String(d.zoneReal)] : [])),
+                    expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
+                    price: 0,
+                }));
+                setSelectedProducts(mapped);
+                setNote(prev => prev && prev.length > 0 ? prev : `Điều chỉnh nhập từ kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''}`);
+            }
+        } catch (_) {}
+    }, [location.state]);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -1636,7 +2090,29 @@ const ImportPage = () => {
                             rowsPerPageOptions={[5]}
                             disableSelectionOnClick
                             getRowId={(row) => row.id}
-                            sx={highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}}
+                            sx={{
+                                ...(highlightProducts ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 4, background: '#fff6f6' } : {}),
+                                '& .MuiDataGrid-cell': {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    borderBottom: '1px solid #e0e0e0',
+                                    padding: '8px 4px'
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600',
+                                    backgroundColor: '#f8f9fa',
+                                    borderBottom: '2px solid #dee2e6'
+                                },
+                                '& .MuiDataGrid-row': {
+                                    minHeight: '52px',
+                                    '&:hover': {
+                                        backgroundColor: '#f8f9fa'
+                                    }
+                                }
+                            }}
                             componentsProps={{
                                 basePopper: {
                                     sx: {
@@ -1728,6 +2204,7 @@ const ImportPage = () => {
                 onProductCreated={refreshProducts}
                 onProductAdded={handleAddNewProduct}
                 unit={defaultUnit}
+                currentUser={currentUser}
             />
 
             {/* Category Dialog */}
@@ -1763,7 +2240,11 @@ const ImportPage = () => {
                                         >
                                             <div className="font-medium text-base">{category.name}</div>
                                             <div className="text-sm text-gray-500 font-semibold bg-blue-100 rounded-full px-3 py-1 ml-2">
-                                                {products.filter(p => p.categoryId === category.id || p.category?.id === category.id).length} sản phẩm
+                                                {products.filter(p => {
+                                                    const matchesCategory = p.categoryId === category.id || p.category?.id === category.id;
+                                                    const matchesStore = selectedStore ? p.storeId === selectedStore : true;
+                                                    return matchesCategory && matchesStore;
+                                                }).length} sản phẩm
                                             </div>
                                         </div>
                                     ))
@@ -2039,27 +2520,33 @@ const ImportPage = () => {
                 <DialogActions sx={{ p: 3, pt: 1 }}>
                     <Button 
                         onClick={handleCancelBack}
-                        variant="outlined"
+                        color="inherit"
                         sx={{
-                            borderColor: '#ddd',
                             color: '#666',
-                            '&:hover': {
-                                borderColor: '#999',
-                                backgroundColor: '#f5f5f5'
-                            }
+                            '&:hover': { backgroundColor: '#f5f5f5' }
                         }}
                     >
-                        Ở lại
+                        Hủy
                     </Button>
                     <Button 
-                        onClick={handleConfirmBack}
-                        variant="contained"
+                        onClick={handleConfirmBack} 
+                        color="inherit"
                         sx={{
-                            background: 'linear-gradient(45deg, #f57c00 30%, #ff9800 90%)',
-                            boxShadow: '0 3px 15px rgba(245, 124, 0, 0.3)',
+                            color: '#666',
+                            '&:hover': { backgroundColor: '#f5f5f5' }
+                        }}
+                    >
+                        Rời khỏi
+                    </Button>
+                    <Button 
+                        onClick={handleSaveAndBack} 
+                        variant="contained" 
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #ef6c00 30%, #f57c00 90%)',
-                                boxShadow: '0 5px 20px rgba(245, 124, 0, 0.4)',
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
                                 transform: 'translateY(-1px)'
                             },
                             fontWeight: 600,
@@ -2067,7 +2554,7 @@ const ImportPage = () => {
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        Rời khỏi
+                        Lưu tạm thời & Rời khỏi
                     </Button>
                 </DialogActions>
             </Dialog>

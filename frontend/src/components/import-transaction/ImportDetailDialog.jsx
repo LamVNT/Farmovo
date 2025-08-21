@@ -109,6 +109,12 @@ const ImportDetailDialog = ({
                         <Typography variant="body2" className="mb-1">
                             <strong>Địa chỉ:</strong> {supplierDetails?.address || 'Chưa có'}
                         </Typography>
+                        {/* Debug info */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <Typography variant="caption" className="text-gray-500 mt-2 block">
+                                Debug: supplierId={transaction.supplierId}, supplierDetails={JSON.stringify(supplierDetails)}
+                            </Typography>
+                        )}
                     </div>
                 </div>
 

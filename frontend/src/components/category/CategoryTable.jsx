@@ -6,17 +6,17 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 const CategoryTable = ({rows, onEdit, onDelete}) => {
     const columns = [
-        {field: "name", headerName: "Category Name", flex: 1, headerAlign: 'center', align: 'left'},
-        {field: "description", headerName: "Description", flex: 2, headerAlign: 'center', align: 'left'},
+        {field: "name", headerName: "Tên danh mục", flex: 1, headerAlign: 'left', align: 'left'},
+        {field: "description", headerName: "Mô tả", flex: 2, headerAlign: 'left', align: 'left'},
         {
             field: "actions",
-            headerName: "Actions",
+            headerName: "Thao tác",
             flex: 1,
-            headerAlign: 'center',
-            align: 'center',
+            headerAlign: 'left',
+            align: 'left',
             sortable: false,
             renderCell: (params) => (
-                <div style={{display: 'flex', justifyContent: 'center', gap: 8, width: '100%'}}>
+                <div style={{display: 'flex', justifyContent: 'left', gap: 8, width: '100%'}}>
                     <IconButton onClick={() => onEdit(params.row)} size="small" sx={{color: '#1976d2'}}>
                         <EditIcon/>
                     </IconButton>

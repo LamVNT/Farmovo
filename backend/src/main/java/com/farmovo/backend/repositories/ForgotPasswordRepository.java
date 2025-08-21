@@ -13,31 +13,29 @@ import java.util.Optional;
 
 public interface ForgotPasswordRepository extends JpaRepository<ForgotPassword, Long> {
 
-    @Query("SELECT fp FROM ForgotPassword fp WHERE fp.otp = ?1 AND fp.user.id = ?2")
-    Optional<ForgotPassword> findByOtpAndUserId(Integer otp, Long userId);
-
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM ForgotPassword fp WHERE fp.id = :id")
-    void deleteForgotPasswordById(@Param("id") Long id);
-
     @Modifying
     @Transactional
     @Query("DELETE FROM ForgotPassword fp WHERE fp.user.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
-
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM ForgotPassword fp WHERE fp.expirationTime < :currentTime")
-    void deleteExpiredOtps(@Param("currentTime") Date currentTime);
-
-    @Query("SELECT f FROM ForgotPassword f WHERE f.user.email = :email")
-    Optional<ForgotPassword> findByEmail(@Param("email") String email);
-
-    Optional<ForgotPassword> findByUser(User user);
-
     Optional<ForgotPassword> findByOtpAndUser(Integer otp, User user);
 
 
+//@Query("SELECT fp FROM ForgotPassword fp WHERE fp.otp = ?1 AND fp.user.id = ?2")
+//    Optional<ForgotPassword> findByOtpAndUserId(Integer otp, Long userId);
+//
+//    @Modifying
+//    @Transactional
+//    @Query("DELETE FROM ForgotPassword fp WHERE fp.id = :id")
+//    void deleteForgotPasswordById(@Param("id") Long id);
+
+//    @Modifying
+//    @Transactional
+//    @Query("DELETE FROM ForgotPassword fp WHERE fp.expirationTime < :currentTime")
+//    void deleteExpiredOtps(@Param("currentTime") Date currentTime);
+//
+//    @Query("SELECT f FROM ForgotPassword f WHERE f.user.email = :email")
+//    Optional<ForgotPassword> findByEmail(@Param("email") String email);
+//
+//    Optional<ForgotPassword> findByUser(User user);
 
 }

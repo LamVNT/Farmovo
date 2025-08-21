@@ -19,6 +19,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HistoryIcon from '@mui/icons-material/History';
 import { DateRange } from "react-date-range";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -32,7 +34,7 @@ import { Link } from "react-router-dom";
 import saleTransactionService from "../../services/saleTransactionService";
 import { getCustomerById } from "../../services/customerService";
 import { userService } from "../../services/userService";
-import { getStoreById } from "../../services/storeService";
+import { getStoreById, getAllStores } from "../../services/storeService";
 import ReplyIcon from '@mui/icons-material/Reply';
 import SaveIcon from '@mui/icons-material/Save';
 import ReplyAllIcon from '@mui/icons-material/ReplyAll';
@@ -41,7 +43,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportSaleTransactions, exportSaleTransactionDetail } from '../../utils/excelExport';
 import SaleDetailDialog from '../../components/sale-transaction/SaleDetailDialog';
+import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import { formatCurrency } from "../../utils/formatters";
+import { customerService, getCustomers, getAllCustomers } from "../../services/customerService";
+import { useAuth } from "../../contexts/AuthorizationContext";
+import changeStatusLogService from "../../services/changeStatusLogService";
 
 const getRange = (key) => {
     const today = new Date();
@@ -80,6 +86,7 @@ const labelMap = {
 };
 
 const SaleTransactionPage = () => {
+    const { isAdmin } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams(); // Lấy query params
@@ -103,6 +110,66 @@ const SaleTransactionPage = () => {
         search: ''
     });
 
+    const [customerOptions, setCustomerOptions] = useState([]);
+    const [customerLoading, setCustomerLoading] = useState(false);
+
+    const [storeOptions, setStoreOptions] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(false);
+
+    useEffect(() => {
+        const loadCustomers = async () => {
+            setCustomerLoading(true);
+            try {
+                // Try to fetch a paged list first for performance
+                const page = await customerService.getCustomersPaged({ page: 0, size: 100 });
+                const list = page?.content || [];
+                if (list.length > 0) {
+                    setCustomerOptions(list.map(c => ({ id: c.id, name: c.name })));
+                    return;
+                }
+                // Fallback to API returning all customers
+                const all = await getAllCustomers();
+                setCustomerOptions((all || []).map(c => ({ id: c.id, name: c.name })));
+            } catch (e) {
+                // Silent fail; keep empty list
+                setCustomerOptions([]);
+            } finally {
+                setCustomerLoading(false);
+            }
+        };
+        loadCustomers();
+    }, []);
+
+    useEffect(() => {
+        const loadStores = async () => {
+            if (!isAdmin()) return; // only admin sees/loads stores
+            setStoreLoading(true);
+            try {
+                const stores = await getAllStores();
+                setStoreOptions((stores || []).map(s => ({ id: s.id, name: s.storeName || s.name })));
+            } catch (e) {
+                setStoreOptions([]);
+            } finally {
+                setStoreLoading(false);
+            }
+        };
+        loadStores();
+    }, [isAdmin]);
+
+    // Kiểm tra thông báo thành công từ localStorage khi vào trang
+    useEffect(() => {
+        const successMessage = localStorage.getItem('saleSuccessMessage');
+        if (successMessage) {
+            setSuccess(successMessage);
+            // Xóa thông báo khỏi localStorage sau khi hiển thị
+            localStorage.removeItem('saleSuccessMessage');
+            // Tự động ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+        }
+    }, []);
+
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -124,10 +191,89 @@ const SaleTransactionPage = () => {
         actionType: ''
     });
 
+    // State cho dialog lịch sử thay đổi
+    const [changeHistoryDialogOpen, setChangeHistoryDialogOpen] = useState(false);
+    const [selectedChangeLog, setSelectedChangeLog] = useState(null);
+    const [sourceLogs, setSourceLogs] = useState([]);
+    const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
+
     // Pagination states
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(25);
     const [total, setTotal] = useState(0);
+
+    // Multi-select state
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const selectedCount = selectedIds.size;
+    const currentPageIds = transactions.map(t => t.id);
+    const allSelectedOnPage = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.has(id));
+    const someSelectedOnPage = currentPageIds.some(id => selectedIds.has(id)) && !allSelectedOnPage;
+    const isRowSelected = (id) => selectedIds.has(id);
+    const clearSelection = () => setSelectedIds(new Set());
+    const toggleSelectOne = (id) => setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    const toggleSelectAllOnPage = () => setSelectedIds(prev => { const next = new Set(prev); if (allSelectedOnPage) { currentPageIds.forEach(id => next.delete(id)); } else { currentPageIds.forEach(id => next.add(id)); } return next; });
+
+    // Bulk actions
+    const handleBulkCancel = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE'));
+        if (eligible.length === 0) {
+            setError('Không có phiếu hợp lệ để hủy (chỉ DRAFT/WAITING_FOR_APPROVE).');
+            return;
+        }
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận hủy ${eligible.length} phiếu`,
+            message: `Bạn có chắc chắn muốn hủy ${eligible.length} phiếu đã chọn?`,
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const results = await Promise.allSettled(eligible.map(e => saleTransactionService.cancel(e.id)));
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) setSuccess(`Đã hủy ${succeeded}/${results.length} phiếu.`);
+                    if (failed > 0) setError(`Không thể hủy ${failed} phiếu.`);
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'cancel'
+        });
+    };
+
+    const handleBulkDelete = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id));
+        if (eligible.length === 0) {
+            setError('Hãy chọn ít nhất một phiếu để xóa.');
+            return;
+        }
+        console.log('Bulk delete - eligible transactions:', eligible);
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận xóa ${eligible.length} phiếu`,
+            message: 'Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa các phiếu đã chọn?',
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    console.log('Starting bulk soft delete for:', eligible.map(t => ({ id: t.id, name: t.name })));
+                    const results = await Promise.allSettled(eligible.map(e => saleTransactionService.softDelete(e.id)));
+                    console.log('Bulk soft delete results:', results);
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                    if (failed > 0) setError(`Không thể xóa ${failed} phiếu.`);
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'delete'
+        });
+    };
 
     // Filter sidebar states
     const [showFilter, setShowFilter] = useState(true);
@@ -137,7 +283,37 @@ const SaleTransactionPage = () => {
     // Kiểm tra URL params để tự động mở dialog chi tiết
     useEffect(() => {
         const viewParam = searchParams.get('view');
-        if (id && viewParam === 'detail') {
+        const idByStocktake = searchParams.get('id_by_stocktake');
+        if (idByStocktake) {
+            // Thử tìm PCB theo stocktakeId sau khi load danh sách
+            (async () => {
+                try {
+                    // Tải trang đầu để tìm nhanh
+                    const data = await saleTransactionService.listPaged({ page: 0, size: 50 });
+                    console.log('PCB search response:', data);
+                    
+                    // Xử lý response từ PageResponse format
+                    let list = [];
+                    if (data && data.content) {
+                        list = data.content || [];
+                    } else if (Array.isArray(data)) {
+                        list = data;
+                    } else {
+                        list = data?.content || data?.data || [];
+                    }
+                    
+                    const pcb = list.find(r => (r.name || '').startsWith('PCB') && (r.stocktakeId === Number(idByStocktake)));
+                    if (pcb) {
+                        await handleAutoOpenDetail(pcb.id);
+                        return;
+                    }
+                    // Fallback: thử gọi getById theo ID từ filter khác nếu BE/FE khác cấu trúc
+                    // Ở đây bỏ qua để tránh gọi sai; người dùng vẫn ở trang danh sách
+                } catch (e) {
+                    // ignore
+                }
+            })();
+        } else if (id && viewParam === 'detail') {
             // Tự động mở dialog chi tiết cho transaction có ID này
             handleAutoOpenDetail(parseInt(id));
         }
@@ -146,7 +322,7 @@ const SaleTransactionPage = () => {
     // Hàm tự động mở dialog chi tiết
     const handleAutoOpenDetail = async (transactionId) => {
         try {
-            const transaction = await saleTransactionService.getWithDetails(transactionId);
+            const transaction = await saleTransactionService.getById(transactionId);
             setSelectedTransaction(transaction);
             
             // Fetch thông tin customer
@@ -194,12 +370,17 @@ const SaleTransactionPage = () => {
                 queryParams.storeName = filter.search;
             }
 
+            // Apply customer filter explicitly if selected
             if (filter.customer) {
-                queryParams.customerName = filter.customer;
+                // If we have an id-based select, we can still filter by name on backend; find the option name
+                const selected = customerOptions.find(c => `${c.id}` === `${filter.customer}` || c.name === filter.customer);
+                queryParams.customerName = selected ? selected.name : filter.customer;
             }
 
             if (filter.store) {
-                queryParams.storeName = filter.store;
+                // Only admins set store filter; map id -> name
+                const selectedStore = storeOptions.find(s => `${s.id}` === `${filter.store}` || s.name === filter.store);
+                queryParams.storeName = selectedStore ? selectedStore.name : filter.store;
             }
 
             // Add status filters
@@ -208,20 +389,67 @@ const SaleTransactionPage = () => {
                 queryParams.status = statusKeys.join(',');
             }
 
-            // Add date range
+            // Add date range (use local datetime strings, no timezone)
+            const toLocalString = (d) => {
+                const pad = (n) => String(n).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                const mm = pad(d.getMonth() + 1);
+                const dd = pad(d.getDate());
+                const HH = pad(d.getHours());
+                const MM = pad(d.getMinutes());
+                const SS = pad(d.getSeconds());
+                return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+            };
             if (customDate && customDate[0]) {
                 const start = customDate[0].startDate;
                 const end = customDate[0].endDate;
-                queryParams.fromDate = start.toISOString();
-                queryParams.toDate = end.toISOString();
+                const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+                const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+                queryParams.fromDate = toLocalString(startOfDay);
+                queryParams.toDate = toLocalString(endOfDay);
             }
+
+            // Loại bỏ phiếu Cân Bằng kho
+            queryParams.note = '';
+
+            // Thêm tham số sắp xếp để đảm bảo mới nhất lên đầu
+            queryParams.sort = 'createdAt';
+            queryParams.direction = 'desc';
 
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', queryParams);
             const data = await saleTransactionService.listPaged(queryParams);
-            console.log('API page:', page, 'pageSize:', pageSize, 'data:', data);
+            console.log('API response:', data);
+            console.log('API response type:', typeof data);
+            console.log('API response keys:', data ? Object.keys(data) : 'null/undefined');
             
-            setTransactions(Array.isArray(data) ? data : (data?.content || []));
-            setTotal(data?.totalElements || 0);
+            // Xử lý response từ PageResponse format
+            let transactions = [];
+            let totalElements = 0;
+            
+            if (data && data.content) {
+                // Backend trả về PageResponse format
+                transactions = data.content || [];
+                totalElements = data.totalElements || 0;
+                console.log('Using PageResponse format - content length:', transactions.length, 'total:', totalElements);
+            } else if (Array.isArray(data)) {
+                // Fallback: nếu response là array trực tiếp
+                transactions = data;
+                totalElements = data.length;
+                console.log('Using array format - length:', transactions.length);
+            } else {
+                // Fallback: nếu response có cấu trúc khác
+                transactions = data?.content || data?.data || [];
+                totalElements = data?.totalElements || data?.total || transactions.length;
+                console.log('Using fallback format - content length:', transactions.length, 'total:', totalElements);
+            }
+            
+            // Lọc bỏ phiếu Cân Bằng kho (chỉ theo Note), vẫn hiển thị các phiếu bán cho 'Khách lẻ'
+            transactions = transactions.filter(row => {
+                const note = (row.saleTransactionNote || '').toLowerCase();
+                return !note.includes('cân bằng kho');
+            });
+            setTransactions(transactions);
+            setTotal(totalElements);
         } catch (err) {
             console.error('Error loading transactions:', err);
             setError('Không thể tải danh sách phiếu bán hàng');
@@ -338,7 +566,9 @@ const SaleTransactionPage = () => {
     const handleComplete = async (row) => {
         if (!row) return;
         try {
+            // Backend sẽ tự động xử lý chuyển trạng thái nếu cần
             await saleTransactionService.complete(row.id);
+            console.log('Transaction completed successfully');
             setSuccess('Hoàn thành phiếu thành công!');
             setOpenDetailDialog(false);
             setSelectedTransaction(null);
@@ -346,6 +576,7 @@ const SaleTransactionPage = () => {
             setCustomerDetails(null);
             loadTransactions();
         } catch (error) {
+            console.error('Error completing transaction:', error);
             setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
         }
     };
@@ -405,6 +636,45 @@ const SaleTransactionPage = () => {
         setActionRow(null);
     };
 
+    // Function xử lý dialog lịch sử thay đổi
+    const handleViewChangeHistory = async () => {
+        if (!actionRow) return;
+        
+        setChangeHistoryDialogOpen(true);
+        setSelectedChangeLog({
+            id: actionRow.id,
+            modelName: 'SALE_TRANSACTION',
+            modelID: actionRow.id,
+            sourceName: actionRow.name || `Phiếu bán hàng #${actionRow.id}`,
+            previousStatus: actionRow.status,
+            nextStatus: actionRow.status,
+            description: `Xem lịch sử thay đổi của phiếu bán hàng: ${actionRow.name}`,
+            createdAt: new Date().toISOString(),
+            createdBy: actionRow.createdBy || 'Hệ thống'
+        });
+        
+        // Lấy tất cả bản ghi thay đổi của mã nguồn này
+        setSourceLogsLoading(true);
+        try {
+            const response = await changeStatusLogService.getLogsByModel('SALE_TRANSACTION', actionRow.id);
+            setSourceLogs(response.data || []);
+        } catch (error) {
+            console.error('Error fetching source logs:', error);
+            setSourceLogs([]);
+        } finally {
+            setSourceLogsLoading(false);
+        }
+        
+        handleActionClose();
+    };
+
+    const handleCloseChangeHistoryDialog = () => {
+        setChangeHistoryDialogOpen(false);
+        setSelectedChangeLog(null);
+        setSourceLogs([]);
+        setSourceLogsLoading(false);
+    };
+
     const handleViewDetailMenu = () => {
         handleViewDetail(actionRow);
         handleActionClose();
@@ -415,6 +685,28 @@ const SaleTransactionPage = () => {
     };
 
     const handleDelete = () => {
+        if (!actionRow) return;
+        
+        console.log('Single delete - transaction:', actionRow);
+        setConfirmDialog({
+            open: true,
+            title: 'Xác nhận xóa phiếu',
+            message: `Bạn có chắc chắn muốn xóa phiếu bán hàng "${actionRow.name}"? Hành động này không thể hoàn tác.`,
+            onConfirm: async () => {
+                try {
+                    console.log('Starting single soft delete for:', actionRow.id, actionRow.name);
+                    await saleTransactionService.softDelete(actionRow.id);
+                    console.log('Single soft delete successful');
+                    setSuccess('Đã xóa phiếu thành công!');
+                    await loadTransactions();
+                } catch (err) {
+                    console.error('Error in single soft delete:', err);
+                    setError('Không thể xóa phiếu. Vui lòng thử lại!');
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'delete'
+        });
         handleActionClose();
     };
 
@@ -459,6 +751,32 @@ const SaleTransactionPage = () => {
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'close'
+            });
+        }
+        handleActionClose();
+    };
+
+    const handleCompleteDraftTransactionMenu = async () => {
+        if (actionRow?.status === 'DRAFT') {
+            setSelectedTransaction(actionRow);
+            setConfirmDialog({
+                open: true,
+                title: 'Xác nhận hoàn thành phiếu bản nháp',
+                message: `Bạn có chắc chắn muốn hoàn thành phiếu bán hàng "${actionRow.name}"? Hành động này sẽ cập nhật trạng thái lên COMPLETE và cập nhật tồn kho.`,
+                onConfirm: async () => {
+                    try {
+                        // Backend sẽ tự động xử lý chuyển từ DRAFT sang COMPLETE
+                        await saleTransactionService.complete(actionRow.id);
+                        console.log('Transaction completed successfully');
+                        loadTransactions();
+                        setSuccess('Hoàn thành phiếu bản nháp thành công!');
+                    } catch (err) {
+                        console.error('Error completing draft transaction:', err);
+                        setError('Không thể hoàn thành phiếu bản nháp. Vui lòng thử lại!');
+                    }
+                    setConfirmDialog({ ...confirmDialog, open: false });
+                },
+                actionType: 'complete'
             });
         }
         handleActionClose();
@@ -679,7 +997,7 @@ const SaleTransactionPage = () => {
                     {success}
                 </Alert>
             )}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-3">
                 <h2 className="text-xl font-semibold">Phiếu bán hàng</h2>
                 <div className="flex gap-2">
                     <Link to="/sale/new">
@@ -694,7 +1012,7 @@ const SaleTransactionPage = () => {
             </div>
 
             <div
-                className="flex flex-col lg:flex-row gap-4 mb-5"
+                className="flex flex-col lg:flex-row gap-3 mb-4"
                 ref={mainAreaRef}
                 style={{ position: 'relative' }}
                 onMouseEnter={() => setShowFilterBtn(true)}
@@ -865,30 +1183,48 @@ const SaleTransactionPage = () => {
                             <span className="font-semibold">Khách hàng</span>
                         </AccordionSummary>
                         <AccordionDetails>
-                            <TextField 
-                                fullWidth 
-                                size="small" 
-                                placeholder="Tìm khách hàng" 
-                                value={filter.customer} 
-                                onChange={(e) => setFilter({ ...filter, customer: e.target.value })} 
-                            />
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="customer-select-label">Chọn khách hàng</InputLabel>
+                                <Select
+                                    labelId="customer-select-label"
+                                    label="Chọn khách hàng"
+                                    value={filter.customer}
+                                    onChange={(e) => setFilter({ ...filter, customer: e.target.value })}
+                                    disabled={customerLoading}
+                                >
+                                    <MenuItem value=""><em>Tất cả</em></MenuItem>
+                                    {customerOptions.map(opt => (
+                                        <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                         </AccordionDetails>
                     </Accordion>
 
-                    <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <span className="font-semibold">Cửa hàng</span>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TextField 
-                                fullWidth 
-                                size="small" 
-                                placeholder="Tìm cửa hàng" 
-                                value={filter.store} 
-                                onChange={(e) => setFilter({ ...filter, store: e.target.value })} 
-                            />
-                        </AccordionDetails>
-                    </Accordion>
+                    {isAdmin() && (
+                        <Accordion className="bg-white rounded shadow mb-4 w-full">
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <span className="font-semibold">Cửa hàng</span>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel id="store-select-label">Chọn cửa hàng</InputLabel>
+                                    <Select
+                                        labelId="store-select-label"
+                                        label="Chọn cửa hàng"
+                                        value={filter.store}
+                                        onChange={(e) => setFilter({ ...filter, store: e.target.value })}
+                                        disabled={storeLoading}
+                                    >
+                                        <MenuItem value=""><em>Tất cả</em></MenuItem>
+                                        {storeOptions.map(opt => (
+                                            <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </AccordionDetails>
+                        </Accordion>
+                    )}
 
                     {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
@@ -924,6 +1260,100 @@ const SaleTransactionPage = () => {
                         />
                     </div>
                     
+                    {selectedCount > 0 && (
+                        <>
+                            {(() => {
+                                const eligibleCancelCount = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE')).length;
+                                const ineligibleCancelCount = selectedCount - eligibleCancelCount; // includes COMPLETE and others
+                                return (
+                                    <div
+                                        className="bulk-toolbar"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: 6,
+                                            background: 'linear-gradient(180deg, #f8fbff 0%, #eef2ff 100%)',
+                                            borderRadius: 12,
+                                            marginBottom: 8,
+                                            boxShadow: '0 1px 6px rgba(59,130,246,0.08)',
+                                            border: '1px solid #dbeafe',
+                                            width: 'fit-content',
+                                            fontFamily: 'Roboto, Arial, sans-serif',
+                                            fontSize: 14
+                                        }}
+                                    >
+                                        <span style={{ color: '#1e40af' }}>Đã chọn {selectedCount}</span>
+                                        <span style={{ width: 1, height: 18, background: '#dbeafe' }} />
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={clearSelection}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Bỏ chọn"
+                                        >
+                                            <CloseIcon fontSize="small" />
+                                            <span className="label">Bỏ chọn</span>
+                                        </Button>
+                                        {eligibleCancelCount > 0 && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={handleBulkCancel}
+                                                className="bulk-btn"
+                                                sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                                aria-label="Hủy"
+                                            >
+                                                <CancelIcon fontSize="small" />
+                                                <span className="label">Hủy</span>
+                                            </Button>
+                                        )}
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={handleBulkDelete}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Xóa"
+                                        >
+                                            <DeleteIcon fontSize="small" />
+                                            <span className="label">Xóa</span>
+                                        </Button>
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount === 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount > 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Có {ineligibleCancelCount} phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            <style>{`
+                                .bulk-toolbar .bulk-btn { display: inline-flex; align-items: center; }
+                                .bulk-toolbar .bulk-btn .label {
+                                  max-width: 0;
+                                  opacity: 0;
+                                  overflow: hidden;
+                                  margin-left: 0;
+                                  transition: max-width .2s ease, opacity .2s ease, margin-left .2s ease;
+                                  white-space: nowrap;
+                                }
+                                .bulk-toolbar .bulk-btn:hover .label {
+                                  max-width: 120px;
+                                  opacity: 1;
+                                  margin-left: 6px;
+                                }
+                            `}</style>
+                        </>
+                    )}
+
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
@@ -938,25 +1368,41 @@ const SaleTransactionPage = () => {
                         ) : (
                             <table style={tableStyles}>
                                 <colgroup>
-                                    <col style={{ width: 40 }} /> {/* Checkbox */}
-                                    <col style={{ width: 60 }} /> {/* STT */}
-                                    <col style={{ width: 160 }} /> {/* Mã phiếu bán */}
-                                    <col style={{ width: 160 }} /> {/* Khách hàng */}
-                                    <col style={{ width: 150 }} /> {/* Cửa hàng */}
-                                    <col style={{ width: 170 }} /> {/* Thời gian */}
-                                    <col style={{ width: 130 }} /> {/* Tổng tiền */}
-                                    <col style={{ width: 130 }} /> {/* Đã thanh toán */}
-                                    <col style={{ width: 120 }} /> {/* Trạng thái */}
-                                    <col style={{ width: 80 }} /> {/* Hành động */}
+                                    {/* Checkbox */}
+                                    <col style={{ width: 40 }} />
+                                    {/* STT */}
+                                    <col style={{ width: 60 }} />
+                                    {/* Mã phiếu bán */}
+                                    <col style={{ width: 160 }} />
+                                    {/* Khách hàng */}
+                                    <col style={{ width: 160 }} />
+                                    {/* Cửa hàng */}
+                                    <col style={{ width: 150 }} />
+                                    {/* Ngày tạo */}
+                                    <col style={{ width: 170 }} />
+                                    {/* Tổng tiền */}
+                                    <col style={{ width: 130 }} />
+                                    {/* Đã thanh toán */}
+                                    <col style={{ width: 130 }} />
+                                    {/* Trạng thái */}
+                                    <col style={{ width: 120 }} />
+                                    {/* Hành động */}
+                                    <col style={{ width: 80 }} />
                                 </colgroup>
                                 <thead>
                                     <tr>
-                                        <th style={thStyles}><Checkbox /></th>
+                                        <th style={thStyles}>
+                                            <Checkbox
+                                                checked={allSelectedOnPage}
+                                                indeterminate={someSelectedOnPage}
+                                                onChange={toggleSelectAllOnPage}
+                                            />
+                                        </th>
                                         <th style={thStyles}>STT</th>
                                         <th style={thStyles}>Mã phiếu bán</th>
                                         <th style={thStyles}>Khách hàng</th>
                                         <th style={thStyles}>Cửa hàng</th>
-                                        <th style={thStyles}>Thời gian</th>
+                                        <th style={thStyles}>Ngày tạo</th>
                                         <th style={thStyles}>Tổng tiền</th>
                                         <th style={thStyles}>Đã thanh toán</th>
                                         <th style={thStyles}>Trạng thái</th>
@@ -967,48 +1413,35 @@ const SaleTransactionPage = () => {
                                     {transactions.length === 0 ? (
                                         <tr><td colSpan={10} style={{ textAlign: 'center', ...tdStyles }}>Không có dữ liệu</td></tr>
                                     ) : transactions.map((row, idx) => {
-                                        const statusColor = getStatusColor(row.status);
                                         const paid = row.paidAmount || 0;
                                         const total = row.totalAmount || 0;
                                         let paidColor = '#6b7280';
-                                        if (paid < total) {
-                                            paidColor = '#ef4444';
-                                        } else if (paid === total) {
-                                            paidColor = '#10b981';
-                                        } else if (paid > total) {
-                                            paidColor = '#f59e42';
-                                        }
+                                        if (paid < total) paidColor = '#ef4444';
+                                        else if (paid === total) paidColor = '#10b981';
+                                        else if (paid > total) paidColor = '#f59e42';
 
                                         return (
                                             <tr key={row.id} style={zebra(idx)}>
-                                                <td style={tdStyles}><Checkbox size="small" /></td>
+                                                <td style={tdStyles}><Checkbox size="small" checked={isRowSelected(row.id)} onChange={() => toggleSelectOne(row.id)} /></td>
                                                 <td style={tdStyles}>{page * pageSize + idx + 1}</td>
                                                 <td style={tdStyles}>{row.name}</td>
                                                 <td style={tdStyles}>{row.customerName}</td>
                                                 <td style={tdStyles}>{row.storeName}</td>
-                                                <td style={tdStyles}>
-                                                    {row.saleDate ? new Date(row.saleDate).toLocaleString('vi-VN') : ''}
-                                                </td>
-                                                <td style={tdStyles}>
-                                                    {row.totalAmount ? row.totalAmount.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}
-                                                </td>
-                                                <td style={{ ...tdStyles, color: paidColor }}>
-                                                    {paid.toLocaleString('vi-VN') + ' VNĐ'}
-                                                </td>
+                                                <td style={tdStyles}>{row.createdAt ? new Date(row.createdAt).toLocaleString('vi-VN') : (row.saleDate ? new Date(row.saleDate).toLocaleString('vi-VN') : '')}</td>
+                                                <td style={tdStyles}>{row.totalAmount ? row.totalAmount.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
+                                                <td style={{ ...tdStyles, color: paidColor }}>{paid.toLocaleString('vi-VN') + ' VNĐ'}</td>
                                                 <td style={tdStyles}>
                                                     <span style={{
                                                       background:
                                                         row.status === 'COMPLETE' ? '#e6f4ea' :
                                                         row.status === 'CANCEL' ? '#fde8e8' :
                                                         row.status === 'DRAFT' ? '#f3f4f6' :
-                                                        row.status === 'WAITING_FOR_APPROVE' ? '#fff7e0' :
-                                                        '#fff7e0',
+                                                        row.status === 'WAITING_FOR_APPROVE' ? '#fff7e0' : '#fff7e0',
                                                       color:
                                                         row.status === 'COMPLETE' ? '#34a853' :
                                                         row.status === 'CANCEL' ? '#ef4444' :
                                                         row.status === 'DRAFT' ? '#6b7280' :
-                                                        row.status === 'WAITING_FOR_APPROVE' ? '#f59e0b' :
-                                                        '#f59e0b',
+                                                        row.status === 'WAITING_FOR_APPROVE' ? '#f59e0b' : '#f59e0b',
                                                       borderRadius: 6,
                                                       padding: '2px 10px',
                                                       fontWeight: 400,
@@ -1104,7 +1537,6 @@ const SaleTransactionPage = () => {
                 customerDetails={customerDetails}
                 onCancel={() => handleCancel(selectedTransaction)}
                 onComplete={() => handleComplete(selectedTransaction)}
-                onOpenTransaction={handleOpenTransaction}
                 onCloseTransaction={handleCloseTransaction}
                 loading={loading}
             />
@@ -1132,11 +1564,21 @@ const SaleTransactionPage = () => {
                     <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
-                {/* Hiển thị nút "Mở phiếu" chỉ khi trạng thái là DRAFT */}
+                {/* Hiển thị nút "Chỉnh sửa" chỉ khi trạng thái là DRAFT */}
                 {actionRow?.status === 'DRAFT' && (
-                    <MenuItem onClick={handleOpenTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                        <ListItemIcon><LockOpenIcon fontSize="small" /></ListItemIcon>
-                        <ListItemText primary="Mở phiếu" />
+                    <MenuItem onClick={() => {
+                        navigate(`/sale/edit/${actionRow.id}`);
+                        handleActionClose();
+                    }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+                        <ListItemText primary="Chỉnh sửa" />
+                    </MenuItem>
+                )}
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleCompleteDraftTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
+                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText primary="Hoàn thành" />
                     </MenuItem>
                 )}
                 
@@ -1176,6 +1618,10 @@ const SaleTransactionPage = () => {
                 }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xuất PDF" />
+                </MenuItem>
+                <MenuItem onClick={handleViewChangeHistory} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
+                    <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Lịch sử thay đổi" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
                     <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
@@ -1261,6 +1707,16 @@ const SaleTransactionPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog lịch sử thay đổi */}
+            <ChangeStatusLogDetailDialog
+                open={changeHistoryDialogOpen}
+                log={selectedChangeLog}
+                sourceLogs={sourceLogs}
+                sourceLogsLoading={sourceLogsLoading}
+                onClose={handleCloseChangeHistoryDialog}
+                onViewSource={() => {}} // Không cần xử lý view source ở đây
+            />
         </div>
     );
 };

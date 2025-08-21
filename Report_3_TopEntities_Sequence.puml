@@ -1,0 +1,58 @@
+@startuml Report_3_TopEntities_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report – Top Products / Top Customers
+
+actor Staff
+participant ":Report Dashboard Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+participant ":SaleTransactionRepository" as SaleRepo
+
+== A. Top Products ==
+Staff -> UI: Chọn khoảng thời gian + limit (Top N)
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/top-products?from&to&limit
+activate RC
+RC -> RS: getTopProducts(from, to, limit)
+activate RS
+RS -> DetailRepo: getTopProducts(from, to, PageRequest(0, limit))
+activate DetailRepo
+DetailRepo --> RS: List<Object[]>
+deactivate DetailRepo
+RS -> RS: map to List<TopProductDto>
+RS --> RC: List<TopProductDto>
+deactivate RS
+RC --> UI: 200 OK List<TopProductDto>
+deactivate RC
+UI --> Staff: Render table/chart
+
+== B. Top Customers ==
+UI -> RC: GET /api/reports/top-customers?from&to&limit
+activate RC
+RC -> RS: getTopCustomers(from, to, limit)
+activate RS
+RS -> SaleRepo: getTopCustomers(from, to, PageRequest(0, limit))
+activate SaleRepo
+SaleRepo --> RS: List<Object[]>
+deactivate SaleRepo
+RS -> RS: map to List<TopCustomerDto>
+RS --> RC: List<TopCustomerDto>
+deactivate RS
+RC --> UI: 200 OK List<TopCustomerDto>
+deactivate RC
+UI --> Staff: Render table/chart
+
+deactivate UI
+deactivate Staff
+
+@enduml

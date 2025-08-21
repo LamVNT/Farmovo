@@ -5,7 +5,7 @@ import { productService } from "../../services/productService";
 import { getZones } from "../../services/zoneService";
 import { saveAs } from 'file-saver';
 import {
-    Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box, TextField, useTheme, useMediaQuery
+    Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Typography, Box, TextField, useTheme, useMediaQuery, Link
 } from "@mui/material";
 import useStocktake from "../../hooks/useStocktake";
 import SnackbarAlert from "../../components/SnackbarAlert";
@@ -30,6 +30,18 @@ const StockTakeDetailPage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+    // Helper lấy storeId cho Staff (nếu cần dùng cho filter/detail)
+    const getStaffStoreId = () => {
+        if (user && user.store && typeof user.store === 'object' && user.store.id != null) {
+            return Number(user.store.id);
+        } else if (typeof user?.storeId === 'number' || (typeof user?.storeId === 'string' && user?.storeId !== '')) {
+            return Number(user.storeId);
+        } else if (localStorage.getItem('staff_store_id')) {
+            return Number(localStorage.getItem('staff_store_id'));
+        }
+        return '';
+    };
+
     useEffect(() => {
         // Chỉ cần lấy detail từ API nếu chưa có
         if (!detail && id) {
@@ -38,6 +50,26 @@ const StockTakeDetailPage = () => {
                 .catch(() => alert("Không lấy được chi tiết phiếu kiểm kê!"));
         }
     }, [id, detail, setDetail]);
+
+    // Sau khi lấy detail
+    const hasDiff = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => d.diff !== 0)
+        : false;
+
+    const hasShortage = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) < 0)
+        : false;
+    const hasSurplus = Array.isArray(detail?.detail)
+        ? detail.detail.some(d => Number(d.diff) > 0)
+        : false;
+    const canBalance = detail?.status === 'COMPLETED'
+        && hasShortage
+        && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
+
+    // Surplus (dư hàng): real > remain
+    const surplusItems = Array.isArray(detail?.detail)
+        ? detail.detail.filter(d => Number(d.diff) > 0)
+        : [];
 
     if (!detail) return (
         <Box sx={{ textAlign: "center", mt: 8 }}>
@@ -53,22 +85,85 @@ const StockTakeDetailPage = () => {
                     {detail.name || `KK${String(detail.id).padStart(6, '0')}`}
                 </Typography>
                 <Chip
-                    label={detail.status === "COMPLETED" ? "Đã cân bằng kho" : detail.status === "DRAFT" ? "Phiếu tạm" : detail.status}
+                    label={detail.status === "COMPLETED" ? "Đã hoàn thành" : detail.status === "DRAFT" ? "Phiếu tạm" : detail.status}
                     color={detail.status === "COMPLETED" ? "success" : detail.status === "DRAFT" ? "warning" : "default"}
                     size="medium"
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
+                {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
+                {hasSurplus && detail?.hasImport !== true && (
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate('/import/new', {
+                            state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
+                        })}
+                    >
+                        Tạo phiếu nhập hàng
+                    </Button>
+                )}
+                {canBalance && (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/sale/balance/${detail.id}`, { state: { stocktakeId: detail.id, stocktakeCode: detail.name } })}
+                    >
+                        Cân bằng kho (Tạo PCB)
+                    </Button>
+                )}
+                {/* Nút mở PCB đã liên kết nếu có */}
+                {!canBalance && detail?.hasBalance && (
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/balance?view=detail&id_by_stocktake=${detail.id}`)}
+                        title="Mở phiếu cân bằng đã liên kết"
+                    >
+                        Xem phiếu cân bằng
+                    </Button>
+                )}
+                {/* Nút mở Phiếu nhập đã liên kết nếu có */}
+                {detail?.hasImport && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/import?view=detail&stocktakeId=${detail.id}`)}
+                        title="Mở phiếu nhập đã liên kết"
+                    >
+                        Xem phiếu nhập
+                    </Button>
+                )}
             </Box>
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 2 : 6, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <Box>
-                    <Typography><b>Người tạo:</b> <span style={{color:'#1976d2'}}>{detail.createdByName || ''}</span></Typography>
+                    <Typography><b>Người tạo:</b> <span style={{ color: '#1976d2' }}>{detail.createdByName || ''}</span></Typography>
                     <Typography><b>Ngày tạo:</b> {detail.stocktakeDate ? new Date(detail.stocktakeDate).toLocaleString('vi-VN') : ''}</Typography>
                 </Box>
                 <Box>
-                    <Typography><b>Người cân bằng:</b> {detail.status === "COMPLETED" ? <span style={{color:'#388e3c'}}>{detail.createdByName || ''}</span> : <span style={{color:'#888'}}>Chưa có</span>}</Typography>
-                    <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{color:'#888'}}>Chưa có</span>}</Typography>
+                    <Typography><b>Người cân bằng:</b> {detail.status === "COMPLETED" ? <span style={{ color: '#388e3c' }}>{detail.createdByName || ''}</span> : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
+                    <Typography><b>Ngày cân bằng:</b> {detail.status === "COMPLETED" && detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('vi-VN') : <span style={{ color: '#888' }}>Chưa có</span>}</Typography>
                 </Box>
             </Box>
+
+            {/* Surplus banner & actions */}
+            {surplusItems.length > 0 && (
+                <Box sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid #fde68a',
+                    background: '#fffbeb'
+                }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
+                        Phát hiện dư hàng: {surplusItems.length} lô có thực tế &gt; tồn kho
+                    </Typography>
+                </Box>
+            )}
+
             {/* Bộ lọc tìm kiếm */}
             <Box mb={2} sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2 }}>
                 <TextField
@@ -122,22 +217,38 @@ const StockTakeDetailPage = () => {
                         ) : (
                             filteredDetails.map((d, idx) => (
                                 <TableRow key={(d.batchCode || d.name || 'row') + '-' + (d.productId || '') + '-' + idx} hover sx={d.diff !== 0 ? { background: '#ffeaea' } : {}}>
-                                    <TableCell sx={{color:'#1976d2', fontWeight:600}}>{d.batchCode || d.name}</TableCell>
+                                    <TableCell sx={{ color: '#1976d2', fontWeight: 600 }}>{d.batchCode || d.name}</TableCell>
                                     <TableCell><b>{products.find(p => p.id === d.productId)?.productName || d.productName || d.productId}</b></TableCell>
                                     {!isMobile && <TableCell>
-                                        {d.zones_id ? 
-                                            (Array.isArray(d.zones_id) ? 
+                                        {d.zones_id ?
+                                            (Array.isArray(d.zones_id) ?
                                                 d.zones_id.map(zid => {
                                                     const zone = zones.find(z => z.id === Number(zid));
                                                     return zone ? zone.zoneName : zid;
-                                                }).join(", ") 
+                                                }).join(", ")
                                                 : d.zones_id)
                                             : (d.zoneName || d.zoneId || '')
                                         }
                                     </TableCell>}
                                     <TableCell>{d.remain}</TableCell>
                                     <TableCell>{d.real}</TableCell>
-                                    {!isMobile && <TableCell>{d.zoneReal || ''}</TableCell>}
+                                    {!isMobile && <TableCell>{
+                                        // Hiển thị tên khu vực thực tế thay vì id
+                                        Array.isArray(d.zoneReal)
+                                            ? d.zoneReal.map(zid => {
+                                                const zone = zones.find(z => z.id === Number(zid));
+                                                return zone ? zone.zoneName : zid;
+                                            }).join(", ")
+                                            : typeof d.zoneReal === "string" && d.zoneReal.includes(",")
+                                                ? d.zoneReal.split(",").map(zid => {
+                                                    const zone = zones.find(z => z.id === Number(zid.trim()));
+                                                    return zone ? zone.zoneName : zid.trim();
+                                                }).join(", ")
+                                                : (function () {
+                                                    const zone = zones.find(z => z.id === Number(d.zoneReal));
+                                                    return zone ? zone.zoneName : (d.zoneReal || '');
+                                                })()
+                                    }</TableCell>}
                                     <TableCell>{d.diff}</TableCell>
                                     {!isMobile && <TableCell>{d.expireDate ? new Date(d.expireDate).toLocaleDateString('vi-VN') : ''}</TableCell>}
                                     {!isMobile && <TableCell>{d.isCheck ? 'Đã kiểm' : 'Chưa kiểm'}</TableCell>}
@@ -156,7 +267,7 @@ const StockTakeDetailPage = () => {
             </Box>
             <SnackbarAlert
                 open={snackbar.isOpen}
-                onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                onClose={() => setSnackbar(prev => ({ ...prev, isOpen: false }))}
                 message={snackbar.message}
                 severity={snackbar.severity}
             />

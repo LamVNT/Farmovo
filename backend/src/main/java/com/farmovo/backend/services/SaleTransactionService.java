@@ -26,6 +26,7 @@ public interface SaleTransactionService {
     Page<SaleTransactionResponseDto> getAll(String name,
                                             String customerName,
                                             String storeName,
+                                            Long storeId,
                                             SaleTransactionStatus status,
                                             LocalDateTime fromDate,
                                             LocalDateTime toDate,
@@ -41,6 +42,9 @@ public interface SaleTransactionService {
     void cancel(Long id);
 
     String getNextSaleTransactionCode();
+
+    // Next code for balance transactions (PCB...)
+    String getNextBalanceSaleTransactionCode();
 
     void softDeleteSaleTransaction(Long id, Long userId);
 

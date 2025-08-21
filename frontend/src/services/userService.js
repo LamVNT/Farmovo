@@ -14,9 +14,32 @@ export const userService = {
         }
     },
 
+    getAllUsersWithPassword: async () => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/userListWithPassword`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy danh sách người dùng');
+        }
+    },
+
     getUserById: async (id) => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}`, {
+            // Use public endpoint accessible to all authenticated roles
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/${id}`, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng');
+        }
+    },
+
+    getUserByIdWithPassword: async (id) => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/${id}/withPassword`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;
@@ -27,11 +50,16 @@ export const userService = {
 
     getCurrentUser: async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/staff/me`, {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/me`, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
-            return response.data;
+            return response.data; // Already authenticated
         } catch (error) {
+            // If the server returns 401/403, treat as unauthenticated instead of throwing
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                return null;
+            }
+            // For other errors propagate them so they can be surfaced properly
             throw new Error(error.response?.data || 'Không thể lấy thông tin người dùng hiện tại');
         }
     },
@@ -60,7 +88,7 @@ export const userService = {
 
     updateCurrentUser: async (userData) => {
         try {
-            const response = await axios.put(`${import.meta.env.VITE_API_URL}/staff/me`, userData, {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/me`, userData, {
                 withCredentials: true, // Sử dụng cookie để xác thực
             });
             return response.data;

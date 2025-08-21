@@ -8,6 +8,7 @@ public class StocktakeDetailDto {
     private Long id;              // ID của ImportTransactionDetail
     private String batchCode;      // Mã lô
     private Long productId;
+    private String productCode;    // Mã sản phẩm
     private String productName;    // Tên hàng
     private List<String> zones_id; // Khu vực hệ thống
     private Integer remain;

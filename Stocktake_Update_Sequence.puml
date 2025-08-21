@@ -1,4 +1,4 @@
-@startuml Stocktake_Update_With_Complete_Status
+@startuml Stocktake_Update_Short_Full_Lifeline
 
 skinparam backgroundColor white
 skinparam sequenceArrowThickness 2
@@ -7,150 +7,123 @@ skinparam sequenceGroupBodyBackgroundColor #F8F9FA
 skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
-skinparam actorBackgroundColor #FFD700
 
-title Update StockTake – With COMPLETED Status
+title Update Stocktake
 
-actor User
-participant ":StockTake Page" as UI
-participant ":Edit StockTake UI" as EditUI
+actor Staff
+participant ":StockTake Page" as ListUI
+participant ":Stocktake Edit Page" as EditUI
 participant ":StocktakeController" as Controller
-participant ":StocktakeService" as Service
-participant ":ProductRepository" as ProductRepo
-participant ":ZoneRepository" as ZoneRepo
-participant ":StocktakeValidator" as Validator
-participant ":StocktakeMapper" as Mapper
+participant ":StocktakeServiceImpl" as Service
 participant ":StocktakeRepository" as Repo
-participant ":InventoryService" as InventoryService
+participant ":StocktakeMapper" as Mapper
+participant ":MasterDataController" as MasterDataCtrl
+participant ":MasterDataService" as MasterDataSvc
+participant ":MasterDataRepository" as MasterDataRepo
 
-== A. Load dữ liệu kiểm kê ==
-group A. Lấy thông tin Stocktake
+== A. Load dữ liệu ban đầu ==
+activate Staff
+Staff -> ListUI: Chọn phiếu DRAFT → "Cập nhật"
+activate ListUI
+ListUI -> EditUI: Điều hướng /edit/{id}
+deactivate ListUI
+activate EditUI
 
-User -> UI: Nhấn "Cập nhật" phiếu kiểm kê
-activate User
-activate UI
+EditUI -> MasterDataCtrl: GET /api/master-data
+activate MasterDataCtrl
+MasterDataCtrl -> MasterDataSvc: getMasterData(userRole)
+activate MasterDataSvc
+MasterDataSvc -> MasterDataRepo: fetchAllMasterData()
+activate MasterDataRepo
+MasterDataRepo --> MasterDataSvc: MasterDataDTO
+deactivate MasterDataRepo
+MasterDataSvc --> MasterDataCtrl: MasterDataDTO {Products, Zones, Stores?, Categories}
+deactivate MasterDataSvc
+MasterDataCtrl --> EditUI: MasterDataDTO
+deactivate MasterDataCtrl
 
-UI -> Controller: GET /api/stocktakes/{id}
+EditUI --> Staff: Hiển thị form + dữ liệu master
+
+== B. Load Stocktake & Details ==
+EditUI -> Controller: GET /api/stocktakes/{id}
 activate Controller
-Controller -> Service: getStocktake(id)
+Controller -> Service: getStocktakeById(id)
 activate Service
 Service -> Repo: findById(id)
 activate Repo
 Repo --> Service: Optional<Stocktake>
 deactivate Repo
-
-alt Stocktake Not Found
-    Service --> Controller: throw StocktakeNotFoundException
-    Controller --> UI: 404 Not Found
-    UI --> User: Hiển thị lỗi
+alt Không tìm thấy
+    Service --> Controller: throw ValidationException("Stocktake not found")
+    Controller --> EditUI: 404 Not Found
+    EditUI --> Staff: Hiển thị lỗi
     deactivate Service
     deactivate Controller
-    deactivate UI
-else Stocktake Found
+else Tìm thấy
     Service -> Mapper: toResponseDto(stocktake)
+    activate Mapper
     Mapper --> Service: StocktakeResponseDto
+    deactivate Mapper
     Service --> Controller: StocktakeResponseDto
     deactivate Service
-    Controller --> UI: 200 OK
+    Controller --> EditUI: 200 OK
     deactivate Controller
-    UI -> EditUI: Chuyển đến Edit Stocktake Page
-    deactivate UI
-    activate EditUI
+    EditUI --> Staff: Hiển thị dữ liệu phiếu để chỉnh sửa
 end
-end group
 
-group B. Load danh sách sản phẩm & khu vực
+== C. Load Lots theo filter (tùy chọn) ==
+opt Có filter
+  EditUI -> Controller: GET /api/stocktakes/products-by-zone?zoneId=...
+  activate Controller
+  Controller --> EditUI: List<ProductResponseDto>
+  deactivate Controller
+end
 
-EditUI -> Service: fetchProducts(storeId)
-activate Service
-Service -> ProductRepo: findByStoreId(storeId)
-ProductRepo --> Service: List<ProductDTO>
-Service --> EditUI: List<ProductDTO>
-deactivate Service
-
-EditUI -> Service: fetchZones(storeId)
-activate Service
-Service -> ZoneRepo: findByStoreId(storeId)
-ZoneRepo --> Service: List<ZoneDTO>
-Service --> EditUI: List<ZoneDTO>
-deactivate Service
-
-EditUI --> User: Hiển thị form cập nhật kiểm kê
-end group
-
-== C. Gửi cập nhật phiếu kiểm kê ==
-group C. Submit cập nhật (DRAFT hoặc COMPLETED)
-
-User -> EditUI: Nhập thông tin, nhấn "Hoàn thành" hoặc "Draft"
-EditUI -> Controller: PUT /api/stocktakes/{id} {requestDto, status}
+== D. Submit Update ==
+Staff -> EditUI: Nhấn "Lưu nháp"/"Hoàn thành"
+EditUI -> Controller: PUT /api/stocktakes/{id} {requestDto}
 activate Controller
+Controller -> Service: updateStocktake(id, requestDto)
+activate Service
 
-Controller -> Validator: validate(requestDto)
-Validator --> Controller: Validation OK
-deactivate Validator
-
-alt Validation Failed
-    Controller --> EditUI: 400 Bad Request
-    EditUI --> User: Hiển thị lỗi
-else Validation Passed
-    Controller -> Service: updateStockTake(id, requestDto, status)
-    activate Service
-
-    Service -> Repo: findById(id)
-    activate Repo
-    Repo --> Service: Optional<Stocktake>
-    deactivate Repo
-
-    alt Not Found
-        Service --> Controller: throw StocktakeNotFoundException
-        Controller --> EditUI: 404 Not Found
-        EditUI --> User: Hiển thị lỗi
-    else Found
-        Service -> Stocktake: cập nhật các trường từ requestDto
-        Service -> Repo: save(stocktake)
-        activate Repo
-
-        alt Save Failed
-            Repo --> Service: throw SaveException
-            Service --> Controller: 500 Internal Server Error
-            Controller --> EditUI: 500 Internal Server Error
-            EditUI --> User: Hiển thị lỗi
-        else Save Success
-            Repo --> Service: Stocktake entity
-            deactivate Repo
-
-            '=== Nếu status là COMPLETED, cập nhật tồn kho ===
-            alt status == COMPLETED
-                Service -> InventoryService: updateInventoryFromStocktake(stocktake)
-                activate InventoryService
-
-                alt Update Inventory Failed
-                    InventoryService --> Service: throw InventoryException
-                    Service --> Controller: 500 Inventory Update Error
-                    Controller --> EditUI: 500 Internal Server Error
-                    EditUI --> User: Hiển thị lỗi cập nhật tồn kho
-                else Success
-                    InventoryService --> Service: OK
-                end
-                deactivate InventoryService
-            end
-
-            Service -> Mapper: toResponseDto(stocktake)
-            Mapper --> Service: StocktakeResponseDto
-            Service --> Controller: StocktakeResponseDto
-            deactivate Service
-
-            Controller --> EditUI: 200 OK StocktakeResponseDto
-            EditUI --> User: Hiển thị kết quả cập nhật thành công
-        end
-    end
+Service -> Service: validate request (status/editable rules)
+alt Không hợp lệ
+  Service --> Controller: ValidationException
+  Controller --> EditUI: 400 Bad Request
+  EditUI --> Staff: Hiển thị lỗi
+  deactivate Service
+  deactivate Controller
+else Hợp lệ
+  Service -> Repo: findById(id)
+  activate Repo
+  Repo --> Service: Stocktake
+  deactivate Repo
+  Service -> Mapper: mergeFromDto(stocktake, requestDto)
+  activate Mapper
+  Mapper --> Service: Stocktake (merged)
+  deactivate Mapper
+  Service -> Service: updateStocktakeDetails(...)
+  Service -> Repo: save(stocktake)
+  activate Repo
+  Repo --> Service: saved
+  deactivate Repo
+  Service -> Mapper: toResponseDto(saved)
+  activate Mapper
+  Mapper --> Service: StocktakeResponseDto
+  deactivate Mapper
+  Service --> Controller: StocktakeResponseDto
+  deactivate Service
+  Controller --> EditUI: 200 OK
+  deactivate Controller
+  EditUI --> Staff: Thông báo thành công + điều hướng về danh sách
 end
-deactivate Controller
+
 deactivate EditUI
-deactivate User
+deactivate Staff
 
 note right of EditUI
-    requestDto gồm: stocktakeDate,\ndetail, note, storeId, status\nstatus = DRAFT | COMPLETED
+  Không update tồn kho ở đây.
+  Cân bằng kho sẽ qua PCB sau khi COMPLETED.
 end note
 
 @enduml

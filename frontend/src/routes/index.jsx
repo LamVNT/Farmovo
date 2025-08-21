@@ -7,7 +7,7 @@ import Category from "../pages/category";
 import UserManagement from "../pages/user";
 import Unauthorized from "../pages/unauthorized";
 
-import ProtectedRoute from "./PriviateRoute.jsx";
+import ProtectedRoute from "./ProtectedRoute.jsx";
 import GuestRoute from "./GuestRoute.jsx";
 
 // Import pages
@@ -25,6 +25,7 @@ import CreateStocktakePage from "../pages/stocktake/Create.jsx";
 import Product from "../pages/product/index.jsx";
 import SaleTransactionPage from "../pages/sale-transaction/index.jsx";
 import AddSalePage from "../pages/sale-transaction/AddSalePage.jsx";
+import EditSalePage from "../pages/sale-transaction/EditSalePage.jsx";
 import RemainByProductReport from '../pages/reports/RemainByProduct';
 import StocktakeDiffReport from '../pages/reports/StocktakeDiff';
 import ExpiringLotsReport from '../pages/reports/ExpiringLots';
@@ -32,14 +33,17 @@ import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
-import { DashboardReport, RemainSummaryReport, InOutSummaryReport } from '../pages/reports';
+import { DashboardReport, RemainSummaryReport, InOutSummaryReport, DailyRevenue, SalesShiftTotal, ImportsTotal } from '../pages/reports';
+import FinancialReport from '../pages/reports/FinancialReport';
+import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
-
+import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
+import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
 const router = createBrowserRouter([
     {
         path: "/",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <Dashboard/>
                 </MainLayout>
@@ -73,7 +77,7 @@ const router = createBrowserRouter([
     {
         path: "/category",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <Category/>
                 </MainLayout>
@@ -94,7 +98,7 @@ const router = createBrowserRouter([
     {
         path: "/debts",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <DebtNote/>
                 </MainLayout>
@@ -105,7 +109,7 @@ const router = createBrowserRouter([
     {
         path: "/profile",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <ProfileLayout/>
                 </MainLayout>
@@ -129,7 +133,7 @@ const router = createBrowserRouter([
     {
         path: "/import",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <ImportTransactionPage/>
                 </MainLayout>
@@ -149,7 +153,7 @@ const router = createBrowserRouter([
     {
         path: "/import/new",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <ImportPage/>
                 </MainLayout>
@@ -174,7 +178,7 @@ const router = createBrowserRouter([
     {
         path: "/zone",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
                 <MainLayout>
                     <Zone/>
                 </MainLayout>
@@ -184,7 +188,7 @@ const router = createBrowserRouter([
     {
         path: "/product",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <Product/>
                 </MainLayout>
@@ -194,7 +198,7 @@ const router = createBrowserRouter([
     {
         path: "/sale",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <SaleTransactionPage/>
                 </MainLayout>
@@ -204,7 +208,7 @@ const router = createBrowserRouter([
     {
         path: "/sale/:id",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <SaleTransactionPage/>
                 </MainLayout>
@@ -214,7 +218,7 @@ const router = createBrowserRouter([
     {
         path: "/sale/new",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <AddSalePage/>
                 </MainLayout>
@@ -222,9 +226,29 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/sale/edit/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <EditSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/sale/balance/:stocktakeId",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <BalanceSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: "/stocktake",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <StockTakePage/>
                 </MainLayout>
@@ -234,7 +258,7 @@ const router = createBrowserRouter([
     {
         path: "/stocktake/create",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <CreateStocktakePage/>
                 </MainLayout>
@@ -244,7 +268,7 @@ const router = createBrowserRouter([
     {
         path: "/stocktake/edit/:id",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <CreateStocktakePage/>
                 </MainLayout>
@@ -254,7 +278,7 @@ const router = createBrowserRouter([
     {
         path: "/stocktake/:id",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <StockTakeDetailPage/>
                 </MainLayout>
@@ -268,7 +292,7 @@ const router = createBrowserRouter([
     {
         path: "/reports/stocktake-diff",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <StocktakeDiffReport/>
                 </MainLayout>
@@ -278,7 +302,7 @@ const router = createBrowserRouter([
     {
         path: "/reports/expiring-lots",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <ExpiringLotsReport/>
                 </MainLayout>
@@ -288,7 +312,7 @@ const router = createBrowserRouter([
     {
         path: "/reports/dashboard",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <DashboardReport/>
                 </MainLayout>
@@ -296,9 +320,29 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/reports/financial",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <FinancialReport/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/inventory",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <InventoryReport/>
+                </MainLayout>
+            </ProtectedRoute>
+                ),
+    },
+    {
         path: "/reports/remain-summary",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <RemainSummaryReport/>
                 </MainLayout>
@@ -308,7 +352,7 @@ const router = createBrowserRouter([
     {
         path: "/reports/inout-summary",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_USER"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <InOutSummaryReport/>
                 </MainLayout>
@@ -316,9 +360,39 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/reports/daily-revenue",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <DailyRevenue/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/sales-total",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <SalesShiftTotal/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/reports/imports-total",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <ImportsTotal/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: "/customers",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <CustomerManagementPage/>
                 </MainLayout>
@@ -345,6 +419,17 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    {
+        path: "/balance",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <BalanceTransactionPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    
 ]);
 
 export default router;

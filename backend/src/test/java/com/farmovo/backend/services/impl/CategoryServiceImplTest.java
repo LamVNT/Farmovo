@@ -125,7 +125,7 @@ class CategoryServiceImplTest {
         Long id = 1L;
         when(categoryRepository.findById(id)).thenReturn(Optional.of(testData.existingCategory));
 
-        categoryService.deleteCategory(id);
+        categoryService.deleteCategory(id, false);
 
         verify(categoryRepository).delete(testData.existingCategory);
     }
@@ -133,7 +133,7 @@ class CategoryServiceImplTest {
     @Test
     void testDeleteCategory_NotFound_ThrowsCategoryNotFoundException() {
         when(categoryRepository.findById(2L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> categoryService.deleteCategory(2L))
+        assertThatThrownBy(() -> categoryService.deleteCategory(2L, false))
                 .isInstanceOf(com.farmovo.backend.exceptions.CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found");
     }

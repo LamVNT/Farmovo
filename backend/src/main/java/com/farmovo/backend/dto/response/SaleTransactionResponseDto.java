@@ -23,9 +23,16 @@ public class SaleTransactionResponseDto {
     private String customerName;
     private String customerPhone;
     private String customerAddress;
+    private Long customerId; // ✅ Thêm customerId
     private String storeName;
     private String storeAddress;
+    private Long storeId; // ✅ Thêm storeId
     private Long createdBy;
+    private LocalDateTime createdAt; // Thêm field ngày tạo
     private List<ProductSaleResponseDto> detail; // ✅ chính là mục tiêu của bạn
+
+    // Link ngược về Stocktake nếu là PCB
+    private Long stocktakeId;
+    private String stocktakeCode;
 }
 

@@ -13,7 +13,17 @@ const saleTransactionService = {
 
     async listPaged(params) {
         try {
-            const res = await api.get('/sale-transactions/list-all', { params });
+            // If current user is staff, enforce storeId from local storage token payload
+            try {
+                const userRaw = localStorage.getItem('user');
+                const user = userRaw ? JSON.parse(userRaw) : null;
+                if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
+                    params = { ...params, storeId: user.storeId };
+                }
+            } catch (_) {}
+            
+            // Gọi endpoint /list-all với pagination
+            const res = await api.get('/sale-transactions/list-all', {params});
             return res.data;
         } catch (error) {
             console.error('Error in listPaged:', error);
@@ -31,12 +41,24 @@ const saleTransactionService = {
         }
     },
 
+    // ➤ Phiếu bán thường
     async create(dto) {
         try {
             const res = await api.post('/sale-transactions/save', dto);
             return res.data;
         } catch (error) {
             console.error('Error in create:', error);
+            throw error;
+        }
+    },
+
+    // ✅ ➤ Phiếu từ kiểm kê (cân bằng kho)
+    async createFromBalance(dto) {
+        try {
+            const res = await api.post('/sale-transactions/save-from-balance', dto);
+            return res.data;
+        } catch (error) {
+            console.error('Error in createFromBalance:', error);
             throw error;
         }
     },
@@ -97,12 +119,35 @@ const saleTransactionService = {
         }
     },
 
+    async softDelete(id) {
+        try {
+            console.log('Calling soft delete API for ID:', id);
+            const res = await api.delete(`/sale-transactions/sort-delete/${id}`);
+            console.log('Soft delete API response:', res);
+            return res.data;
+        } catch (error) {
+            console.error('Error in softDelete:', error);
+            console.error('Error response:', error.response);
+            throw error;
+        }
+    },
+
     async getNextCode() {
         try {
             const res = await api.get('/sale-transactions/next-code');
             return res.data;
         } catch (error) {
             console.error('Error in getNextCode:', error);
+            throw error;
+        }
+    },
+
+    async getNextBalanceCode() {
+        try {
+            const res = await api.get('/sale-transactions/next-code-balance');
+            return res.data;
+        } catch (error) {
+            console.error('Error in getNextBalanceCode:', error);
             throw error;
         }
     },
@@ -120,4 +165,10 @@ const saleTransactionService = {
     }
 };
 
-export default saleTransactionService; 
+export default saleTransactionService;
+
+// Export gọn nếu dùng ở component
+const createSaleTransaction = (dto) => saleTransactionService.create(dto);
+const createBalanceTransaction = (dto) => saleTransactionService.createFromBalance(dto);
+
+export {createSaleTransaction, createBalanceTransaction};

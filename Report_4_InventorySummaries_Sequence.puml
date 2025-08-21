@@ -1,0 +1,101 @@
+@startuml Report_4_InventorySummaries_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report – Inventory Summaries
+
+actor Staff
+participant ":Report Dashboard Page" as UI
+participant ":ReportController" as RC
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+participant ":ImportTransactionRepository" as ImportRepo
+participant ":SaleTransactionRepository" as SaleRepo
+participant ":ProductRepository" as ProductRepo
+participant ":ZoneRepository" as ZoneRepo
+participant ":CategoryRepository" as CategoryRepo
+
+== A. In/Out Summary ==
+Staff -> UI: Chọn from, to
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/inout-summary?from&to
+activate RC
+RC -> RS: getInOutSummary(from, to)
+activate RS
+RS -> ImportRepo: findAllImportActive()
+activate ImportRepo
+ImportRepo --> RS: List<ImportTransaction>
+deactivate ImportRepo
+RS -> SaleRepo: findAllSaleActive()
+activate SaleRepo
+SaleRepo --> RS: List<SaleTransaction>
+deactivate SaleRepo
+RS -> RS: compute openingStock + per-day import/export + remain
+RS --> RC: List<InOutSummaryDto>
+deactivate RS
+RC --> UI: 200 OK List<InOutSummaryDto>
+deactivate RC
+UI --> Staff: Render area/line chart
+
+== B. Category Remain Summary ==
+UI -> RC: GET /api/reports/remain-summary
+activate RC
+RC -> RS: getRemainSummary()
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> ProductRepo: findAll()
+RS -> ZoneRepo: findAll()
+RS -> CategoryRepo: findAll()
+RS -> RS: group Category → Product → Zone, sum remain
+RS --> RC: List<CategoryRemainSummaryDto>
+deactivate RS
+RC --> UI: 200 OK List<CategoryRemainSummaryDto>
+deactivate RC
+UI --> Staff: Render nested tables
+
+== C. Expiring Lots ==
+UI -> RC: GET /api/reports/expiring-lots?days=7
+activate RC
+RC -> RS: getExpiringLots(days)
+activate RS
+RS -> DetailRepo: findExpiringLots(now, now+days)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: map to List<ExpiringLotDto>
+RS --> RC: List<ExpiringLotDto>
+deactivate RS
+RC --> UI: 200 OK List<ExpiringLotDto>
+deactivate RC
+UI --> Staff: Render table + highlight gần hết hạn
+
+== D. Remain by Product (Advanced) ==
+UI -> RC: GET /api/reports/remain-by-product-advanced?zoneId&categoryId&status
+activate RC
+RC -> RS: getRemainByProductAdvanced(zoneId, categoryId, status)
+activate RS
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> RS: filter by zone/category/status → map to RemainByProductReportDto
+RS --> RC: List<RemainByProductReportDto>
+deactivate RS
+RC --> UI: 200 OK List<RemainByProductReportDto>
+deactivate RC
+UI --> Staff: Render table + filters
+
+deactivate UI
+deactivate Staff
+
+@enduml

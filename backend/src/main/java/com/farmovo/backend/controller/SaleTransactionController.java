@@ -137,11 +137,26 @@ public class SaleTransactionController {
         }
     }
 
+    @PostMapping("/save-from-balance")
+    public ResponseEntity<String> saveFromBalance(@RequestBody CreateSaleTransactionRequestDto dto, HttpServletRequest request) {
+        log.info("Creating BALANCE sale transaction");
+
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            saleTransactionService.save(dto, userId); // Giữ nguyên service hiện tại
+            return ResponseEntity.ok("Sale transaction (balance) saved successfully.");
+        } else {
+            throw new BadRequestException("Token không hợp lệ hoặc đã hết hạn");
+        }
+    }
+
     @GetMapping("/list-all")
     public ResponseEntity<PageResponse<SaleTransactionResponseDto>> listAllSaleTransactions(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String customerName,
             @RequestParam(required = false) String storeName,
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) SaleTransactionStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
@@ -151,12 +166,32 @@ public class SaleTransactionController {
             @RequestParam(required = false) BigDecimal maxPaidAmount,
             @RequestParam(required = false) String note,
             @RequestParam(required = false) Long createdBy,
-            @PageableDefault(page = 0, size = 20, sort = "saleDate", direction = Sort.Direction.DESC) Pageable pageable
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String direction,
+            @PageableDefault(page = 0, size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
+        // Enforce staff-only store scoping
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            List<String> roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore().getId() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+
+        // Xử lý sắp xếp tùy chỉnh từ frontend
+        Pageable customPageable = pageable;
+        if (sort != null && direction != null) {
+            Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction) ? 
+                Sort.Direction.DESC : Sort.Direction.ASC;
+            Sort customSort = Sort.by(sortDirection, sort);
+            customPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), customSort);
+        }
+
         Page<SaleTransactionResponseDto> result = saleTransactionService.getAll(
-                name, customerName, storeName, status, fromDate,
+                name, customerName, storeName, storeId, status, fromDate,
                 toDate, minTotalAmount, maxTotalAmount, minPaidAmount,
-                maxPaidAmount, note, createdBy, pageable
+                maxPaidAmount, note, createdBy, customPageable
         );
         return ResponseEntity.ok(PageResponse.fromPage(result));
     }
@@ -193,8 +228,13 @@ public class SaleTransactionController {
 
     @GetMapping("/next-code")
     public ResponseEntity<String> getNextImportTransactionCode() {
-        // Lấy mã phiếu nhập tiếp theo từ service
         String nextCode = saleTransactionService.getNextSaleTransactionCode();
+        return ResponseEntity.ok(nextCode);
+    }
+
+    @GetMapping("/next-code-balance")
+    public ResponseEntity<String> getNextBalanceSaleTransactionCode() {
+        String nextCode = saleTransactionService.getNextBalanceSaleTransactionCode();
         return ResponseEntity.ok(nextCode);
     }
 

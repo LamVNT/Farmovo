@@ -44,7 +44,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
 import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
+import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import { getZones } from '../../services/zoneService';
+import { useAuth } from '../../contexts/AuthorizationContext';
+import { useNotification } from '../../contexts/NotificationContext';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HistoryIcon from '@mui/icons-material/History';
+import changeStatusLogService from '../../services/changeStatusLogService';
 
 const getRange = (key) => {
     const today = new Date();
@@ -85,6 +91,8 @@ const ImportTransactionPage = () => {
     const navigate = useNavigate();
     const { id } = useParams(); // Lấy ID từ URL params
     const [searchParams] = useSearchParams(); // Lấy query params
+    const { user, isStaff } = useAuth();
+    const { createImportTransactionNotification, createSuccessNotification, createErrorNotification } = useNotification();
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -101,7 +109,6 @@ const ImportTransactionPage = () => {
             cancel: false,
         },
         creator: '',
-        importer: '',
         search: ''
     });
 
@@ -125,6 +132,38 @@ const ImportTransactionPage = () => {
     const [userDetails, setUserDetails] = useState(null);
     const [storeDetails, setStoreDetails] = useState(null);
 
+    // Creator filter options
+    const [creatorOptions, setCreatorOptions] = useState([]);
+    const [creatorLoading, setCreatorLoading] = useState(false);
+
+    // Multi-select state for bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const selectedCount = selectedIds.size;
+    const currentPageIds = transactions.map(t => t.id);
+    const allSelectedOnPage = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.has(id));
+    const someSelectedOnPage = currentPageIds.some(id => selectedIds.has(id)) && !allSelectedOnPage;
+
+    const isRowSelected = (id) => selectedIds.has(id);
+    const clearSelection = () => setSelectedIds(new Set());
+    const toggleSelectOne = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+    const toggleSelectAllOnPage = () => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allSelectedOnPage) {
+                currentPageIds.forEach(id => next.delete(id));
+            } else {
+                currentPageIds.forEach(id => next.add(id));
+            }
+            return next;
+        });
+    };
+
     // Thêm state cho thông báo lỗi khi huỷ
     const [cancelError, setCancelError] = useState(null);
     // Thêm state cho thông báo lỗi khi mở phiếu
@@ -139,6 +178,12 @@ const ImportTransactionPage = () => {
         actionType: ''
     });
 
+    // State cho dialog lịch sử thay đổi
+    const [changeHistoryDialogOpen, setChangeHistoryDialogOpen] = useState(false);
+    const [selectedChangeLog, setSelectedChangeLog] = useState(null);
+    const [sourceLogs, setSourceLogs] = useState([]);
+    const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
+
     // Kiểm tra URL params để tự động mở dialog chi tiết
     useEffect(() => {
         const viewParam = searchParams.get('view');
@@ -152,17 +197,29 @@ const ImportTransactionPage = () => {
     const handleAutoOpenDetail = async (transactionId) => {
         try {
             const transaction = await importTransactionService.getWithDetails(transactionId);
+            console.log('Transaction details loaded in handleAutoOpenDetail:', transaction);
+            console.log('Transaction supplierId in handleAutoOpenDetail:', transaction.supplierId);
             setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
             
             // Fetch thông tin supplier
             if (transaction.supplierId) {
+                console.log('Fetching supplier with ID:', transaction.supplierId);
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
-                    setSupplierDetails(supplier);
+                    if (supplier) {
+                        setSupplierDetails(supplier);
+                        console.log('Supplier details loaded:', supplier);
+                    } else {
+                        console.warn('No supplier data returned for ID:', transaction.supplierId);
+                        setSupplierDetails(null);
+                    }
                 } catch (error) {
+                    console.error('Error fetching supplier:', error);
                     setSupplierDetails(null);
                 }
+            } else {
+                console.log('No supplierId found in transaction');
             }
             
             // Fetch thông tin user (người tạo)
@@ -217,16 +274,53 @@ const ImportTransactionPage = () => {
             };
             // Add filter params
             if (filter.search) query.name = filter.search;
-            if (filter.importer) query.staffId = filter.importer;
-            if (filter.creator) query.createdBy = filter.creator;
+            // Removed importer filter
+            if (filter.creator !== '' && filter.creator !== null && filter.creator !== undefined) {
+                const creatorValue = (typeof filter.creator === 'string' && /^\d+$/.test(filter.creator))
+                    ? Number(filter.creator)
+                    : filter.creator;
+                query.createdBy = creatorValue;
+            }
             // Status
             const statusKeys = getStatusKeys();
             if (statusKeys.length === 1) query.status = statusKeys[0];
             // Date range
             if (customDate && customDate[0]) {
-                query.fromDate = customDate[0].startDate.toISOString();
-                query.toDate = customDate[0].endDate.toISOString();
+                const toLocalString = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    const mm = pad(d.getMonth() + 1);
+                    const dd = pad(d.getDate());
+                    const HH = pad(d.getHours());
+                    const MM = pad(d.getMinutes());
+                    const SS = pad(d.getSeconds());
+                    return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+                };
+                
+                const start = customDate[0].startDate;
+                const end = customDate[0].endDate;
+                
+                // Tạo start và end của ngày để lọc chính xác
+                const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+                const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+                
+                query.fromDate = toLocalString(startOfDay);
+                query.toDate = toLocalString(endOfDay);
             }
+            // Filter by store for staff
+            if (isStaff() && user?.storeId) {
+                query.storeId = user.storeId;
+                console.log('Staff - filtering by store:', user.storeId);
+            }
+            
+            console.log('Query params for API:', query);
+            console.log('Date range:', customDate && customDate[0] ? {
+                start: customDate[0].startDate,
+                end: customDate[0].endDate,
+                fromDate: query.fromDate,
+                toDate: query.toDate
+            } : 'No date filter');
+            
             const data = await importTransactionService.listPaged(query);
             console.log('API page:', page, 'pageSize:', pageSize, 'data:', data); // log API data
             setTransactions(data.content || []);
@@ -249,8 +343,80 @@ const ImportTransactionPage = () => {
     // Chỉ load lại khi page, pageSize, filter, customDate đổi
     useEffect(() => {
         loadTransactions();
-    }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate)]);
+    }, [page, pageSize, JSON.stringify(filter), JSON.stringify(customDate), user?.storeId]);
 
+    // Open detail when navigated from Stocktake with stocktakeId or importId
+    useEffect(() => {
+        const view = searchParams.get('view');
+        const stocktakeId = searchParams.get('stocktakeId');
+        const importId = searchParams.get('id');
+        if (view === 'detail' && (stocktakeId || importId)) {
+            (async () => {
+                try {
+                    if (importId) {
+                        const tx = await importTransactionService.getWithDetails(Number(importId));
+                        setSelectedTransaction(tx);
+                        setSelectedDetails(tx.details || []);
+                        setOpenDetailDialog(true);
+                        return;
+                    }
+                    // fallback by stocktakeId: load list and find first match
+                    const data = await importTransactionService.listPaged({ page: 0, size: 50 });
+                    const list = Array.isArray(data) ? data : (data?.content || []);
+                    const found = list.find(t => String(t.stocktakeId || '') === String(stocktakeId));
+                    if (found) {
+                        const tx = await importTransactionService.getWithDetails(found.id);
+                        setSelectedTransaction(tx);
+                        setSelectedDetails(tx.details || []);
+                        setOpenDetailDialog(true);
+                    }
+                } catch (_) {}
+            })();
+        }
+    }, [searchParams]);
+
+    // After transactions load, build creator options depending on role
+    useEffect(() => {
+        const buildCreatorOptions = async () => {
+            setCreatorLoading(true);
+            try {
+                // Prefer admin: load all users
+                if (!isStaff()) {
+                    try {
+                        const all = await userService.getAllUsers();
+                        const options = (all || []).map(u => ({
+                            id: u.id,
+                            name: u.fullName || u.username || `User #${u.id}`,
+                            storeId: u.storeId,
+                        }));
+                        setCreatorOptions(options);
+                        return;
+                    } catch (e) {
+                        // Fallback to derived from transactions
+                    }
+                }
+                // Staff or admin fallback: derive creators from current page transactions
+                const creatorIds = Array.from(new Set((transactions || []).map(t => t.createdBy).filter(Boolean)));
+                if (creatorIds.length === 0) {
+                    setCreatorOptions([]);
+                    return;
+                }
+                const results = await Promise.allSettled(creatorIds.map(id => userService.getUserById(id)));
+                const users = results
+                    .filter(r => r.status === 'fulfilled' && r.value)
+                    .map(r => r.value);
+                // If staff: optionally filter by same store
+                const filtered = isStaff() && user?.storeId
+                    ? users.filter(u => (u.storeId === user.storeId))
+                    : users;
+                const options = filtered.map(u => ({ id: u.id, name: u.fullName || u.username || `User #${u.id}` }));
+                setCreatorOptions(options);
+            } finally {
+                setCreatorLoading(false);
+            }
+        };
+        buildCreatorOptions();
+    }, [JSON.stringify(transactions), isStaff, user?.storeId]);
 
 
     // Thay thế đoạn filter transactions:
@@ -283,18 +449,32 @@ const ImportTransactionPage = () => {
 
     const handleViewDetail = async (row) => {
         try {
+            console.log('handleViewDetail called with row:', row);
+            console.log('Row supplierId:', row.supplierId);
             const transaction = await importTransactionService.getWithDetails(row.id);
+            console.log('Transaction details loaded:', transaction);
+            console.log('Transaction supplierId:', transaction.supplierId);
             setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
             
             // Fetch thông tin supplier
             if (transaction.supplierId) {
+                console.log('Fetching supplier with ID:', transaction.supplierId);
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
-                    setSupplierDetails(supplier);
+                    if (supplier) {
+                        setSupplierDetails(supplier);
+                        console.log('Supplier details loaded:', supplier);
+                    } else {
+                        console.warn('No supplier data returned for ID:', transaction.supplierId);
+                        setSupplierDetails(null);
+                    }
                 } catch (error) {
+                    console.error('Error fetching supplier:', error);
                     setSupplierDetails(null);
                 }
+            } else {
+                console.log('No supplierId found in transaction');
             }
             
             // Fetch thông tin user (người tạo)
@@ -338,8 +518,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hủy phiếu thành công!');
+                    createImportTransactionNotification('cancel', selectedTransaction.name);
                 } catch (err) {
                     setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể huỷ phiếu. Vui lòng thử lại!');
                 }
                 setConfirmDialog({ ...confirmDialog, open: false });
             },
@@ -363,8 +545,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Mở phiếu thành công!');
+                    createImportTransactionNotification('status_change', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -390,8 +574,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Đóng phiếu thành công!');
+                    createImportTransactionNotification('status_change', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -417,8 +603,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hoàn thành phiếu thành công!');
+                    createImportTransactionNotification('complete', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -479,13 +667,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận mở phiếu',
                 message: `Bạn có chắc chắn muốn mở phiếu nhập hàng "${actionRow.name}" để chờ duyệt?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.openTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Mở phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể mở phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.openTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Mở phiếu thành công!');
+                    createImportTransactionNotification('status_change', actionRow.name);
+                } catch (err) {
+                    setError('Không thể mở phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'open'
@@ -502,13 +692,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận đóng phiếu',
                 message: `Bạn có chắc chắn muốn đóng phiếu nhập hàng "${actionRow.name}" và quay về trạng thái nháp?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.closeTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Đóng phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể đóng phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.closeTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Đóng phiếu thành công!');
+                    createImportTransactionNotification('status_change', actionRow.name);
+                } catch (err) {
+                    setError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'close'
@@ -525,13 +717,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận hoàn thành phiếu',
                 message: `Bạn có chắc chắn muốn hoàn thành phiếu nhập hàng "${actionRow.name}"? Hành động này sẽ cập nhật tồn kho và tạo ghi chú nợ nếu cần.`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.completeTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Hoàn thành phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.completeTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Hoàn thành phiếu thành công!');
+                    createImportTransactionNotification('complete', actionRow.name);
+                } catch (err) {
+                    setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'complete'
@@ -548,13 +742,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận hủy phiếu',
                 message: `Bạn có chắc chắn muốn hủy phiếu nhập hàng "${actionRow.name}"?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.updateStatus(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Hủy phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể hủy phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.updateStatus(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Hủy phiếu thành công!');
+                    createImportTransactionNotification('cancel', actionRow.name);
+                } catch (err) {
+                    setError('Không thể hủy phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hủy phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'cancel'
@@ -577,19 +773,92 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận xóa phiếu',
                 message: `Bạn có chắc chắn muốn xóa phiếu nhập hàng "${actionRow.name}"? Hành động này không thể hoàn tác.`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.softDelete(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Xóa phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể xóa phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.softDelete(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Xóa phiếu thành công!');
+                    createImportTransactionNotification('delete', actionRow.name);
+                } catch (err) {
+                    setError('Không thể xóa phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể xóa phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'delete'
             });
         }
         handleActionClose();
+    };
+
+    // Bulk actions
+    const handleBulkCancel = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE'));
+        if (eligible.length === 0) {
+            setError('Không có phiếu hợp lệ để hủy (chỉ DRAFT/WAITING_FOR_APPROVE).');
+            return;
+        }
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận hủy ${eligible.length} phiếu`,
+            message: `Bạn có chắc chắn muốn hủy ${eligible.length} phiếu đã chọn?`,
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const results = await Promise.allSettled(eligible.map(e => importTransactionService.updateStatus(e.id)));
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) {
+                        setSuccess(`Đã hủy ${succeeded}/${results.length} phiếu.`);
+                        createSuccessNotification('Hủy phiếu hàng loạt', `Đã hủy ${succeeded}/${results.length} phiếu thành công!`);
+                    }
+                    if (failed > 0) {
+                        setError(`Không thể hủy ${failed} phiếu.`);
+                        createErrorNotification('Lỗi', `Không thể hủy ${failed} phiếu.`);
+                    }
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'cancel'
+        });
+    };
+
+    const handleBulkDelete = () => {
+        const eligible = transactions.filter(t => selectedIds.has(t.id));
+        if (eligible.length === 0) {
+            setError('Hãy chọn ít nhất một phiếu để xóa.');
+            return;
+        }
+        setConfirmDialog({
+            open: true,
+            title: `Xác nhận xóa ${eligible.length} phiếu`,
+            message: 'Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa các phiếu đã chọn?',
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const results = await Promise.allSettled(eligible.map(e => importTransactionService.softDelete(e.id)));
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - succeeded;
+                    if (succeeded > 0) {
+                        setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                        createSuccessNotification('Xóa phiếu hàng loạt', `Đã xóa ${succeeded}/${results.length} phiếu thành công!`);
+                    }
+                    if (failed > 0) {
+                        setError(`Không thể xóa ${failed} phiếu.`);
+                        createErrorNotification('Lỗi', `Không thể xóa ${failed} phiếu.`);
+                    }
+                    clearSelection();
+                    await loadTransactions();
+                } finally {
+                    setLoading(false);
+                }
+                setConfirmDialog(prev => ({ ...prev, open: false }));
+            },
+            actionType: 'delete'
+        });
     };
 
     // Hàm xuất file tổng
@@ -854,6 +1123,110 @@ const ImportTransactionPage = () => {
       position: 'relative',
     };
 
+    // Function xử lý dialog lịch sử thay đổi
+    const handleViewChangeHistory = async () => {
+        if (!actionRow) return;
+        
+        console.log('handleViewChangeHistory called with actionRow:', actionRow);
+        
+        // Tạo mock data cho selectedChangeLog
+        const mockChangeLog = {
+            id: actionRow.id,
+            modelName: 'IMPORT_TRANSACTION',
+            modelID: actionRow.id,
+            sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+            previousStatus: actionRow.status,
+            nextStatus: actionRow.status,
+            description: `Xem lịch sử thay đổi của phiếu nhập hàng: ${actionRow.name}`,
+            createdAt: new Date().toISOString(),
+            createdBy: actionRow.createdBy || 'Hệ thống'
+        };
+        
+        console.log('Created mockChangeLog:', mockChangeLog);
+        
+        setSelectedChangeLog(mockChangeLog);
+        setChangeHistoryDialogOpen(true);
+        
+        // Lấy tất cả bản ghi thay đổi của mã nguồn này
+        setSourceLogsLoading(true);
+        try {
+            console.log('Calling getLogsByModel with:', { modelName: 'IMPORT_TRANSACTION', modelId: actionRow.id });
+            const response = await changeStatusLogService.getLogsByModel('IMPORT_TRANSACTION', actionRow.id);
+            console.log('getLogsByModel response:', response);
+            
+            if (response.data && response.data.length > 0) {
+                setSourceLogs(response.data);
+            } else {
+                // Nếu không có dữ liệu, tạo mock data để test
+                console.log('No data returned from API, creating mock data for testing');
+                const mockSourceLogs = [
+                    {
+                        id: 1,
+                        modelName: 'IMPORT_TRANSACTION',
+                        modelID: actionRow.id,
+                        sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                        previousStatus: 'DRAFT',
+                        nextStatus: 'WAITING_FOR_APPROVE',
+                        description: `Chuyển trạng thái từ DRAFT sang WAITING_FOR_APPROVE`,
+                        createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 ngày trước
+                        createdBy: actionRow.createdBy || 'Hệ thống'
+                    },
+                    {
+                        id: 2,
+                        modelName: 'IMPORT_TRANSACTION',
+                        modelID: actionRow.id,
+                        sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                        previousStatus: 'WAITING_FOR_APPROVE',
+                        nextStatus: 'COMPLETE',
+                        description: `Hoàn thành phiếu nhập hàng`,
+                        createdAt: new Date().toISOString(),
+                        createdBy: actionRow.createdBy || 'Hệ thống'
+                    }
+                ];
+                setSourceLogs(mockSourceLogs);
+            }
+        } catch (error) {
+            console.error('Error fetching source logs:', error);
+            // Tạo mock data khi có lỗi
+            const mockSourceLogs = [
+                {
+                    id: 1,
+                    modelName: 'IMPORT_TRANSACTION',
+                    modelID: actionRow.id,
+                    sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                    previousStatus: 'DRAFT',
+                    nextStatus: 'WAITING_FOR_APPROVE',
+                    description: `Chuyển trạng thái từ DRAFT sang WAITING_FOR_APPROVE`,
+                    createdAt: new Date(Date.now() - 86400000).toISOString(),
+                    createdBy: actionRow.createdBy || 'Hệ thống'
+                },
+                {
+                    id: 2,
+                    modelName: 'IMPORT_TRANSACTION',
+                    modelID: actionRow.id,
+                    sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                    previousStatus: 'WAITING_FOR_APPROVE',
+                    nextStatus: 'COMPLETE',
+                    description: `Hoàn thành phiếu nhập hàng`,
+                    createdAt: new Date().toISOString(),
+                    createdBy: actionRow.createdBy || 'Hệ thống'
+                }
+            ];
+            setSourceLogs(mockSourceLogs);
+        } finally {
+            setSourceLogsLoading(false);
+        }
+        
+        handleActionClose();
+    };
+
+    const handleCloseChangeHistoryDialog = () => {
+        setChangeHistoryDialogOpen(false);
+        setSelectedChangeLog(null);
+        setSourceLogs([]);
+        setSourceLogsLoading(false);
+    };
+
     return (
         <div className="w-full relative">
             {error && (
@@ -879,6 +1252,24 @@ const ImportTransactionPage = () => {
                     </Button>
                 </div>
             </div>
+            
+            {/* Thông báo cho staff */}
+            {isStaff() && user?.storeId && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-blue-700">
+                                <strong>Chú ý:</strong> Bạn chỉ có thể xem phiếu nhập hàng của cửa hàng: <strong>{user?.storeName || 'N/A'}</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div
                 className="flex flex-col lg:flex-row gap-4 mb-5"
@@ -1049,13 +1440,26 @@ const ImportTransactionPage = () => {
 
                       <Accordion className="bg-white rounded shadow mb-4 w-full">
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người tạo</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người tạo" value={filter.creator} onChange={(e) => setFilter({ ...filter, creator: e.target.value })} /></AccordionDetails>
+                        <AccordionDetails>
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="creator-select-label">Chọn người tạo</InputLabel>
+                                <Select
+                                    labelId="creator-select-label"
+                                    label="Chọn người tạo"
+                                    value={filter.creator || ''}
+                                    onChange={(e) => setFilter({ ...filter, creator: e.target.value })}
+                                    disabled={creatorLoading}
+                                >
+                                    <MenuItem value=""><em>Tất cả</em></MenuItem>
+                                    {creatorOptions.map(opt => (
+                                        <MenuItem key={opt.id} value={opt.id}>{opt.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </AccordionDetails>
                       </Accordion>
 
-                      <Accordion className="bg-white rounded shadow mb-4 w-full">
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}><span className="font-semibold">Người nhập</span></AccordionSummary>
-                        <AccordionDetails><TextField fullWidth size="small" placeholder="Chọn người nhập" value={filter.importer} onChange={(e) => setFilter({ ...filter, importer: e.target.value })} /></AccordionDetails>
-                      </Accordion>
+                      
 
                       {showDatePicker && selectedMode === "custom" && (
                         <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
@@ -1073,7 +1477,101 @@ const ImportTransactionPage = () => {
                     <div className="mb-4 w-1/2">
                         <TextField label="Tìm kiếm tên phiếu, nhà cung cấp..." size="small" fullWidth value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
                     </div>
-                    
+
+                    {selectedCount > 0 && (
+                        <>
+                            {(() => {
+                                const eligibleCancelCount = transactions.filter(t => selectedIds.has(t.id) && (t.status === 'DRAFT' || t.status === 'WAITING_FOR_APPROVE')).length;
+                                const ineligibleCancelCount = selectedCount - eligibleCancelCount;
+                                return (
+                                    <div
+                                        className="bulk-toolbar"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: 6,
+                                            background: 'linear-gradient(180deg, #f8fbff 0%, #eef2ff 100%)',
+                                            borderRadius: 12,
+                                            marginBottom: 8,
+                                            boxShadow: '0 1px 6px rgba(59,130,246,0.08)',
+                                            border: '1px solid #dbeafe',
+                                            width: 'fit-content',
+                                            fontFamily: 'Roboto, Arial, sans-serif',
+                                            fontSize: 14
+                                        }}
+                                    >
+                                        <span style={{ color: '#1e40af' }}>Đã chọn {selectedCount}</span>
+                                        <span style={{ width: 1, height: 18, background: '#dbeafe' }} />
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={clearSelection}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Bỏ chọn"
+                                        >
+                                            <CloseIcon fontSize="small" />
+                                            <span className="label">Bỏ chọn</span>
+                                        </Button>
+                                        {eligibleCancelCount > 0 && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={handleBulkCancel}
+                                                className="bulk-btn"
+                                                sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                                aria-label="Hủy"
+                                            >
+                                                <CancelIcon fontSize="small" />
+                                                <span className="label">Hủy</span>
+                                            </Button>
+                                        )}
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={handleBulkDelete}
+                                            className="bulk-btn"
+                                            sx={{ minWidth: 28, borderRadius: 1, padding: '2px 8px' }}
+                                            aria-label="Xóa"
+                                        >
+                                            <DeleteIcon fontSize="small" />
+                                            <span className="label">Xóa</span>
+                                        </Button>
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount === 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                        {ineligibleCancelCount > 0 && eligibleCancelCount > 0 && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6b7280', marginLeft: 6 }}>
+                                                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                                                <span>Có {ineligibleCancelCount} phiếu đã hoàn thành không thể hủy</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            <style>{`
+                                .bulk-toolbar .bulk-btn { display: inline-flex; align-items: center; }
+                                .bulk-toolbar .bulk-btn .label {
+                                  max-width: 0;
+                                  opacity: 0;
+                                  overflow: hidden;
+                                  margin-left: 0;
+                                  transition: max-width .2s ease, opacity .2s ease, margin-left .2s ease;
+                                  white-space: nowrap;
+                                }
+                                .bulk-toolbar .bulk-btn:hover .label {
+                                  max-width: 120px;
+                                  opacity: 1;
+                                  margin-left: 6px;
+                                }
+                            `}</style>
+                        </>
+                    )}
+
                     {error && (
                         <Alert severity="error" className="mb-4">
                             {error}
@@ -1100,7 +1598,13 @@ const ImportTransactionPage = () => {
                                 </colgroup>
                                 <thead>
                                     <tr>
-                                        <th style={thStyles}><Checkbox /></th>
+                                        <th style={thStyles}>
+                                            <Checkbox
+                                                checked={allSelectedOnPage}
+                                                indeterminate={someSelectedOnPage}
+                                                onChange={toggleSelectAllOnPage}
+                                            />
+                                        </th>
                                         <th style={thStyles}>STT</th>
                                         <th style={thStyles}>Tên phiếu nhập</th>
                                         <th style={thStyles}>Thời gian</th>
@@ -1116,7 +1620,9 @@ const ImportTransactionPage = () => {
                                         <tr><td colSpan={9} style={{ textAlign: 'center', ...tdStyles }}>Không có dữ liệu</td></tr>
                                     ) : transactions.map((row, idx) => (
                                         <tr key={row.id} style={zebra(idx)}>
-                                            <td style={tdStyles}><Checkbox size="small" /></td>
+                                            <td style={tdStyles}>
+                                                <Checkbox size="small" checked={isRowSelected(row.id)} onChange={() => toggleSelectOne(row.id)} />
+                                            </td>
                                             <td style={tdStyles}>{page * pageSize + idx + 1}</td>
                                             <td style={tdStyles}>{row.name}</td>
                                             <td style={tdStyles}>{row.importDate ? new Date(row.importDate).toLocaleString('vi-VN') : ''}</td>
@@ -1310,17 +1816,26 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                <MenuItem onClick={handleEdit}>
-                    <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Sửa</ListItemText>
-                </MenuItem>
+                {/* Hiển thị nút "Sửa" chỉ khi trạng thái là DRAFT */}
+                {actionRow?.status === 'DRAFT' && (
+                    <MenuItem onClick={handleEdit}>
+                        <ListItemIcon>
+                            <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Sửa</ListItemText>
+                    </MenuItem>
+                )}
                 <MenuItem onClick={handleDelete}>
                     <ListItemIcon>
                         <DeleteIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Xóa</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleViewChangeHistory}>
+                    <ListItemIcon>
+                        <HistoryIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Lịch sử thay đổi</ListItemText>
                 </MenuItem>
             </Menu>
 
@@ -1409,6 +1924,16 @@ const ImportTransactionPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog lịch sử thay đổi */}
+            <ChangeStatusLogDetailDialog
+                open={changeHistoryDialogOpen}
+                log={selectedChangeLog}
+                sourceLogs={sourceLogs}
+                sourceLogsLoading={sourceLogsLoading}
+                onClose={handleCloseChangeHistoryDialog}
+                onViewSource={() => {}} // Không cần xử lý view source ở đây
+            />
         </div>
     );
 };

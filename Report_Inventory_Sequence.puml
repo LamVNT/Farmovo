@@ -1,0 +1,122 @@
+@startuml Report_Inventory_Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackgroundColor #F8F9FA
+skinparam sequenceParticipantBorderColor #6C757D
+skinparam sequenceParticipantBackgroundColor #E9ECEF
+skinparam sequenceLifeLineStroke dash
+
+title Report – Inventory (InOut Summary, Remain Summary, Expiring Lots, Stocktake Diff)
+
+actor Staff
+participant ":Inventory Reports UI" as UI
+participant ":ReportController" as RC
+participant ":JwtAuthenticationService" as Auth
+participant ":ReportServiceImpl" as RS
+participant ":ImportTransactionDetailRepository" as DetailRepo
+participant ":ImportTransactionRepository" as ImportRepo
+participant ":SaleTransactionRepository" as SaleRepo
+participant ":StocktakeRepository" as StocktakeRepo
+participant ":ProductRepository" as ProductRepo
+participant ":ZoneRepository" as ZoneRepo
+
+== A. In/Out Summary ==
+Staff -> UI: Chọn from(LocalDate), to(LocalDate), storeId(optional)
+activate Staff
+activate UI
+UI -> RC: GET /api/reports/inout-summary?from&to&storeId?
+activate RC
+RC -> RC: Normalize dates → from.atStartOfDay(), to.atTime(MAX)
+RC -> Auth: extractAuthenticatedUser() + roles
+activate Auth
+Auth --> RC: User (roles)
+deactivate Auth
+RC -> RS: getInOutSummary(fromDateTime, toDateTime, storeId?)
+activate RS
+RS -> RS: resolve storeId if STAFF
+RS -> ImportRepo: findAllImportActive() or findAllImportActiveByStore(storeId)
+activate ImportRepo
+ImportRepo --> RS: List<ImportTransaction>
+deactivate ImportRepo
+RS -> SaleRepo: findAllSaleActive() or findAllSaleActiveByStore(storeId)
+activate SaleRepo
+SaleRepo --> RS: List<SaleTransaction>
+deactivate SaleRepo
+RS -> RS: compute openingStock + per-day import/export + remain → List<InOutSummaryDto>
+RS --> RC: List<InOutSummaryDto>
+deactivate RS
+RC --> UI: 200 OK List<InOutSummaryDto>
+deactivate RC
+UI --> Staff: Render area/line chart
+
+== B. Remain Summary ==
+UI -> RC: GET /api/reports/remain-summary
+activate RC
+RC -> RS: getRemainSummary()
+activate RS
+RS -> RS: resolve storeId if STAFF (from header)
+RS -> DetailRepo: findByRemainQuantityGreaterThan(0)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> ZoneRepo: findAll()
+RS -> ProductRepo: findAll()
+RS -> RS: group Category → Product → Zone, split remain → List<CategoryRemainSummaryDto>
+RS --> RC: List<CategoryRemainSummaryDto>
+deactivate RS
+RC --> UI: 200 OK List<CategoryRemainSummaryDto>
+deactivate RC
+UI --> Staff: Render nested tables
+
+== C. Expiring Lots ==
+UI -> RC: GET /api/reports/expiring-lots?days&storeId?
+activate RC
+RC -> Auth: extractAuthenticatedUser() + roles
+activate Auth
+Auth --> RC: User (roles)
+deactivate Auth
+RC -> RS: getExpiringLots(days, storeId?)
+activate RS
+RS -> RS: resolve storeId if STAFF
+RS -> DetailRepo: findExpiringLots(now, soon) or findExpiringLotsByStore(storeId, now, soon)
+activate DetailRepo
+DetailRepo --> RS: List<ImportTransactionDetail>
+deactivate DetailRepo
+RS -> ZoneRepo: findAll() (map zoneId -> zoneName)
+RS -> RS: map → List<ExpiringLotDto>
+RS --> RC: List<ExpiringLotDto>
+deactivate RS
+RC --> UI: 200 OK List<ExpiringLotDto>
+deactivate RC
+UI --> Staff: Render table + highlight
+
+== D. Stocktake Diff ==
+UI -> RC: GET /api/reports/stocktake-diff?stocktakeId?
+activate RC
+RC -> RS: getStocktakeDiffById(stocktakeId?)
+activate RS
+RS -> RS: if stocktakeId null → StocktakeRepo.findMaxId()
+RS -> StocktakeRepo: findById(id)
+activate StocktakeRepo
+StocktakeRepo --> RS: Optional<Stocktake>
+deactivate StocktakeRepo
+alt Not found
+  RS --> RC: []
+  RC --> UI: 200 OK []
+else Found
+  RS -> RS: parse JSON detail → filter diff != 0
+  RS -> ProductRepo: backfill product fields if missing (by productId)
+  ProductRepo --> RS: Product
+  RS --> RC: List<StocktakeDetailDto>
+end
+deactivate RS
+RC --> UI: 200 OK List<StocktakeDetailDto>
+deactivate RC
+UI --> Staff: Render table
+
+deactivate UI
+deactivate Staff
+
+@enduml 

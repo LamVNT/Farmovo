@@ -18,7 +18,7 @@ const OrdersTable = ({orders}) => {
     const orderColumns = [
         {
             field: 'product', 
-            headerName: 'Product', 
+            headerName: 'Sản phẩm', 
             flex: 1,
             renderCell: (params) => {
                 const productValue = typeof params.value === 'string' 
@@ -27,13 +27,13 @@ const OrdersTable = ({orders}) => {
                 return productValue;
             }
         },
-        {field: 'customer', headerName: 'Customer', flex: 1},
-        {field: 'category', headerName: 'Category', flex: 1},
-        {field: 'price', headerName: 'Price', flex: 1, type: 'number'},
-        {field: 'created', headerName: 'Created', flex: 1},
+        {field: 'customer', headerName: 'Khách hàng', flex: 1},
+        {field: 'category', headerName: 'Danh mục', flex: 1},
+        {field: 'price', headerName: 'Giá', flex: 1, type: 'number'},
+        {field: 'created', headerName: 'Ngày tạo', flex: 1},
         {
             field: 'status',
-            headerName: 'Status',
+            headerName: 'Trạng thái',
             flex: 1,
             renderCell: (params) => {
                 const value = params.value;
@@ -75,7 +75,7 @@ const OrdersTable = ({orders}) => {
     return (
         <div className="card my-4 shadow-lg rounded-2xl bg-gradient-to-br from-white via-indigo-50 to-indigo-100 p-5">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-indigo-700 drop-shadow-sm">Recent Orders</h2>
+                <h2 className="text-xl font-bold text-indigo-700 drop-shadow-sm">Đơn Hàng Gần Đây</h2>
                 <TextField
                     label="Tìm kiếm đơn hàng"
                     size="small"

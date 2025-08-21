@@ -111,8 +111,16 @@ const ImportSummaryDialog = ({
                                 <TableCell className="font-semibold" sx={{ whiteSpace: 'nowrap' }}>Tên sản phẩm</TableCell>
                                 <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>ĐVT</TableCell>
                                 <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Số lượng</TableCell>
-                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Đơn giá</TableCell>
-                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Giá bán</TableCell>
+                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>
+                                    <span>
+                                        Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                                    </span>
+                                </TableCell>
+                                <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>
+                                    <span>
+                                        Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
+                                    </span>
+                                </TableCell>
                                 <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Vị trí</TableCell>
                                 <TableCell className="font-semibold text-center" sx={{ whiteSpace: 'nowrap' }}>Ngày hết hạn</TableCell>
                                 <TableCell className="font-semibold text-right" sx={{ whiteSpace: 'nowrap' }}>Thành tiền</TableCell>

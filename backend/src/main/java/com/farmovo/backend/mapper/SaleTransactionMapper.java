@@ -35,11 +35,15 @@ public interface SaleTransactionMapper {
     @Mapping(target = "customerName", source = "customer.name")
     @Mapping(target = "customerPhone", source = "customer.phone")
     @Mapping(target = "customerAddress", source = "customer.address")
+    @Mapping(target = "customerId", source = "customer.id")
     @Mapping(target = "storeName", source = "store.storeName")
     @Mapping(target = "storeAddress", source = "store.storeAddress")
+    @Mapping(target = "storeId", source = "store.id")
     @Mapping(target = "createdBy", source = "createdBy")
+    @Mapping(target = "createdAt", source = "createdAt") // Thêm mapping cho ngày tạo
     @Mapping(target = "name", source = "name")
     @Mapping(target = "detail", expression = "java(fromJson(entity.getDetail(), objectMapper))")
+    @Mapping(target = "stocktakeId", source = "stocktakeId")
     SaleTransactionResponseDto toResponseDto(SaleTransaction entity, @Context ObjectMapper objectMapper);
 
     // List version

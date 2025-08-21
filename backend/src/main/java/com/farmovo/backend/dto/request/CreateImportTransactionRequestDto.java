@@ -16,6 +16,7 @@ import java.util.List;
 public class CreateImportTransactionRequestDto {
     private Long id;
     private String name;
+    private Long stocktakeId; // Liên kết kiểm kê khi tạo phiếu nhập từ kiểm kê dư
     private Long supplierId;
     private ImportTransactionStatus status;
     private Long storeId;

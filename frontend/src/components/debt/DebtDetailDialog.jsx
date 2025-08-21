@@ -52,11 +52,11 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
         if (fromSource === 'SALE') {
             // Chuyển sang trang chi tiết sale transaction
             console.log('Navigating to sale transaction:', sourceId);
-            navigate(`/sale/${sourceId}`);
+            navigate(`/sale/${sourceId}?view=detail`);
         } else if (fromSource === 'IMPORT' || fromSource === 'PURCHASE') {
             // Chuyển sang trang chi tiết import transaction
             console.log('Navigating to import transaction:', sourceId);
-            navigate(`/import/${sourceId}`);
+            navigate(`/import/${sourceId}?view=detail`);
         } else {
             console.log('Unknown source type:', fromSource);
             return;
@@ -109,6 +109,13 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             disabled
                             InputLabelProps={{ shrink: true }}
                             label=""
+                            sx={{
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                    WebkitTextFillColor:
+                                        debtNote.debtType === '-' ? 'red' : debtNote.debtType === '+' ? 'green' : undefined,
+                                    fontWeight: 600,
+                                },
+                            }}
                         />
                     </Box>
                     <Box flex={1}>

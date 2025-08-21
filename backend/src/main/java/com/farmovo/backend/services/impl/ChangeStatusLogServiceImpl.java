@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -76,5 +77,28 @@ public class ChangeStatusLogServiceImpl implements ChangeStatusLogService {
                 });
         log.info("Found ChangeStatusLog: {}", entity);
         return changeStatusLogMapper.toDto(entity);
+    }
+
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLogsByModel(String modelName, Long modelId) {
+        log.info("Fetching ChangeStatusLogs by modelName={} and modelId={}", modelName, modelId);
+        List<ChangeStatusLog> logs = repository.findByModelNameIgnoreCaseAndModelIDOrderByCreatedAtDesc(modelName, modelId);
+        return changeStatusLogMapper.toDtoList(logs);
+    }
+    
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLatestLogsForEachSource() {
+        log.info("Fetching latest ChangeStatusLogs for each source");
+        List<ChangeStatusLog> logs = repository.findLatestLogsForEachSource();
+        log.info("Found {} latest logs", logs.size());
+        return changeStatusLogMapper.toDtoList(logs);
+    }
+    
+    @Override
+    public List<ChangeStatusLogResponseDTO> getLatestLogsForEachSourceByModel(String modelName) {
+        log.info("Fetching latest ChangeStatusLogs for each source by modelName={}", modelName);
+        List<ChangeStatusLog> logs = repository.findLatestLogsForEachSourceByModel(modelName);
+        log.info("Found {} latest logs for model {}", logs.size(), modelName);
+        return changeStatusLogMapper.toDtoList(logs);
     }
 } 

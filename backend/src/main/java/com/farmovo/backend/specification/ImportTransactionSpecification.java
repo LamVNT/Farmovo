@@ -76,11 +76,18 @@ public class ImportTransactionSpecification {
         };
     }
 
+    public static Specification<ImportTransaction> hasCreatedBy(Long createdBy) {
+        if (createdBy == null) return null;
+        return (root, query, cb) ->
+                cb.equal(root.get("createdBy"), createdBy);
+    }
+
     public static Specification<ImportTransaction> buildSpecification(
             String name,
             String supplierName,
             Long storeId,
             Long staffId,
+            Long createdBy,
             ImportTransactionStatus status,
             LocalDateTime fromDate,
             LocalDateTime toDate,
@@ -93,6 +100,7 @@ public class ImportTransactionSpecification {
                 hasSupplierName(supplierName),
                 hasStore(storeId),
                 hasStaff(staffId),
+                hasCreatedBy(createdBy),
                 hasStatus(status),
                 createdBetween(fromDate, toDate),
                 hasTotalAmountBetween(minTotalAmount, maxTotalAmount)

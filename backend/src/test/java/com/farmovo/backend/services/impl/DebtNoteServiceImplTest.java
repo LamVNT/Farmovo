@@ -24,8 +24,6 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import com.farmovo.backend.dto.response.CustomerResponseDto;
-import com.farmovo.backend.mapper.DebtNoteMapper;
 
 class DebtNoteServiceImplTest {
     @Mock
@@ -66,11 +64,9 @@ class DebtNoteServiceImplTest {
     }
 
     @Test
-    @DisplayName("findDebtNotesByCustomerId - success")
-    void testFindDebtNotesByCustomerId_Success() {
+    @DisplayName("findDebtNotesByCustomerIdPaged (Page) - success")
+    void testFindDebtNotesByCustomerId_Paged_Success() {
         Long customerId = 1L;
-        CustomerResponseDto customerResponseDto = new CustomerResponseDto();
-        customerResponseDto.setId(customerId);
         Customer customer = new Customer();
         customer.setId(customerId);
         DebtNote note = new DebtNote();
@@ -80,33 +76,26 @@ class DebtNoteServiceImplTest {
         note.setDebtDate(LocalDateTime.now());
         note.setDebtType("+");
         note.setDebtDescription("desc");
-        note.setDebtEvidences("");
-        note.setFromSource("");
-        note.setSourceId(2L);
-        note.setStore(null);
-        note.setCreatedAt(LocalDateTime.now());
-        note.setCreatedBy(1L);
-        note.setUpdatedAt(null);
-        note.setDeletedAt(null);
-        note.setDeletedBy(null);
         List<DebtNote> notes = List.of(note);
-        when(customerService.getCustomerById(customerId)).thenReturn(customerResponseDto);
-        when(debtNoteRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(notes);
-        List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerId(customerId);
-        assertEquals(1, result.size());
-        assertEquals(10L, result.get(0).getId());
+        Page<DebtNote> page = new PageImpl<>(notes);
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(page);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, null, null, null, null, null, 0, 10);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(10L, result.getContent().get(0).getId());
     }
 
     @Test
-    @DisplayName("findDebtNotesByCustomerId - customer not found")
-    void testFindDebtNotesByCustomerId_CustomerNotFound() {
-        Long customerId = 1L;
-        when(customerService.getCustomerById(customerId)).thenThrow(new IllegalArgumentException("Customer not found"));
-        assertThrows(IllegalArgumentException.class, () -> debtNoteService.findDebtNotesByCustomerId(customerId));
+    @DisplayName("findDebtNotesByCustomerIdPaged (Page) - customer not found -> empty page")
+    void testFindDebtNotesByCustomerId_Paged_CustomerNotFound_Empty() {
+        Long customerId = 9999L;
+        Page<DebtNote> empty = new PageImpl<>(Collections.emptyList());
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(empty);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, null, null, null, null, null, 0, 10);
+        assertEquals(0, result.getTotalElements());
     }
 
     @Test
-    @DisplayName("findDebtNotesByCustomerIdPaged - success")
+    @DisplayName("findDebtNotesByCustomerIdPaged (Page signature) - success")
     void testFindDebtNotesByCustomerIdPaged_Success() {
         Long customerId = 1L;
         DebtNote note = new DebtNote();
@@ -118,10 +107,10 @@ class DebtNoteServiceImplTest {
         note.setDebtDescription("desc");
         List<DebtNote> notes = List.of(note);
         Page<DebtNote> page = new PageImpl<>(notes);
-        when(debtNoteRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
-        List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, 0, 10);
-        assertEquals(1, result.size());
-        assertEquals(1L, result.get(0).getId());
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(page);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, null, null, null, null, null, 0, 10);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1L, result.getContent().get(0).getId());
     }
 
     @Test
@@ -137,7 +126,7 @@ class DebtNoteServiceImplTest {
         note.setDebtDescription("desc");
         List<DebtNote> notes = List.of(note);
         Page<DebtNote> page = new PageImpl<>(notes);
-        when(debtNoteRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(page);
         Page<DebtNoteResponseDto> result = debtNoteService.getDebtNotesPage(customerId, 0, 10);
         assertEquals(1, result.getTotalElements());
         assertEquals(1L, result.getContent().get(0).getId());
@@ -490,11 +479,9 @@ class DebtNoteServiceImplTest {
 
     // findDebtNotesByCustomerId
     @Test
-    @DisplayName("UFIND1 - findDebtNotesByCustomerId: valid (Pass)")
+    @DisplayName("UFIND1 - findDebtNotesByCustomerIdPaged: valid (Pass)")
     void testFindDebtNotesByCustomerId_UFIND1() {
         Long customerId = 1L;
-        CustomerResponseDto customerResponseDto = new CustomerResponseDto();
-        customerResponseDto.setId(customerId);
         Customer customer = new Customer();
         customer.setId(customerId);
         DebtNote note = new DebtNote();
@@ -504,37 +491,31 @@ class DebtNoteServiceImplTest {
         note.setDebtDate(LocalDateTime.now());
         note.setDebtType("+");
         note.setDebtDescription("desc");
-        note.setDebtEvidences("");
-        note.setFromSource("");
-        note.setSourceId(2L);
-        note.setStore(null);
-        note.setCreatedAt(LocalDateTime.now());
-        note.setCreatedBy(1L);
-        note.setUpdatedAt(null);
-        note.setDeletedAt(null);
-        note.setDeletedBy(null);
         List<DebtNote> notes = List.of(note);
-        when(customerService.getCustomerById(customerId)).thenReturn(customerResponseDto);
-        when(debtNoteRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(notes);
-        List<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerId(customerId);
-        assertEquals(1, result.size());
-        assertEquals(10L, result.get(0).getId());
+        Page<DebtNote> page = new PageImpl<>(notes);
+        when(debtNoteRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, null, null, null, null, null, 0, 10);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(10L, result.getContent().get(0).getId());
     }
 
     @Test
-    @DisplayName("UFIND2 - findDebtNotesByCustomerId: customerId null (Fail)")
+    @DisplayName("UFIND2 - findDebtNotesByCustomerIdPaged: customerId null (Empty page)")
     void testFindDebtNotesByCustomerId_UFIND2() {
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> debtNoteService.findDebtNotesByCustomerId(null));
-        assertTrue(ex.getMessage().contains("Customer ID không được để trống."));
+        Page<DebtNote> empty = new PageImpl<>(Collections.emptyList());
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(empty);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(null, null, null, null, null, null, 0, 10);
+        assertEquals(0, result.getTotalElements());
     }
 
     @Test
-    @DisplayName("UFIND3 - findDebtNotesByCustomerId: customer not found (Fail)")
+    @DisplayName("UFIND3 - findDebtNotesByCustomerIdPaged: customer not found (Empty page)")
     void testFindDebtNotesByCustomerId_UFIND3() {
         Long customerId = 9999L;
-        when(customerService.getCustomerById(customerId)).thenThrow(new IllegalArgumentException("Customer not found"));
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> debtNoteService.findDebtNotesByCustomerId(customerId));
-        assertTrue(ex.getMessage().contains("Customer not found"));
+        Page<DebtNote> empty = new PageImpl<>(Collections.emptyList());
+        when(debtNoteRepository.findAll(org.mockito.ArgumentMatchers.<Specification<DebtNote>>any(), any(Pageable.class))).thenReturn(empty);
+        Page<DebtNoteResponseDto> result = debtNoteService.findDebtNotesByCustomerIdPaged(customerId, null, null, null, null, null, 0, 10);
+        assertEquals(0, result.getTotalElements());
     }
 
     // getTotalDebtByCustomerId

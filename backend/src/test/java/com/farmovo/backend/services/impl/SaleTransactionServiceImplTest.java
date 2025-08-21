@@ -149,6 +149,7 @@ class SaleTransactionServiceImplTest {
     void testComplete_ValidId_ShouldSetStatusAndCreateDebtNote() {
         Long id = 1L;
         SaleTransaction transaction = new SaleTransaction();
+        transaction.setStatus(SaleTransactionStatus.WAITING_FOR_APPROVE);
         transaction.setPaidAmount(java.math.BigDecimal.ZERO);
         transaction.setTotalAmount(java.math.BigDecimal.TEN);
         transaction.setCustomer(new Customer());
@@ -161,10 +162,37 @@ class SaleTransactionServiceImplTest {
     }
 
     @Test
+    void testComplete_DraftStatus_ShouldAutoConvertAndComplete() {
+        Long id = 1L;
+        SaleTransaction transaction = new SaleTransaction();
+        transaction.setStatus(SaleTransactionStatus.DRAFT);
+        transaction.setPaidAmount(java.math.BigDecimal.ZERO);
+        transaction.setTotalAmount(java.math.BigDecimal.TEN);
+        transaction.setCustomer(new Customer());
+        transaction.setStore(new Store());
+        when(saleTransactionRepository.findById(id)).thenReturn(Optional.of(transaction));
+        when(saleTransactionRepository.save(any())).thenReturn(transaction);
+        saleTransactionService.complete(id);
+        assertEquals(SaleTransactionStatus.COMPLETE, transaction.getStatus());
+        verify(saleTransactionRepository, times(2)).save(transaction); // Lần 1: chuyển DRAFT -> WAITING_FOR_APPROVE, lần 2: chuyển WAITING_FOR_APPROVE -> COMPLETE
+    }
+
+    @Test
     void testComplete_NotFound_ShouldThrowException() {
         when(saleTransactionRepository.findById(1L)).thenReturn(Optional.empty());
         assertThrows(SaleTransactionNotFoundException.class, () -> {
             saleTransactionService.complete(1L);
+        });
+    }
+
+    @Test
+    void testComplete_InvalidStatus_ShouldThrowException() {
+        Long id = 1L;
+        SaleTransaction transaction = new SaleTransaction();
+        transaction.setStatus(SaleTransactionStatus.COMPLETE); // Trạng thái không hợp lệ
+        when(saleTransactionRepository.findById(id)).thenReturn(Optional.of(transaction));
+        assertThrows(TransactionStatusException.class, () -> {
+            saleTransactionService.complete(id);
         });
     }
 

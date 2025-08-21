@@ -94,9 +94,9 @@ const DebtTableDialog = ({
     const handleNavigateTransaction = (note) => {
         if (!note?.sourceId || !note?.fromSource) return;
         if (note.fromSource === 'SALE') {
-            navigate(`/sale/${note.sourceId}`);
+            navigate(`/sale/${note.sourceId}?view=detail`);
         } else if (note.fromSource === 'IMPORT' || note.fromSource === 'PURCHASE') {
-            navigate(`/import/${note.sourceId}`);
+            navigate(`/import/${note.sourceId}?view=detail`);
         }
     };
 
@@ -164,9 +164,18 @@ const DebtTableDialog = ({
                                     <TableRow key={note.id || index} hover>
                                         <TableCell>{debtNotesPage * debtNotesRowsPerPage + index + 1}</TableCell>
                                         <TableCell>
-                                            <span style={{ color: note.debtAmount < 0 ? 'red' : note.debtAmount > 0 ? 'green' : undefined, fontWeight: 500 }}>
-                                                {formatCurrency(note.debtAmount)}
-                                            </span>
+                                            {(() => {
+                                                const amountColor = note.debtType === "-"
+                                                    ? 'red'
+                                                    : note.debtType === "+"
+                                                        ? 'green'
+                                                        : (note.debtAmount < 0 ? 'red' : note.debtAmount > 0 ? 'green' : undefined);
+                                                return (
+                                                    <span style={{ color: amountColor, fontWeight: 500 }}>
+                                                        {formatCurrency(note.debtAmount)}
+                                                    </span>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell>{formatDebtType(note.debtType)}</TableCell>
                                         <TableCell>{
