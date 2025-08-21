@@ -1,4 +1,4 @@
-@startuml Dashboard_Class_Diagram_BE
+@startuml Dashboard_Class_Diagram_BE_Logic
 
 skinparam backgroundColor white
 skinparam linetype ortho
@@ -11,32 +11,35 @@ skinparam packageStyle rectangle
 skinparam ranksep 20
 skinparam nodesep 15
 
-title Dashboard Module – Class Diagram (Backend)
+title Dashboard Module – Class Diagram (Backend, with DTO Relations)
 
 package "API Layer" {
   class ReportController {
     + getRemainSummary(): List<CategoryRemainSummaryDto>
-    + getRevenueTrend(type, from, to): List<RevenueTrendDto>
+    + getRevenueTrend(): List<RevenueTrendDto>
     + getStockByCategory(): List<StockByCategoryDto>
-    + getExpiringLots(days): List<ExpiringLotDto>
-    + getInOutSummary(from, to): List<InOutSummaryDto>
+    + getExpiringLots(): List<ExpiringLotDto>
+    + getInOutSummary(): List<InOutSummaryDto>
   }
-  class ImportTransationController {
-    + getRecentImports(limit): List<ImportTransactionResponseDto>
+
+  class ImportTransactionController {
+    + getRecentImports(): List<ImportTransactionResponseDto>
   }
+
   class SaleTransactionController {
-    + getRecentSales(limit): List<SaleTransactionResponseDto>
+    + getRecentSales(): List<SaleTransactionResponseDto>
   }
 }
 
 package "Service Layer" {
   interface ReportService {
     + getRemainSummary()
-    + getRevenueTrend(type, from, to)
+    + getRevenueTrend()
     + getStockByCategory()
-    + getExpiringLots(days)
-    + getInOutSummary(from, to)
+    + getExpiringLots()
+    + getInOutSummary()
   }
+
   class ReportServiceImpl {
     - importTransactionDetailRepository
     - stocktakeRepository
@@ -46,17 +49,20 @@ package "Service Layer" {
     - categoryRepository
     - importTransactionRepository
   }
+
   ReportService <|.. ReportServiceImpl
 }
 
 package "Repository Layer" {
-  interface ImportTransactionDetailRepository
-  interface ImportTransactionRepository
-  interface SaleTransactionRepository
-  interface StocktakeRepository
-  interface ProductRepository
-  interface ZoneRepository
-  interface CategoryRepository
+  interface Repositories {
+    + ImportTransactionDetailRepository
+    + ImportTransactionRepository
+    + SaleTransactionRepository
+    + StocktakeRepository
+    + ProductRepository
+    + ZoneRepository
+    + CategoryRepository
+  }
 }
 
 package "DTOs" {
@@ -70,16 +76,17 @@ package "DTOs" {
 }
 
 ' Relationships
-ReportController ..> ReportService : uses
-ReportServiceImpl ..> ImportTransactionDetailRepository
-ReportServiceImpl ..> ImportTransactionRepository
-ReportServiceImpl ..> SaleTransactionRepository
-ReportServiceImpl ..> ProductRepository
-ReportServiceImpl ..> ZoneRepository
-ReportServiceImpl ..> CategoryRepository
-ReportServiceImpl ..> StocktakeRepository
+ReportController --> ReportService : uses
+ReportServiceImpl --> Repositories
 
-ImportTransationController ..> ImportTransactionRepository : findRecentImports
-SaleTransactionController ..> SaleTransactionRepository : findRecentSales
+' Controller -> DTOs
+ReportController --> CategoryRemainSummaryDto
+ReportController --> RevenueTrendDto
+ReportController --> StockByCategoryDto
+ReportController --> ExpiringLotDto
+ReportController --> InOutSummaryDto
 
-@enduml 
+ImportTransactionController --> ImportTransactionResponseDto
+SaleTransactionController --> SaleTransactionResponseDto
+
+@enduml

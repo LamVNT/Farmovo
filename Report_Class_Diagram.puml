@@ -1,199 +1,181 @@
-@startuml Report_Class_Diagram
+@startuml Report_Class_Diagram_DevTeam_Vertical
 
 skinparam backgroundColor white
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
-skinparam classFontSize 12
+skinparam classFontSize 11
 skinparam classFontName Arial
 skinparam classBackgroundColor #F8F9FA
 skinparam classBorderColor #6C757D
 skinparam arrowColor #495057
 skinparam linetype ortho
 
-title Report Module - Class Diagram
-
+title Report Module - Optimized Class Diagram
 package "API Layer" {
   class ReportController {
-    +getRemainByProduct(storeId: Long): List<ProductRemainDto>
-    +getStocktakeDiff(stocktakeId: Long): List<StocktakeDetailDto>
-    +getStocktakeDiffById(stocktakeId: Long): List<StocktakeDetailDto>
-    +getExpiringLots(days: int, storeId: Long): List<ExpiringLotDto>
-    +getRevenueTrend(type: String, from: LocalDate, to: LocalDate): List<RevenueTrendDto>
-    +getStockByCategory(): List<StockByCategoryDto>
-    +getTopProducts(from: LocalDate, to: LocalDate, limit: int): List<TopProductDto>
-    +getTopCustomers(from: LocalDate, to: LocalDate, limit: int): List<TopCustomerDto>
-    +getRemainByProductAdvanced(zoneId: String, categoryId: Long, status: String): List<RemainByProductReportDto>
-    +getInOutSummary(from: LocalDate, to: LocalDate, storeId: Long): List<InOutSummaryDto>
-    +getRemainSummary(): List<CategoryRemainSummaryDto>
-    +getDailyRevenue(from: LocalDate, to: LocalDate, storeId: Long): DailyRevenueDto
-    +getSalesTotal(from: LocalDateTime, to: LocalDateTime, groupBy: String, storeId: Long, cashierId: Long): List<SalesShiftTotalDto>
-    +getImportsTotal(from: LocalDate, to: LocalDate, groupBy: String, storeId: Long, supplierId: Long): List<GroupTotalDto>
-    +getExpiringLotsAdvanced(days: int, storeId: Long, categoryId: Long, productId: Long, includeZeroRemain: Boolean): List<ExpiringLotExtendedDto>
+    + getRemainByProduct()
+    + getStocktakeDiff()
+    + getStocktakeDiffById()
+    + getExpiringLots()
+    + getRevenueTrend()
+    + getStockByCategory()
+    + getTopProducts()
+    + getTopCustomers()
+    + getRemainByProductAdvanced()
+    + getInOutSummary()
+    + getRemainSummary()
+    + getDailyRevenue()
+    + getSalesTotal()
+    + getImportsTotal()
+    + getExpiringLotsAdvanced()
   }
   class JwtAuthenticationService
 }
 
 package "Service Layer" {
   interface ReportService {
-    +getRemainByProduct(storeId: Long): List<ProductRemainDto>
-    +getStocktakeDiff(): List<StocktakeDetailDto>
-    +getStocktakeDiffById(stocktakeId: Long): List<StocktakeDetailDto>
-    +getExpiringLots(days: int, storeId: Long): List<ExpiringLotDto>
-    +getRevenueTrend(type: String, from: LocalDateTime, to: LocalDateTime): List<RevenueTrendDto>
-    +getStockByCategory(): List<StockByCategoryDto>
-    +getTopProducts(from: LocalDateTime, to: LocalDateTime, limit: int): List<TopProductDto>
-    +getTopCustomers(from: LocalDateTime, to: LocalDateTime, limit: int): List<TopCustomerDto>
-    +getRemainByProductAdvanced(zoneId: String, categoryId: Long, status: String): List<RemainByProductReportDto>
-    +getInOutSummary(from: LocalDateTime, to: LocalDateTime, storeId: Long): List<InOutSummaryDto>
-    +getRemainSummary(): List<CategoryRemainSummaryDto>
-    +getDailyRevenue(from: LocalDateTime, to: LocalDateTime, storeId: Long): DailyRevenueDto
-    +getSalesTotal(from: LocalDateTime, to: LocalDateTime, groupBy: String, storeId: Long, cashierId: Long): List<SalesShiftTotalDto>
-    +getImportsTotal(from: LocalDateTime, to: LocalDateTime, groupBy: String, storeId: Long, supplierId: Long): List<GroupTotalDto>
-    +getExpiringLotsAdvanced(days: int, storeId: Long, categoryId: Long, productId: Long, includeZeroRemain: Boolean): List<ExpiringLotExtendedDto>
+    + report APIs...
   }
 
   class ReportServiceImpl {
-    -importTransactionDetailRepository: ImportTransactionDetailRepository
-    -stocktakeRepository: StocktakeRepository
-    -saleTransactionRepository: SaleTransactionRepository
-    -productRepository: ProductRepository
-    -zoneRepository: ZoneRepository
-    -categoryRepository: CategoryRepository
-    -importTransactionRepository: ImportTransactionRepository
-    -userRepository: UserRepository
-    -request: HttpServletRequest
-    -objectMapper: ObjectMapper
+    - importTransactionDetailRepository
+    - stocktakeRepository
+    - saleTransactionRepository
+    - productRepository
+    - zoneRepository
+    - categoryRepository
+    - importTransactionRepository
+    - userRepository
+    - request
+    - objectMapper
   }
 }
 
 package "Repository Layer" {
-  interface ImportTransactionDetailRepository
-  interface StocktakeRepository
-  interface SaleTransactionRepository
-  interface ProductRepository
-  interface ZoneRepository
-  interface CategoryRepository
-  interface ImportTransactionRepository
-  interface UserRepository
+  interface Repositories {
+    + ImportTransactionDetailRepository
+    + StocktakeRepository
+    + SaleTransactionRepository
+    + ProductRepository
+    + ZoneRepository
+    + CategoryRepository
+    + ImportTransactionRepository
+    + UserRepository
+  }
 }
 
 package "DTOs" {
-  class ProductRemainDto {
-    -productId: Long
-    -remain: int
+  package "Remain DTOs" {
+    class ProductRemainDto {
+      - productId
+      - remain
+    }
+    class StocktakeDetailDto {
+      - id
+      - batchCode
+      - productId
+      - productName
+      - remain
+      - real
+      - diff
+      - expireDate
+    }
+    class RemainByProductReportDto {
+      - category
+      - zone
+      - productName
+      - status
+      - remainQuantity
+    }
+    class CategoryRemainSummaryDto {
+      - category
+      - totalRemain
+    }
+    class ProductRemainSummaryDto {
+      - productId
+      - productName
+      - totalRemain
+    }
+    class ZoneRemainSummaryDto {
+      - zoneId
+      - zoneName
+      - totalRemain
+    }
   }
-  class StocktakeDetailDto {
-    -id: Long
-    -batchCode: String
-    -productId: Long
-    -productName: String
-    -zones_id: List<String>
-    -remain: Integer
-    -real: Integer
-    -diff: Integer
-    -note: String
-    -zoneReal: String
-    -expireDate: String
-    -isCheck: Boolean
+
+  package "Expiring DTOs" {
+    class ExpiringLotDto
+    class ExpiringLotExtendedDto {
+      - id
+      - productCode
+      - productName
+      - lotCode
+      - zoneName
+      - expireDate
+      - daysLeft
+      - categoryId
+      - categoryName
+      - storeId
+      - storeName
+      - remainQuantity
+    }
   }
-  class ExpiringLotDto
-  class ExpiringLotExtendedDto {
-    -id: Long
-    -productCode: String
-    -productName: String
-    -lotCode: String
-    -zoneName: String
-    -expireDate: LocalDateTime
-    -daysLeft: Integer
-    -categoryId: Long
-    -categoryName: String
-    -storeId: Long
-    -storeName: String
-    -remainQuantity: Integer
+
+  package "Revenue/Trend DTOs" {
+    class RevenueTrendDto {
+      - label
+      - revenue
+    }
+    class DailyRevenueDto {
+      - totalSaleAmount
+      - totalImportAmount
+      - netRevenue
+    }
   }
-  class RevenueTrendDto {
-    -label: String
-    -revenue: BigDecimal
-  }
-  class StockByCategoryDto {
-    -category: String
-    -stock: Integer
-  }
-  class TopProductDto {
-    -productName: String
-    -category: String
-    -quantity: Long
-  }
-  class TopCustomerDto {
-    -customerName: String
-    -totalAmount: BigDecimal
-    -orderCount: Long
-  }
-  class RemainByProductReportDto {
-    -category: String
-    -zone: String
-    -productName: String
-    -status: String
-    -remainQuantity: Integer
-  }
-  class InOutSummaryDto {
-    -date: LocalDate
-    -importQuantity: int
-    -exportQuantity: int
-    -remainQuantity: int
-  }
-  class DailyRevenueDto {
-    -totalSaleAmount: BigDecimal
-    -totalImportAmount: BigDecimal
-    -netRevenue: BigDecimal
-  }
-  class GroupTotalDto {
-    -bucket: String
-    -entityId: Long
-    -entityName: String
-    -totalAmount: BigDecimal
-    -count: Long
-  }
-  class SalesShiftTotalDto {
-    -label: String
-    -cashierId: Long
-    -cashierName: String
-    -totalAmount: BigDecimal
-    -orderCount: Long
-  }
-  class CategoryRemainSummaryDto {
-    -category: String
-    -totalRemain: Integer
-    -products: List<ProductRemainSummaryDto>
-  }
-  class ProductRemainSummaryDto {
-    -productId: Long
-    -productName: String
-    -totalRemain: Integer
-    -zones: List<ZoneRemainSummaryDto>
-  }
-  class ZoneRemainSummaryDto {
-    -zoneId: String
-    -zoneName: String
-    -totalRemain: Integer
+
+  package "Summary/Total DTOs" {
+    class StockByCategoryDto {
+      - category
+      - stock
+    }
+    class TopProductDto {
+      - productName
+      - category
+      - quantity
+    }
+    class TopCustomerDto {
+      - customerName
+      - totalAmount
+      - orderCount
+    }
+    class InOutSummaryDto {
+      - date
+      - importQuantity
+      - exportQuantity
+      - remainQuantity
+    }
+    class GroupTotalDto {
+      - bucket
+      - entityId
+      - entityName
+      - totalAmount
+      - count
+    }
+    class SalesShiftTotalDto {
+      - label
+      - cashierId
+      - cashierName
+      - totalAmount
+      - orderCount
+    }
   }
 }
 
+' Relationships
 ReportController --> ReportService : uses
 ReportController --> JwtAuthenticationService : uses
 ReportService <|.. ReportServiceImpl : implements
-
-' Repositories used by service impl
-ReportServiceImpl --> ImportTransactionDetailRepository
-ReportServiceImpl --> StocktakeRepository
-ReportServiceImpl --> SaleTransactionRepository
-ReportServiceImpl --> ProductRepository
-ReportServiceImpl --> ZoneRepository
-ReportServiceImpl --> CategoryRepository
-ReportServiceImpl --> ImportTransactionRepository
-ReportServiceImpl --> UserRepository
-
-' Service returns DTOs
+ReportServiceImpl --> Repositories
 ReportService ..> ProductRemainDto
 ReportService ..> StocktakeDetailDto
 ReportService ..> ExpiringLotDto
@@ -209,8 +191,7 @@ ReportService ..> GroupTotalDto
 ReportService ..> SalesShiftTotalDto
 ReportService ..> CategoryRemainSummaryDto
 
-' Summary relationships
 CategoryRemainSummaryDto "1" o-- "*" ProductRemainSummaryDto
 ProductRemainSummaryDto "1" o-- "*" ZoneRemainSummaryDto
 
-@enduml 
+@enduml
