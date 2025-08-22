@@ -5,71 +5,68 @@ import {useState, useMemo} from "react";
 const OrdersTable = ({orders}) => {
     const [searchOrder, setSearchOrder] = useState("");
 
+    // Search by code, partner and store
     const filteredOrders = useMemo(() =>
         orders.filter(o => {
-            // Safely handle the product field - it might be an object or string
-            const productValue = typeof o.product === 'string' 
-                ? o.product 
-                : o.product?.name || o.product?.productName || o.product?.id || String(o.product || '');
-            
-            return productValue.toLowerCase().includes(searchOrder.toLowerCase());
+            const code = String(o.code ?? o.name ?? o.id ?? "");
+            const partner = String(o.partner ?? "");
+            const store = String(o.store ?? "");
+            const haystack = (code + " " + partner + " " + store).toLowerCase();
+            return haystack.includes(searchOrder.toLowerCase());
         }), [searchOrder, orders]);
 
+    // Robust money formatter: supports number, numeric string, BigDecimal-like
+    const formatMoney = (v) => {
+        if (v === null || v === undefined) return "";
+        const parsed = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
+        if (Number.isFinite(parsed)) return parsed.toLocaleString('vi-VN');
+        return String(v);
+    };
+
+    const prettifyStatus = (value) => {
+        if (!value) return "";
+        const text = String(value).toLowerCase().replace(/_/g, ' ');
+        return text.replace(/(^|\s)\S/g, (t) => t.toUpperCase());
+    };
+
     const orderColumns = [
-        {
-            field: 'product', 
-            headerName: 'Sản phẩm', 
-            flex: 1,
-            renderCell: (params) => {
-                const productValue = typeof params.value === 'string' 
-                    ? params.value 
-                    : params.value?.name || params.value?.productName || params.value?.id || String(params.value || '');
-                return productValue;
-            }
-        },
-        {field: 'customer', headerName: 'Khách hàng', flex: 1},
-        {field: 'category', headerName: 'Danh mục', flex: 1},
-        {field: 'price', headerName: 'Giá', flex: 1, type: 'number'},
-        {field: 'created', headerName: 'Ngày tạo', flex: 1},
+        { field: 'code', headerName: 'Mã Đơn', flex: 1 },
+        { field: 'partner', headerName: 'Khách hàng / Nhà cung cấp', flex: 1.2 },
+        { field: 'store', headerName: 'Kho', flex: 1 },
+        { field: 'price', headerName: 'Giá', flex: 0.8, renderCell: (params) => formatMoney(params.value) },
+        { field: 'created', headerName: 'Ngày tạo', flex: 1 },
         {
             field: 'status',
             headerName: 'Trạng thái',
             flex: 1,
             renderCell: (params) => {
-                const value = params.value;
+                const raw = String(params.value || '');
+                const value = prettifyStatus(raw);
                 let color = '';
-                let bg = '';
-                switch (value) {
-                    case 'Complete':
+                switch (raw.toUpperCase()) {
+                    case 'COMPLETE':
                         color = 'text-green-700';
-                        bg = 'bg-green-500';
                         break;
-                    case 'Cancel':
+                    case 'CANCEL':
                         color = 'text-red-700';
-                        bg = 'bg-red-100';
                         break;
-                    case 'Draft':
+                    case 'DRAFT':
                         color = 'text-yellow-700';
-                        bg = 'bg-yellow-100';
                         break;
-                    case 'Pending':
+                    case 'PENDING':
+                    case 'WAITING_FOR_APPROVE':
+                    case 'WAITING_FOR_APPROVAL':
+                    case 'PROCESSING':
                         color = 'text-blue-700';
-                        bg = 'bg-blue-100';
-                        break;
-                    case 'Processing':
-                        color = 'text-indigo-700';
-                        bg = 'bg-indigo-100';
                         break;
                     default:
                         color = 'text-gray-700';
-                        bg = 'bg-gray-100';
                 }
                 return (
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${color}`}>{value}</span>
                 );
             }
-        },
-        // Đã loại bỏ cột actions cho bảng Dashboard
+        }
     ];
 
     return (
@@ -101,15 +98,9 @@ const OrdersTable = ({orders}) => {
                             fontSize: 15,
                             color: '#3730a3',
                         },
-                        '& .MuiDataGrid-row': {
-                            transition: 'background 0.2s',
-                        },
-                        '& .MuiDataGrid-row:hover': {
-                            background: '#e0e7ff33',
-                        },
-                        '& .MuiDataGrid-cell': {
-                            fontSize: 14,
-                        },
+                        '& .MuiDataGrid-row': { transition: 'background 0.2s' },
+                        '& .MuiDataGrid-row:hover': { background: '#e0e7ff33' },
+                        '& .MuiDataGrid-cell': { fontSize: 14 },
                     }}
                 />
             </div>

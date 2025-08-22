@@ -24,7 +24,7 @@ const RevenueLineChart = ({data, timeFilter, setTimeFilter}) => {
             <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data}>
                     <CartesianGrid strokeDasharray="3 3"/>
-                    <XAxis dataKey="date"/>
+                    <XAxis dataKey="label"/>
                     <YAxis/>
                     <Tooltip/>
                     <Legend/>

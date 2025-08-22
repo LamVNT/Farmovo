@@ -258,10 +258,15 @@ public class ReportServiceImpl implements ReportService {
 			case "month": {
                 raw = saleTransactionRepository.getRevenueByMonth(from, to);
                 for (Object[] row : raw) {
-                    String label = row[0] + "-" + String.format("%02d", row[1]);
+                    int yearVal = ((Number) row[0]).intValue();
+                    int monthVal = ((Number) row[1]).intValue();
+                    String label = yearVal + "-" + String.format("%02d", monthVal);
                     RevenueTrendDto dto = new RevenueTrendDto();
                     dto.setLabel(label);
-                    dto.setRevenue((BigDecimal) row[2]);
+                    BigDecimal revenueVal = (row[2] instanceof BigDecimal)
+                            ? (BigDecimal) row[2]
+                            : new BigDecimal(((Number) row[2]).toString());
+                    dto.setRevenue(revenueVal);
                     result.add(dto);
                 }
                 break;
@@ -270,8 +275,12 @@ public class ReportServiceImpl implements ReportService {
                 raw = saleTransactionRepository.getRevenueByYear(from, to);
                 for (Object[] row : raw) {
                     RevenueTrendDto dto = new RevenueTrendDto();
-                    dto.setLabel(row[0].toString());
-                    dto.setRevenue((BigDecimal) row[1]);
+                    int yearVal = ((Number) row[0]).intValue();
+                    dto.setLabel(String.valueOf(yearVal));
+                    BigDecimal revenueVal = (row[1] instanceof BigDecimal)
+                            ? (BigDecimal) row[1]
+                            : new BigDecimal(((Number) row[1]).toString());
+                    dto.setRevenue(revenueVal);
                     result.add(dto);
                 }
                 break;
@@ -296,14 +305,72 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<TopProductDto> getTopProducts(LocalDateTime from, LocalDateTime to, int limit) {
-        List<Object[]> raw = importTransactionDetailRepository.getTopProducts(from, to, PageRequest.of(0, limit));
-        List<TopProductDto> result = new ArrayList<>();
-        for (Object[] row : raw) {
-            TopProductDto dto = new TopProductDto();
-            dto.setProductName((String) row[0]);
-            dto.setCategory((String) row[1]);
-            dto.setQuantity(row[2] != null ? ((Number) row[2]).longValue() : 0L);
-            result.add(dto);
+        // Aggregate by product name and category from sale transactions' detail JSON
+        Map<String, TopProductDto> map = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<SaleTransaction> sales = saleTransactionRepository.findAllSaleActiveBetween(from, to);
+        
+        // Debug: Log số lượng sale transactions
+        System.out.println("DEBUG: Found " + sales.size() + " sale transactions between " + from + " and " + to);
+        
+        for (SaleTransaction s : sales) {
+            if (s.getDetail() == null || s.getDetail().isEmpty()) continue;
+            try {
+                List<ProductSaleResponseDto> details = objectMapper.readValue(
+                        s.getDetail(), new TypeReference<List<ProductSaleResponseDto>>() {});
+                
+                // Debug: Log số lượng details trong sale transaction
+                System.out.println("DEBUG: Sale transaction " + s.getId() + " has " + details.size() + " details");
+                
+                for (ProductSaleResponseDto d : details) {
+                    String productName = d.getProductName();
+                    String categoryName = d.getCategoryName();
+                    Long qty = d.getQuantity() != null ? d.getQuantity().longValue() : 0L;
+                    
+                    // Debug: Log thông tin chi tiết
+                    System.out.println("DEBUG: Product=" + productName + ", Category=" + categoryName + ", Quantity=" + qty);
+                    
+                    if (productName == null) continue;
+                    
+                    // Nếu categoryName từ JSON là null, thử lấy từ product table
+                    if (categoryName == null && d.getProId() != null) {
+                        try {
+                            Product product = productRepository.findById(d.getProId()).orElse(null);
+                            if (product != null && product.getCategory() != null) {
+                                categoryName = product.getCategory().getCategoryName();
+                                System.out.println("DEBUG: Retrieved category from product table: " + categoryName);
+                            }
+                        } catch (Exception e) {
+                            System.err.println("DEBUG: Error getting product category: " + e.getMessage());
+                        }
+                    }
+                    
+                    String key = productName + "|" + (categoryName != null ? categoryName : "");
+                    TopProductDto agg = map.get(key);
+                    if (agg == null) {
+                        agg = new TopProductDto();
+                        agg.setProductName(productName);
+                        agg.setCategory(categoryName != null ? categoryName : "Không phân loại");
+                        agg.setQuantity(0L);
+                        map.put(key, agg);
+                    }
+                    agg.setQuantity(agg.getQuantity() + qty);
+                }
+            } catch (Exception e) {
+                System.err.println("DEBUG: Error parsing sale transaction detail: " + e.getMessage());
+            }
+        }
+        
+        // Debug: Log kết quả cuối cùng
+        System.out.println("DEBUG: Final result has " + map.size() + " unique products");
+        for (Map.Entry<String, TopProductDto> entry : map.entrySet()) {
+            System.out.println("DEBUG: " + entry.getKey() + " -> " + entry.getValue().getProductName() + " (Category: " + entry.getValue().getCategory() + ")");
+        }
+        
+        List<TopProductDto> result = new ArrayList<>(map.values());
+        result.sort((a, b) -> Long.compare(b.getQuantity() != null ? b.getQuantity() : 0L, a.getQuantity() != null ? a.getQuantity() : 0L));
+        if (result.size() > limit) {
+            return result.subList(0, limit);
         }
         return result;
     }

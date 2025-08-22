@@ -368,7 +368,7 @@ const BalanceTransactionPage = () => {
         fontFamily: 'Roboto, Arial, sans-serif',
         position: 'sticky',
         top: 0,
-        zIndex: 2,
+        zIndex: 5,
     };
     const tdStyles = {
         padding: '8px 10px',
@@ -643,16 +643,17 @@ const BalanceTransactionPage = () => {
                         height: 500,
                         overflowY: 'auto',
                         overflowX: 'auto',
+                        position: 'relative',
                         borderRadius: 8,
                         boxShadow: '0 2px 8px #eee',
-                        padding: 8
+                        padding: 0
                     }}>
                         {loading ? (
                             <div className="flex justify-center items-center h-full">
                                 <span>Đang tải...</span>
                             </div>
                         ) : (
-                            <table style={{...tableStyles, borderRadius: 12}}>
+                            <table style={{...tableStyles, borderRadius: 12, position: 'relative', margin: 0}}>
                                 <colgroup>
                                     <col style={{width: 60}}/>
                                     <col style={{width: 160}}/>

@@ -19,6 +19,7 @@ import useTopProducts from "../../hooks/useTopProducts";
 import useTopCustomers from "../../hooks/useTopCustomers";
 import useRecentImportTransactions from "../../hooks/useRecentImportTransactions";
 import useRecentSaleTransactions from "../../hooks/useRecentSaleTransactions";
+import { formatCurrency } from "../../utils/formatters";
 
 const orders = [
     {
@@ -94,18 +95,24 @@ const Dashboard = () => {
     const today = new Date();
     const to = today.toISOString().slice(0, 10);
     const from = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    // --- Controls for Top lists ---
+    const [topLimit, setTopLimit] = useState(5);
+    const [topRange, setTopRange] = useState(7); // days: 7, 30, 90
+    const topTo = to;
+    const topFrom = new Date(today.getTime() - (topRange - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     // Lấy dữ liệu từ API
     const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({type, from, to});
     const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory();
     const {data: topProducts, loading: loadingTopProducts, error: errorTopProducts} = useTopProducts({
-        from,
-        to,
-        limit: 5
+        from: topFrom,
+        to: topTo,
+        limit: topLimit
     });
     const {data: topCustomers, loading: loadingTopCustomers, error: errorTopCustomers} = useTopCustomers({
-        from,
-        to,
-        limit: 5
+        from: topFrom,
+        to: topTo,
+        limit: topLimit
     });
     const {data: recentImports, loading: loadingImports, error: errorImports} = useRecentImportTransactions(5);
     const {data: recentSales, loading: loadingSales, error: errorSales} = useRecentSaleTransactions(5);
@@ -196,6 +203,33 @@ const Dashboard = () => {
             </div>
 
             {/* Top Products & Top Customers Section */}
+            <div className="mb-2 mt-2 flex items-center justify-between">
+                <div className="flex gap-2">
+                    {[
+                        {label: "7 ngày", value: 7},
+                        {label: "30 ngày", value: 30},
+                        {label: "90 ngày", value: 90}
+                    ].map(opt => (
+                        <button
+                            key={opt.value}
+                            onClick={() => setTopRange(opt.value)}
+                            className={`px-3 py-1 rounded-full text-sm border ${topRange === opt.value ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200'}`}
+                        >{opt.label}</button>
+                    ))}
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Top</span>
+                    <select
+                        className="px-2 py-1 border rounded-md text-sm"
+                        value={topLimit}
+                        onChange={(e) => setTopLimit(Number(e.target.value))}
+                    >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                    </select>
+                </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div
                     className="relative group bg-gradient-to-br from-white via-[#f8faff] to-[#e0e7ff] p-6 rounded-2xl shadow-xl border border-indigo-100 transition-all hover:shadow-2xl hover:scale-[1.02]">
@@ -222,7 +256,7 @@ const Dashboard = () => {
                             <tbody>
                             {topProducts.map((item, idx) => (
                                 <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
-                                    <td className="py-2 px-4 font-bold">{idx + 1}</td>
+                                    <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
                                     <td className="py-2 px-4 font-semibold">{item.productName}</td>
                                     <td className="py-2 px-4">{item.category}</td>
                                     <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
@@ -257,9 +291,9 @@ const Dashboard = () => {
                             <tbody>
                             {topCustomers.map((item, idx) => (
                                 <tr key={item.customerName + idx} className="hover:bg-indigo-50 transition-all">
-                                    <td className="py-2 px-4 font-bold">{idx + 1}</td>
+                                    <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
                                     <td className="py-2 px-4 font-semibold">{item.customerName}</td>
-                                    <td className="py-2 px-4 text-indigo-700 font-bold">{item.totalAmount?.toLocaleString()}</td>
+                                    <td className="py-2 px-4 text-indigo-700 font-bold">{formatCurrency(item.totalAmount)}</td>
                                     <td className="py-2 px-4">{item.orderCount}</td>
                                 </tr>
                             ))}
@@ -288,9 +322,9 @@ const Dashboard = () => {
                 ) : (
                     <OrdersTable orders={recentImports.map((item, idx) => ({
                         id: item.id,
-                        product: item.name || item.id,
-                        customer: item.supplierName || "",
-                        category: item.storeId || "",
+                        code: item.name || item.id,
+                        partner: item.supplierName || "",
+                        store: item.storeName || item.storeId || "",
                         price: item.totalAmount,
                         created: item.importDate?.slice(0, 10),
                         status: item.status,
@@ -317,9 +351,9 @@ const Dashboard = () => {
                 ) : (
                     <OrdersTable orders={recentSales.map((item, idx) => ({
                         id: item.id,
-                        product: item.name || item.id,
-                        customer: item.customerName || "",
-                        category: item.storeName || "",
+                        code: item.name || item.id,
+                        partner: item.customerName || "",
+                        store: item.storeName || "",
                         price: item.totalAmount,
                         created: item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : (item.saleDate?.slice(0, 10) || ''),
                         status: item.status,
