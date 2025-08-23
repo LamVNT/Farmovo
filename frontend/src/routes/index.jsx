@@ -15,6 +15,7 @@ import Profile from "../pages/profile/index.jsx"; // chỉnh tên nếu cần
 import ProfileLayout from "../layouts/ProfileLayout.jsx"; // mới
 import Security from "../pages/profile/Security";
 import Notification from "../pages/profile/Notification";
+import ChangePasswordPage from "../pages/profile/ChangePasswordPage";
 import Zone from "../pages/zone/index.jsx";
 import ImportTransactionPage from "../pages/import-transaction/index.jsx";
 import ImportPage from "../pages/import-transaction/ImportPage.jsx";
@@ -127,6 +128,10 @@ const router = createBrowserRouter([
             {
                 path: "notification",
                 element: <Notification/>,
+            },
+            {
+                path: "change-password",
+                element: <ChangePasswordPage/>,
             },
         ],
     },

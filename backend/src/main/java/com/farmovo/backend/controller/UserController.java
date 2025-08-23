@@ -2,6 +2,8 @@ package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
+import com.farmovo.backend.dto.request.ProfileUpdateRequestDto;
+import com.farmovo.backend.dto.request.ChangePasswordRequestDto;
 import com.farmovo.backend.dto.request.SendLoginInfoRequestDto;
 import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.dto.response.AdminUserResponseDto;
@@ -179,6 +181,33 @@ public class UserController {
         return userService.updateUser(userId, user)
                 .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
                 .orElseThrow(() -> new UserManagementException("User not found"));
+    }
+    
+    @PutMapping("/users/me/profile")
+    public ResponseEntity<UserResponseDto> updateProfile(Principal principal, @Valid @RequestBody ProfileUpdateRequestDto dto) {
+        logger.info("Updating profile for current user: {}", principal.getName());
+        Long userId = userService.getUserByUsername(principal.getName())
+                .map(User::getId)
+                .orElseThrow(() -> new UserManagementException("User not found"));
+        
+        return userService.updateProfile(userId, dto)
+                .map(updatedUser -> ResponseEntity.ok(userMapper.toResponseDto(updatedUser)))
+                .orElseThrow(() -> new UserManagementException("User not found"));
+    }
+    
+    @PutMapping("/users/me/password")
+    public ResponseEntity<String> changePassword(Principal principal, @Valid @RequestBody ChangePasswordRequestDto dto) {
+        logger.info("Changing password for current user: {}", principal.getName());
+        Long userId = userService.getUserByUsername(principal.getName())
+                .map(User::getId)
+                .orElseThrow(() -> new UserManagementException("User not found"));
+        
+        boolean success = userService.changePassword(userId, dto);
+        if (success) {
+            return ResponseEntity.ok("Password changed successfully");
+        } else {
+            throw new UserManagementException("Failed to change password");
+        }
     }
 
     @PostMapping("/admin/send-login-info")
