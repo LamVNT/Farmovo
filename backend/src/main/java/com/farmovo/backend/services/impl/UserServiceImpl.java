@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.Principal;
@@ -45,6 +46,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public List<User> getAllUsers() {
@@ -115,7 +119,12 @@ public class UserServiceImpl implements UserService {
                 inputUserValidation.validateEmailForUpdate(user.getEmail());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
-                if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
+//////////////
+                if (user.getPassword() != null) {
+                    String encodedPassword = passwordEncoder.encode(user.getPassword());
+                    existingUser.setPassword(encodedPassword);
+                }
+//////////////////
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
                 if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());

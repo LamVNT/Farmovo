@@ -30,7 +30,6 @@ public class CustomerController {
     @PostMapping
     public ResponseEntity<CustomerResponseDto> createCustomer(@RequestBody CustomerRequestDto requestDto) {
         logger.info("Creating customer: {}", requestDto.getName());
-        // TODO: Get createdBy from JWT token instead of parameter
         CustomerResponseDto responseDto = customerService.createCustomer(requestDto, 1L); // Temporary hardcoded
         return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
