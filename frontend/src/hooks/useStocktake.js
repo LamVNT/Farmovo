@@ -40,7 +40,7 @@ export default function useStocktake(user, userRole) {
     const [total, setTotal] = useState(0);
 
     // Bộ lọc danh sách
-    const [statusFilter, setStatusFilter] = useState("DRAFT");
+    const [statusFilter, setStatusFilter] = useState("");
     const [storeFilter, setStoreFilter] = useState(""); // Mặc định rỗng cho Owner, tự động đặt cho Staff
     const [fromDate, setFromDate] = useState(() => {
         const today = new Date();
@@ -126,7 +126,7 @@ export default function useStocktake(user, userRole) {
             const query = {
                 page,
                 size: rowsPerPage,
-                status: statusFilter,
+                ...(statusFilter && { status: statusFilter }),
                 note: noteFilter,
                 fromDate: fromDate,
                 toDate: toDate,

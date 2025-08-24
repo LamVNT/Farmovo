@@ -199,7 +199,8 @@ const StockTakeDetailPage = () => {
                         <TableRow sx={{ background: "#f5f5f5" }}>
                             <TableCell><b>Mã lô</b></TableCell>
                             <TableCell><b>Tên hàng</b></TableCell>
-                            {!isMobile && <TableCell><b>Khu vực hệ thống</b></TableCell>}
+                            {/* Ẩn cột Khu vực hệ thống */}
+                            {/* {!isMobile && <TableCell><b>Khu vực hệ thống</b></TableCell>} */}
                             <TableCell><b>Tồn kho</b></TableCell>
                             <TableCell><b>Thực tế</b></TableCell>
                             {!isMobile && <TableCell><b>Khu vực thực tế</b></TableCell>}
@@ -219,7 +220,8 @@ const StockTakeDetailPage = () => {
                                 <TableRow key={(d.batchCode || d.name || 'row') + '-' + (d.productId || '') + '-' + idx} hover sx={d.diff !== 0 ? { background: '#ffeaea' } : {}}>
                                     <TableCell sx={{ color: '#1976d2', fontWeight: 600 }}>{d.batchCode || d.name}</TableCell>
                                     <TableCell><b>{products.find(p => p.id === d.productId)?.productName || d.productName || d.productId}</b></TableCell>
-                                    {!isMobile && <TableCell>
+                                    {/* Ẩn giá trị cột Khu vực hệ thống */}
+                                    {/* {!isMobile && <TableCell>
                                         {d.zones_id ?
                                             (Array.isArray(d.zones_id) ?
                                                 d.zones_id.map(zid => {
@@ -229,7 +231,7 @@ const StockTakeDetailPage = () => {
                                                 : d.zones_id)
                                             : (d.zoneName || d.zoneId || '')
                                         }
-                                    </TableCell>}
+                                    </TableCell>} */}
                                     <TableCell>{d.remain}</TableCell>
                                     <TableCell>{d.real}</TableCell>
                                     {!isMobile && <TableCell>{

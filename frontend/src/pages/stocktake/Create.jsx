@@ -78,6 +78,9 @@ const CreateStocktakePage = () => {
         setDataLoaded,
         loadMasterData, // <-- thêm loadMasterData từ hook
     } = useStocktake(user, userRole);
+
+    // Dialog sau khi tạo thành công để chuyển trang chi tiết nếu có chênh lệch
+    const [postCreateDialog, setPostCreateDialog] = useState({ open: false, id: null, name: '' });
     const staffStoreId = localStorage.getItem('staff_store_id') || '';
     const [filter, setFilter] = useState({ store: '', zone: '', product: '', search: '', startDate: '', endDate: '' });
     const [loadingLots, setLoadingLots] = useState(false);
@@ -344,6 +347,17 @@ const CreateStocktakePage = () => {
                 const defaultReal = Number(lot.remainQuantity) || 0;
                 const initialReal = (lot.real === 0 || lot.real) ? Number(lot.real) : defaultReal;
                 const initialDiff = Number(initialReal) - (Number(lot.remainQuantity) || 0);
+                
+                // Debug: Log thông tin diff
+                if (initialDiff !== 0) {
+                    console.log('[DEBUG] Diff calculation:', {
+                        lotName: lot.batchCode || lot.name,
+                        remainQuantity: lot.remainQuantity,
+                        initialReal: initialReal,
+                        initialDiff: initialDiff,
+                        diffType: initialDiff > 0 ? 'Thực tế > Tồn (ĐỎ)' : 'Thực tế < Tồn (CAM)'
+                    });
+                }
                                     return {
                         ...lot,
                         zonesId,
@@ -608,25 +622,40 @@ const CreateStocktakePage = () => {
                 storeId: userRole === 'OWNER' ? filter.store : staffStoreIdNum
             };
             if (id) {
-                await updateStocktake(id, payload);
+                const updated = await updateStocktake(id, payload);
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
                     severity: "success"
                 });
                 localStorage.removeItem(`stocktake_edit_${id}`);
+                // Nếu hoàn thành và có chênh lệch thì mở dialog chuyển trang chi tiết
+                const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
+                if (status === 'COMPLETED' && hasDiff) {
+                    setPostCreateDialog({ open: true, id: id, name: updated?.name || '' });
+                } else {
+                    setLots([]);
+                    localStorage.removeItem('stocktake_create_selected_lots');
+                    navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
+                }
             } else {
-                await createStocktake(payload);
+                const created = await createStocktake(payload);
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
                     severity: "success"
                 });
                 localStorage.removeItem('stocktake_create_draft');
+                const createdId = created?.id;
+                const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
+                if (status === 'COMPLETED' && hasDiff && createdId) {
+                    setPostCreateDialog({ open: true, id: createdId, name: created?.name || '' });
+                } else {
+                    setLots([]);
+                    localStorage.removeItem('stocktake_create_selected_lots');
+                    navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
+                }
             }
-            setLots([]);
-            localStorage.removeItem('stocktake_create_selected_lots');
-            navigate("/stocktake", { state: { successMessage: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!" } });
         } catch (err) {
             console.error("[ERROR][handleSubmit] Lỗi khi lưu phiếu kiểm kê:", err, err?.response);
             setSnackbar({
@@ -851,6 +880,35 @@ const CreateStocktakePage = () => {
                     </Typography>
                 )}
             </Typography>
+            
+            {/* Legend cho màu sắc chênh lệch */}
+            <Box sx={{ 
+                display: 'flex', 
+                gap: 2, 
+                mb: 2, 
+                p: 1.5, 
+                bgcolor: '#f8f9fa', 
+                borderRadius: 1, 
+                border: '1px solid #e9ecef',
+                flexWrap: 'wrap',
+                alignItems: 'center'
+            }}>
+                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                    Chú thích chênh lệch:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#dc2626' }} />
+                    <Typography variant="body2" color="#dc2626" fontWeight={500}>
+                        Đỏ: Thực tế {'>'} Tồn kho (Cần kiểm tra lại)
+                    </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#ea580c' }} />
+                    <Typography variant="body2" color="#ea580c" fontWeight={500}>
+                        Cam: Thực tế {'<'} Tồn kho (Có thể thiếu hàng)
+                    </Typography>
+                </Box>
+            </Box>
             <TableContainer component={Paper} elevation={1} sx={{
                 mb: 2,
                 borderRadius: 2,
@@ -878,14 +936,15 @@ const CreateStocktakePage = () => {
                                 padding: '8px 6px',
                                 textAlign: 'left'
                             }}><b>Mã lô</b></TableCell>
-                            {!isMobile && <TableCell sx={{
+                            {/* Ẩn cột Khu vực (vẫn giữ logic bên dưới) */}
+                            {/* {!isMobile && <TableCell sx={{
                                 minWidth: 80,
                                 maxWidth: 100,
                                 fontSize: '0.75rem',
                                 fontWeight: 600,
                                 padding: '8px 4px',
                                 textAlign: 'left'
-                            }}><b>Khu vực</b></TableCell>}
+                            }}><b>Khu vực</b></TableCell>} */}
                             <TableCell sx={{
                                 minWidth: 120,
                                 maxWidth: 150,
@@ -993,7 +1052,8 @@ const CreateStocktakePage = () => {
                                                 hover>
                                                 <TableCell>{displayIdx + 1}</TableCell>
                                                 <TableCell>{lot.name || lot.batchCode}</TableCell>
-                                                {!isMobile && <TableCell>
+                                                {/* Ẩn cột Khu vực (giữ ZoneChips nhưng không render) */}
+                                                {/* {!isMobile && <TableCell>
                                                     <ZoneChips
                                                         zones={zones}
                                                         zonesId={lot.zonesId}
@@ -1005,7 +1065,7 @@ const CreateStocktakePage = () => {
                                                             setZonePopoverType(type);
                                                         }}
                                                     />
-                                                </TableCell>}
+                                                </TableCell>} */}
                                                 <TableCell>{lot.productName || lot.productId}</TableCell>
                                                 {!isMobile &&
                                                     <TableCell>{lot.createdAt ? new Date(lot.createdAt).toLocaleDateString("vi-VN") : ""}</TableCell>}
@@ -1040,90 +1100,23 @@ const CreateStocktakePage = () => {
                                                                     backgroundColor: '#f5f5f5',
                                                                     color: '#666',
                                                                     '&:hover': {
-                                                                        backgroundColor: '#e0e0e0',
-                                                                        color: '#333'
-                                                                    },
-                                                                    '&:disabled': {
-                                                                        backgroundColor: '#f0f0f0',
-                                                                        color: '#ccc'
+                                                                        backgroundColor: '#eee'
                                                                     }
                                                                 }}
                                                             >
-                                                                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>-</Typography>
+                                                                -
                                                             </IconButton>
-
                                                             <TextField
+                                                                value={lot.real}
+                                                                onChange={(e) => handleLotChange(actualIdx, 'real', Number(e.target.value))}
                                                                 type="number"
                                                                 size="small"
-                                                                value={lot.real ?? ''}
-                                                                onChange={e => {
-                                                                    const value = e.target.value;
-                                                                    // Chỉ cho phép nhập số dương hoặc rỗng
-                                                                    if (value === '' || /^\d+$/.test(value)) {
-                                                                        handleLotChange(actualIdx, 'real', value);
-                                                                    } else {
-                                                                        setSnackbar({
-                                                                            isOpen: true,
-                                                                            message: "Chỉ được nhập số dương!",
-                                                                            severity: "warning"
-                                                                        });
-                                                                    }
-                                                                }}
-                                                                onBlur={(e) => {
-                                                                    // Khi bấm ra ngoài, nếu ô để trống thì khôi phục số ban đầu
-                                                                    if (e.target.value === '') {
-                                                                        const originalValue = lot.remainQuantity || 0;
-                                                                        handleLotChange(actualIdx, 'real', originalValue.toString());
-                                                                    }
-                                                                }}
-                                                                variant="standard"
-                                                                inputProps={{
-                                                                    min: 0,
-                                                                    style: {
-                                                                        textAlign: 'center',
-                                                                        fontSize: '0.875rem',
-                                                                        fontWeight: 600,
-                                                                        padding: '2px 4px',
-                                                                        width: '35px'
-                                                                    }
-                                                                }}
-                                                                sx={{
-                                                                    '& .MuiInput-root': {
-                                                                        height: 24,
-                                                                        minHeight: 24,
-                                                                        '&:before': {
-                                                                            borderBottom: '1px solid #e0e0e0'
-                                                                        },
-                                                                        '&:hover:not(.Mui-disabled):before': {
-                                                                            borderBottom: '1px solid #bdbdbd'
-                                                                        },
-                                                                        '&:after': {
-                                                                            borderBottom: '2px solid #1976d2'
-                                                                        }
-                                                                    },
-                                                                    '& .MuiInput-input': {
-                                                                        padding: '4px 8px',
-                                                                        textAlign: 'center'
-                                                                    },
-                                                                    // Ẩn mũi tên tăng giảm của input number
-                                                                    '& input[type="number"]::-webkit-outer-spin-button, & input[type="number"]::-webkit-inner-spin-button': {
-                                                                        WebkitAppearance: 'none',
-                                                                        margin: 0
-                                                                    },
-                                                                    '& input[type="number"]': {
-                                                                        MozAppearance: 'textfield'
-                                                                    }
-                                                                }}
+                                                                inputProps={{ min: 0, style: { textAlign: 'center', width: 60 } }}
                                                                 disabled={editMode && stocktakeStatus !== 'DRAFT'}
                                                             />
-
                                                             <IconButton
                                                                 size="small"
-                                                                onClick={() => {
-                                                                    const currentValue = Number(lot.real) || 0;
-                                                                    // Bỏ giới hạn trên, cho phép tăng không giới hạn
-                                                                    handleLotChange(actualIdx, 'real', currentValue + 1);
-                                                                }}
+                                                                onClick={() => handleLotChange(actualIdx, 'real', (Number(lot.real) || 0) + 1)}
                                                                 disabled={editMode && stocktakeStatus !== 'DRAFT'}
                                                                 sx={{
                                                                     width: 24,
@@ -1134,89 +1127,84 @@ const CreateStocktakePage = () => {
                                                                     backgroundColor: '#f5f5f5',
                                                                     color: '#666',
                                                                     '&:hover': {
-                                                                        backgroundColor: '#e0e0e0',
-                                                                        color: '#333'
-                                                                    },
-                                                                    '&:disabled': {
-                                                                        backgroundColor: '#f0f0f0',
-                                                                        color: '#ccc'
+                                                                        backgroundColor: '#eee'
                                                                     }
                                                                 }}
                                                             >
-                                                                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>+</Typography>
+                                                                +
                                                             </IconButton>
                                                         </Box>
                                                     </Box>
                                                 </TableCell>
-                                                {!isMobile && (
-                                                    <TableCell>
+                                                {!isMobile && <TableCell>
                                                         <ZoneRealSelect
                                                             zones={zones}
-                                                            value={lot.zoneReal}
-                                                            disabled={editMode && stocktakeStatus !== 'DRAFT'}
-                                                            onChange={(val) => handleLotChange(actualIdx, 'zoneReal', val)}
-                                                            actualIdx={actualIdx}
-                                                            onOpenPopover={(e, idx, type) => {
-                                                                e.stopPropagation();
-                                                                setZonePopoverAnchor(e.currentTarget);
-                                                                setZonePopoverProductId(idx);
-                                                                setZonePopoverType(type);
-                                                            }}
+                                                        value={Array.isArray(lot.zoneReal) ? lot.zoneReal : []}
+                                                        onChange={(newZones) => handleLotChange(actualIdx, 'zoneReal', newZones)}
                                                         />
+                                                </TableCell>}
+                                                <Tooltip 
+                                                    title={lot.diff !== 0 ? 
+                                                        (lot.diff > 0 ? 
+                                                            `Thực tế (${lot.real}) > Tồn kho (${lot.remainQuantity}) - Cần kiểm tra lại` : 
+                                                            `Thực tế (${lot.real}) < Tồn kho (${lot.remainQuantity}) - Có thể thiếu hàng`
+                                                        ) : 
+                                                        'Không có chênh lệch'
+                                                    }
+                                                    placement="top"
+                                                >
+                                                    <TableCell sx={{ 
+                                                        fontWeight: 600, 
+                                                        textAlign: 'center',
+                                                        backgroundColor: lot.diff !== 0 ? 
+                                                            (lot.diff > 0 ? '#fef2f2' : '#fff7ed') : // Hồng nhạt khi thực tế > tồn, cam nhạt khi thực tế < tồn
+                                                            'transparent',
+                                                        color: lot.diff !== 0 ? 
+                                                            (lot.diff > 0 ? '#dc2626' : '#ea580c') : // Đỏ khi thực tế > tồn, cam khi thực tế < tồn
+                                                            'inherit',
+                                                        borderRadius: lot.diff !== 0 ? '6px' : '0',
+                                                        border: lot.diff !== 0 ? 
+                                                            (lot.diff > 0 ? '1px solid #fecaca' : '1px solid #fed7aa') : // Viền hồng khi thực tế > tồn, viền cam khi thực tế < tồn
+                                                            'none',
+                                                        padding: lot.diff !== 0 ? '12px 8px' : '8px 4px',
+                                                        transition: 'all 0.2s ease',
+                                                        cursor: lot.diff !== 0 ? 'help' : 'default',
+                                                        '&:hover': lot.diff !== 0 ? {
+                                                            backgroundColor: lot.diff > 0 ? '#fee2e2' : '#ffedd5',
+                                                            transform: 'scale(1.02)'
+                                                        } : {}
+                                                    }}>
+                                                        <Box sx={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: 0.5
+                                                        }}>
+                                                            {lot.diff !== 0 && (
+                                                                <Box sx={{
+                                                                    width: 6,
+                                                                    height: 6,
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: lot.diff > 0 ? '#dc2626' : '#ea580c',
+                                                                    flexShrink: 0
+                                                                }} />
+                                                            )}
+                                                            {lot.diff}
+                                                        </Box>
                                                     </TableCell>
-                                                )}
-                                                <TableCell sx={{ textAlign: 'center', padding: '8px 4px' }}>
-                                                    {lot.diff === 0 ? (
-                                                        <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
-                                                            0
-                                                        </Typography>
-                                                    ) : (
-                                                        <Chip
-                                                            label={lot.diff > 0 ? `+${lot.diff}` : lot.diff}
-                                                            size="small"
-                                                            sx={{
-                                                                background: lot.diff < 0
-                                                                    ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Cam gradient cho số âm
-                                                                    : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)', // Đỏ gradient cho số dương
-                                                                color: 'white',
-                                                                fontWeight: 600,
-                                                                borderRadius: '12px',
-                                                                height: '24px',
-                                                                fontSize: '0.75rem',
-                                                                minWidth: '40px',
-                                                                '& .MuiChip-label': {
-                                                                    padding: '0 8px',
-                                                                    fontSize: '0.75rem',
-                                                                    fontWeight: 600
-                                                                },
-                                                                boxShadow: lot.diff !== 0 ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                                                                transition: 'all 0.2s ease',
-                                                                '&:hover': {
-                                                                    transform: 'translateY(-1px)',
-                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                                                                }
-                                                            }}
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                                {!isMobile && <TableCell>
+                                                </Tooltip>
+                                                {!isMobile && <TableCell sx={{ textAlign: 'center' }}>
                                                     <Checkbox
                                                         checked={!!lot.isCheck}
-                                                        onChange={e => handleLotChange(actualIdx, 'isCheck', e.target.checked)}
-                                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                        onChange={(e) => handleLotChange(actualIdx, 'isCheck', e.target.checked)}
                                                     />
                                                 </TableCell>}
                                                 {!isMobile && <TableCell>
                                                     <TextField
                                                         size="small"
-                                                        value={lot.note || ''}
-                                                        onChange={e => handleLotChange(actualIdx, 'note', e.target.value)}
                                                         fullWidth
-                                                        multiline
-                                                        minRows={1}
-                                                        maxRows={4}
-                                                        inputProps={{ maxLength: 20 }}
-                                                        disabled={editMode && stocktakeStatus !== 'DRAFT'}
+                                                        value={lot.note || ''}
+                                                        onChange={(e) => handleLotChange(actualIdx, 'note', e.target.value)}
                                                     />
                                                 </TableCell>}
                                             </TableRow>
@@ -1639,6 +1627,32 @@ const CreateStocktakePage = () => {
                     >
                         Áp dụng
                     </Button>
+                </DialogActions>
+            </Dialog>
+            {/* Dialog gợi ý chuyển trang chi tiết sau khi tạo nếu có chênh lệch */}
+            <Dialog open={postCreateDialog.open} onClose={() => setPostCreateDialog({ open: false, id: null, name: '' })} maxWidth="sm" fullWidth>
+                <DialogTitle className="flex justify-between items-center">
+                    <span>Phiếu kiểm kê đã tạo</span>
+                    <IconButton size="small" onClick={() => setPostCreateDialog({ open: false, id: null, name: '' })}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ py: 1 }}>
+                        <Typography variant="body1">Phiếu <b>{postCreateDialog.name || 'vừa tạo'}</b> có chênh lệch số lượng.</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Bạn có muốn chuyển sang trang chi tiết để xem và cân bằng kho?</Typography>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => {
+                        setPostCreateDialog({ open: false, id: null, name: '' });
+                        navigate('/stocktake');
+                    }} color="inherit">Ở lại</Button>
+                    <Button onClick={() => {
+                        const targetId = postCreateDialog.id || id;
+                        setPostCreateDialog({ open: false, id: null, name: '' });
+                        if (targetId) navigate(`/stocktake/${targetId}`);
+                    }} variant="contained">Xem chi tiết</Button>
                 </DialogActions>
             </Dialog>
         </Box>

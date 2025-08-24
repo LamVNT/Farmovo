@@ -96,6 +96,29 @@ export const userService = {
             throw new Error(error.response?.data || 'Không thể cập nhật thông tin người dùng hiện tại');
         }
     },
+    
+    // New methods for profile management
+    updateProfile: async (profileData) => {
+        try {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/me/profile`, profileData, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể cập nhật profile');
+        }
+    },
+    
+    changePassword: async (passwordData) => {
+        try {
+            const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/me/password`, passwordData, {
+                withCredentials: true, // Sử dụng cookie để xác thực
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data || 'Không thể thay đổi mật khẩu');
+        }
+    },
 
     deleteUser: async (id) => {
         try {

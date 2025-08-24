@@ -8,7 +8,7 @@ skinparam sequenceParticipantBorderColor #6C757D
 skinparam sequenceParticipantBackgroundColor #E9ECEF
 skinparam sequenceLifeLineStroke dash
 
-title Get Stocktake Detail - Sequence Diagram (Detail + CanBalance + Export)
+title Get Stocktake Detail - Sequence Diagram (Detail + CanBalance + Export + Import)
 
 actor Staff
 participant ":StockTake List Page" as ListUI
@@ -22,6 +22,7 @@ participant ":MasterDataController" as MasterDataCtrl
 participant ":MasterDataService" as MasterDataSvc
 participant ":MasterDataRepository" as MasterDataRepo
 participant ":Balance Page" as BALANCE_UI
+participant ":Import Page" as IMPORT_UI
 
 == Chọn phiếu kiểm kê ==
 Staff -> ListUI: Click một dòng kiểm kê
@@ -78,13 +79,22 @@ end
 == C. Logic hiển thị hành động ==
 note right of DetailUI
   canBalance = (status == COMPLETED)
-               AND (tồn tại dòng diff != 0)
+               AND (tồn tại dòng diff < 0)
                AND (hasBalance == false)
-end note
-DetailUI --> Staff: Hiển thị nút "Cân bằng kho (Tạo PCB)" nếu canBalance
 
-opt Staff bấm Cân bằng kho
+  canImport = (status == COMPLETED)
+              AND (tồn tại dòng diff > 0)
+              AND (hasImport == false)
+end note
+
+DetailUI --> Staff: Hiển thị nút "Cân bằng kho (Tạo PCB)" nếu canBalance || Hiển thị nút "Tạo phiếu nhập" nếu canImport
+
+opt Staff bấm "Cân bằng kho"
   DetailUI -> BALANCE_UI: Điều hướng /sale/balance/{stocktakeId}
+end
+
+opt Staff bấm "Tạo phiếu nhập"
+  DetailUI -> IMPORT_UI: Điều hướng /import/from-stocktake/{stocktakeId}
 end
 
 opt Export Excel (khi COMPLETED)

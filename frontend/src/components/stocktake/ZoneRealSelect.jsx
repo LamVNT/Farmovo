@@ -81,7 +81,7 @@ export default function ZoneRealSelect({
             position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', minWidth: 160, padding: 0, background: 'transparent',
             '& .MuiSelect-select': { padding: '4px 8px', height: '100%', opacity: 1, color: 'transparent', cursor: 'pointer' },
             '& .MuiOutlinedInput-root': { borderRadius: '4px', backgroundColor: 'transparent', '& .MuiOutlinedInput-notchedOutline': { border: 'none' }, '&:hover .MuiOutlinedInput-notchedOutline': { border: 'none' }, '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 'none' } },
-            '& .MuiSelect-icon': { right: 6, position: 'absolute', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'auto', color: '#6c757d', transition: 'all 0.2s ease', fontSize: '0.875rem', zIndex: 2, '&:hover': { color: '#495057', transform: 'translateY(-50%) scale(1.1)' } },
+            '& .MuiSelect-icon': { right: 6, position: 'absolute', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#6c757d', transition: 'all 0.2s ease', fontSize: '0.875rem', zIndex: 2, '&:hover': { color: '#495057', transform: 'translateY(-50%) scale(1.1)' } },
             zIndex: 5, cursor: 'pointer', '&:hover .MuiSelect-icon': { color: '#495057' }
           }}
           MenuProps={{

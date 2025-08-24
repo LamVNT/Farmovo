@@ -6,11 +6,11 @@ import com.farmovo.backend.dto.response.CategoryResponseDto;
 import java.util.List;
 
 public interface CategoryService {
-    List<CategoryResponseDto> getAllActiveCategories();
+	List<CategoryResponseDto> getAllActiveCategories();
 
-    CategoryResponseDto createCategory(CategoryRequestDto request);
+	CategoryResponseDto createCategory(CategoryRequestDto request);
 
-    CategoryResponseDto updateCategory(Long id, CategoryRequestDto request);
+	CategoryResponseDto updateCategory(Long id, CategoryRequestDto request);
 
-    void deleteCategory(Long id);
+	void deleteCategory(Long id, boolean force);
 }

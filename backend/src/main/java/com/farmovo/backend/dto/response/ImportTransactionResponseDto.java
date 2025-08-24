@@ -24,4 +24,6 @@ public class ImportTransactionResponseDto {
     private String supplierName;
     private Long storeId;
     private Long staffId;
+    // Added for display purposes
+    private String storeName;
 }

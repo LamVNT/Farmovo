@@ -60,6 +60,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/forgot-password/**").permitAll()
                         // Authenticated endpoints - method-level security sẽ handle phân quyền chi tiết
                         .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers("/api/users/me/**").authenticated()
                         .requestMatchers("/api/categories/**").authenticated()
                         .requestMatchers("/api/products/**").authenticated()
                         .requestMatchers("/api/customers/**").authenticated()

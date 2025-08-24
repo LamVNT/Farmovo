@@ -292,6 +292,11 @@ public class ImportTransationController {
                     dto.setSupplierName(i.getSupplier() != null ? i.getSupplier().getName() : "");
                     dto.setStoreId(i.getStore() != null ? i.getStore().getId() : null);
                     dto.setStaffId(i.getStaff() != null ? i.getStaff().getId() : null);
+                    // NEW: set store name if available via a transient property method
+                    if (i.getStore() != null) {
+                        // We reuse ImportTransactionResponseDto by adding storeName via reflection-safe setter if exists
+                        try { dto.getClass().getMethod("setStoreName", String.class).invoke(dto, i.getStore().getStoreName()); } catch (Exception ignored) {}
+                    }
                     return dto;
                 })
                 .collect(Collectors.toList());

@@ -22,5 +22,3 @@ public interface ZoneService {
 
     List<ZoneResponseDto> getZonesByStoreId(Long storeId);
 }
-
-

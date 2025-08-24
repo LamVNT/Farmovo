@@ -861,32 +861,84 @@ const SaleSidebar = ({
                     </Button>
                 </div>
 
-                <Button
-                    fullWidth
-                    variant="contained" 
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />} 
-                    onClick={onSave} 
-                    disabled={!hasChanges || loading}
-                    sx={{
-                        background: hasChanges ? 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' : '#ccc',
-                        boxShadow: hasChanges ? '0 3px 15px rgba(25, 118, 210, 0.3)' : 'none',
-                        '&:hover': {
-                            background: hasChanges ? 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)' : '#ccc',
-                            boxShadow: hasChanges ? '0 5px 20px rgba(25, 118, 210, 0.4)' : 'none',
-                            transform: hasChanges ? 'translateY(-1px)' : 'none'
-                        },
-                        '&:disabled': {
-                            background: '#ccc',
-                            boxShadow: 'none',
-                            transform: 'none'
-                        },
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </Button>
+                {/* Actions: Lưu tạm & Hoàn thành */}
+                <div className="flex gap-2 mt-2">
+                    {!isBalanceStock && (
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={onSaveDraft}
+                            disabled={loading}
+                            startIcon={<FaLock />}
+                            sx={{
+                                borderColor: '#bcd0ee',
+                                color: '#1976d2',
+                                '&:hover': {
+                                    borderColor: '#1976d2',
+                                    backgroundColor: '#e3f0ff'
+                                }
+                            }}
+                        >
+                            Lưu tạm
+                        </Button>
+                    )}
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={onComplete}
+                        disabled={loading}
+                        startIcon={<FaCheck />}
+                        sx={{
+                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                            boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            '&:disabled': {
+                                background: '#ccc',
+                                boxShadow: 'none',
+                                transform: 'none'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Hoàn thành
+                    </Button>
+                </div>
+
+                {typeof onSave === 'function' && (
+                    <Button
+                        fullWidth
+                        variant="contained" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />} 
+                        onClick={onSave} 
+                        disabled={!hasChanges || loading}
+                        sx={{
+                            background: hasChanges ? 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' : '#ccc',
+                            boxShadow: hasChanges ? '0 3px 15px rgba(25, 118, 210, 0.3)' : 'none',
+                            '&:hover': {
+                                background: hasChanges ? 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)' : '#ccc',
+                                boxShadow: hasChanges ? '0 5px 20px rgba(25, 118, 210, 0.4)' : 'none',
+                                transform: hasChanges ? 'translateY(-1px)' : 'none'
+                            },
+                            '&:disabled': {
+                                background: '#ccc',
+                                boxShadow: 'none',
+                                transform: 'none'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
+                            mt: 1
+                        }}
+                    >
+                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    </Button>
+                )}
 
 
             </div>
