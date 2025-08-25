@@ -49,3 +49,15 @@ export const getStocktakeLots = (params = {}) => {
     if (params.createdAtTo) searchParams.append('createdAtTo', params.createdAtTo);
     return axios.get(`/import-details/stocktake-lot?${searchParams.toString()}`).then(res => res.data);
 };
+
+// API để cập nhật số lượng lô hàng sau khi cân bằng kiểm kê
+export const updateBatchQuantities = (stocktakeId, batchUpdates) => {
+    return axios.put(`/stocktakes/${stocktakeId}/update-batch-quantities`, batchUpdates)
+        .then(res => res.data);
+};
+
+// API để cập nhật số lượng còn lại của từng lô hàng
+export const updateBatchRemainQuantity = (batchId, remainQuantity) => {
+    return axios.patch(`/import-details/${batchId}/remain`, { remainQuantity })
+        .then(res => res.data);
+};

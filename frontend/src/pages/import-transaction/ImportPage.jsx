@@ -42,9 +42,11 @@ import { userService } from '../../services/userService';
 import { getCategories } from '../../services/categoryService';
 import ImportSummaryDialog from '../../components/import-transaction/ImportSummaryDialog';
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
+import { useNotification } from '../../contexts/NotificationContext';
 const ImportPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { createImportTransactionNotification, createSuccessNotification } = useNotification();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -668,11 +670,26 @@ const ImportPage = () => {
             };
 
             await importTransactionService.create(importData);
+            
+            // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
+            
+            // Gửi thông báo notification
+            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            createImportTransactionNotification('create', nextImportCode);
+            
+            // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
+            localStorage.setItem('import_creation_success', 'true');
+            
+            // Reset form
             setSelectedProducts([]);
             setPaidAmount(0);
             setNote('');
-            // setImportCode('');
+            
+            // Chuyển hướng về trang index sau 0.5 giây
+            setTimeout(() => {
+                navigate('/import');
+            }, 500);
         } catch (err) {
             setError('Không thể tạo phiếu nhập hàng');
         } finally {
@@ -725,11 +742,26 @@ const ImportPage = () => {
             };
 
             await importTransactionService.create(importData);
+            
+            // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
+            
+            // Gửi thông báo notification
+            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            createImportTransactionNotification('create', nextImportCode);
+            
+            // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
+            localStorage.setItem('import_creation_success', 'true');
+            
+            // Reset form
             setSelectedProducts([]);
             setPaidAmount(0);
             setNote('');
-            // setImportCode('');
+            
+            // Chuyển hướng về trang index sau 0.5 giây
+            setTimeout(() => {
+                navigate('/import');
+            }, 500);
         } catch (err) {
             setError('Không thể tạo phiếu nhập hàng');
         } finally {
@@ -1675,17 +1707,30 @@ const ImportPage = () => {
                 status: summaryData.status,
             };
             
-            console.log('Sending import data:', importData);
             await importTransactionService.create(importData);
+            
+            // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
+            
+            // Gửi thông báo notification
+            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            createImportTransactionNotification('create', nextImportCode);
+            
+            // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
+            localStorage.setItem('import_creation_success', 'true');
+            
+            // Reset form
             setSelectedProducts([]);
             setPaidAmount(0);
             setNote('');
             setShowSummaryDialog(false);
             setSummaryData(null);
+            
+            // Chuyển hướng về trang index sau 0.5 giây
+            setTimeout(() => {
+                navigate('/import');
+            }, 500);
         } catch (err) {
-            console.error('Error creating import transaction:', err);
-            console.error('Error response:', err.response?.data);
             setError('Không thể tạo phiếu nhập hàng: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
@@ -1911,81 +1956,44 @@ const ImportPage = () => {
         setHasUnsavedChanges(false);
     }, []);
     
-    // Prefill from Stocktake surplus
+    // Load temp data when component mounts
     useEffect(() => {
-        const surplus = location.state?.surplusFromStocktake;
-        if (!surplus) return;
         try {
-            // Set locked store info
-            setFromStocktake(true);
-            if (surplus.storeId) {
-                setSelectedStore(surplus.storeId);
-                setLockedStoreId(surplus.storeId);
-                // Find store name from stores list
-                const store = stores.find(s => String(s.id) === String(surplus.storeId));
-                if (store) {
-                    setLockedStoreName(store.storeName || store.name || `Kho ${surplus.storeId}`);
+            const tempData = localStorage.getItem('importPage_tempData');
+            if (tempData) {
+                const parsed = JSON.parse(tempData);
+                const now = Date.now();
+                const dataAge = now - (parsed.timestamp || 0);
+                
+                // Only restore if data is less than 1 hour old
+                if (dataAge < 60 * 60 * 1000) {
+                    if (parsed.selectedProducts?.length > 0) {
+                        setSelectedProducts(parsed.selectedProducts);
+                        setHasUnsavedChanges(true);
+                    }
+                    if (parsed.selectedSupplier) {
+                        setSelectedSupplier(parsed.selectedSupplier);
+                    }
+                    if (parsed.selectedStore) {
+                        setSelectedStore(parsed.selectedStore);
+                    }
+                    if (parsed.note) {
+                        setNote(parsed.note);
+                    }
+                    if (parsed.paidAmount) {
+                        setPaidAmount(parsed.paidAmount);
+                        setPaidAmountInput(String(parsed.paidAmount));
+                    }
                 } else {
-                    setLockedStoreName(`Kho ${surplus.storeId}`);
+                    // Clear old data
+                    localStorage.removeItem('importPage_tempData');
                 }
             }
-            // Build selectedProducts from surplus items
-            if (Array.isArray(surplus.items) && surplus.items.length > 0) {
-                // Gộp các lô khác nhau của cùng sản phẩm (không lấy Zone từ kiểm kê)
-                const productMap = new Map();
-                
-                surplus.items.forEach((d) => {
-                    const productId = d.productId;
-                    const quantity = Number(d.diff) || 0;
-                    
-                    if (quantity > 0) { // Chỉ xử lý những item có diff dương (dư hàng)
-                        if (productMap.has(productId)) {
-                            // Nếu sản phẩm đã tồn tại, cộng dồn số lượng
-                            const existing = productMap.get(productId);
-                            existing.quantity += quantity;
-
-                            // Cập nhật tên sản phẩm nếu chưa có hoặc có tên tốt hơn
-                            if (!existing.name || existing.name === `Sản phẩm ${productId}`) {
-                                const newName = d.productName || d.name;
-                                if (newName) {
-                                    existing.name = newName;
-                                    existing.productName = newName;
-                                }
-                            }
-
-                            // Không lấy zone từ phiếu kiểm kê nữa - để người dùng tự chọn
-                        } else {
-                            // Sản phẩm mới, thêm vào map
-                            productMap.set(productId, {
-                                id: productId, // Sử dụng productId làm unique id
-                                name: d.productName || d.name || `Sản phẩm ${productId}`,
-                                productName: d.productName || d.name || `Sản phẩm ${productId}`, // Thêm field productName để hiển thị trong bảng
-                                productCode: d.productCode || '',
-                                productDescription: '',
-                                unit: 'quả',
-                                quantity: quantity,
-                                total: 0,
-                                productId: productId,
-                                salePrice: 0,
-                                zoneIds: [], // Không lấy zone từ phiếu kiểm kê - để người dùng tự chọn
-                                expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
-                                price: 0,
-                            });
-                        }
-                    }
-                });
-                
-                // Chuyển Map thành Array
-                const mapped = Array.from(productMap.values());
-
-                console.log('Debug: Surplus items from stocktake:', surplus.items);
-                console.log('Debug: Mapped products for import:', mapped);
-
-                setSelectedProducts(mapped);
-                setNote(prev => prev && prev.length > 0 ? prev : `Phiếu Nhập cho bản kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''}`);
-            }
-        } catch (_) {}
-    }, [location.state, stores]);
+        } catch (error) {
+            console.error('Error loading temp data:', error);
+            localStorage.removeItem('importPage_tempData');
+        }
+    }, []);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">

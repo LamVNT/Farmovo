@@ -116,16 +116,26 @@ const StockTakeDetailPage = () => {
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
                 {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
-                {hasSurplus && detail?.hasImport !== true && (
+                {hasSurplus && !localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
                     <Button
                         variant="contained"
                         color="secondary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate('/import/new', {
+                        onClick={() => navigate('/import/balance', {
                             state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
                         })}
                     >
                         Tạo phiếu nhập hàng
+                    </Button>
+                )}
+                {hasSurplus && localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        disabled
+                    >
+                        Đã tạo phiếu nhập
                     </Button>
                 )}
                 {canBalance && (

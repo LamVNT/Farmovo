@@ -34,6 +34,7 @@ import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
+import ImportBalancePage from '../pages/import-transaction/ImportBalancePage';
 import { DashboardReport, RemainSummaryReport, InOutSummaryReport, DailyRevenue, SalesShiftTotal, ImportsTotal } from '../pages/reports';
 import FinancialReport from '../pages/reports/FinancialReport';
 import InventoryReport from '../pages/reports/InventoryReport';
@@ -162,6 +163,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <ImportPage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/import/balance",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <ImportBalancePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),

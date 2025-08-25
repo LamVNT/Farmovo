@@ -40,9 +40,11 @@ const ImportSidebar = ({
     loading = false,
     onSaveDraft = () => {},
     onComplete = () => {},
+    onUpdateBatch = () => {},
     lockedStoreId = null,
     lockedStoreName = null,
     fromStocktake = false,
+    isBalancePage = false,
 }) => {
     // State cho số tiền đã trả focus
     const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
@@ -527,58 +529,89 @@ const ImportSidebar = ({
             </div>
 
             <div className="flex gap-2 pt-2">
-                <Button 
-                    fullWidth 
-                    variant="contained" 
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} 
-                    onClick={onSaveDraft} 
-                    disabled={loading}
-                    sx={{
-                        background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                        boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
-                        '&:hover': {
-                            background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-                            boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
-                            transform: 'translateY(-1px)'
-                        },
-                        '&:disabled': {
-                            background: '#ccc',
-                            boxShadow: 'none',
-                            transform: 'none'
-                        },
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    Lưu tạm
-                </Button>
-                <Button 
-                    fullWidth 
-                    variant="contained" 
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
-                    onClick={onComplete} 
-                    disabled={loading}
-                    sx={{
-                        background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                        boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
-                        '&:hover': {
-                            background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
-                            boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
-                            transform: 'translateY(-1px)'
-                        },
-                        '&:disabled': {
-                            background: '#ccc',
-                            boxShadow: 'none',
-                            transform: 'none'
-                        },
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    Hoàn thành
-                </Button>
+                {isBalancePage ? (
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                        onClick={onUpdateBatch} 
+                        disabled={loading}
+                        sx={{
+                            background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
+                            boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
+                                boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            '&:disabled': {
+                                background: '#ccc',
+                                boxShadow: 'none',
+                                transform: 'none'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm số lượng
+                    </Button>
+                ) : (
+                    <>
+                        <Button 
+                            fullWidth 
+                            variant="contained" 
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} 
+                            onClick={onSaveDraft} 
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                                boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                    boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Lưu tạm
+                        </Button>
+                        <Button 
+                            fullWidth 
+                            variant="contained" 
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                            onClick={onComplete} 
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                                boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                    boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Hoàn thành
+                        </Button>
+                    </>
+                )}
             </div>
 
         </div>
