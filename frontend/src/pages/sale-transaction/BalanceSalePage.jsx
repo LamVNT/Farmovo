@@ -24,13 +24,12 @@ const BalanceSalePage = () => {
         saleTransactionService.getNextBalanceCode && saleTransactionService.getNextBalanceCode().then(setNextCode).catch(() => {});
     }, []);
 
-    const khachLe = customers.find(c => c.name === 'Khách lẻ') || null;
-
     useEffect(() => {
         if (stocktakeId) {
             getStocktakeDiff(stocktakeId)
                 .then((data) => {
-                    setDiffProducts(data.map((d) => {
+                    const shortageDiffs = Array.isArray(data) ? data.filter((d) => Number(d.diff) < 0) : [];
+                    setDiffProducts(shortageDiffs.map((d) => {
                         const batch = batches.find(b => b.batchCode === d.batchCode || b.name === d.batchCode);
                         const productCode = d.productCode || (batch ? batch.productCode : undefined);
                         return {
@@ -60,7 +59,7 @@ const BalanceSalePage = () => {
     };
 
     const handleSubmit = async (dto) => {
-        // Bổ sung link Stocktake vào payload khi submit PCB
+        // Yêu cầu người dùng chọn khách hàng (không mặc định Khách lẻ)
         const payload = {
             ...dto,
             saleTransactionNote: 'Cân bằng kho',
@@ -87,10 +86,11 @@ const BalanceSalePage = () => {
                 isBalanceStock
                 initialProducts={diffProducts}
                 initialNote="Cân bằng kho"
-                initialCustomer={khachLe}
+                initialCustomer={null}
                 onSuccess={handleSuccess}
                 onSubmit={handleSubmit}
                 initialCode={nextCode}
+                customersProp={customers}
             />
         </>
     );

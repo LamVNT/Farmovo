@@ -10,10 +10,14 @@ import {
     Paper,
     Typography,
     Box,
-    CircularProgress
+    CircularProgress,
+    Button
 } from "@mui/material";
+import ArrowBack from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 const RemainByProductReport = () => {
+    const navigate = useNavigate();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -26,6 +30,7 @@ const RemainByProductReport = () => {
 
     return (
         <Box sx={{maxWidth: 1100, margin: '40px auto', background: '#fff', p: 4, borderRadius: 3, boxShadow: 2}}>
+            <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
             <Typography variant="h5" fontWeight={700} mb={2}>Báo cáo tồn kho theo sản phẩm</Typography>
             {loading ? (
                 <Box sx={{textAlign: "center", mt: 6}}>

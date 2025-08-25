@@ -176,6 +176,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public Page<SaleTransactionResponseDto> getAll(String name,
                                                    String customerName,
                                                    String storeName,
+                                                   Long storeId,
                                                    SaleTransactionStatus status,
                                                    LocalDateTime fromDate,
                                                    LocalDateTime toDate,
@@ -188,7 +189,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
                                                    Pageable pageable) {
 
         Specification<SaleTransaction> spec = SaleTransactionSpecification.buildSpecification(
-                name, customerName, storeName, status, fromDate, toDate,
+                name, customerName, storeName, storeId, status, fromDate, toDate,
                 minTotalAmount, maxTotalAmount, minPaidAmount, maxPaidAmount, note, createdBy
         );
 
@@ -368,7 +369,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     public SaleTransactionResponseDto getById(Long id) {
         log.debug("Getting sale transaction by ID: {}", id);
 
-        SaleTransaction entity = saleTransactionRepository.findById(id)
+        SaleTransaction entity = saleTransactionRepository.findByIdWithCustomerAndStore(id)
                 .orElseThrow(() -> {
                     log.error("Sale transaction not found with ID: {}", id);
                     return new SaleTransactionNotFoundException("Sale transaction not found with ID: " + id);

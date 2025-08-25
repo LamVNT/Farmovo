@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ImportTransactionResponseDto {
     private Long id;
     private String name;
+    private Long stocktakeId;
     private BigDecimal totalAmount;
     private BigDecimal paidAmount;
     private String importTransactionNote;
@@ -23,4 +24,6 @@ public class ImportTransactionResponseDto {
     private String supplierName;
     private Long storeId;
     private Long staffId;
+    // Added for display purposes
+    private String storeName;
 }

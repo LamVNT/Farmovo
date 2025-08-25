@@ -22,6 +22,7 @@ import AddIcon from '@mui/icons-material/Add';
 import saleTransactionService from '../../services/saleTransactionService';
 import { userService } from '../../services/userService';
 import AddCustomerDialog from './AddCustomerDialog';
+import SaveIcon from '@mui/icons-material/Save';
 
 const SaleSidebar = ({
     currentUser,
@@ -51,6 +52,11 @@ const SaleSidebar = ({
     paidAmountInput = '0',
     setPaidAmountInput = () => { },
     isBalanceStock = false,
+    // Thêm props mới để hiển thị thông tin thay đổi
+    originalData = null,
+    hasChanges = false,
+    onSave = null,
+    selectedProducts = [], // Thêm selectedProducts vào props
     props,
 }) => {
     const [nextCode, setNextCode] = useState('');
@@ -104,6 +110,52 @@ const SaleSidebar = ({
             address.toLowerCase().includes(storeSearch.toLowerCase())
         );
     });
+
+    // Cập nhật search values khi có originalData
+    useEffect(() => {
+        if (originalData) {
+            // Cập nhật customer search
+            const customer = customers.find(c => String(c.id) === String(originalData.customerId));
+            if (customer) {
+                // Không set customerSearch để tránh dropdown mở ngay
+                // setCustomerSearch(customer.name || customer.customerName || '');
+                // Tự động set selectedCustomer nếu chưa có
+                if (!selectedCustomer) {
+                    onCustomerChange({ target: { value: customer.id } });
+                }
+            }
+            
+            // Cập nhật store search
+            const store = stores.find(s => String(s.id) === String(originalData.storeId));
+            if (store) {
+                // Không set storeSearch để tránh dropdown mở ngay
+                // setStoreSearch(store.name || store.storeName || '');
+                // Tự động set selectedStore nếu chưa có
+                if (!selectedStore) {
+                    onStoreChange({ target: { value: store.id } });
+                }
+            }
+        }
+    }, [originalData, customers, stores, selectedCustomer, selectedStore, onCustomerChange, onStoreChange]);
+
+    // Cập nhật search values khi selectedCustomer hoặc selectedStore thay đổi
+    useEffect(() => {
+        if (selectedCustomer) {
+            const customer = customers.find(c => String(c.id) === String(selectedCustomer));
+            if (customer) {
+                setCustomerSearch(customer.name || customer.customerName || '');
+            }
+        }
+    }, [selectedCustomer, customers]);
+
+    useEffect(() => {
+        if (selectedStore) {
+            const store = stores.find(s => String(s.id) === String(selectedStore));
+            if (store) {
+                setStoreSearch(store.name || store.storeName || '');
+            }
+        }
+    }, [selectedStore, stores]);
 
     // State cho số tiền đã trả focus
     const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
@@ -225,7 +277,17 @@ const SaleSidebar = ({
                                 size="small"
                                 fullWidth
                                 placeholder="Tìm khách hàng..."
-                                value={customerSearch || (customers.find(c => String(c.id) === String(selectedCustomer))?.name || customers.find(c => String(c.id) === String(selectedCustomer))?.customerName || '')}
+                                value={(() => {
+                                    // Nếu có originalData, hiển thị tên từ customer tương ứng
+                                    if (originalData && originalData.customerId) {
+                                        const customer = customers.find(c => String(c.id) === String(originalData.customerId));
+                                        if (customer) {
+                                            return customer.name || customer.customerName || '';
+                                        }
+                                    }
+                                    // Nếu không có originalData, hiển thị từ customerSearch hoặc selectedCustomer
+                                    return customerSearch || (customers.find(c => String(c.id) === String(selectedCustomer))?.name || customers.find(c => String(c.id) === String(selectedCustomer))?.customerName || '');
+                                })()}
                                 onChange={e => {
                                     setCustomerSearch(e.target.value);
                                     onCustomerChange({ target: { value: '' } });
@@ -266,7 +328,7 @@ const SaleSidebar = ({
                                 }}
                             />
                         )}
-                        {(customerDropdownOpen || customerSearch.trim() !== '') && filteredCustomers.length > 0 && (
+                        {customerDropdownOpen && filteredCustomers.length > 0 && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                                 onMouseLeave={() => {
                                     setHoveredCustomer(null);
@@ -285,7 +347,7 @@ const SaleSidebar = ({
                                             setHoverCustomerAnchorEl(null);
                                         }}
                                         onMouseEnter={e => {
-                                            if (customerDropdownOpen || customerSearch.trim() !== '') {
+                                            if (customerDropdownOpen) {
                                                 setHoveredCustomer(customer);
                                                 setHoverCustomerAnchorEl(e.currentTarget);
                                                 if (customer.createBy && !creatorInfo) {
@@ -438,7 +500,17 @@ const SaleSidebar = ({
                             size="small"
                             fullWidth
                             placeholder={currentUser?.roles?.includes('STAFF') ? "Cửa hàng được gán cố định" : "Tìm cửa hàng..."}
-                            value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
+                            value={(() => {
+                                // Nếu có originalData, hiển thị tên từ store tương ứng
+                                if (originalData && originalData.storeId) {
+                                    const store = stores.find(s => String(s.id) === String(originalData.storeId));
+                                    if (store) {
+                                        return store.name || store.storeName || '';
+                                    }
+                                }
+                                // Nếu không có originalData, hiển thị từ storeSearch hoặc selectedStore
+                                return storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || stores.find(s => String(s.id) === String(selectedStore))?.storeName || '');
+                            })()}
                             onChange={e => {
                                 if (!currentUser?.roles?.includes('STAFF')) {
                                     setStoreSearch(e.target.value);
@@ -474,7 +546,7 @@ const SaleSidebar = ({
                                 } : {})
                             }}
                         />
-                        {!currentUser?.roles?.includes('STAFF') && (storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
+                        {!currentUser?.roles?.includes('STAFF') && storeDropdownOpen && filteredStores.length > 0 && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                                 onMouseLeave={() => {
                                     setHoveredStore(null);
@@ -493,7 +565,7 @@ const SaleSidebar = ({
                                             setHoverStoreAnchorEl(null);
                                         }}
                                         onMouseEnter={e => {
-                                            if (storeDropdownOpen || storeSearch.trim() !== '') {
+                                            if (storeDropdownOpen) {
                                                 setHoveredStore(store);
                                                 setHoverStoreAnchorEl(e.currentTarget);
                                             }
@@ -789,13 +861,33 @@ const SaleSidebar = ({
                     </Button>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                {/* Actions: Lưu tạm & Hoàn thành */}
+                <div className="flex gap-2 mt-2">
+                    {!isBalanceStock && (
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={onSaveDraft}
+                            disabled={loading}
+                            startIcon={<FaLock />}
+                            sx={{
+                                borderColor: '#bcd0ee',
+                                color: '#1976d2',
+                                '&:hover': {
+                                    borderColor: '#1976d2',
+                                    backgroundColor: '#e3f0ff'
+                                }
+                            }}
+                        >
+                            Lưu tạm
+                        </Button>
+                    )}
                     <Button
                         fullWidth
                         variant="contained"
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaLock />}
-                        onClick={onSaveDraft}
+                        onClick={onComplete}
                         disabled={loading}
+                        startIcon={<FaCheck />}
                         sx={{
                             background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
                             boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
@@ -814,21 +906,24 @@ const SaleSidebar = ({
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        Lưu tạm
+                        Hoàn thành
                     </Button>
+                </div>
+
+                {typeof onSave === 'function' && (
                     <Button
                         fullWidth
-                        variant="contained"
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <FaCheck />}
-                        onClick={onComplete}
-                        disabled={loading}
+                        variant="contained" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />} 
+                        onClick={onSave} 
+                        disabled={!hasChanges || loading}
                         sx={{
-                            background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                            boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                            background: hasChanges ? 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' : '#ccc',
+                            boxShadow: hasChanges ? '0 3px 15px rgba(25, 118, 210, 0.3)' : 'none',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
-                                boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
-                                transform: 'translateY(-1px)'
+                                background: hasChanges ? 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)' : '#ccc',
+                                boxShadow: hasChanges ? '0 5px 20px rgba(25, 118, 210, 0.4)' : 'none',
+                                transform: hasChanges ? 'translateY(-1px)' : 'none'
                             },
                             '&:disabled': {
                                 background: '#ccc',
@@ -837,12 +932,13 @@ const SaleSidebar = ({
                             },
                             fontWeight: 600,
                             borderRadius: 2,
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            mt: 1
                         }}
                     >
-                        {isBalanceStock ? "Lưu phiếu" : "Hoàn thành"}
+                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </Button>
-                </div>
+                )}
 
 
             </div>

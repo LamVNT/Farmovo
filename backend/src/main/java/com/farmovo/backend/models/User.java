@@ -35,7 +35,7 @@ public class User extends Base implements UserDetails {
     @Column(name = "status", nullable = false)
     private Boolean status;
 
-    @Column(name = "email")
+    @Column(name = "email", length = 255, nullable = false )
     private String email;
 
     @Column(name = "phone")

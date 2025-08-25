@@ -5,4 +5,7 @@ export { default as ExpiringLots } from './ExpiringLots';
 export { default as RemainSummaryReport } from './RemainSummaryReport';
 export { default as InOutSummaryReport } from './InOutSummaryReport';
 export { default as ExpiringLotsReport } from './ExpiringLotsReport';
-export { default as StocktakeDiffReport } from './StocktakeDiffReport'; 
+export { default as StocktakeDiffReport } from './StocktakeDiffReport';
+export { default as DailyRevenue } from './DailyRevenue';
+export { default as SalesShiftTotal } from './SalesShiftTotal';
+export { default as ImportsTotal } from './ImportsTotal'; 

@@ -95,7 +95,7 @@ class CategoryControllerTest {
 
     @Test
     void deleteCategory_shouldReturnNoContent() throws Exception {
-        Mockito.doNothing().when(categoryService).deleteCategory(1L);
+        Mockito.doNothing().when(categoryService).deleteCategory(1L, false);
         mockMvc.perform(delete("/api/categories/1"))
                 .andExpect(status().isNoContent());
     }
@@ -103,7 +103,7 @@ class CategoryControllerTest {
     @Test
     void deleteCategory_notFound_shouldReturnNotFound() throws Exception {
         Mockito.doThrow(new com.farmovo.backend.exceptions.CategoryNotFoundException("Category not found"))
-                .when(categoryService).deleteCategory(999L);
+                .when(categoryService).deleteCategory(999L, false);
         mockMvc.perform(delete("/api/categories/999"))
                 .andExpect(status().isNotFound());
     }

@@ -14,11 +14,11 @@ const ProductsTable = ({products}) => {
         ), [searchProduct, products]);
 
     const productColumns = [
-        {field: 'name', headerName: 'Product Name', flex: 1},
-        {field: 'category', headerName: 'Category', flex: 1},
+        {field: 'name', headerName: 'Tên Sản Phẩm', flex: 1},
+        {field: 'category', headerName: 'Danh Mục', flex: 1},
         {
             field: 'stock',
-            headerName: 'Stock',
+            headerName: 'Tồn Kho',
             flex: 1,
             renderCell: (params) => {
                 const stock = params.value;
@@ -33,17 +33,17 @@ const ProductsTable = ({products}) => {
                 );
             }
         },
-        {field: 'price', headerName: 'Price', flex: 1},
+        {field: 'price', headerName: 'Giá', flex: 1},
         {
             field: 'actions',
-            headerName: 'Actions',
+            headerName: 'Thao Tác',
             flex: 1,
             sortable: false,
             renderCell: (params) => (
                 <>
-                    <IconButton onClick={() => alert("Edit product " + params.id)}><EditIcon
+                    <IconButton onClick={() => alert("Chỉnh sửa sản phẩm " + params.id)}><EditIcon
                         color="primary"/></IconButton>
-                    <IconButton onClick={() => alert("Delete product " + params.id)}><DeleteIcon
+                    <IconButton onClick={() => alert("Xóa sản phẩm " + params.id)}><DeleteIcon
                         color="error"/></IconButton>
                 </>
             )
@@ -53,9 +53,9 @@ const ProductsTable = ({products}) => {
     return (
         <div className="card my-4 shadow-md sm:rounded-lg bg-white p-5">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Product List</h2>
+                <h2 className="text-lg font-semibold">Danh Sách Sản Phẩm</h2>
                 <TextField
-                    label="Search Products"
+                    label="Tìm Kiếm Sản Phẩm"
                     size="small"
                     value={searchProduct}
                     onChange={(e) => setSearchProduct(e.target.value)}

@@ -12,6 +12,7 @@ import com.farmovo.backend.repositories.StocktakeRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.repositories.SaleTransactionRepository;
+import com.farmovo.backend.repositories.ImportTransactionRepository;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -51,6 +52,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     private final ImportTransactionDetailService importTransactionDetailService;
     private final ObjectMapper objectMapper;
     private final SaleTransactionRepository saleTransactionRepository;
+    private final ImportTransactionRepository importTransactionRepository;
 
     @Override
     public StocktakeResponseDto createStocktake(StocktakeRequestDto requestDto, Long userId) {
@@ -237,6 +239,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setId(lot.getId());
         dto.setBatchCode(lot.getName());
         dto.setProductId(product.getId());
+        dto.setProductCode(product.getProductCode());
         dto.setProductName(product.getProductName());
 
         // Chuyển đổi zones_id
@@ -271,8 +274,8 @@ public class StocktakeServiceImpl implements StocktakeService {
         dto.setNote(base.getNote());
         dto.setZoneReal(base.getZoneReal());
         dto.setExpireDate(lot.getExpireDate() != null ? lot.getExpireDate().toString() : null);
-        // Mặc định isCheck = false nếu null để frontend hiển thị chưa kiểm
-        dto.setIsCheck(lot.getIsCheck() != null ? lot.getIsCheck() : Boolean.FALSE);
+        // Giữ nguyên trạng thái isCheck từ yêu cầu; mặc định false nếu null
+        dto.setIsCheck(base.getIsCheck() != null ? base.getIsCheck() : Boolean.FALSE);
 
         log.debug("Enriched detail: lot={}, productId={}, remain={}, real={}, diff={}",
                 dto.getBatchCode(), dto.getProductId(), dto.getRemain(), dto.getReal(), dto.getDiff());
@@ -333,7 +336,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         } catch (Exception e) {
             throw new ValidationException("Failed to deserialize stocktake details: " + e.getMessage());
         }
-        dto.setDetail(groupDetailsByProduct(details)); // trả về dạng gộp
+        dto.setDetail(details); // trả về nguyên từng lô, KHÔNG gộp
         dto.setRawDetail(details); // trả về dạng gốc
         // Ánh xạ thông tin liên kết cân bằng để frontend ẩn nút
         // Các trạng thái cân bằng sẽ được suy ra bằng exists/count sale_transactions theo stocktakeId
@@ -342,10 +345,21 @@ public class StocktakeServiceImpl implements StocktakeService {
             long count = saleTransactionRepository.countByStocktakeIdAndStatus(stId, SaleTransactionStatus.COMPLETE);
             dto.setBalanceCount(count);
             dto.setHasBalance(count > 0);
+            // Kiểm tra phiếu nhập điều chỉnh đã liên kết (nếu có)
+            try {
+                long importCount = importTransactionRepository.countByStocktakeId(stId);
+                dto.setImportCount(importCount);
+                dto.setHasImport(importCount > 0);
+            } catch (Exception ignored) {
+                dto.setImportCount(0L);
+                dto.setHasImport(false);
+            }
         } catch (Exception e) {
             log.warn("Failed to check PCB linkage for stocktake {}: {}", stocktake.getId(), e.getMessage());
             dto.setHasBalance(false);
             dto.setBalanceCount(0L);
+            dto.setHasImport(false);
+            dto.setImportCount(0L);
         }
         return dto;
     }
@@ -453,15 +467,37 @@ public class StocktakeServiceImpl implements StocktakeService {
         // Xử lý chi tiết chỉ khi không phải trạng thái CANCELLED
         if (!"CANCELLED".equals(requestDto.getStatus())) {
             for (StocktakeDetailDto detail : rawDetails) {
-                // Chỉ tính lại số lượng tồn và chênh lệch nếu có productId
-                if (detail.getProductId() != null) {
-                    List<ImportTransactionDetail> lots = importTransactionDetailRepository
-                            .findByProductIdAndRemain(detail.getProductId());
-                    int totalRemain = lots.stream()
-                            .mapToInt(lot -> lot.getRemainQuantity() != null ? lot.getRemainQuantity() : 0)
-                            .sum();
-                    detail.setRemain(totalRemain);
-                    detail.setDiff(detail.getReal() != null ? detail.getReal() - totalRemain : null);
+                // Tính lại tồn kho và chênh lệch THEO TỪNG LÔ (không cộng gộp theo sản phẩm)
+                Integer remainForThisLot = null;
+                try {
+                    if (detail.getId() != null) {
+                        // Ưu tiên tìm theo id lô
+                        remainForThisLot = importTransactionDetailRepository.findById(detail.getId())
+                                .map(lot -> lot.getRemainQuantity() != null ? lot.getRemainQuantity() : 0)
+                                .orElse(null);
+                    }
+                    if (remainForThisLot == null && detail.getBatchCode() != null) {
+                        // Fallback: tìm theo mã lô (name)
+                        var lot = importTransactionDetailRepository.findByName(detail.getBatchCode());
+                        if (lot == null && detail.getBatchCode().contains("-")) {
+                            // Thử phiên bản bỏ dấu gạch ngang
+                            lot = importTransactionDetailRepository.findByName(detail.getBatchCode().replace("-", ""));
+                        }
+                        if (lot != null) {
+                            remainForThisLot = lot.getRemainQuantity() != null ? lot.getRemainQuantity() : 0;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Không thể xác định tồn kho cho lô batchCode={}, id={}, lý do: {}",
+                            detail.getBatchCode(), detail.getId(), e.getMessage());
+                }
+
+                if (remainForThisLot != null) {
+                    detail.setRemain(remainForThisLot);
+                    detail.setDiff(detail.getReal() != null ? detail.getReal() - remainForThisLot : null);
+                } else {
+                    // Nếu không tìm được lô, giữ nguyên remain/diff hiện có để tránh sai lệch
+                    log.debug("Giữ nguyên remain/diff cho lô batchCode={}, id={}", detail.getBatchCode(), detail.getId());
                 }
             }
         }

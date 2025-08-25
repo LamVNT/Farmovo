@@ -20,15 +20,27 @@ import java.time.LocalTime;
 
 import java.util.List;
 
+import com.farmovo.backend.services.impl.JwtAuthenticationService;
+import com.farmovo.backend.models.User;
+
 @RestController
 @RequestMapping("/api/reports")
 public class ReportController {
     @Autowired
     private ReportService reportService;
+    @Autowired
+    private JwtAuthenticationService jwtAuthenticationService;
 
     @GetMapping("/remain-by-product")
-    public List<ProductRemainDto> getRemainByProduct() {
-        return reportService.getRemainByProduct();
+    public List<ProductRemainDto> getRemainByProduct(@RequestParam(required = false) Long storeId) {
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getRemainByProduct(storeId);
     }
 
     @GetMapping("/stocktake-diff")
@@ -41,8 +53,16 @@ public class ReportController {
     }
 
     @GetMapping("/expiring-lots")
-    public List<ExpiringLotDto> getExpiringLots(@RequestParam(defaultValue = "7") int days) {
-        return reportService.getExpiringLots(days);
+    public List<ExpiringLotDto> getExpiringLots(@RequestParam(defaultValue = "7") int days,
+                                                 @RequestParam(required = false) Long storeId) {
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getExpiringLots(days, storeId);
     }
 
     @GetMapping("/revenue-trend")
@@ -96,15 +116,98 @@ public class ReportController {
     @GetMapping("/inout-summary")
     public List<InOutSummaryDto> getInOutSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long storeId
     ) {
         LocalDateTime fromDateTime = from.atStartOfDay();
         LocalDateTime toDateTime = to.atTime(LocalTime.MAX);
-        return reportService.getInOutSummary(fromDateTime, toDateTime);
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getInOutSummary(fromDateTime, toDateTime, storeId);
     }
 
     @GetMapping("/remain-summary")
     public List<CategoryRemainSummaryDto> getRemainSummary() {
         return reportService.getRemainSummary();
+    }
+
+    // --- New endpoints ---
+    @GetMapping("/daily-revenue")
+    public DailyRevenueDto getDailyRevenue(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long storeId
+    ) {
+        LocalDateTime fromDateTime = from.atStartOfDay();
+        LocalDateTime toDateTime = to.atTime(LocalTime.MAX);
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getDailyRevenue(fromDateTime, toDateTime, storeId);
+    }
+
+    @GetMapping("/sales-total")
+    public List<SalesShiftTotalDto> getSalesTotal(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "shift") String groupBy,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) Long cashierId
+    ) {
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getSalesTotal(from, to, groupBy, storeId, cashierId);
+    }
+
+    @GetMapping("/imports-total")
+    public List<GroupTotalDto> getImportsTotal(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "day") String groupBy,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) Long supplierId
+    ) {
+        LocalDateTime fromDateTime = from.atStartOfDay();
+        LocalDateTime toDateTime = to.atTime(LocalTime.MAX);
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getImportsTotal(fromDateTime, toDateTime, groupBy, storeId, supplierId);
+    }
+
+    @GetMapping("/expiring-lots-advanced")
+    public List<ExpiringLotExtendedDto> getExpiringLotsAdvanced(
+            @RequestParam(defaultValue = "7") int days,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long productId,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeZeroRemain
+    ) {
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(null);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                storeId = user.getStore().getId();
+            }
+        } catch (Exception ignored) {}
+        return reportService.getExpiringLotsAdvanced(days, storeId, categoryId, productId, includeZeroRemain);
     }
 } 

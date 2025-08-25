@@ -31,7 +31,7 @@ public class DashboardServiceImpl implements DashboardService {
         dto.setTotalImportOrders(importTransactionRepository.count());
         dto.setTotalExportOrders(saleTransactionRepository.count());
         dto.setTotalRevenue(saleTransactionRepository.sumTotalAmount());
-        dto.setExpiringLots(reportService.getExpiringLots(7).size());
+        dto.setExpiringLots(reportService.getExpiringLots(7, 1L).size());
         return dto;
     }
 }

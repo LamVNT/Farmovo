@@ -17,16 +17,31 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL")
     List<SaleTransaction> findAllSaleActive();
 
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.store.id = :storeId")
+    List<SaleTransaction> findAllSaleActiveByStore(@Param("storeId") Long storeId);
+
     @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL")
     BigDecimal sumTotalAmount();
 
-    @Query("SELECT FUNCTION('DATE', s.saleDate) as date, SUM(s.totalAmount) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY FUNCTION('DATE', s.saleDate) ORDER BY date")
+    // Use native Postgres DATE() to group by day
+    @Query(value = "SELECT DATE(sale_date) AS date, COALESCE(SUM(total_amount), 0) AS total " +
+            "FROM sale_transactions " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "GROUP BY DATE(sale_date) ORDER BY date", nativeQuery = true)
     List<Object[]> getRevenueByDay(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
-    @Query("SELECT FUNCTION('YEAR', s.saleDate) as year, FUNCTION('MONTH', s.saleDate) as month, SUM(s.totalAmount) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY year, month ORDER BY year, month")
+    // Use native Postgres EXTRACT for month grouping
+    @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, EXTRACT(MONTH FROM sale_date) AS month, COALESCE(SUM(total_amount), 0) AS total " +
+            "FROM sale_transactions " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "GROUP BY year, month ORDER BY year, month", nativeQuery = true)
     List<Object[]> getRevenueByMonth(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
-    @Query("SELECT FUNCTION('YEAR', s.saleDate) as year, SUM(s.totalAmount) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY year ORDER BY year")
+    // Use native Postgres EXTRACT for year grouping
+    @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, COALESCE(SUM(total_amount), 0) AS total " +
+            "FROM sale_transactions " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "GROUP BY year ORDER BY year", nativeQuery = true)
     List<Object[]> getRevenueByYear(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Thống kê khách hàng top theo doanh thu
@@ -37,12 +52,20 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(name, 4) AS BIGINT)), 0) FROM sale_transactions WHERE name LIKE 'PCB%'", nativeQuery = true)
     Long getMaxPcbSequence();
 
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.saleDate DESC")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.createdAt DESC")
     List<SaleTransaction> findRecentSales(org.springframework.data.domain.Pageable pageable);
 
     // PCB linkage helpers
     boolean existsByStocktakeId(Long stocktakeId);
     long countByStocktakeId(Long stocktakeId);
     long countByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
+
+    // ✅ Thêm method để load customer và store cùng với sale transaction
+    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id")
+    Optional<SaleTransaction> findByIdWithCustomerAndStore(@Param("id") Long id);
+
+    // ✅ New: fetch active sales in a date range
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to")
+    List<SaleTransaction> findAllSaleActiveBetween(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 }
 

@@ -33,7 +33,7 @@ const DashboardBoxes = ({
                         className="box bg-white p-5 cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <TbBrandProducthunt className="text-[40px] text-[#7928ca]"/>
                         <div className="info w-[70%] ">
-                            <h3>Total Products</h3>
+                            <h3>Tổng Sản Phẩm</h3>
                             <b>{totalProducts ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#7928ca]"/>
@@ -44,7 +44,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <AiTwotoneGift className="text-[40px] text-[#3872fa]"/>
                         <div className="info w-[70%]">
-                            <h3>Total Customers</h3>
+                            <h3>Tổng Khách Hàng</h3>
                             <b>{totalCustomers ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#3872fa]"/>
@@ -55,7 +55,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <AiTwotoneGift className="text-[40px] text-[#10b981]"/>
                         <div className="info w-[70%]">
-                            <h3>Total Suppliers</h3>
+                            <h3>Tổng Nhà Cung Cấp</h3>
                             <b>{totalSuppliers ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#10b981]"/>
@@ -66,7 +66,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <FiShoppingBag className="text-[40px] text-[#3872fa]"/>
                         <div className="info w-[70%]">
-                            <h3>Total Import Orders</h3>
+                            <h3>Đơn Hàng Nhập</h3>
                             <b>{totalImportOrders ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#3872fa]"/>
@@ -77,7 +77,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <FiShoppingBag className="text-[40px] text-[#10b981]"/>
                         <div className="info w-[70%]">
-                            <h3>Total Export Orders</h3>
+                            <h3>Đơn Hàng Xuất</h3>
                             <b>{totalExportOrders ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#10b981]"/>
@@ -88,7 +88,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <LuPiggyBank className="text-[40px]  text-[#3872fa]"/>
                         <div className="info w-[70%]">
-                            <h3>Total Revenue</h3>
+                            <h3>Tổng Doanh Thu</h3>
                             <b>{totalRevenue != null ? totalRevenue.toLocaleString() : '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#3872fa]"/>
@@ -99,7 +99,7 @@ const DashboardBoxes = ({
                         className="box p-5 bg-white cursor-pointer hover:bg-[#f1f1f1] rounded-md border border-[rgba(0,0,0,0.1)] flex items-center gap-4">
                         <AiTwotoneGift className="text-[40px] text-[#fa3838]"/>
                         <div className="info w-[70%]">
-                            <h3>Expiring Lots</h3>
+                            <h3>Lô Hết Hạn</h3>
                             <b>{expiringLots ?? '-'}</b>
                         </div>
                         <IoStatsChartSharp className="text-[50px] text-[#fa3838]"/>

@@ -59,5 +59,20 @@ public class ChangeStatusLogController {
         List<ChangeStatusLogResponseDTO> logs = changeStatusLogService.getLogsByModel(request.getModelName(), request.getModelId());
         return ResponseEntity.ok(logs);
     }
+    
+    @GetMapping("/latest-each-source")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
+    public ResponseEntity<List<ChangeStatusLogResponseDTO>> getLatestLogsForEachSource() {
+        List<ChangeStatusLogResponseDTO> logs = changeStatusLogService.getLatestLogsForEachSource();
+        return ResponseEntity.ok(logs);
+    }
+    
+    @GetMapping("/latest-each-source/{modelName}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
+    public ResponseEntity<List<ChangeStatusLogResponseDTO>> getLatestLogsForEachSourceByModel(
+            @PathVariable String modelName) {
+        List<ChangeStatusLogResponseDTO> logs = changeStatusLogService.getLatestLogsForEachSourceByModel(modelName);
+        return ResponseEntity.ok(logs);
+    }
 }
 

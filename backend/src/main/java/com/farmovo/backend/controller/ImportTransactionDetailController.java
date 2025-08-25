@@ -14,6 +14,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.farmovo.backend.services.impl.JwtAuthenticationService;
+import com.farmovo.backend.models.User;
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/import-details")
 public class ImportTransactionDetailController {
@@ -26,6 +30,9 @@ public class ImportTransactionDetailController {
 
     @Autowired
     private ProductService productService;
+
+    @Autowired
+    private JwtAuthenticationService jwtAuthenticationService;
 
     // API lấy danh sách Zone có sản phẩm tồn kho
     @GetMapping("/zones-with-products")
@@ -68,8 +75,16 @@ public class ImportTransactionDetailController {
         @RequestParam(required = false) String product,
         @RequestParam(required = false) Boolean isCheck,
         @RequestParam(required = false) String batchCode,
-        @RequestParam(required = false) String search
+        @RequestParam(required = false) String search,
+        HttpServletRequest request
     ) {
+        try {
+            User user = jwtAuthenticationService.extractAuthenticatedUser(request);
+            var roles = jwtAuthenticationService.getUserRoles(user);
+            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+                store = String.valueOf(user.getStore().getId());
+            }
+        } catch (Exception ignored) {}
         List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, isCheck, batchCode, search);
         return ResponseEntity.ok(result);
     }

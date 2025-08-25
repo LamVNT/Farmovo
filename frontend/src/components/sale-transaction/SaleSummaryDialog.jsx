@@ -26,11 +26,13 @@ const SaleSummaryDialog = ({
     formatCurrency,
     loading,
     currentUser,
-    nextCode
+    nextCode,
+    zones
 }) => {
     if (!saleData) return null;
 
     const { customer, store, products, totalAmount, paidAmount, note, saleDate, status, name } = saleData;
+    const confirmLabel = status === 'DRAFT' ? 'Lưu tạm' : 'Hoàn thành';
 
     const [currentTime, setCurrentTime] = React.useState(new Date());
     React.useEffect(() => {
@@ -57,7 +59,7 @@ const SaleSummaryDialog = ({
                         {name || nextCode || '---'}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
-                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : '✅ Phiếu hoàn thành'}
+                        {status === 'DRAFT' ? '📝 Phiếu tạm thời' : status === 'WAITING_FOR_APPROVE' ? '⏳ Chờ phê duyệt' : '✅ Phiếu hoàn thành'}
                     </Typography>
                 </div>
                 <div className="text-right">
@@ -136,6 +138,7 @@ const SaleSummaryDialog = ({
                                         Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
                                     </span>
                                 </TableCell>
+                                <TableCell className="font-semibold text-center">Khu vực thực tế</TableCell>
                                 <TableCell className="font-semibold text-right">Thành tiền</TableCell>
                             </TableRow>
                         </TableHead>
@@ -145,7 +148,7 @@ const SaleSummaryDialog = ({
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <div>
-                                            <div className="font-medium">{product.name}</div>
+                                            <div className="font-medium">{product.name || product.productName || product.batchName || 'Sản phẩm'}</div>
                                             <div className="text-xs text-gray-500">
                                                 Mã: {product.productCode || product.code || product.batchCode || product.name || 'N/A'}
                                             </div>
@@ -154,6 +157,18 @@ const SaleSummaryDialog = ({
                                     <TableCell className="text-center">{product.unit || 'quả'}</TableCell>
                                     <TableCell className="text-center">{product.quantity}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
+                                    <TableCell className="text-center">{
+                                        (() => {
+                                            const zr = product.zoneReal;
+                                            const toName = (zid) => {
+                                                const z = zones?.find?.(zz => String(zz.id) === String(zid));
+                                                return z ? z.zoneName : zid;
+                                            };
+                                            if (Array.isArray(zr)) return zr.map(toName).join(', ');
+                                            if (typeof zr === 'string' && zr.includes(',')) return zr.split(',').map(s => s.trim()).map(toName).join(', ');
+                                            return zr ? toName(zr) : '';
+                                        })()
+                                    }</TableCell>
                                     <TableCell className="text-right font-semibold">
                                         {formatCurrency(product.price * product.quantity)}
                                     </TableCell>
@@ -224,14 +239,11 @@ const SaleSummaryDialog = ({
                 <Button
                     onClick={onConfirm}
                     variant="contained"
-                    className={`${status === 'DRAFT'
-                        ? '!bg-blue-600 hover:!bg-blue-700'
-                        : '!bg-green-600 hover:!bg-green-700'
-                        } text-white`}
-                    startIcon={loading ? null : (status === 'DRAFT' ? <FaPrint /> : <FaCheck />)}
+                    className="!bg-blue-600 hover:!bg-blue-700 text-white"
+                    startIcon={loading ? null : <FaCheck />}
                     disabled={loading}
                 >
-                    {loading ? 'Đang xử lý...' : (status === 'DRAFT' ? 'Lưu tạm' : 'Hoàn thành')}
+                    {loading ? 'Đang xử lý...' : confirmLabel}
                 </Button>
             </DialogActions>
         </Dialog>

@@ -16,6 +16,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Popover,
+    Chip,
 } from '@mui/material';
 import {FaLock, FaCheck, FaSearch, FaEye} from 'react-icons/fa';
 import {MdKeyboardArrowDown, MdCategory} from 'react-icons/md';
@@ -36,6 +38,7 @@ import {useSaleTransaction} from '../../hooks/useSaleTransaction';
 
 // Utils
 import {formatCurrency, isValidValue} from '../../utils/formatters';
+import ZoneChips from '../../components/stocktake/ZoneChips';
 import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = (props) => {
@@ -73,6 +76,8 @@ const AddSalePage = (props) => {
     const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
     const [pendingNavigation, setPendingNavigation] = useState(null);
     const [isNavigatingAway, setIsNavigatingAway] = useState(false);
+    const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
+    const [zonePopoverItems, setZonePopoverItems] = useState([]);
 
     const {
         currentUser,
@@ -295,6 +300,26 @@ const AddSalePage = (props) => {
         } else {
             handleShowSummary('COMPLETE');
         }
+    };
+
+    const handleOpenZonePopover = (event, zonesIdArray) => {
+        try {
+            const items = (zonesIdArray || [])
+                .map(id => {
+                    const z = zones.find(zz => String(zz.id) === String(id));
+                    return z ? { id: z.id, name: z.zoneName } : { id, name: String(id) };
+                });
+            setZonePopoverItems(items);
+            setZonePopoverAnchor(event.currentTarget);
+        } catch (_) {
+            setZonePopoverItems([]);
+            setZonePopoverAnchor(event.currentTarget);
+        }
+    };
+
+    const handleCloseZonePopover = () => {
+        setZonePopoverAnchor(null);
+        setZonePopoverItems([]);
     };
 
     const toggleColumn = (col) => {
@@ -586,6 +611,29 @@ const AddSalePage = (props) => {
                             {productName}
                         </div>
                     </div>
+                );
+            }
+        },
+        // Hiển thị khu vực thực tế (Zone) cho phiếu cân bằng dạng chips
+        props.isBalanceStock && columnVisibility['Zone'] && {
+            field: 'zone',
+            headerName: 'Khu vực thực tế',
+            width: 200,
+            renderCell: (params) => {
+                const zr = params.row.zoneReal;
+                const toArray = (val) => {
+                    if (Array.isArray(val)) return val;
+                    if (typeof val === 'string' && val.includes(',')) return val.split(',').map(s => s.trim());
+                    return val ? [val] : [];
+                };
+                const zonesId = toArray(zr).map(v => String(v));
+                return (
+                    <ZoneChips 
+                        zones={zones} 
+                        zonesId={zonesId} 
+                        actualIdx={params.rowIndex || 0}
+                        onOpenPopover={(e) => handleOpenZonePopover(e, zonesId)}
+                    />
                 );
             }
         },
@@ -1258,7 +1306,7 @@ const AddSalePage = (props) => {
             </div>
             <SaleSidebar
                 currentUser={currentUser}
-                customers={props.isBalanceStock && khachLe ? [khachLe] : customers}
+                customers={customers}
                 stores={stores}
                 selectedCustomer={selectedCustomer}
                 selectedStore={selectedStore}
@@ -1346,6 +1394,7 @@ const AddSalePage = (props) => {
                 loading={loading}
                 currentUser={currentUser}
                 nextCode={nextCode}
+                zones={zones}
             />
             <Dialog
                 open={showCategoryDialog}
@@ -1487,6 +1536,37 @@ const AddSalePage = (props) => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            {/* Popover hiển thị danh sách khu vực thực tế (style tương tự trang kiểm kho) */}
+            <Popover
+                open={Boolean(zonePopoverAnchor)}
+                anchorEl={zonePopoverAnchor}
+                onClose={handleCloseZonePopover}
+                anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                sx={{
+                    '& .MuiPopover-paper': {
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                        borderRadius: 3,
+                        border: '1px solid #e8e8e8',
+                        maxWidth: 320,
+                        minWidth: 200,
+                        p: 1.5,
+                        animation: 'fadeInScale 0.2s ease-out',
+                        '@keyframes fadeInScale': {
+                            '0%': { opacity: 0, transform: 'scale(0.95) translateX(-10px)' },
+                            '100%': { opacity: 1, transform: 'scale(1) translateX(0)' },
+                        },
+                    }
+                }}
+            >
+                <div style={{ display: 'flex', gap: 6, padding: 6, maxWidth: 260, flexWrap: 'wrap' }}>
+                    {zonePopoverItems.length > 0 ? zonePopoverItems.map(z => (
+                        <Chip key={String(z.id)} label={z.name} size="small" sx={{ height: 22 }} />
+                    )) : (
+                        <span style={{ padding: 8, color: '#666' }}>Không có khu vực</span>
+                    )}
+                </div>
+            </Popover>
         </div>
     );
 };

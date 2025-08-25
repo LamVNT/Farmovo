@@ -20,8 +20,14 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
     @Query("SELECT i.product.id, SUM(i.remainQuantity) FROM ImportTransactionDetail i GROUP BY i.product.id")
     List<Object[]> getRemainByProduct();
 
+    @Query("SELECT i.product.id, SUM(i.remainQuantity) FROM ImportTransactionDetail i WHERE i.product.store.id = :storeId GROUP BY i.product.id")
+    List<Object[]> getRemainByProductByStore(@Param("storeId") Long storeId);
+
     @Query("SELECT i FROM ImportTransactionDetail i WHERE i.expireDate BETWEEN :now AND :soon")
     List<ImportTransactionDetail> findExpiringLots(@Param("now") java.time.LocalDateTime now, @Param("soon") java.time.LocalDateTime soon);
+
+    @Query("SELECT i FROM ImportTransactionDetail i WHERE i.product.store.id = :storeId AND i.expireDate BETWEEN :now AND :soon")
+    List<ImportTransactionDetail> findExpiringLotsByStore(@Param("storeId") Long storeId, @Param("now") java.time.LocalDateTime now, @Param("soon") java.time.LocalDateTime soon);
 
     List<ImportTransactionDetail> findByProductId(Long productId);
 
@@ -51,20 +57,26 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
     @Query("SELECT DISTINCT i.zones_id FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id IS NOT NULL AND i.zones_id != ''")
     List<String> findAllZoneIdsWithProducts();
 
+    @Query("SELECT DISTINCT i.zones_id FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.product.store.id = :storeId AND i.zones_id IS NOT NULL AND i.zones_id != ''")
+    List<String> findAllZoneIdsWithProductsByStore(@Param("storeId") Long storeId);
+
     // Lấy tất cả ImportTransactionDetail theo zoneId (tìm trong JSON zones_id)
-    @Query("SELECT i FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id LIKE %:zoneId%")
+    @Query("SELECT i FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND CONCAT(',', i.zones_id, ',') LIKE CONCAT('%,', :zoneId, ',%')")
     List<ImportTransactionDetail> findByZoneId(@Param("zoneId") String zoneId);
+
+    @Query("SELECT i FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.product.store.id = :storeId AND CONCAT(',', i.zones_id, ',') LIKE CONCAT('%,', :zoneId, ',%')")
+    List<ImportTransactionDetail> findByZoneIdAndStore(@Param("zoneId") String zoneId, @Param("storeId") Long storeId);
 
     // Lấy tất cả zones_id của một sản phẩm cụ thể
     @Query("SELECT DISTINCT i.zones_id FROM ImportTransactionDetail i WHERE i.product.id = :productId AND i.remainQuantity > 0 AND i.zones_id IS NOT NULL AND i.zones_id != ''")
     List<String> findZoneIdsByProductId(@Param("productId") Long productId);
 
     // Lấy tất cả sản phẩm có trong một zone cụ thể
-    @Query("SELECT DISTINCT i.product.id FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id LIKE %:zoneId%")
+    @Query("SELECT DISTINCT i.product.id FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND CONCAT(',', i.zones_id, ',') LIKE CONCAT('%,', :zoneId, ',%')")
     List<Long> findProductIdsByZoneId(@Param("zoneId") String zoneId);
 
     // Lấy chi tiết ImportTransactionDetail theo zoneId
-    @Query("SELECT i.id, i.product.id, i.product.productName, i.remainQuantity, i.zones_id, i.expireDate FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.zones_id LIKE %:zoneId%")
+    @Query("SELECT i.id, i.product.id, i.product.productName, i.remainQuantity, i.zones_id, i.expireDate FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND CONCAT(',', i.zones_id, ',') LIKE CONCAT('%,', :zoneId, ',%')")
     List<Object[]> findDetailsByZoneId(@Param("zoneId") String zoneId);
 
     @Query("SELECT i.product.category.categoryName, SUM(i.remainQuantity) FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 GROUP BY i.product.category.categoryName")
