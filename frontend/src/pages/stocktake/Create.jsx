@@ -1377,56 +1377,40 @@ const CreateStocktakePage = () => {
                                                         onChange={(newZones) => handleLotChange(actualIdx, 'zoneReal', newZones)}
                                                         />
                                                 </TableCell>}
-                                                <Tooltip 
-                                                    title={lot.diff !== 0 ? 
-                                                        (lot.diff > 0 ? 
-                                                            `Thực tế (${lot.real}) > Tồn kho (${lot.remainQuantity}) - Cần kiểm tra lại` : 
-                                                            `Thực tế (${lot.real}) < Tồn kho (${lot.remainQuantity}) - Có thể thiếu hàng`
-                                                        ) : 
-                                                        'Không có chênh lệch'
-                                                    }
-                                                    placement="top"
-                                                >
-                                                    <TableCell sx={{ 
-                                                        fontWeight: 600, 
-                                                        textAlign: 'center',
-                                                        backgroundColor: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '#fef2f2' : '#fff7ed') : // Hồng nhạt khi thực tế > tồn, cam nhạt khi thực tế < tồn
-                                                            'transparent',
-                                                        color: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '#dc2626' : '#ea580c') : // Đỏ khi thực tế > tồn, cam khi thực tế < tồn
-                                                            'inherit',
-                                                        borderRadius: lot.diff !== 0 ? '6px' : '0',
-                                                        border: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '1px solid #fecaca' : '1px solid #fed7aa') : // Viền hồng khi thực tế > tồn, viền cam khi thực tế < tồn
-                                                            'none',
-                                                        padding: lot.diff !== 0 ? '12px 8px' : '8px 4px',
-                                                        transition: 'all 0.2s ease',
-                                                        cursor: lot.diff !== 0 ? 'help' : 'default',
-                                                        '&:hover': lot.diff !== 0 ? {
-                                                            backgroundColor: lot.diff > 0 ? '#fee2e2' : '#ffedd5',
-                                                            transform: 'scale(1.02)'
-                                                        } : {}
-                                                    }}>
-                                                        <Box sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: 0.5
-                                                        }}>
-                                                            {lot.diff !== 0 && (
-                                                                <Box sx={{
-                                                                    width: 6,
-                                                                    height: 6,
-                                                                    borderRadius: '50%',
-                                                                    backgroundColor: lot.diff > 0 ? '#dc2626' : '#ea580c',
-                                                                    flexShrink: 0
-                                                                }} />
-                                                            )}
-                                                            {lot.diff}
-                                                        </Box>
-                                                    </TableCell>
-                                                </Tooltip>
+                                                <TableCell sx={{ textAlign: 'center', padding: '8px 4px' }}>
+                                                    {lot.diff === 0 ? (
+                                                        <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
+                                                            0
+                                                        </Typography>
+                                                    ) : (
+                                                        <Chip
+                                                            label={lot.diff > 0 ? `+${lot.diff}` : lot.diff}
+                                                            size="small"
+                                                            sx={{
+                                                                background: lot.diff < 0 
+                                                                    ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Cam gradient cho số âm
+                                                                    : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)', // Đỏ gradient cho số dương
+                                                                color: 'white',
+                                                                fontWeight: 600,
+                                                                borderRadius: '12px',
+                                                                height: '24px',
+                                                                fontSize: '0.75rem',
+                                                                minWidth: '40px',
+                                                                '& .MuiChip-label': {
+                                                                    padding: '0 8px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 600
+                                                                },
+                                                                boxShadow: lot.diff !== 0 ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                                                                transition: 'all 0.2s ease',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-1px)',
+                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
+                                                </TableCell>
                                                 {!isMobile && <TableCell sx={{ textAlign: 'center' }}>
                                                     <Checkbox
                                                         checked={!!lot.isCheck}
