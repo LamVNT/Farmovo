@@ -77,13 +77,30 @@ jobs:
           
           # Copy server files
           cp server.js deploy-package/
-          cp package.json deploy-package/
-          cp package-lock.json deploy-package/
+          
+          # Create production package.json (without dev dependencies)
+          cat > deploy-package/package.json << 'EOF'
+          {
+            "name": "frontend",
+            "version": "0.0.0",
+            "type": "module",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "express": "^4.21.2"
+            },
+            "engines": {
+              "node": ">=18.0.0"
+            }
+          }
+          EOF
           
           # Install production dependencies in deploy-package
           cd deploy-package
           echo "Installing production dependencies..."
-          npm ci --only=production --no-audit --no-fund
+          npm install --production --no-audit --no-fund
           
           # Create zip
           zip -r ../frontend.zip .
