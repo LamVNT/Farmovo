@@ -4,6 +4,7 @@ import com.farmovo.backend.dto.response.*;
 import com.farmovo.backend.models.ImportTransaction;
 import com.farmovo.backend.models.ImportTransactionDetail;
 import com.farmovo.backend.models.Stocktake;
+import com.farmovo.backend.models.User;
 import com.farmovo.backend.repositories.ImportTransactionDetailRepository;
 import com.farmovo.backend.repositories.SaleTransactionRepository;
 import com.farmovo.backend.repositories.StocktakeRepository;
@@ -66,20 +67,18 @@ public class ReportServiceImpl implements ReportService {
 	private HttpServletRequest request;
 	@Autowired
 	private UserRepository userRepository;
+	@Autowired
+	private JwtAuthenticationService jwtAuthenticationService;
 
 	private Long getCurrentUserStoreIdIfStaff() {
 		try {
 			if (request == null) return null;
-			String userIdHeader = request.getHeader("X-User-Id");
-			if (!StringUtils.hasText(userIdHeader)) return null;
-			Long userId = Long.valueOf(userIdHeader);
-			return userRepository.findById(userId)
-					.filter(u -> u.getAuthorities() != null && u.getAuthorities().stream().anyMatch(a -> {
-						String r = a.getAuthority();
-						return r != null && (r.equalsIgnoreCase("STAFF") || r.equalsIgnoreCase("ROLE_STAFF"));
-					}))
-					.map(u -> u.getStore() != null ? u.getStore().getId() : null)
-					.orElse(null);
+			User user = jwtAuthenticationService.extractAuthenticatedUser(request);
+			var roles = jwtAuthenticationService.getUserRoles(user);
+			if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+				return user.getStore().getId();
+			}
+			return null;
 		} catch (Exception e) {
 			return null;
 		}
@@ -291,8 +290,75 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public List<RevenueTrendDto> getRevenueTrend(String type, LocalDateTime from, LocalDateTime to, Long storeId) {
+        if (storeId == null) {
+            return getRevenueTrend(type, from, to);
+        }
+
+        List<RevenueTrendDto> result = new ArrayList<>();
+        List<Object[]> raw;
+
+        switch (type) {
+            case "day": {
+                raw = saleTransactionRepository.getRevenueByDayAndStore(from, to, storeId);
+                for (Object[] row : raw) {
+                    RevenueTrendDto dto = new RevenueTrendDto();
+                    dto.setLabel(row[0].toString());
+                    dto.setRevenue((BigDecimal) row[1]);
+                    result.add(dto);
+                }
+                break;
+            }
+            case "month": {
+                raw = saleTransactionRepository.getRevenueByMonthAndStore(from, to, storeId);
+                for (Object[] row : raw) {
+                    RevenueTrendDto dto = new RevenueTrendDto();
+                    dto.setLabel(row[0] + "-" + row[1]);
+                    BigDecimal revenueVal = (row[2] instanceof BigDecimal)
+                            ? (BigDecimal) row[2]
+                            : new BigDecimal(((Number) row[2]).toString());
+                    dto.setRevenue(revenueVal);
+                    result.add(dto);
+                }
+                break;
+            }
+            case "year": {
+                raw = saleTransactionRepository.getRevenueByYearAndStore(from, to, storeId);
+                for (Object[] row : raw) {
+                    RevenueTrendDto dto = new RevenueTrendDto();
+                    dto.setLabel(row[0].toString());
+                    BigDecimal revenueVal = (row[1] instanceof BigDecimal)
+                            ? (BigDecimal) row[1]
+                            : new BigDecimal(((Number) row[1]).toString());
+                    dto.setRevenue(revenueVal);
+                    result.add(dto);
+                }
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    @Override
     public List<StockByCategoryDto> getStockByCategory() {
         List<Object[]> raw = importTransactionDetailRepository.getStockByCategory();
+        List<StockByCategoryDto> result = new ArrayList<>();
+        for (Object[] row : raw) {
+            StockByCategoryDto dto = new StockByCategoryDto();
+            dto.setCategory((String) row[0]);
+            dto.setStock(((Number) row[1]).intValue());
+            result.add(dto);
+        }
+        return result;
+    }
+
+    @Override
+    public List<StockByCategoryDto> getStockByCategory(Long storeId) {
+        if (storeId == null) {
+            return getStockByCategory();
+        }
+        List<Object[]> raw = importTransactionDetailRepository.getStockByCategoryByStore(storeId);
         List<StockByCategoryDto> result = new ArrayList<>();
         for (Object[] row : raw) {
             StockByCategoryDto dto = new StockByCategoryDto();
@@ -378,6 +444,84 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public List<TopCustomerDto> getTopCustomers(LocalDateTime from, LocalDateTime to, int limit) {
         List<Object[]> raw = saleTransactionRepository.getTopCustomers(from, to, PageRequest.of(0, limit));
+        List<TopCustomerDto> result = new ArrayList<>();
+        for (Object[] row : raw) {
+            TopCustomerDto dto = new TopCustomerDto();
+            dto.setCustomerName((String) row[0]);
+            dto.setTotalAmount((BigDecimal) row[1]);
+            dto.setOrderCount(row[2] != null ? ((Number) row[2]).longValue() : 0L);
+            result.add(dto);
+        }
+        return result;
+    }
+
+    @Override
+    public List<TopProductDto> getTopProducts(LocalDateTime from, LocalDateTime to, int limit, Long storeId) {
+        if (storeId == null) {
+            return getTopProducts(from, to, limit);
+        }
+
+        // Similar logic but filter by store
+        Map<String, TopProductDto> map = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<SaleTransaction> sales = saleTransactionRepository.findAllSaleActiveByStore(storeId);
+
+        for (SaleTransaction s : sales) {
+            if (s.getSaleDate() == null || s.getSaleDate().isBefore(from) || s.getSaleDate().isAfter(to)) continue;
+            if (s.getDetail() == null || s.getDetail().isEmpty()) continue;
+
+            try {
+                List<ProductSaleResponseDto> details = objectMapper.readValue(
+                        s.getDetail(), new TypeReference<List<ProductSaleResponseDto>>() {});
+                for (ProductSaleResponseDto d : details) {
+                    String productName = d.getProductName();
+                    String categoryName = d.getCategoryName();
+                    Long qty = d.getQuantity() != null ? d.getQuantity() : 0L;
+
+                    if (productName == null) continue;
+
+                    if (categoryName == null && d.getProId() != null) {
+                        try {
+                            Product product = productRepository.findById(d.getProId()).orElse(null);
+                            if (product != null && product.getCategory() != null) {
+                                categoryName = product.getCategory().getCategoryName();
+                            }
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    }
+
+                    String key = productName + "|" + (categoryName != null ? categoryName : "");
+                    TopProductDto agg = map.get(key);
+                    if (agg == null) {
+                        agg = new TopProductDto();
+                        agg.setProductName(productName);
+                        agg.setCategory(categoryName != null ? categoryName : "Không phân loại");
+                        agg.setQuantity(0L);
+                        map.put(key, agg);
+                    }
+                    agg.setQuantity(agg.getQuantity() + qty);
+                }
+            } catch (Exception e) {
+                // ignore parsing errors
+            }
+        }
+
+        List<TopProductDto> result = new ArrayList<>(map.values());
+        result.sort((a, b) -> Long.compare(b.getQuantity() != null ? b.getQuantity() : 0L, a.getQuantity() != null ? a.getQuantity() : 0L));
+        if (result.size() > limit) {
+            return result.subList(0, limit);
+        }
+        return result;
+    }
+
+    @Override
+    public List<TopCustomerDto> getTopCustomers(LocalDateTime from, LocalDateTime to, int limit, Long storeId) {
+        if (storeId == null) {
+            return getTopCustomers(from, to, limit);
+        }
+
+        List<Object[]> raw = saleTransactionRepository.getTopCustomersByStore(from, to, storeId, PageRequest.of(0, limit));
         List<TopCustomerDto> result = new ArrayList<>();
         for (Object[] row : raw) {
             TopCustomerDto dto = new TopCustomerDto();
@@ -485,6 +629,77 @@ public class ReportServiceImpl implements ReportService {
             if (storeIdFilter != null) {
                 if (d.getProduct().getStore() == null || !storeIdFilter.equals(d.getProduct().getStore().getId())) continue;
             }
+            String categoryName = d.getProduct().getCategory().getCategoryName();
+            Long productId = d.getProduct().getId();
+            String productName = d.getProduct().getProductName();
+            Integer remain = d.getRemainQuantity() != null ? d.getRemainQuantity() : 0;
+            String zoneId = d.getZones_id();
+
+            // Category
+            CategoryRemainSummaryDto catDto = categoryMap.computeIfAbsent(categoryName, k -> new CategoryRemainSummaryDto(k, 0, new ArrayList<>()));
+            catDto.setTotalRemain(catDto.getTotalRemain() + remain);
+
+            // Product
+            ProductRemainSummaryDto prodDto = catDto.getProducts().stream().filter(p -> p.getProductId().equals(productId)).findFirst().orElse(null);
+            if (prodDto == null) {
+                prodDto = new ProductRemainSummaryDto(productId, productName, 0, new ArrayList<>());
+                catDto.getProducts().add(prodDto);
+            }
+            prodDto.setTotalRemain(prodDto.getTotalRemain() + remain);
+
+            // Zone(s)
+            List<String> zoneIds = new ArrayList<>();
+            if (zoneId != null && !zoneId.isBlank()) {
+                String[] parts = zoneId.split("[;,|\\s]+");
+                for (String p : parts) {
+                    if (p != null && !p.isBlank()) zoneIds.add(p.trim());
+                }
+            }
+            if (zoneIds.isEmpty()) {
+                ZoneRemainSummaryDto zoneDto = prodDto.getZones().stream().filter(z -> Objects.equals(z.getZoneId(), "-")).findFirst().orElse(null);
+                if (zoneDto == null) {
+                    zoneDto = new ZoneRemainSummaryDto("-", "-", 0);
+                    prodDto.getZones().add(zoneDto);
+                }
+                zoneDto.setTotalRemain(zoneDto.getTotalRemain() + remain);
+            } else {
+                int n = zoneIds.size();
+                int base = remain / n;
+                int extra = remain % n;
+                for (int i = 0; i < n; i++) {
+                    String zid = zoneIds.get(i);
+                    Zone zoneObj = zoneMap.get(zid);
+                    String zName = zoneObj != null ? zoneObj.getZoneName() : zid;
+                    ZoneRemainSummaryDto zoneDto = prodDto.getZones().stream().filter(z -> Objects.equals(z.getZoneId(), zid)).findFirst().orElse(null);
+                    if (zoneDto == null) {
+                        zoneDto = new ZoneRemainSummaryDto(zid, zName, 0);
+                        prodDto.getZones().add(zoneDto);
+                    }
+                    int add = base + (i < extra ? 1 : 0);
+                    zoneDto.setTotalRemain(zoneDto.getTotalRemain() + add);
+                }
+            }
+        }
+        return new ArrayList<>(categoryMap.values());
+    }
+
+    @Override
+    public List<CategoryRemainSummaryDto> getRemainSummary(Long storeId) {
+        if (storeId == null) {
+            return getRemainSummary();
+        }
+
+        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
+        Map<String, CategoryRemainSummaryDto> categoryMap = new HashMap<>();
+        Map<Long, Product> productMap = productRepository.findAll().stream().collect(Collectors.toMap(Product::getId, p -> p));
+        Map<String, Zone> zoneMap = zoneRepository.findAll().stream().collect(Collectors.toMap(z -> z.getId().toString(), z -> z));
+
+        for (ImportTransactionDetail d : details) {
+            if (d.getProduct() == null || d.getProduct().getCategory() == null) continue;
+
+            // Filter by store
+            if (d.getProduct().getStore() == null || !storeId.equals(d.getProduct().getStore().getId())) continue;
+
             String categoryName = d.getProduct().getCategory().getCategoryName();
             Long productId = d.getProduct().getId();
             String productName = d.getProduct().getProductName();

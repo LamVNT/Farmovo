@@ -78,6 +78,11 @@ const ImportPage = () => {
     const [allZones, setAllZones] = useState([]); // Lưu tất cả zones
     const [filteredZones, setFilteredZones] = useState([]); // Zones được filter theo store
     const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+
+    // State for locked store from stocktake
+    const [lockedStoreId, setLockedStoreId] = useState(null);
+    const [lockedStoreName, setLockedStoreName] = useState(null);
+    const [fromStocktake, setFromStocktake] = useState(false);
     const [summaryData, setSummaryData] = useState(null);
     const [supplierDetails, setSupplierDetails] = useState(null);
     const [storeDetails, setStoreDetails] = useState(null);
@@ -541,7 +546,30 @@ const ImportPage = () => {
     };
 
     const handleSelectCategoryProduct = (product) => {
-        handleSelectProduct(product);
+        if (!selectedProducts.find((p) => p.productId === product.id)) {
+            const price = product.price || 0;
+            const quantity = 1;
+            const total = price * quantity;
+            const defaultExpireDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+            setSelectedProducts((prev) => [
+                ...prev,
+                {
+                    id: product.id,
+                    name: product.name || product.productName,
+                    productCode: product.code || product.productCode,
+                    productDescription: product.productDescription,
+                    unit: 'quả',
+                    price,
+                    quantity,
+                    total,
+                    productId: product.id,
+                    salePrice: 0,
+                    zoneId: '',
+                    expireDate: defaultExpireDate,
+                },
+            ]);
+        }
         // Không đóng dialog để có thể chọn thêm sản phẩm khác
     };
 
@@ -748,7 +776,7 @@ const ImportPage = () => {
             width: 150, 
             minWidth: 150,
             renderCell: (params) => (
-                <div style={{ 
+                <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     width: '100%',
@@ -757,7 +785,7 @@ const ImportPage = () => {
                     fontWeight: '500',
                     padding: '0 8px'
                 }}>
-                    {params.row.name}
+                    {params.row.name || params.row.productName || `Sản phẩm ${params.row.productId}`}
                 </div>
             )
         },
@@ -1888,36 +1916,76 @@ const ImportPage = () => {
         const surplus = location.state?.surplusFromStocktake;
         if (!surplus) return;
         try {
-            // Prefill store if provided
+            // Set locked store info
+            setFromStocktake(true);
             if (surplus.storeId) {
                 setSelectedStore(surplus.storeId);
+                setLockedStoreId(surplus.storeId);
+                // Find store name from stores list
+                const store = stores.find(s => String(s.id) === String(surplus.storeId));
+                if (store) {
+                    setLockedStoreName(store.storeName || store.name || `Kho ${surplus.storeId}`);
+                } else {
+                    setLockedStoreName(`Kho ${surplus.storeId}`);
+                }
             }
             // Build selectedProducts from surplus items
             if (Array.isArray(surplus.items) && surplus.items.length > 0) {
-                const mapped = surplus.items.map((d, idx) => ({
-                    id: d.productId || d.id || idx,
-                    name: d.productName || d.name,
-                    productCode: d.productCode || '',
-                    productDescription: '',
-                    unit: 'quả',
-                    // Quantity equals surplus diff (>0)
-                    quantity: Number(d.diff) || 0,
-                    total: 0,
-                    productId: d.productId,
-                    salePrice: 0,
-                    zoneIds: Array.isArray(d.zoneReal)
-                        ? d.zoneReal.map(z => String(z))
-                        : (typeof d.zoneReal === 'string' && d.zoneReal.includes(',')
-                            ? d.zoneReal.split(',').map(s => s.trim()).filter(Boolean)
-                            : (d.zoneReal ? [String(d.zoneReal)] : [])),
-                    expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
-                    price: 0,
-                }));
+                // Gộp các lô khác nhau của cùng sản phẩm (không lấy Zone từ kiểm kê)
+                const productMap = new Map();
+                
+                surplus.items.forEach((d) => {
+                    const productId = d.productId;
+                    const quantity = Number(d.diff) || 0;
+                    
+                    if (quantity > 0) { // Chỉ xử lý những item có diff dương (dư hàng)
+                        if (productMap.has(productId)) {
+                            // Nếu sản phẩm đã tồn tại, cộng dồn số lượng
+                            const existing = productMap.get(productId);
+                            existing.quantity += quantity;
+
+                            // Cập nhật tên sản phẩm nếu chưa có hoặc có tên tốt hơn
+                            if (!existing.name || existing.name === `Sản phẩm ${productId}`) {
+                                const newName = d.productName || d.name;
+                                if (newName) {
+                                    existing.name = newName;
+                                    existing.productName = newName;
+                                }
+                            }
+
+                            // Không lấy zone từ phiếu kiểm kê nữa - để người dùng tự chọn
+                        } else {
+                            // Sản phẩm mới, thêm vào map
+                            productMap.set(productId, {
+                                id: productId, // Sử dụng productId làm unique id
+                                name: d.productName || d.name || `Sản phẩm ${productId}`,
+                                productName: d.productName || d.name || `Sản phẩm ${productId}`, // Thêm field productName để hiển thị trong bảng
+                                productCode: d.productCode || '',
+                                productDescription: '',
+                                unit: 'quả',
+                                quantity: quantity,
+                                total: 0,
+                                productId: productId,
+                                salePrice: 0,
+                                zoneIds: [], // Không lấy zone từ phiếu kiểm kê - để người dùng tự chọn
+                                expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
+                                price: 0,
+                            });
+                        }
+                    }
+                });
+                
+                // Chuyển Map thành Array
+                const mapped = Array.from(productMap.values());
+
+                console.log('Debug: Surplus items from stocktake:', surplus.items);
+                console.log('Debug: Mapped products for import:', mapped);
+
                 setSelectedProducts(mapped);
-                setNote(prev => prev && prev.length > 0 ? prev : `Điều chỉnh nhập từ kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''}`);
+                setNote(prev => prev && prev.length > 0 ? prev : `Phiếu Nhập cho bản kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''}`);
             }
         } catch (_) {}
-    }, [location.state]);
+    }, [location.state, stores]);
     
     return (
         <div className="flex w-full h-screen bg-gray-100">
@@ -2196,6 +2264,9 @@ const ImportPage = () => {
                 loading={loading}
                 onSaveDraft={() => handleShowSummary('DRAFT')}
                 onComplete={() => handleShowSummary('WAITING_FOR_APPROVE')}
+                lockedStoreId={lockedStoreId}
+                lockedStoreName={lockedStoreName}
+                fromStocktake={fromStocktake}
             />
 
             <AddProductDialog 

@@ -59,7 +59,12 @@ const DashboardReport = () => {
       <Box mb={4} textAlign="center">
         <Typography variant="h4" fontWeight={700} color="primary.main">Báo cáo</Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Tổng quan báo cáo tài chính và tồn kho theo từng kho
+          Tổng quan báo cáo tài chính và tồn kho
+          {role === 'STAFF' && context.user?.storeName && (
+            <Typography component="span" variant="subtitle1" color="primary.main" sx={{ ml: 1 }}>
+              - Kho: {context.user.storeName}
+            </Typography>
+          )}
         </Typography>
       </Box>
 

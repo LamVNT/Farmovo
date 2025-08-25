@@ -33,6 +33,10 @@ export const getStocktakeDiff = (stocktakeId) => {
     return axios.get(`/reports/stocktake-diff?stocktakeId=${stocktakeId}`).then(res => res.data);
 };
 
+export const getStocktakeDiffForBalance = (stocktakeId) => {
+    return axios.get(`/reports/stocktake-diff-for-balance?stocktakeId=${stocktakeId}`).then(res => res.data);
+};
+
 export const getStocktakeLots = (params = {}) => {
     const searchParams = new URLSearchParams();
     if (params.store) searchParams.append('store', params.store);

@@ -4,6 +4,7 @@ import com.farmovo.backend.models.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -14,5 +15,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p WHERE p.category IS NULL OR p.store IS NULL")
     List<Product> findProductsWithoutCategoryOrStore();
+
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.store.id = :storeId")
+    long countByStoreId(@Param("storeId") Long storeId);
 
 }

@@ -6,6 +6,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/axiosClient';
 import { FaBoxes } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const toCSV = (rows) => {
   const header = ['category', 'productName', 'zones', 'remain'];
@@ -15,6 +16,7 @@ const toCSV = (rows) => {
 
 const RemainSummaryReport = () => {
   const navigate = useNavigate();
+  const { user, isStaff } = useAuth();
   const [raw, setRaw] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,8 +26,12 @@ const RemainSummaryReport = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
+  // Lấy storeId nếu là Staff
+  const userStoreId = user && isStaff() ? user.storeId : null;
+
   useEffect(() => {
     setLoading(true);
+    // Không truyền storeId parameter, để backend tự động xử lý phân quyền
     api.get('/reports/remain-summary')
       .then(res => setRaw(res.data))
       .finally(() => setLoading(false));
@@ -94,7 +100,14 @@ const RemainSummaryReport = () => {
     <Box sx={{ backgroundColor: '#f9fafb', minHeight: '100vh', py: 5 }}>
       <Box sx={{ maxWidth: 1300, mx: 'auto', p: 4, background: '#fff', borderRadius: 3, boxShadow: 3 }}>
         <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
-        <Typography variant="h5" fontWeight={700} mb={1}><FaBoxes style={{ marginRight: 8 }} /> Báo cáo tồn kho tổng hợp</Typography>
+        <Typography variant="h5" fontWeight={700} mb={1}>
+          <FaBoxes style={{ marginRight: 8 }} /> Báo cáo tồn kho tổng hợp
+          {isStaff() && user?.storeName && (
+            <Typography component="span" variant="h6" color="primary.main" sx={{ ml: 2 }}>
+              - Kho: {user.storeName}
+            </Typography>
+          )}
+        </Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>Theo dõi số lượng tồn kho theo danh mục, sản phẩm và khu vực.</Typography>
 
         {/* Controls */}

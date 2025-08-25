@@ -33,4 +33,7 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
     List<ImportTransaction> findRecentImports(org.springframework.data.domain.Pageable pageable);
 
     long countByStocktakeId(Long stocktakeId);
+
+    @Query("SELECT COUNT(i) FROM ImportTransaction i WHERE i.deletedAt IS NULL AND i.store.id = :storeId")
+    long countByStoreId(@org.springframework.data.repository.query.Param("storeId") Long storeId);
 }

@@ -96,23 +96,36 @@ const Dashboard = () => {
     const to = today.toISOString().slice(0, 10);
     const from = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+    // --- Get user info first ---
+    const { user, isStaff } = useAuth();
+
     // --- Controls for Top lists ---
     const [topLimit, setTopLimit] = useState(5);
     const [topRange, setTopRange] = useState(7); // days: 7, 30, 90
     const topTo = to;
     const topFrom = new Date(today.getTime() - (topRange - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    // Lấy dữ liệu từ API
-    const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({type, from, to});
-    const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory();
+    // Lấy storeId nếu là Staff
+    const userStoreId = user && isStaff() ? user.storeId : null;
+
+    // Lấy dữ liệu từ API với storeId cho Staff
+    const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({
+        type,
+        from,
+        to,
+        storeId: userStoreId
+    });
+    const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory(userStoreId);
     const {data: topProducts, loading: loadingTopProducts, error: errorTopProducts} = useTopProducts({
         from: topFrom,
         to: topTo,
-        limit: topLimit
+        limit: topLimit,
+        storeId: userStoreId
     });
     const {data: topCustomers, loading: loadingTopCustomers, error: errorTopCustomers} = useTopCustomers({
         from: topFrom,
         to: topTo,
-        limit: topLimit
+        limit: topLimit,
+        storeId: userStoreId
     });
     const {data: recentImports, loading: loadingImports, error: errorImports} = useRecentImportTransactions(5);
     const {data: recentSales, loading: loadingSales, error: errorSales} = useRecentSaleTransactions(5);
@@ -120,7 +133,6 @@ const Dashboard = () => {
     const stockChartData = stockData.map(item => ({name: item.category, stock: item.stock}));
     const {summary, loading, error} = useDashboardSummary();
     const [storeName, setStoreName] = useState("");
-    const { user, isStaff } = useAuth();
 
     useEffect(() => {
         if (user && isStaff()) {

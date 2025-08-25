@@ -40,6 +40,7 @@ import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
+import TestBalancePage from "../pages/balance/TestBalance.jsx";
 const router = createBrowserRouter([
     {
         path: "/",
@@ -246,6 +247,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <BalanceSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/test/balance/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <TestBalancePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
