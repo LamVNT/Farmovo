@@ -31,7 +31,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
         "http://localhost:5173",
         "https://farmovo-frontend-h7esa8cxbsdqa3dd.southeastasia-01.azurewebsites.net",
         "https://farmovo.store",
-        "https://www.farmovo.store"
+        "https://www.farmovo.store",
+        "https://farmovo.io.vn",
+        "https://www.farmovo.io.vn"
 }, allowedHeaders = "*", allowCredentials = "true")
 public class UserController {
     private static final Logger logger = LogManager.getLogger(UserController.class);
