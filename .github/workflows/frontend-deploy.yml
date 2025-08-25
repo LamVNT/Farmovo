@@ -54,27 +54,41 @@ jobs:
           echo "Checking index.html:"
           ls -la dist/index.html || echo "index.html NOT FOUND!"
 
-      # 6. Verify web.config exists
-      - name: Verify web.config
+      # 6. Verify server files
+      - name: Verify server files
         working-directory: frontend
         run: |
-          echo "Checking for web.config in dist folder:"
-          ls -la dist/web.config || echo "web.config NOT FOUND!"
-          if [ -f dist/web.config ]; then
-            echo "✅ web.config found - SPA routing will work"
-            cat dist/web.config | head -5
-          else
-            echo "❌ web.config missing - This will cause 404 errors on page reload"
-            exit 1
-          fi
+          echo "Checking for required files:"
+          echo "✓ dist folder:" && ls -la dist/ | head -5
+          echo "✓ server.js:" && ls -la server.js
+          echo "✓ package.json:" && ls -la package.json
+          echo "Express server will handle SPA routing"
 
-      # 7. Zip the dist folder
-      - name: Zip frontend build
+      # 7. Prepare deployment package
+      - name: Prepare deployment package
         working-directory: frontend
         run: |
-          zip -r frontend.zip dist
-          echo "Zip created: frontend/frontend.zip"
+          echo "Creating deployment package with Express server..."
+          # Create a clean directory for deployment
+          mkdir -p deploy-package
+          
+          # Copy dist folder
+          cp -r dist deploy-package/
+          
+          # Copy server files
+          cp server.js deploy-package/
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/
+          
+          # Create zip
+          cd deploy-package
+          zip -r ../frontend.zip .
+          cd ..
+          
+          echo "Deployment package created: frontend/frontend.zip"
           ls -la frontend.zip
+          echo "Package contents:"
+          unzip -l frontend.zip | head -20
 
       # 8. Azure login
       - name: Azure login
@@ -89,3 +103,4 @@ jobs:
           app-name: 'farmovo-frontend'
           package: frontend/frontend.zip
           slot-name: 'production'
+          startup-command: 'npm start'
