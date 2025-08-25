@@ -41,6 +41,8 @@ jobs:
           echo "=== BUILDING FRONTEND ==="
           rm -rf dist
           npm run build
+          echo "=== COPYING WEB.CONFIG FOR AZURE ==="
+          cp public/web.config dist/web.config
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
@@ -53,6 +55,8 @@ jobs:
           ls -R dist
           echo "Checking index.html:"
           ls -la dist/index.html || echo "index.html NOT FOUND!"
+          echo "Checking web.config:"
+          ls -la dist/web.config || echo "web.config NOT FOUND!"
 
       # 6. Zip the dist folder
       - name: Zip frontend build
