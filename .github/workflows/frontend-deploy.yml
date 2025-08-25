@@ -41,8 +41,6 @@ jobs:
           echo "=== BUILDING FRONTEND ==="
           rm -rf dist
           npm run build
-          echo "=== COPYING WEB.CONFIG FOR AZURE ==="
-          cp public/web.config dist/web.config
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
@@ -55,10 +53,22 @@ jobs:
           ls -R dist
           echo "Checking index.html:"
           ls -la dist/index.html || echo "index.html NOT FOUND!"
-          echo "Checking web.config:"
-          ls -la dist/web.config || echo "web.config NOT FOUND!"
 
-      # 6. Zip the dist folder
+      # 6. Verify web.config exists
+      - name: Verify web.config
+        working-directory: frontend
+        run: |
+          echo "Checking for web.config in dist folder:"
+          ls -la dist/web.config || echo "web.config NOT FOUND!"
+          if [ -f dist/web.config ]; then
+            echo "✅ web.config found - SPA routing will work"
+            cat dist/web.config | head -5
+          else
+            echo "❌ web.config missing - This will cause 404 errors on page reload"
+            exit 1
+          fi
+
+      # 7. Zip the dist folder
       - name: Zip frontend build
         working-directory: frontend
         run: |
@@ -66,13 +76,13 @@ jobs:
           echo "Zip created: frontend/frontend.zip"
           ls -la frontend.zip
 
-      # 7. Azure login
+      # 8. Azure login
       - name: Azure login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 8. Deploy to Azure Web App
+      # 9. Deploy to Azure Web App
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
