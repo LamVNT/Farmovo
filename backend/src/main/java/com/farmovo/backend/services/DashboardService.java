@@ -4,4 +4,5 @@ import com.farmovo.backend.dto.response.DashboardSummaryDto;
 
 public interface DashboardService {
     DashboardSummaryDto getSummary();
+    DashboardSummaryDto getSummaryByStore(Long storeId);
 }

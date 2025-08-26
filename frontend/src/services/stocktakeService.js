@@ -33,6 +33,10 @@ export const getStocktakeDiff = (stocktakeId) => {
     return axios.get(`/reports/stocktake-diff?stocktakeId=${stocktakeId}`).then(res => res.data);
 };
 
+export const getStocktakeDiffForBalance = (stocktakeId) => {
+    return axios.get(`/reports/stocktake-diff-for-balance?stocktakeId=${stocktakeId}`).then(res => res.data);
+};
+
 export const getStocktakeLots = (params = {}) => {
     const searchParams = new URLSearchParams();
     if (params.store) searchParams.append('store', params.store);
@@ -44,4 +48,16 @@ export const getStocktakeLots = (params = {}) => {
     if (params.createdAtFrom) searchParams.append('createdAtFrom', params.createdAtFrom);
     if (params.createdAtTo) searchParams.append('createdAtTo', params.createdAtTo);
     return axios.get(`/import-details/stocktake-lot?${searchParams.toString()}`).then(res => res.data);
+};
+
+// API để cập nhật số lượng lô hàng sau khi cân bằng kiểm kê
+export const updateBatchQuantities = (stocktakeId, batchUpdates) => {
+    return axios.put(`/stocktakes/${stocktakeId}/update-batch-quantities`, batchUpdates)
+        .then(res => res.data);
+};
+
+// API để cập nhật số lượng còn lại của từng lô hàng
+export const updateBatchRemainQuantity = (batchId, remainQuantity) => {
+    return axios.patch(`/import-details/${batchId}/remain`, { remainQuantity })
+        .then(res => res.data);
 };

@@ -8,6 +8,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { vi } from 'date-fns/locale';
 import { AuthorizationProvider } from './contexts/AuthorizationContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { StoreSelectionProvider } from './contexts/StoreSelectionContext';
 
 const MyContext = createContext();
 
@@ -31,7 +32,8 @@ function App() {
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
             <AuthorizationProvider>
                 <NotificationProvider>
-                    <MyContext.Provider value={values}>
+                    <StoreSelectionProvider>
+                        <MyContext.Provider value={values}>
                         <RouterProvider router={router} />
                         <Toaster
                         position="top-center"
@@ -62,7 +64,8 @@ function App() {
                             },
                         }}
                     />
-                    </MyContext.Provider>
+                        </MyContext.Provider>
+                    </StoreSelectionProvider>
                 </NotificationProvider>
             </AuthorizationProvider>
         </LocalizationProvider>

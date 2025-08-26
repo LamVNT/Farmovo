@@ -40,6 +40,11 @@ const ImportSidebar = ({
     loading = false,
     onSaveDraft = () => {},
     onComplete = () => {},
+    onUpdateBatch = () => {},
+    lockedStoreId = null,
+    lockedStoreName = null,
+    fromStocktake = false,
+    isBalancePage = false,
 }) => {
     // State cho số tiền đã trả focus
     const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
@@ -236,13 +241,19 @@ const ImportSidebar = ({
                     <TextField
                         size="small"
                         fullWidth
-                        placeholder="Tìm cửa hàng..."
-                        value={storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || '')}
+                        placeholder={fromStocktake ? "Kho được chọn từ kiểm kê" : "Tìm cửa hàng..."}
+                        value={fromStocktake && lockedStoreName ? lockedStoreName : (storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || ''))}
                         onChange={e => {
-                            setStoreSearch(e.target.value);
-                            setSelectedStore('');
+                            if (!fromStocktake) {
+                                setStoreSearch(e.target.value);
+                                setSelectedStore('');
+                            }
                         }}
-                        onFocus={() => setStoreDropdownOpen(true)}
+                        onFocus={() => {
+                            if (!fromStocktake) {
+                                setStoreDropdownOpen(true);
+                            }
+                        }}
                         onBlur={() => {
                             if (!hoveredStore) {
                                 setStoreDropdownOpen(false);
@@ -252,9 +263,24 @@ const ImportSidebar = ({
                         }}
                         variant="outlined"
                         error={highlightStore}
-                        sx={highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}}
+                        disabled={fromStocktake}
+                        sx={{
+                            ...(highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}),
+                            ...(fromStocktake ? {
+                                '& .MuiInputBase-input': {
+                                    backgroundColor: '#e8f5e8',
+                                    color: '#2e7d32',
+                                    cursor: 'not-allowed',
+                                    fontWeight: 600
+                                },
+                                '& .MuiOutlinedInput-root': {
+                                    backgroundColor: '#e8f5e8',
+                                    borderColor: '#4caf50'
+                                }
+                            } : {})
+                        }}
                     />
-                    {(storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
+                    {!fromStocktake && (storeDropdownOpen || storeSearch.trim() !== '') && filteredStores.length > 0 && (
                         <div
                             className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                             onMouseLeave={() => {
@@ -303,9 +329,19 @@ const ImportSidebar = ({
                 )}
 
                 {/* Thông báo khi chưa chọn store - ngay sát ô search */}
-                {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && (
+                {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && !selectedStore && !fromStocktake && (
                     <div className="mt-0.5 text-xs text-yellow-600">
                         Chọn cửa hàng để xem khu vực
+                    </div>
+                )}
+
+                {/* Thông báo khi kho được chọn từ kiểm kê */}
+                {fromStocktake && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center text-green-700 text-sm">
+                            <span className="mr-2">🔒</span>
+                            <span>Kho đã được chọn từ bản kiểm kê</span>
+                        </div>
                     </div>
                 )}
             </div>
@@ -493,58 +529,89 @@ const ImportSidebar = ({
             </div>
 
             <div className="flex gap-2 pt-2">
-                <Button 
-                    fullWidth 
-                    variant="contained" 
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} 
-                    onClick={onSaveDraft} 
-                    disabled={loading}
-                    sx={{
-                        background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                        boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
-                        '&:hover': {
-                            background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-                            boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
-                            transform: 'translateY(-1px)'
-                        },
-                        '&:disabled': {
-                            background: '#ccc',
-                            boxShadow: 'none',
-                            transform: 'none'
-                        },
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    Lưu tạm
-                </Button>
-                <Button 
-                    fullWidth 
-                    variant="contained" 
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
-                    onClick={onComplete} 
-                    disabled={loading}
-                    sx={{
-                        background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                        boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
-                        '&:hover': {
-                            background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
-                            boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
-                            transform: 'translateY(-1px)'
-                        },
-                        '&:disabled': {
-                            background: '#ccc',
-                            boxShadow: 'none',
-                            transform: 'none'
-                        },
-                        fontWeight: 600,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    Hoàn thành
-                </Button>
+                {isBalancePage ? (
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                        onClick={onUpdateBatch} 
+                        disabled={loading}
+                        sx={{
+                            background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
+                            boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
+                                boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
+                                transform: 'translateY(-1px)'
+                            },
+                            '&:disabled': {
+                                background: '#ccc',
+                                boxShadow: 'none',
+                                transform: 'none'
+                            },
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Thêm số lượng
+                    </Button>
+                ) : (
+                    <>
+                        <Button 
+                            fullWidth 
+                            variant="contained" 
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <LockIcon />} 
+                            onClick={onSaveDraft} 
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                                boxShadow: '0 3px 15px rgba(25, 118, 210, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                                    boxShadow: '0 5px 20px rgba(25, 118, 210, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Lưu tạm
+                        </Button>
+                        <Button 
+                            fullWidth 
+                            variant="contained" 
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                            onClick={onComplete} 
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                                boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                    boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Hoàn thành
+                        </Button>
+                    </>
+                )}
             </div>
 
         </div>

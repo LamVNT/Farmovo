@@ -10,7 +10,7 @@ import {
     Button,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { getAllStores } from "../../services/storeService";
+import { getAllStores, getStoreById } from "../../services/storeService";
 import { formatCurrency } from "../../utils/formatters";
 
 // S3 bucket info
@@ -21,20 +21,27 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
     const [storeName, setStoreName] = useState("");
     
     useEffect(() => {
-        const fetchStores = async () => {
+        const fetchStoreName = async () => {
             try {
-                const storeData = await getAllStores();
                 if (debtNote && debtNote.storeId) {
-                    const store = storeData.find((s) => s.id === debtNote.storeId);
-                    setStoreName(store ? store.storeName : "");
+                    // Prefer fetching by ID to support STAFF role
+                    const store = await getStoreById(debtNote.storeId);
+                    setStoreName(store?.storeName || "");
                 } else {
                     setStoreName("");
                 }
             } catch (error) {
-                setStoreName("");
+                // Fallback: try loading list (may require admin/owner)
+                try {
+                    const storeData = await getAllStores();
+                    const store = (storeData || []).find((s) => s.id === debtNote?.storeId);
+                    setStoreName(store ? store.storeName : "");
+                } catch (e) {
+                    setStoreName("");
+                }
             }
         };
-        if (open && debtNote && debtNote.storeId) fetchStores();
+        if (open && debtNote && debtNote.storeId) fetchStoreName();
     }, [open, debtNote]);
 
     const handleSourceIdClick = () => {
@@ -54,9 +61,9 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
             console.log('Navigating to sale transaction:', sourceId);
             navigate(`/sale/${sourceId}?view=detail`);
         } else if (fromSource === 'IMPORT' || fromSource === 'PURCHASE') {
-            // Chuyển sang trang chi tiết import transaction
+            // Chuyển sang trang chi tiết import transaction (dùng query để STAFF truy cập được)
             console.log('Navigating to import transaction:', sourceId);
-            navigate(`/import/${sourceId}?view=detail`);
+            navigate(`/import?view=detail&id=${sourceId}`);
         } else {
             console.log('Unknown source type:', fromSource);
             return;

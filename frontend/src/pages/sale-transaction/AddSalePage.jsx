@@ -79,6 +79,9 @@ const AddSalePage = (props) => {
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverItems, setZonePopoverItems] = useState([]);
 
+    // Props for locked store from stocktake
+    const { lockedStoreId, lockedStoreName, fromStocktake } = props;
+
     const {
         currentUser,
         products,
@@ -133,9 +136,17 @@ const AddSalePage = (props) => {
         handleSelectBatches,
     } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
 
+    // Khởi tạo dữ liệu balance mode một lần duy nhất
     useEffect(() => {
-        if (props.isBalanceStock && !balanceModeInitialized) {
-            if (props.initialProducts) setSelectedProducts(props.initialProducts);
+        if (props.isBalanceStock && !balanceModeInitialized && props.initialProducts) {
+            // Set products với đầy đủ thông tin
+            setSelectedProducts(props.initialProducts.map((p, idx) => ({
+                ...p,
+                price: p.unitSalePrice || 0,
+                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
+                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
+            })));
+
             if (props.initialNote) setNote(props.initialNote);
             if (props.initialCustomer) setSelectedCustomer(props.initialCustomer?.id || props.initialCustomer);
             setBalanceModeInitialized(true);
@@ -147,17 +158,6 @@ const AddSalePage = (props) => {
             setSelectedProducts(prev => prev.map(p => ({...p, unit})));
         }
     }, [unit]);
-
-    useEffect(() => {
-        if (props.isBalanceStock && props.initialProducts) {
-            setSelectedProducts(props.initialProducts.map((p, idx) => ({
-                ...p,
-                price: p.unitSalePrice || 0,
-                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
-                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
-            })));
-        }
-    }, [props.isBalanceStock, props.initialProducts]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -240,14 +240,15 @@ const AddSalePage = (props) => {
     }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
 
     // Reset selectedProducts khi store thay đổi (chỉ reset bảng datagrid, giữ nguyên thông tin khác)
+    // KHÔNG reset khi đang ở chế độ balance để giữ nguyên dữ liệu prefill
     useEffect(() => {
-        if (selectedStore) {
-            // Reset selectedProducts khi store thay đổi
+        if (selectedStore && !props.isBalanceStock) {
+            // Reset selectedProducts khi store thay đổi (chỉ cho sale thường)
             setSelectedProducts([]);
             // Reset dataGridKey để refresh datagrid
             setDataGridKey(prev => prev + 1);
         }
-    }, [selectedStore]);
+    }, [selectedStore, props.isBalanceStock]);
 
     useEffect(() => {
         if (error || success) {
@@ -266,6 +267,13 @@ const AddSalePage = (props) => {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    // Auto-select store when coming from stocktake
+    useEffect(() => {
+        if (lockedStoreId && !selectedStore) {
+            setSelectedStore(String(lockedStoreId));
+        }
+    }, [lockedStoreId, selectedStore, setSelectedStore]);
 
     // Validate trước khi mở popup tóm tắt qua handleShowSummary từ hook
     const openSummaryAfterValidate = (status) => {
@@ -791,51 +799,72 @@ const AddSalePage = (props) => {
             ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
-            renderCell: (params) => (
-                <div style={{ 
-                    display: 'flex',
-                    justifyContent: 'center', 
-                    height: '100%' 
-                }}>
-                    <TextField
-                        size="small"
-                        type="text"
-                        variant="standard"
-                        value={(params.row.price || 0).toLocaleString('vi-VN')}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d]/g, '');
-                            handlePriceChange(params.row.id, Number(value) || 0);
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        InputProps={{
-                            endAdornment: <span style={{ 
-                                color: '#6b7280', 
-                                fontSize: '0.875rem',
-                                fontWeight: '500'
-                            }}>VND</span>,
-                        }}
-                        sx={{
-                            width: '100px',
-                            '& .MuiInputBase-input': {
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                textAlign: 'center',
-                                padding: '8px 4px',
-                                lineHeight: 1.2
-                            },
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                        }}
-                    />
-                </div>
-            ),
+            renderCell: (params) => {
+                // Đối với phiếu cân bằng kho, không cho phép chỉnh sửa đơn giá
+                if (props.isBalanceStock) {
+                    return (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '100%',
+                            height: '100%',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            textAlign: 'center',
+                            color: '#374151'
+                        }}>
+                            {formatCurrency(params.row.price || 0)}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        height: '100%'
+                    }}>
+                        <TextField
+                            size="small"
+                            type="text"
+                            variant="standard"
+                            value={(params.row.price || 0).toLocaleString('vi-VN')}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^\d]/g, '');
+                                handlePriceChange(params.row.id, Number(value) || 0);
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            InputProps={{
+                                endAdornment: <span style={{
+                                    color: '#6b7280',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500'
+                                }}>VND</span>,
+                            }}
+                            sx={{
+                                width: '100px',
+                                '& .MuiInputBase-input': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    textAlign: 'center',
+                                    padding: '8px 4px',
+                                    lineHeight: 1.2
+                                },
+                                '& .MuiInput-underline:before': {
+                                    borderBottomColor: 'transparent',
+                                },
+                                '& .MuiInput-underline:after': {
+                                    borderBottomColor: '#1976d2',
+                                },
+                                '& .MuiInput-underline:hover:before': {
+                                    borderBottomColor: 'transparent',
+                                },
+                            }}
+                        />
+                    </div>
+                );
+            },
         },
         columnVisibility['Thành tiền'] && {
             field: 'total',
@@ -1342,6 +1371,9 @@ const AddSalePage = (props) => {
                 paidAmountInput={paidAmountInput}
                 setPaidAmountInput={setPaidAmountInput}
                 isBalanceStock={props.isBalanceStock}
+                lockedStoreId={lockedStoreId}
+                lockedStoreName={lockedStoreName}
+                fromStocktake={fromStocktake}
             />
             <SaleProductDialog
                 open={showProductDialog}

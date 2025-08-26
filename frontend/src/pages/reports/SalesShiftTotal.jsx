@@ -5,20 +5,25 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { getSalesTotal } from '../../services/reportService';
 import { FaCashRegister } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const SalesShiftTotal = () => {
   const navigate = useNavigate();
+  const { user, isStaff } = useAuth();
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [fromTime, setFromTime] = useState('08:00');
   const [toTime, setToTime] = useState('22:00');
   const [groupBy, setGroupBy] = useState('shift');
   const [rows, setRows] = useState([]);
 
+  // Lấy storeId nếu là Staff
+  const userStoreId = user && isStaff() ? user.storeId : null;
+
   const buildRange = () => ({ from: `${date}T${fromTime}:00`, to: `${date}T${toTime}:00` });
 
   const fetchData = () => {
     const range = buildRange();
-    getSalesTotal({ ...range, groupBy })
+    getSalesTotal({ ...range, groupBy, storeId: userStoreId })
       .then(res => setRows(res.data))
       .catch(() => alert('Lỗi khi lấy báo cáo Sale theo ca!'));
   };
@@ -37,7 +42,14 @@ const SalesShiftTotal = () => {
     <Box sx={{ backgroundColor: '#f9fafb', minHeight: '100vh', py: 5 }}>
       <Box sx={{ maxWidth: 1300, mx: 'auto', p: 4, background: '#fff', borderRadius: 3, boxShadow: 3 }}>
         <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
-        <Typography variant="h5" fontWeight={700} mb={3}><FaCashRegister style={{ marginRight: 8 }} /> Tổng tiền Sale theo ca</Typography>
+        <Typography variant="h5" fontWeight={700} mb={3}>
+          <FaCashRegister style={{ marginRight: 8 }} /> Tổng tiền Sale theo ca
+          {isStaff() && user?.storeName && (
+            <Typography component="span" variant="h6" color="primary.main" sx={{ ml: 2 }}>
+              - Kho: {user.storeName}
+            </Typography>
+          )}
+        </Typography>
 
         <Grid container spacing={2} alignItems="center" mb={2}>
           <Grid item><TextField type="date" label="Ngày" InputLabelProps={{ shrink: true }} value={date} onChange={e => setDate(e.target.value)} /></Grid>

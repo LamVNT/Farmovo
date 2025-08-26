@@ -96,7 +96,7 @@ const DebtTableDialog = ({
         if (note.fromSource === 'SALE') {
             navigate(`/sale/${note.sourceId}?view=detail`);
         } else if (note.fromSource === 'IMPORT' || note.fromSource === 'PURCHASE') {
-            navigate(`/import/${note.sourceId}?view=detail`);
+            navigate(`/import?view=detail&id=${note.sourceId}`);
         }
     };
 

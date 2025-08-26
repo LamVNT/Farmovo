@@ -1,4 +1,3 @@
-// ======================= StockTakePage.jsx =======================
 import React, {useState, useMemo, useEffect} from "react";
 import {
     Button,
@@ -15,23 +14,29 @@ import {
     TextField,
     MenuItem,
     Tooltip,
-    TablePagination
+    TablePagination,
 } from "@mui/material";
-import AddIcon from '@mui/icons-material/Add';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import CancelIcon from '@mui/icons-material/Cancel';
+import AddIcon from "@mui/icons-material/Add";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import CancelIcon from "@mui/icons-material/Cancel";
 import {useNavigate} from "react-router-dom";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useStocktake from "../../hooks/useStocktake";
 import {debounce} from "lodash";
-import {DateRangePicker} from 'react-date-range';
-import 'react-date-range/dist/styles.css';
-import 'react-date-range/dist/theme/default.css';
+import {DateRangePicker} from "react-date-range";
+import "react-date-range/dist/styles.css";
+import "react-date-range/dist/theme/default.css";
 
 const StockTakePage = () => {
     const user = JSON.parse(localStorage.getItem("user")) || {};
     const userRole = (user?.roles?.[0] || "").toUpperCase();
+
+    // ✅ Xác định quyền người dùng
+    const isStaff = userRole === "STAFF" || userRole === "ROLE_STAFF";
+    const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+
+
 
     const {
         loading,
@@ -48,6 +53,7 @@ const StockTakePage = () => {
         setPage,
         rowsPerPage,
         setRowsPerPage,
+        total,
         actionLoading,
         confirmDialog,
         setConfirmDialog,
@@ -59,11 +65,13 @@ const StockTakePage = () => {
 
     const navigate = useNavigate();
 
+    // ✅ State tìm kiếm
     const [codeSearch, setCodeSearch] = useState("");
     const [noteSearch, setNoteSearch] = useState("");
     const [debouncedCode, setDebouncedCode] = useState("");
     const [debouncedNote, setDebouncedNote] = useState("");
 
+    // ✅ Debounce tìm kiếm
     useEffect(() => {
         const handler = debounce(() => {
             setDebouncedCode(codeSearch);
@@ -73,24 +81,30 @@ const StockTakePage = () => {
         return () => handler.cancel();
     }, [codeSearch, noteSearch]);
 
+    // ✅ Lọc dữ liệu client-side (chỉ lọc theo code và note vì backend chưa hỗ trợ)
     const filteredStocktakes = useMemo(() => {
-        return stocktakes.filter(st => {
-            let matchCode = !debouncedCode.trim() || (st.name || "").toLowerCase().includes(debouncedCode.toLowerCase());
-            let matchNote = !debouncedNote.trim() || (st.stocktakeNote || "").toLowerCase().includes(debouncedNote.toLowerCase());
+        return stocktakes.filter((st) => {
+            const matchCode = !debouncedCode.trim() || (st.name || "").toLowerCase().includes(debouncedCode.toLowerCase());
+            const matchNote = !debouncedNote.trim() || (st.stocktakeNote || "").toLowerCase().includes(debouncedNote.toLowerCase());
             return matchCode && matchNote;
         });
     }, [stocktakes, debouncedCode, debouncedNote]);
 
-    let userStoreName = "";
-    if (user?.store && typeof user.store === 'object' && user.store.name) {
-        userStoreName = user.store.name;
-    } else if (user?.storeName) {
-        userStoreName = user.storeName;
-    } else if (user?.store && typeof user.store === 'string') {
-        userStoreName = user.store;
-    }
+    // ✅ Sử dụng dữ liệu trực tiếp từ backend (đã được phân trang)
+    const displayStocktakes = useMemo(() => {
+        // Nếu có filter client-side, sử dụng filteredStocktakes
+        if (debouncedCode.trim() || debouncedNote.trim()) {
+            return filteredStocktakes;
+        }
+        // Nếu không có filter client-side, sử dụng trực tiếp stocktakes từ backend
+        return stocktakes;
+    }, [stocktakes, filteredStocktakes, debouncedCode, debouncedNote]);
 
-    function hasDiff(stocktake) {
+    // ✅ Lấy tên kho của user
+    const userStoreName = user?.store?.name || user?.storeName || (typeof user.store === "string" ? user.store : "");
+
+    // ✅ Check phiếu có chênh lệch
+    const hasDiff = (stocktake) => {
         let details = [];
         if (Array.isArray(stocktake.detail)) {
             details = stocktake.detail;
@@ -101,41 +115,54 @@ const StockTakePage = () => {
                 details = [];
             }
         }
-        return Array.isArray(details) && details.some(d => d.diff !== 0);
-    }
+        return Array.isArray(details) && details.some((d) => d.diff !== 0);
+    };
 
-    // ✅ Admin & Owner mặc định lọc theo ngày hôm nay
+    // ✅ Owner/Admin mặc định lọc ngày hôm nay
     useEffect(() => {
-        if (["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole)) {
+        if (isOwnerOrAdmin) {
             const today = new Date();
-            const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
+                today.getDate()
+            ).padStart(2, "0")}`;
             setFromDate(formattedDate);
             setToDate(formattedDate);
         }
-    }, [userRole, setFromDate, setToDate]);
+    }, [isOwnerOrAdmin, setFromDate, setToDate]);
 
-    const [dateRange, setDateRange] = useState([{
-        startDate: new Date(),
-        endDate: new Date(),
-        key: 'selection',
-    }]);
+    // ✅ DateRangePicker
+    const [dateRange, setDateRange] = useState([
+        {
+            startDate: new Date(),
+            endDate: new Date(),
+            key: "selection",
+        },
+    ]);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         if (dateRange[0].startDate && dateRange[0].endDate) {
             const start = dateRange[0].startDate;
             const end = dateRange[0].endDate;
-            setFromDate(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`);
-            setToDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`);
+            setFromDate(
+                `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(
+                    2,
+                    "0"
+                )}`
+            );
+            setToDate(
+                `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(
+                    2,
+                    "0"
+                )}`
+            );
         }
     }, [dateRange, setFromDate, setToDate]);
-
-    const isStaff = userRole === "STAFF" || userRole === "ROLE_STAFF";
-    const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
 
     return (
         <div className="p-3 bg-gray-50 min-h-screen">
             <div className="bg-white rounded-lg shadow-lg p-4">
+                {/* Header + Filters */}
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800">Quản lý kiểm kho</h2>
@@ -146,8 +173,8 @@ const StockTakePage = () => {
                             size="small"
                             label="Lọc theo mã kiểm kê"
                             value={codeSearch}
-                            onChange={e => setCodeSearch(e.target.value)}
-                            sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
+                            onChange={(e) => setCodeSearch(e.target.value)}
+                            sx={{minWidth: 150, background: "#fff", borderRadius: 2}}
                         />
                         {isStaff && (
                             <TextField
@@ -155,7 +182,7 @@ const StockTakePage = () => {
                                 label="Kho"
                                 value={userStoreName}
                                 InputProps={{readOnly: true}}
-                                sx={{minWidth: 120, background: '#fff', borderRadius: 2}}
+                                sx={{minWidth: 120, background: "#fff", borderRadius: 2}}
                             />
                         )}
                         {isOwnerOrAdmin && (
@@ -164,32 +191,35 @@ const StockTakePage = () => {
                                 select
                                 label="Kho"
                                 value={storeFilter || ""}
-                                onChange={e => setStoreFilter(e.target.value)}
-                                sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
+                                onChange={(e) => setStoreFilter(e.target.value)}
+                                sx={{minWidth: 150, background: "#fff", borderRadius: 2}}
                             >
                                 <MenuItem value="">Tất cả</MenuItem>
                                 {stores.map((store) => (
-                                    <MenuItem key={store.id} value={store.id}>{store.name}</MenuItem>
+                                    <MenuItem key={store.id} value={store.id}>
+                                        {store.name}
+                                    </MenuItem>
                                 ))}
                             </TextField>
                         )}
-                        <Box sx={{position: 'relative', minWidth: 250}}>
+                        {/* Date Range */}
+                        <Box sx={{position: "relative", minWidth: 250}}>
                             <TextField
                                 size="small"
                                 label="Khoảng ngày kiểm kê"
                                 value={
                                     dateRange[0].startDate && dateRange[0].endDate
                                         ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
-                                        : ''
+                                        : ""
                                 }
                                 onClick={() => setShowDatePicker(true)}
                                 readOnly
-                                sx={{background: '#fff', borderRadius: 2, width: '100%'}}
+                                sx={{background: "#fff", borderRadius: 2, width: "100%"}}
                             />
                             {showDatePicker && (
-                                <Box sx={{position: 'absolute', zIndex: 10, top: 45}}>
+                                <Box sx={{position: "absolute", zIndex: 10, top: 45}}>
                                     <DateRangePicker
-                                        onChange={item => {
+                                        onChange={(item) => {
                                             setDateRange([item.selection]);
                                             setShowDatePicker(false);
                                         }}
@@ -204,19 +234,19 @@ const StockTakePage = () => {
                             size="small"
                             label="Lọc theo ghi chú"
                             value={noteSearch}
-                            onChange={e => setNoteSearch(e.target.value)}
-                            sx={{minWidth: 150, background: '#fff', borderRadius: 2}}
+                            onChange={(e) => setNoteSearch(e.target.value)}
+                            sx={{minWidth: 150, background: "#fff", borderRadius: 2}}
                         />
                         <TextField
                             size="small"
                             select
                             label="Trạng thái"
                             value={statusFilter}
-                            onChange={e => {
+                            onChange={(e) => {
                                 setStatusFilter(e.target.value);
                                 setPage(0);
                             }}
-                            sx={{minWidth: 130, background: '#fff', borderRadius: 2}}
+                            sx={{minWidth: 130, background: "#fff", borderRadius: 2}}
                         >
                             <MenuItem value="">Tất cả</MenuItem>
                             <MenuItem value="DRAFT">Nháp</MenuItem>
@@ -231,16 +261,17 @@ const StockTakePage = () => {
                                 fontWeight: 600,
                                 px: 3,
                                 py: 1,
-                                textTransform: 'none',
-                                boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                                textTransform: "none",
+                                boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
                             }}
-                            onClick={() => navigate('/stocktake/create')}
+                            onClick={() => navigate("/stocktake/create")}
                         >
                             Tạo phiếu kiểm kê mới
                         </Button>
                     </div>
                 </div>
 
+                {/* Table */}
                 {loading ? (
                     <div className="flex justify-center items-center py-12">
                         <div className="text-center">
@@ -251,55 +282,90 @@ const StockTakePage = () => {
                     </div>
                 ) : (
                     <div className="bg-white rounded-lg border border-gray-200">
-                        <TableContainer component={Paper} elevation={0} sx={{borderRadius: 2, overflowX: 'auto'}}>
+                        <TableContainer component={Paper} elevation={0} sx={{borderRadius: 2, overflowX: "auto"}}>
                             <Table sx={{minWidth: 900}}>
                                 <TableHead>
                                     <TableRow sx={{background: "#f5f5f5"}}>
-                                        <TableCell><b>Mã Kiểm kho</b></TableCell>
-                                        <TableCell><b>Ngày kiểm kê</b></TableCell>
-                                        <TableCell><b>Ngày cân bằng</b></TableCell>
-                                        <TableCell><b>Kho</b></TableCell>
-                                        <TableCell><b>Người tạo</b></TableCell>
-                                        <TableCell><b>Ghi chú</b></TableCell>
-                                        <TableCell><b>Trạng thái</b></TableCell>
-                                        <TableCell align="center"><b>Thao tác</b></TableCell>
+                                        <TableCell>
+                                            <b>Mã Kiểm kho</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Ngày kiểm kê</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Ngày cân bằng</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Kho</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Người tạo</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Ghi chú</b>
+                                        </TableCell>
+                                        <TableCell>
+                                            <b>Trạng thái</b>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <b>Thao tác</b>
+                                        </TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {filteredStocktakes.length === 0 ? (
+                                    {displayStocktakes.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={8} align="center">Không có phiếu kiểm kê nào</TableCell>
+                                            <TableCell colSpan={8} align="center">
+                                                Không có phiếu kiểm kê nào
+                                            </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredStocktakes.map(st => (
+                                        displayStocktakes.map((st) => (
                                             <TableRow
                                                 key={st.id}
                                                 hover
-                                                sx={{transition: "background 0.2s", ...(hasDiff(st) && {backgroundColor: "#ffeaea"})}}
+                                                sx={{
+                                                    transition: "background 0.2s",
+                                                    ...(hasDiff(st) && {backgroundColor: "#ffeaea"}),
+                                                }}
                                             >
                                                 <TableCell>{st.name}</TableCell>
-                                                <TableCell>{st.stocktakeDate ? new Date(st.stocktakeDate).toLocaleString('vi-VN', {hour12: false}) : "-"}</TableCell>
+                                                <TableCell>
+                                                    {st.stocktakeDate
+                                                        ? new Date(st.stocktakeDate).toLocaleString("vi-VN", {
+                                                            hour12: false,
+                                                        })
+                                                        : "-"}
+                                                </TableCell>
                                                 <TableCell>
                                                     {st.status === "COMPLETED" && st.updatedAt
-                                                        ? new Date(st.updatedAt).toLocaleString('vi-VN', {hour12: false})
+                                                        ? new Date(st.updatedAt).toLocaleString("vi-VN", {
+                                                            hour12: false,
+                                                        })
                                                         : "-"}
                                                 </TableCell>
                                                 <TableCell>{st.storeName || st.storeId || "-"}</TableCell>
-                                                <TableCell>{st.createdByName || '-'}</TableCell>
-                                                <TableCell>{st.stocktakeNote || '-'}</TableCell>
+                                                <TableCell>{st.createdByName || "-"}</TableCell>
+                                                <TableCell>{st.stocktakeNote || "-"}</TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         label={
-                                                            st.status === "DRAFT" ? "Nháp" :
-                                                                st.status === "COMPLETED" ? "Hoàn thành" :
-                                                                    st.status === "CANCELLED" ? "Đã hủy" :
-                                                                        st.status
+                                                            st.status === "DRAFT"
+                                                                ? "Nháp"
+                                                                : st.status === "COMPLETED"
+                                                                    ? "Hoàn thành"
+                                                                    : st.status === "CANCELLED"
+                                                                        ? "Đã hủy"
+                                                                        : st.status
                                                         }
                                                         color={
-                                                            st.status === "DRAFT" ? "warning" :
-                                                                st.status === "COMPLETED" ? "success" :
-                                                                    st.status === "CANCELLED" ? "error" :
-                                                                        "default"
+                                                            st.status === "DRAFT"
+                                                                ? "warning"
+                                                                : st.status === "COMPLETED"
+                                                                    ? "success"
+                                                                    : st.status === "CANCELLED"
+                                                                        ? "error"
+                                                                        : "default"
                                                         }
                                                         size="small"
                                                     />
@@ -309,11 +375,13 @@ const StockTakePage = () => {
                                                         <span>
                                                             <IconButton
                                                                 color="primary"
-                                                                onClick={() => navigate(
-                                                                    st.status === "DRAFT"
-                                                                        ? `/stocktake/edit/${st.id}`
-                                                                        : `/stocktake/${st.id}`
-                                                                )}
+                                                                onClick={() =>
+                                                                    navigate(
+                                                                        st.status === "DRAFT"
+                                                                            ? `/stocktake/edit/${st.id}`
+                                                                            : `/stocktake/${st.id}`
+                                                                    )
+                                                                }
                                                                 disabled={actionLoading[st.id]}
                                                                 size="small"
                                                             >
@@ -330,8 +398,9 @@ const StockTakePage = () => {
                                                                         setConfirmDialog({
                                                                             isOpen: true,
                                                                             title: "Xác nhận hủy phiếu kiểm kê",
-                                                                            content: "Bạn có chắc chắn muốn hủy phiếu kiểm kê này? Thao tác này không thể hoàn tác.",
-                                                                            onConfirm: () => handleCancel(st.id)
+                                                                            content:
+                                                                                "Bạn có chắc chắn muốn hủy phiếu kiểm kê này? Thao tác này không thể hoàn tác.",
+                                                                            onConfirm: () => handleCancel(st.id),
                                                                         });
                                                                     }}
                                                                     disabled={actionLoading[st.id]}
@@ -351,28 +420,47 @@ const StockTakePage = () => {
                         </TableContainer>
                     </div>
                 )}
-                <TablePagination
-                    component="div"
-                    count={filteredStocktakes.length}
-                    page={page}
-                    onPageChange={(e, newPage) => setPage(newPage)}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={e => {
-                        setRowsPerPage(parseInt(e.target.value, 10));
-                        setPage(0);
-                    }}
-                    rowsPerPageOptions={[5, 10, 20, 50]}
-                />
+
+                {/* Pagination - Backend pagination */}
+                {!debouncedCode.trim() && !debouncedNote.trim() && (
+                    <TablePagination
+                        component="div"
+                        count={total}
+                        page={page}
+                        onPageChange={(e, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => {
+                            setRowsPerPage(parseInt(e.target.value, 10));
+                            setPage(0);
+                        }}
+                        rowsPerPageOptions={[5, 10, 20, 50]}
+                    />
+                )}
+                {/* Client-side pagination khi có filter */}
+                {(debouncedCode.trim() || debouncedNote.trim()) && (
+                    <TablePagination
+                        component="div"
+                        count={displayStocktakes.length}
+                        page={0}
+                        onPageChange={() => {}}
+                        rowsPerPage={displayStocktakes.length}
+                        onRowsPerPageChange={() => {}}
+                        rowsPerPageOptions={[displayStocktakes.length]}
+                        labelDisplayedRows={() => `${displayStocktakes.length} kết quả`}
+                    />
+                )}
+
+                {/* Dialog & Snackbar */}
                 <ConfirmDialog
                     open={confirmDialog.isOpen}
-                    onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                    onClose={() => setConfirmDialog((prev) => ({...prev, isOpen: false}))}
                     onConfirm={confirmDialog.onConfirm}
                     title={confirmDialog.title}
                     content={confirmDialog.content}
                 />
                 <SnackbarAlert
                     open={snackbar.isOpen}
-                    onClose={() => setSnackbar(prev => ({...prev, isOpen: false}))}
+                    onClose={() => setSnackbar((prev) => ({...prev, isOpen: false}))}
                     message={snackbar.message}
                     severity={snackbar.severity}
                 />

@@ -5,15 +5,20 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { getDailyRevenue } from '../../services/reportService';
 import { FaMoneyBillWave, FaShoppingCart, FaTruckLoading } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const DailyRevenue = () => {
   const navigate = useNavigate();
+  const { user, isStaff } = useAuth();
   const [from, setFrom] = useState(dayjs().format('YYYY-MM-DD'));
   const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [data, setData] = useState({ totalSaleAmount: 0, totalImportAmount: 0, netRevenue: 0 });
 
+  // Lấy storeId nếu là Staff
+  const userStoreId = user && isStaff() ? user.storeId : null;
+
   const fetchData = () => {
-    getDailyRevenue({ from, to })
+    getDailyRevenue({ from, to, storeId: userStoreId })
       .then(res => setData(res.data))
       .catch(() => alert('Lỗi khi lấy báo cáo doanh thu!'));
   };
@@ -53,7 +58,14 @@ const DailyRevenue = () => {
     <Box sx={{ backgroundColor: '#f9fafb', minHeight: '100vh', py: 5 }}>
       <Box sx={{ maxWidth: 1300, mx: 'auto', p: 4, background: '#fff', borderRadius: 3, boxShadow: 3 }}>
         <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
-        <Typography variant="h5" fontWeight={700} mb={1}>Doanh thu theo ngày / khoảng ngày</Typography>
+        <Typography variant="h5" fontWeight={700} mb={1}>
+          Doanh thu theo ngày / khoảng ngày
+          {isStaff() && user?.storeName && (
+            <Typography component="span" variant="h6" color="primary.main" sx={{ ml: 2 }}>
+              - Kho: {user.storeName}
+            </Typography>
+          )}
+        </Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>Theo dõi tổng Sale, tổng Import và Net Revenue theo phạm vi thời gian bạn chọn.</Typography>
 
         <Grid container spacing={2} alignItems="center" mb={2}>

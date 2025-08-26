@@ -97,6 +97,7 @@ public class StocktakeServiceImpl implements StocktakeService {
             }
             effectiveStoreId = String.valueOf(user.getStore().getId());
         }
+
         Specification<Stocktake> spec = buildStocktakeSpecification(effectiveStoreId, status, note, fromDate, toDate);
         return stocktakeRepository.findAll(spec, pageable).map(this::buildStocktakeResponseDto);
     }
@@ -148,10 +149,6 @@ public class StocktakeServiceImpl implements StocktakeService {
 
         updateStocktakeDetails(stocktake, rawDetails, requestDto);
         Stocktake savedStocktake = stocktakeRepository.save(stocktake);
-        // GỘP LOGIC: Nếu cập nhật với status COMPLETED thì cân bằng kho luôn
-        // if (stocktake.getStatus() == StocktakeStatus.COMPLETED) {
-        //     updateImportDetailsForCompletedStocktake(savedStocktake);
-        // }
         return buildStocktakeResponseDto(savedStocktake);
     }
 
@@ -298,10 +295,11 @@ public class StocktakeServiceImpl implements StocktakeService {
                 .orElseThrow(() -> new ValidationException("User not found"));
         Long storeId;
         boolean isOwner = RoleUtils.hasRole(user.getAuthorities(), "OWNER");
+        boolean isAdmin = RoleUtils.hasRole(user.getAuthorities(), "ADMIN");
         boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
-        if (isOwner) {
+        if (isOwner || isAdmin) {
             if (requestDto.getStoreId() == null) {
-                throw new ValidationException("storeId is required for OWNER");
+                throw new ValidationException("storeId is required for OWNER or ADMIN");
             }
             storeId = requestDto.getStoreId();
         } else if (isStaff) {
@@ -333,6 +331,19 @@ public class StocktakeServiceImpl implements StocktakeService {
         try {
             details = objectMapper.readValue(stocktake.getDetail(), new TypeReference<>() {
             });
+
+            // Enrich productName nếu chưa có
+            details = details.stream().map(detail -> {
+                if (detail.getProductName() == null && detail.getProductId() != null) {
+                    productRepository.findById(detail.getProductId())
+                            .ifPresent(product -> {
+                                detail.setProductName(product.getProductName());
+                                detail.setProductCode(product.getProductCode());
+                            });
+                }
+                return detail;
+            }).collect(Collectors.toList());
+
         } catch (Exception e) {
             throw new ValidationException("Failed to deserialize stocktake details: " + e.getMessage());
         }

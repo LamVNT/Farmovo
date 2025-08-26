@@ -9,11 +9,15 @@ import {
 } from "@mui/material";
 import useStocktake from "../../hooks/useStocktake";
 import SnackbarAlert from "../../components/SnackbarAlert";
+import { useStoreForStocktake } from "../../hooks/useStoreForStocktake";
 
 const StockTakeDetailPage = () => {
     const { id } = useParams();
     const user = JSON.parse(localStorage.getItem('user'));
     const userRole = user?.roles?.[0];
+
+    // Store selection for stocktake
+    const storeForStocktake = useStoreForStocktake(user, userRole);
     const {
         detail,
         setDetail,
@@ -50,6 +54,27 @@ const StockTakeDetailPage = () => {
                 .catch(() => alert("Không lấy được chi tiết phiếu kiểm kê!"));
         }
     }, [id, detail, setDetail]);
+
+    // Auto-sync store from stocktake detail for Owner/Admin (chỉ khi thực sự cần)
+    useEffect(() => {
+        if (detail && detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
+            const currentStoreId = storeForStocktake.currentStoreId;
+
+            // If no store selected or different store, sync from stocktake
+            if (!currentStoreId || String(currentStoreId) !== String(detail.storeId)) {
+                console.log('Detail.jsx - Auto-syncing store from stocktake detail:', {
+                    currentStoreId,
+                    detailStoreId: detail.storeId,
+                    detailStoreName: detail.storeName
+                });
+                const storeObj = {
+                    id: detail.storeId,
+                    storeName: detail.storeName || `Store ${detail.storeId}`
+                };
+                storeForStocktake.selectStore(storeObj);
+            }
+        }
+    }, [detail?.storeId, detail?.storeName]); // Chỉ depend vào storeId và storeName để tránh vòng lặp
 
     // Sau khi lấy detail
     const hasDiff = Array.isArray(detail?.detail)
@@ -91,16 +116,26 @@ const StockTakeDetailPage = () => {
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
                 {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
-                {hasSurplus && detail?.hasImport !== true && (
+                {hasSurplus && !localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
                     <Button
                         variant="contained"
                         color="secondary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate('/import/new', {
+                        onClick={() => navigate('/import/balance', {
                             state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
                         })}
                     >
                         Tạo phiếu nhập hàng
+                    </Button>
+                )}
+                {hasSurplus && localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        disabled
+                    >
+                        Đã tạo phiếu nhập
                     </Button>
                 )}
                 {canBalance && (
@@ -108,7 +143,22 @@ const StockTakeDetailPage = () => {
                         variant="contained"
                         color="primary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate(`/sale/balance/${detail.id}`, { state: { stocktakeId: detail.id, stocktakeCode: detail.name } })}
+                        onClick={() => {
+                            // Ensure store is selected in context before navigating
+                            if (detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
+                                // For Owner/Admin, set the store from stocktake detail
+                                const storeObj = { id: detail.storeId, storeName: detail.storeName || `Store ${detail.storeId}` };
+                                storeForStocktake.selectStore(storeObj);
+                            }
+                            navigate(`/sale/balance/${detail.id}`, {
+                                state: {
+                                    stocktakeId: detail.id,
+                                    stocktakeCode: detail.name,
+                                    storeId: detail.storeId,
+                                    storeName: detail.storeName
+                                }
+                            });
+                        }}
                     >
                         Cân bằng kho (Tạo PCB)
                     </Button>

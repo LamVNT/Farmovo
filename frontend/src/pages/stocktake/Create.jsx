@@ -32,6 +32,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import WarningIcon from '@mui/icons-material/Warning';
+import StoreIcon from '@mui/icons-material/Store';
 import Popper from '@mui/material/Popper';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import { getZones } from "../../services/zoneService";
@@ -47,12 +50,24 @@ import useStocktake from "../../hooks/useStocktake";
 import ZoneChips from "../../components/stocktake/ZoneChips";
 import ZoneRealSelect from "../../components/stocktake/ZoneRealSelect";
 import PaginationBar from "../../components/stocktake/PaginationBar";
+import { useStoreSelection } from "../../contexts/StoreSelectionContext";
+import StoreSelector from "../../components/stocktake/StoreSelector";
+import { useStoreForStocktake } from "../../hooks/useStoreForStocktake";
 
 const CreateStocktakePage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user'));
-    const userRole = user?.roles?.[0];
+    const userRole = (user?.roles?.[0] || "").toUpperCase();
+
+
+
+    // Helper functions for role checking
+    const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+    const isStaff = userRole === "STAFF" || userRole === "ROLE_STAFF";
+
+    // Store selection for stocktake
+    const storeForStocktake = useStoreForStocktake(user, userRole);
     const {
         products = [],
         zones = [],
@@ -82,7 +97,14 @@ const CreateStocktakePage = () => {
     // Dialog sau khi tạo thành công để chuyển trang chi tiết nếu có chênh lệch
     const [postCreateDialog, setPostCreateDialog] = useState({ open: false, id: null, name: '' });
     const staffStoreId = localStorage.getItem('staff_store_id') || '';
-    const [filter, setFilter] = useState({ store: '', zone: '', product: '', search: '', startDate: '', endDate: '' });
+    const [filter, setFilter] = useState({
+        store: '', // Sẽ được sync từ storeForStocktake.currentStoreId trong useEffect
+        zone: '',
+        product: '',
+        search: '',
+        startDate: '',
+        endDate: ''
+    });
     const [loadingLots, setLoadingLots] = useState(false);
     const [lots, setLots] = useState([]); // luôn khởi tạo là []
     // Khôi phục dữ liệu đã nhập từ localStorage nếu có (chỉ khi tạo mới, không phải editMode)
@@ -91,6 +113,8 @@ const CreateStocktakePage = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [oldDetails, setOldDetails] = useState([]);
+    // State để lưu trữ các thay đổi của user (để không mất khi filter/pagination)
+    const [userEdits, setUserEdits] = useState(new Map());
     const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
     const [zonePopoverProductId, setZonePopoverProductId] = useState(null);
     const [zonePopoverType, setZonePopoverType] = useState(null); // 'original' hoặc 'real'
@@ -200,13 +224,50 @@ const CreateStocktakePage = () => {
 
     useEffect(() => {
         // Nếu là STAFF thì luôn set filter.store là kho của staff (kiểu number)
-        if (userRole === 'STAFF') {
+        if (isStaff) {
             const staffStoreIdNum = getStaffStoreId();
             if (staffStoreIdNum) {
                 setFilter(f => ({ ...f, store: staffStoreIdNum }));
             }
         }
     }, [userRole]);
+
+    // Đồng bộ filter.store với storeForStocktake.currentStoreId cho Owner/Admin (chỉ khi thực sự cần)
+    useEffect(() => {
+        const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+        if (isOwnerOrAdmin && storeForStocktake.currentStoreId) {
+            const currentStoreId = String(storeForStocktake.currentStoreId);
+            const filterStoreId = String(filter.store);
+            if (filterStoreId !== currentStoreId) {
+                console.log('Create.jsx - Syncing filter.store with storeForStocktake:', {
+                    oldFilterStore: filter.store,
+                    newStoreId: currentStoreId,
+                    filterStoreIdStr: filterStoreId,
+                    currentStoreIdStr: currentStoreId
+                });
+                setFilter(f => ({ ...f, store: currentStoreId }));
+            }
+        }
+    }, [userRole, storeForStocktake.currentStoreId]); // Bỏ filter.store khỏi dependencies để tránh vòng lặp
+
+    // Khởi tạo filter.store từ storeForStocktake khi component mount
+    useEffect(() => {
+        const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+        if (isOwnerOrAdmin && storeForStocktake.currentStoreId && !filter.store) {
+            console.log('Create.jsx - Initializing filter.store from storeForStocktake:', {
+                currentStoreId: storeForStocktake.currentStoreId,
+                currentFilterStore: filter.store
+            });
+            setFilter(f => ({ ...f, store: String(storeForStocktake.currentStoreId) }));
+        } else if (userRole === 'STAFF' && !filter.store) {
+            // Staff: khởi tạo từ staffStoreId
+            const staffStoreIdNum = getStaffStoreId();
+            if (staffStoreIdNum) {
+                setFilter(f => ({ ...f, store: String(staffStoreIdNum) }));
+            }
+        }
+    }, [userRole, storeForStocktake.currentStoreId]); // Chỉ chạy khi role hoặc currentStoreId thay đổi
+
 
     // Khi filter.store thay đổi hoặc products thay đổi, fetch lots (chỉ khi cần thiết)
     useEffect(() => {
@@ -256,42 +317,42 @@ const CreateStocktakePage = () => {
         }
     }, []);
 
-    // Load stores cho OWNER và STAFF (để hiển thị tên store)
+    // Load stores cho STAFF (để hiển thị tên store) - OWNER/ADMIN sử dụng StoreSelector
     useEffect(() => {
-        // Chỉ load stores khi cần thiết
-        if (userRole === 'OWNER' || (userRole === 'STAFF' && filter.store)) {
+        // Chỉ load stores cho STAFF khi cần thiết
+        if (isStaff && filter.store) {
             const loadStores = async () => {
                 try {
-                    if (userRole === 'OWNER') {
-                        // OWNER cần danh sách tất cả stores
-                        const storesData = await getAllStores();
-                        setStores(storesData || []);
-                    } else if (userRole === 'STAFF' && filter.store) {
-                        // STAFF chỉ cần thông tin store của mình
-                        try {
-                            const storeData = await getStoreById(filter.store);
-                            setStores([storeData]);
-                        } catch (storeError) {
-                            // Nếu không lấy được thông tin store, tạo object giả để hiển thị
-                            setStores([{ id: filter.store, storeName: `Store ${filter.store}` }]);
-                        }
+                    // STAFF chỉ cần thông tin store của mình
+                    try {
+                        const storeData = await getStoreById(filter.store);
+                        setStores([storeData]);
+                    } catch (storeError) {
+                        // Nếu không lấy được thông tin store, tạo object giả để hiển thị
+                        setStores([{ id: filter.store, storeName: `Store ${filter.store}` }]);
                     }
                 } catch (error) {
                     console.error('Error loading stores:', error);
-                    if (userRole === 'STAFF' && filter.store) {
-                        // Fallback cho STAFF: tạo object giả để hiển thị
-                        setStores([{ id: filter.store, storeName: `Store ${filter.store}` }]);
-                    } else {
-                        setStores([]);
-                    }
+                    // Fallback cho STAFF: tạo object giả để hiển thị
+                    setStores([{ id: filter.store, storeName: `Store ${filter.store}` }]);
                 }
             };
             loadStores();
+        } else if (isOwnerOrAdmin) {
+            // OWNER/ADMIN không cần load stores ở đây vì StoreSelector sẽ handle
+            setStores([]);
         }
-    }, [userRole, filter.store]);
+    }, [userRole, filter.store, isStaff, isOwnerOrAdmin]);
 
     // Hàm fetch lots theo filter, có merge dữ liệu cũ nếu ở chế độ update
     const fetchLotsByFilter = async () => {
+        // Validate store selection for Owner/Admin before fetching
+        if (!storeForStocktake.isStoreSelected()) {
+            setLots([]);
+            setLoadingLots(false);
+            return;
+        }
+
         setLoadingLots(true);
         try {
             const params = new URLSearchParams();
@@ -311,23 +372,7 @@ const CreateStocktakePage = () => {
                 params.append('createdAtTo', endDate.toISOString());
             }
 
-            console.log('[DEBUG] Filter params:', {
-                store: filter.store,
-                zone: filter.zone,
-                product: filter.product,
-                startDate: filter.startDate,
-                endDate: filter.endDate,
-                params: params.toString()
-            });
-
             const resData = await getStocktakeLots(Object.fromEntries(params));
-
-            console.log('[DEBUG] API Response:', {
-                storeFilter: filter.store,
-                apiParams: params.toString(),
-                responseData: resData,
-                totalLots: resData?.length
-            });
 
             const lotsData = (resData || []).map(lot => {
                 // Đảm bảo luôn có zonesId là mảng số
@@ -347,50 +392,135 @@ const CreateStocktakePage = () => {
                 const defaultReal = Number(lot.remainQuantity) || 0;
                 const initialReal = (lot.real === 0 || lot.real) ? Number(lot.real) : defaultReal;
                 const initialDiff = Number(initialReal) - (Number(lot.remainQuantity) || 0);
-                
-                // Debug: Log thông tin diff
-                if (initialDiff !== 0) {
-                    console.log('[DEBUG] Diff calculation:', {
-                        lotName: lot.batchCode || lot.name,
-                        remainQuantity: lot.remainQuantity,
-                        initialReal: initialReal,
-                        initialDiff: initialDiff,
-                        diffType: initialDiff > 0 ? 'Thực tế > Tồn (ĐỎ)' : 'Thực tế < Tồn (CAM)'
-                    });
-                }
-                                    return {
-                        ...lot,
-                        zonesId,
-                        productId,
-                        name: lot.batchCode || lot.name || lot.id,
-                        real: initialReal,
-                        isCheck: id ? (lot.isCheck === true || lot.isCheck === 'true' || lot.isCheck === 1 || lot.isCheck === '1') : false,
-                        note: lot.note ?? '',
-                        zoneReal: Array.isArray(lot.zoneReal) ? lot.zoneReal : (Array.isArray(zonesId) ? zonesId : []),
-                        diff: initialDiff,
-                    };
+
+
+                return {
+                    ...lot,
+                    zonesId,
+                    productId,
+                    name: lot.batchCode || lot.name || lot.id,
+                    real: initialReal,
+                    isCheck: id ? (lot.isCheck === true || lot.isCheck === 'true' || lot.isCheck === 1 || lot.isCheck === '1') : false,
+                    note: lot.note ?? '',
+                    zoneReal: Array.isArray(lot.zoneReal) ? lot.zoneReal : (Array.isArray(zonesId) ? zonesId : []),
+                    diff: initialDiff,
+                };
             });
 
-            // Merge với edits đã có (trong state hoặc draft lưu trữ) để không mất dữ liệu người dùng
-            const draft = loadDraft();
+            // FIXED: Luôn ưu tiên userEdits thay vì draft.lots để tránh mất dữ liệu khi filter
             let edits = [];
             if (id && Array.isArray(oldDetails) && oldDetails.length > 0) {
                 edits = oldDetails;
-            } else if (draft && Array.isArray(draft.lots)) {
-                edits = draft.lots;
             } else {
-                edits = lots;
+                // Luôn sử dụng userEdits làm nguồn chính thay vì draft.lots
+                edits = Array.from(userEdits.entries()).map(([lotKey, editData]) => ({
+                    name: lotKey,
+                    batchCode: lotKey,
+                    ...editData
+                }));
             }
+
             const merged = mergeLotsWithEdits(lotsData, edits);
-            // Ensure initial state on Create: all unchecked
-            if (!id) {
-                setLots(merged.map(l => ({ ...l, isCheck: false })));
+
+            // FIXED: Luôn preserve edited lots, bất kể có filter hay không
+            const hasActiveFilter = filter.zone || filter.product || filter.startDate || filter.endDate;
+            let finalResult;
+
+            if (!hasActiveFilter) {
+                // Không có filter → preserve tất cả edited lots
+                const existingLotKeys = new Set(merged.map(lot => getLotKey(lot)));
+                const missingEditedLots = [];
+
+                for (const [lotKey, editData] of userEdits.entries()) {
+                    if (!existingLotKeys.has(lotKey)) {
+                        const existingLot = lots.find(lot => getLotKey(lot) === lotKey);
+                        if (existingLot) {
+                            // Apply user edits to existing lot
+                            const editedLot = { ...existingLot };
+                            Object.keys(editData).forEach(key => {
+                                editedLot[key] = editData[key];
+                            });
+                            // Recalculate diff if real was edited
+                            if (editData.real !== undefined) {
+                                editedLot.diff = Number(editData.real) - (Number(existingLot.remainQuantity) || 0);
+                            }
+                            missingEditedLots.push(editedLot);
+                        }
+                    }
+                }
+
+                finalResult = [...merged, ...missingEditedLots];
+
             } else {
-                setLots(merged);
+                // FIXED: Có filter → vẫn preserve edited lots nhưng chỉ hiển thị những lot phù hợp với filter
+                const existingLotKeys = new Set(merged.map(lot => getLotKey(lot)));
+                const preservedEditedLots = [];
+
+                // Preserve edited lots that are not in current filter result
+                for (const [lotKey, editData] of userEdits.entries()) {
+                    if (!existingLotKeys.has(lotKey)) {
+                        const existingLot = lots.find(lot => getLotKey(lot) === lotKey);
+                        if (existingLot) {
+                            // Check if this lot should be included based on current filter
+                            let shouldInclude = true;
+
+                            // Check zone filter
+                            if (filter.zone && existingLot.zonesId && Array.isArray(existingLot.zonesId)) {
+                                shouldInclude = existingLot.zonesId.includes(Number(filter.zone));
+                            }
+
+                            // Check product filter
+                            if (shouldInclude && filter.product) {
+                                shouldInclude = Number(existingLot.productId) === Number(filter.product);
+                            }
+
+                            // Check date filter (if lot has createdAt)
+                            if (shouldInclude && (filter.startDate || filter.endDate) && existingLot.createdAt) {
+                                const lotDate = new Date(existingLot.createdAt).toISOString().split('T')[0];
+                                if (filter.startDate && lotDate < filter.startDate) shouldInclude = false;
+                                if (filter.endDate && lotDate > filter.endDate) shouldInclude = false;
+                            }
+
+                            if (shouldInclude) {
+                                // Apply user edits to existing lot
+                                const editedLot = { ...existingLot };
+                                Object.keys(editData).forEach(key => {
+                                    editedLot[key] = editData[key];
+                                });
+                                // Recalculate diff if real was edited
+                                if (editData.real !== undefined) {
+                                    editedLot.diff = Number(editData.real) - (Number(existingLot.remainQuantity) || 0);
+                                }
+                                preservedEditedLots.push(editedLot);
+                            }
+                        }
+                    }
+                }
+
+                finalResult = [...merged, ...preservedEditedLots];
+            }
+
+            // FIXED: Không ghi đè isCheck = false nếu đã có userEdits
+            if (!id) {
+                // Chỉ set isCheck = false cho những lot chưa có trong userEdits
+                const finalLotsWithCorrectCheckState = finalResult.map(l => {
+                    const lotKey = getLotKey(l);
+                    const hasUserEdit = userEdits.has(lotKey);
+                    if (hasUserEdit) {
+                        // Giữ nguyên trạng thái từ userEdits (đã được merge)
+                        return l;
+                    } else {
+                        // Chỉ set false cho lot mới chưa có edit
+                        return { ...l, isCheck: false };
+                    }
+                });
+                setLots(finalLotsWithCorrectCheckState);
+            } else {
+                setLots(finalResult);
             }
         } catch (err) {
             setLots([]);
-            console.error('[DEBUG] Lỗi khi fetch lots:', err);
+            console.error('Lỗi khi fetch lots:', err);
         } finally {
             setLoadingLots(false);
         }
@@ -522,6 +652,16 @@ const CreateStocktakePage = () => {
                 }
             }
 
+            // Lưu user edit vào Map để preserve khi filter/pagination thay đổi
+            const lotKey = getLotKey(lot);
+            setUserEdits(prevEdits => {
+                const newEdits = new Map(prevEdits);
+                const existingEdit = newEdits.get(lotKey) || {};
+                const updatedEdit = { ...existingEdit, [field]: value };
+                newEdits.set(lotKey, updatedEdit);
+                return newEdits;
+            });
+
             // Chỉ update lot cụ thể, không update toàn bộ array
             const newLots = [...prev];
             newLots[idx] = newLot;
@@ -531,6 +671,37 @@ const CreateStocktakePage = () => {
 
     // Validate và submit
     const handleSubmit = async (status) => {
+        // Validate store selection for Owner/Admin
+        const validation = storeForStocktake.validateStoreSelection();
+        if (!validation.isValid) {
+            setSnackbar({
+                isOpen: true,
+                message: validation.message,
+                severity: "error"
+            });
+            return;
+        }
+
+        // Debug: Kiểm tra store selection trước khi submit
+        const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+        if (isOwnerOrAdmin) {
+            console.log('Create.jsx - Pre-submit store validation:', {
+                storeForStocktakeId: storeForStocktake.currentStoreId,
+                storeForStocktakeName: storeForStocktake.getStoreDisplayName(),
+                filterStore: filter.store,
+                validation
+            });
+
+            if (!storeForStocktake.currentStoreId) {
+                setSnackbar({
+                    isOpen: true,
+                    message: "Vui lòng chọn kho trước khi lưu phiếu kiểm kê!",
+                    severity: "error"
+                });
+                return;
+            }
+        }
+
         if (!Array.isArray(lots) || lots.length === 0) {
             setSnackbar({ isOpen: true, message: "Vui lòng chọn ít nhất một lô để kiểm kê!", severity: "error" });
             return;
@@ -614,12 +785,24 @@ const CreateStocktakePage = () => {
         }));
         try {
             const staffStoreIdNum = getStaffStoreId();
+            // Lấy storeId từ storeForStocktake context cho Owner/Admin, từ staff store cho Staff
+            const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+            const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+
+            console.log('Create.jsx - Debug store selection:', {
+                userRole,
+                filterStore: filter.store,
+                storeForStocktakeId: storeForStocktake.currentStoreId,
+                staffStoreIdNum,
+                selectedStoreId
+            });
+
             const payload = {
                 detail,
                 stocktakeNote: "Phiếu kiểm kê mới",
                 status,
                 stocktakeDate: new Date().toISOString(),
-                storeId: userRole === 'OWNER' ? filter.store : staffStoreIdNum
+                storeId: selectedStoreId
             };
             if (id) {
                 const updated = await updateStocktake(id, payload);
@@ -688,15 +871,32 @@ const CreateStocktakePage = () => {
         // Restore persisted state for Create/Update by key
         const storageKey = id ? `stocktake_edit_${id}` : 'stocktake_create_draft';
         const raw = localStorage.getItem(storageKey);
+
         if (raw) {
             try {
                 const saved = JSON.parse(raw);
-                if (saved.filter) setFilter(prev => ({ ...prev, ...saved.filter }));
-                if (!id && Array.isArray(saved.selectedLots)) setSelectedLots(saved.selectedLots);
-                if (Array.isArray(saved.lots)) setLots(saved.lots);
+
+                if (saved.filter) {
+                    setFilter(prev => ({ ...prev, ...saved.filter }));
+                }
+                if (!id && Array.isArray(saved.selectedLots)) {
+                    setSelectedLots(saved.selectedLots);
+                }
+                if (Array.isArray(saved.lots)) {
+                    // Đặt flag để tránh fetch ngay lập tức khi restore
+                    setDataLoaded(true);
+                    setLots(saved.lots);
+                }
                 if (typeof saved.page === 'number') setPage(saved.page);
                 if (typeof saved.rowsPerPage === 'number') setRowsPerPage(saved.rowsPerPage);
-            } catch {}
+                if (saved.userEdits) {
+                    // Restore userEdits Map from saved object
+                    const editsMap = new Map(Object.entries(saved.userEdits));
+                    setUserEdits(editsMap);
+                }
+            } catch (error) {
+                console.error('Error parsing localStorage data:', error);
+            }
         }
     }, [id]);
 
@@ -709,14 +909,17 @@ const CreateStocktakePage = () => {
             lots,
             page,
             rowsPerPage,
+            userEdits: Object.fromEntries(userEdits), // Convert Map to Object for JSON
         };
         localStorage.setItem(storageKey, JSON.stringify(payload));
-    }, [filter, selectedLots, lots, page, rowsPerPage, id]);
+    }, [filter, selectedLots, lots, page, rowsPerPage, userEdits, id]);
 
     // Clear draft after successful submit
 
     return (
         <Box sx={{ maxWidth: '98%', margin: "0px auto 10px auto", background: "#fff", p: 4, borderRadius: 3, boxShadow: 2 }}>
+
+
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5" fontWeight={700}>{editMode ? "Cập nhật phiếu kiểm kê" : "Tạo phiếu kiểm kê mới"}</Typography>
 
@@ -810,27 +1013,33 @@ const CreateStocktakePage = () => {
                     </Button>
                 </Box>
 
-                {/* Bộ lọc Store - chỉ hiển thị cho OWNER, nằm dưới */}
-                {userRole === 'OWNER' && (
-                    <FormControl size="small" sx={{ minWidth: 150, mt: 1 }}>
-                        <InputLabel>Kho hàng</InputLabel>
-                        <Select
-                            value={filter.store}
-                            label="Kho hàng"
-                            onChange={e => {
-                                setFilter(f => ({ ...f, store: e.target.value }));
-                            }}
-                        >
-                            <MenuItem value="">Tất cả</MenuItem>
-                            {stores.map(store => (
-                                <MenuItem key={store.id} value={store.id}>{store.storeName}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                )}
+                {/* Store Selection for Owner/Admin */}
+                <StoreSelector
+                    user={user}
+                    userRole={userRole}
+                    onStoreChange={(storeId, storeObj) => {
+                        // Chỉ update filter nếu thực sự có thay đổi
+                        const newStoreId = String(storeId);
+                        const currentFilterStore = String(filter.store);
+                        if (currentFilterStore !== newStoreId) {
+                            console.log('Create.jsx - StoreSelector onStoreChange:', {
+                                oldStore: filter.store,
+                                newStore: storeId,
+                                oldStoreStr: currentFilterStore,
+                                newStoreStr: newStoreId
+                            });
+                            // Update filter
+                            setFilter(f => ({ ...f, store: newStoreId }));
+                            // Reset lots khi đổi kho
+                            setLots([]);
+                            setSelectedLots([]);
+                            setUserEdits(new Map());
+                        }
+                    }}
+                />
             </Box>
             {/* Thông báo store cho STAFF */}
-            {userRole === 'STAFF' && filter.store && (
+            {isStaff && filter.store && (
                 <Box sx={{
                     mb: 2,
                     p: 2,
@@ -871,15 +1080,40 @@ const CreateStocktakePage = () => {
                     )}
                 </Box>
             )}
-            {/* Tiêu đề danh sách lô hàng */}
-            <Typography variant="subtitle1" fontWeight={600} mb={1}>
-                Danh sách lô hàng
-                {userRole === 'STAFF' && filter.store && stores.length > 0 && (
-                    <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
-                        tại kho: {stores[0]?.storeName || `Store ${filter.store}`}
+            {/* Validation for Owner/Admin - Must select store */}
+            {!storeForStocktake.validateStoreSelection().isValid ? (
+                <Box sx={{
+                    textAlign: 'center',
+                    py: 8,
+                    bgcolor: '#fff3cd',
+                    borderRadius: 2,
+                    border: '1px solid #ffeaa7',
+                    mb: 3
+                }}>
+                    <WarningIcon sx={{ fontSize: 48, color: '#856404', mb: 2 }} />
+                    <Typography variant="h6" sx={{ color: '#856404', fontWeight: 600, mb: 1 }}>
+                        Chưa chọn kho hàng
                     </Typography>
-                )}
-            </Typography>
+                    <Typography variant="body2" sx={{ color: '#856404' }}>
+                        Vui lòng chọn kho hàng ở phần trên để bắt đầu kiểm kê
+                    </Typography>
+                </Box>
+            ) : (
+                <>
+                    {/* Tiêu đề danh sách lô hàng */}
+                    <Typography variant="subtitle1" fontWeight={600} mb={1}>
+                        Danh sách lô hàng
+                        {isStaff && filter.store && stores.length > 0 && (
+                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
+                                tại kho: {stores[0]?.storeName || `Store ${filter.store}`}
+                            </Typography>
+                        )}
+                        {isOwnerOrAdmin && filter.store && (
+                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
+                                tại kho: {stores.find(s => s.id === filter.store)?.storeName || stores.find(s => s.id === filter.store)?.name}
+                            </Typography>
+                        )}
+                    </Typography>
             
             {/* Legend cho màu sắc chênh lệch */}
             <Box sx={{ 
@@ -1143,56 +1377,40 @@ const CreateStocktakePage = () => {
                                                         onChange={(newZones) => handleLotChange(actualIdx, 'zoneReal', newZones)}
                                                         />
                                                 </TableCell>}
-                                                <Tooltip 
-                                                    title={lot.diff !== 0 ? 
-                                                        (lot.diff > 0 ? 
-                                                            `Thực tế (${lot.real}) > Tồn kho (${lot.remainQuantity}) - Cần kiểm tra lại` : 
-                                                            `Thực tế (${lot.real}) < Tồn kho (${lot.remainQuantity}) - Có thể thiếu hàng`
-                                                        ) : 
-                                                        'Không có chênh lệch'
-                                                    }
-                                                    placement="top"
-                                                >
-                                                    <TableCell sx={{ 
-                                                        fontWeight: 600, 
-                                                        textAlign: 'center',
-                                                        backgroundColor: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '#fef2f2' : '#fff7ed') : // Hồng nhạt khi thực tế > tồn, cam nhạt khi thực tế < tồn
-                                                            'transparent',
-                                                        color: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '#dc2626' : '#ea580c') : // Đỏ khi thực tế > tồn, cam khi thực tế < tồn
-                                                            'inherit',
-                                                        borderRadius: lot.diff !== 0 ? '6px' : '0',
-                                                        border: lot.diff !== 0 ? 
-                                                            (lot.diff > 0 ? '1px solid #fecaca' : '1px solid #fed7aa') : // Viền hồng khi thực tế > tồn, viền cam khi thực tế < tồn
-                                                            'none',
-                                                        padding: lot.diff !== 0 ? '12px 8px' : '8px 4px',
-                                                        transition: 'all 0.2s ease',
-                                                        cursor: lot.diff !== 0 ? 'help' : 'default',
-                                                        '&:hover': lot.diff !== 0 ? {
-                                                            backgroundColor: lot.diff > 0 ? '#fee2e2' : '#ffedd5',
-                                                            transform: 'scale(1.02)'
-                                                        } : {}
-                                                    }}>
-                                                        <Box sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: 0.5
-                                                        }}>
-                                                            {lot.diff !== 0 && (
-                                                                <Box sx={{
-                                                                    width: 6,
-                                                                    height: 6,
-                                                                    borderRadius: '50%',
-                                                                    backgroundColor: lot.diff > 0 ? '#dc2626' : '#ea580c',
-                                                                    flexShrink: 0
-                                                                }} />
-                                                            )}
-                                                            {lot.diff}
-                                                        </Box>
-                                                    </TableCell>
-                                                </Tooltip>
+                                                <TableCell sx={{ textAlign: 'center', padding: '8px 4px' }}>
+                                                    {lot.diff === 0 ? (
+                                                        <Typography variant="body2" sx={{ color: '#666', fontWeight: 500 }}>
+                                                            0
+                                                        </Typography>
+                                                    ) : (
+                                                        <Chip
+                                                            label={lot.diff > 0 ? `+${lot.diff}` : lot.diff}
+                                                            size="small"
+                                                            sx={{
+                                                                background: lot.diff < 0 
+                                                                    ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Cam gradient cho số âm
+                                                                    : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)', // Đỏ gradient cho số dương
+                                                                color: 'white',
+                                                                fontWeight: 600,
+                                                                borderRadius: '12px',
+                                                                height: '24px',
+                                                                fontSize: '0.75rem',
+                                                                minWidth: '40px',
+                                                                '& .MuiChip-label': {
+                                                                    padding: '0 8px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 600
+                                                                },
+                                                                boxShadow: lot.diff !== 0 ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                                                                transition: 'all 0.2s ease',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-1px)',
+                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
+                                                </TableCell>
                                                 {!isMobile && <TableCell sx={{ textAlign: 'center' }}>
                                                     <Checkbox
                                                         checked={!!lot.isCheck}
@@ -1255,15 +1473,37 @@ const CreateStocktakePage = () => {
                     {/* Nút lưu nháp, hoàn thành, xóa chỉ hiển thị khi editMode && stocktakeStatus === 'DRAFT' */}
                     {(!editMode || stocktakeStatus === 'DRAFT') && (
                         <>
-                            <Button variant="outlined" onClick={() => handleSubmit('DRAFT')}
-                                sx={{ fontWeight: 600, borderRadius: 2 }}>Lưu nháp</Button>
-                            <Button variant="contained" color="success" onClick={() => setConfirmCompleteDialog(true)}
-                                sx={{ fontWeight: 600, borderRadius: 2 }}>Hoàn thành</Button>
+                            <Button
+                                variant="outlined"
+                                onClick={() => handleSubmit('DRAFT')}
+                                disabled={!storeForStocktake.validateStoreSelection().isValid}
+                                sx={{
+                                    fontWeight: 600,
+                                    borderRadius: 2,
+                                    opacity: !storeForStocktake.validateStoreSelection().isValid ? 0.5 : 1
+                                }}
+                            >
+                                Lưu nháp
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                onClick={() => setConfirmCompleteDialog(true)}
+                                disabled={!storeForStocktake.validateStoreSelection().isValid}
+                                sx={{
+                                    fontWeight: 600,
+                                    borderRadius: 2,
+                                    opacity: !storeForStocktake.validateStoreSelection().isValid ? 0.5 : 1
+                                }}
+                            >
+                                Hoàn thành
+                            </Button>
                         </>
                     )}
                 </Box>
             </Box>
-
+                </>
+            )}
 
             <Dialog open={confirmCompleteDialog} onClose={() => setConfirmCompleteDialog(false)}>
                 <DialogTitle>Xác nhận hoàn thành phiếu kiểm kê</DialogTitle>

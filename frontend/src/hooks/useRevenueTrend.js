@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../services/axiosClient";
 
-export default function useRevenueTrend({ type = "day", from, to }) {
+export default function useRevenueTrend({ type = "day", from, to, storeId = null }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,11 +10,15 @@ export default function useRevenueTrend({ type = "day", from, to }) {
     if (!from || !to) return;
     setLoading(true);
     setError(null);
-    api.get("/reports/revenue-trend", { params: { type, from, to } })
+
+    const params = { type, from, to };
+    if (storeId) params.storeId = storeId;
+
+    api.get("/reports/revenue-trend", { params })
       .then(res => setData(res.data))
       .catch(() => setError("Không thể lấy dữ liệu doanh thu"))
       .finally(() => setLoading(false));
-  }, [type, from, to]);
+  }, [type, from, to, storeId]);
 
   return { data, loading, error };
-} 
+}

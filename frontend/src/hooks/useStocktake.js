@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import {useState, useEffect, useCallback, useMemo} from "react";
 import {
     getStocktakeList,
     updateStocktakeStatus,
     updateStocktake,
 } from "../services/stocktakeService";
-import { productService } from "../services/productService";
-import { getZones } from "../services/zoneService";
-import { getAllStores } from "../services/storeService";
-import { getCategories } from "../services/categoryService";
+import {productService} from "../services/productService";
+import {getZones} from "../services/zoneService";
+import {getAllStores} from "../services/storeService";
+import {getCategories} from "../services/categoryService";
+import axios from "../services/axiosClient";
+import {saveAs} from 'file-saver';
 
 export default function useStocktake(user, userRole) {
     // ================== Thông tin người dùng ==================
@@ -78,7 +80,7 @@ export default function useStocktake(user, userRole) {
 
     // ✅ Thêm state cho Detail page
     const [detail, setDetail] = useState(null);
-    const [filter, setFilter] = useState({ batchCode: "", productName: "" });
+    const [filter, setFilter] = useState({batchCode: "", productName: ""});
 
     const filteredDetails = useMemo(() => {
         if (!detail || !Array.isArray(detail.detail)) return [];
@@ -106,7 +108,8 @@ export default function useStocktake(user, userRole) {
             if (userRole === "STAFF") {
                 matchesStore = (st.storeId && st.storeId === userStoreId) || (!st.storeId && st.storeName === userStoreName);
             } else {
-                matchesStore = !storeFilter || st.storeId === parseInt(storeFilter, 10) || st.storeName === userStoreName;
+                // Admin/Owner: nếu không có storeFilter thì hiển thị tất cả, nếu có thì filter theo storeId
+                matchesStore = !storeFilter || st.storeId === parseInt(storeFilter, 10);
             }
 
             const matchesCreator = userRole === "STAFF" ? st.createdByName === userName : true;
@@ -115,9 +118,7 @@ export default function useStocktake(user, userRole) {
         });
     }, [stocktakes, codeFilter, statusFilter, fromDate, toDate, noteFilter, userRole, userStoreId, userStoreName, storeFilter, userName]);
 
-    const paginatedStocktakes = useMemo(() => {
-        return filteredStocktakes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    }, [filteredStocktakes, page, rowsPerPage]);
+    // Không cần paginatedStocktakes nữa vì backend đã phân trang
 
     // ================== Load danh sách ==================
     const loadStocktakeList = useCallback(async (params = {}) => {
@@ -126,17 +127,27 @@ export default function useStocktake(user, userRole) {
             const query = {
                 page,
                 size: rowsPerPage,
-                ...(statusFilter && { status: statusFilter }),
+                ...(statusFilter && {status: statusFilter}),
                 note: noteFilter,
                 fromDate: fromDate,
                 toDate: toDate,
-                ...(userRole === "OWNER" && storeFilter && { storeId: storeFilter }), // Lọc theo kho cho Owner
-                ...(userRole === "STAFF" && { storeId: userStoreId }), // Giới hạn theo kho cho Staff
             };
+
+            // Thêm storeId cho Owner/Admin nếu có chọn kho
+            const isOwnerOrAdmin = ["OWNER", "ROLE_OWNER", "ADMIN", "ROLE_ADMIN"].includes(userRole);
+            if (isOwnerOrAdmin && storeFilter && storeFilter !== "") {
+                query.storeId = String(storeFilter);
+            }
+
+            // Thêm storeId cho Staff
+            if (userRole === "STAFF" && userStoreId) {
+                query.storeId = userStoreId;
+            }
+
             const res = await getStocktakeList(query);
             setStocktakes(res.content || []);
             setTotal(res.totalElements || 0);
-            setPage(res.number || 0);
+            // Không set lại page từ response để tránh conflict với user action
         } catch (err) {
             console.error("Error loading stocktake list:", err);
             setSnackbar({
@@ -149,6 +160,11 @@ export default function useStocktake(user, userRole) {
         }
     }, [statusFilter, noteFilter, fromDate, toDate, userRole, userStoreId, storeFilter, page, rowsPerPage]);
 
+    // ================== Auto reload khi thay đổi filters hoặc pagination ==================
+    useEffect(() => {
+        loadStocktakeList();
+    }, [loadStocktakeList]);
+
     // ================== Load master data ==================
     // Helper xác định role
     const isStaff = userRole === "STAFF" || userRole === "ROLE_STAFF";
@@ -157,9 +173,9 @@ export default function useStocktake(user, userRole) {
 
     const loadMasterData = useCallback(async () => {
         try {
-            let productsRes, zonesRes, storesRes, categoriesRes;
+            let productsRes, zonesRes, categoriesRes, storesRes;
             if (isStaff) {
-                // Staff chỉ cần lấy products, zones, categories, KHÔNG gọi getAllStores
+                // Staff chỉ cần lấy products, zones, categories, KHÔNG cần stores
                 [productsRes, zonesRes, categoriesRes] = await Promise.all([
                     productService.getAllProducts(),
                     getZones(),
@@ -170,7 +186,7 @@ export default function useStocktake(user, userRole) {
                 setCategories(categoriesRes);
                 setStores([]); // Staff không cần danh sách kho
             } else {
-                // Owner/Admin lấy đủ
+                // Owner/Admin cần stores cho filter dropdown ở trang StockTake
                 [productsRes, zonesRes, storesRes, categoriesRes] = await Promise.all([
                     productService.getAllProducts(),
                     getZones(),
@@ -181,10 +197,11 @@ export default function useStocktake(user, userRole) {
                 setZones(zonesRes);
                 // Sửa tại đây: đảm bảo storesRes là mảng, nếu không thì set [] và log lỗi
                 if (Array.isArray(storesRes)) {
-                    setStores(storesRes.map(s => ({
+                    const mappedStores = storesRes.map(s => ({
                         id: s.id,
                         name: s.name || s.storeName
-                    })));
+                    }));
+                    setStores(mappedStores);
                 } else {
                     console.error("Dữ liệu kho trả về không hợp lệ:", storesRes);
                     setStores([]);
@@ -204,7 +221,7 @@ export default function useStocktake(user, userRole) {
     // ================== Update status ==================
     const handleUpdateStatus = useCallback(
         async (id, newStatus) => {
-            setActionLoading((prev) => ({ ...prev, [id]: true }));
+            setActionLoading((prev) => ({...prev, [id]: true}));
             try {
                 await updateStocktakeStatus(id, newStatus);
                 setSnackbar({
@@ -221,7 +238,7 @@ export default function useStocktake(user, userRole) {
                     severity: "error",
                 });
             } finally {
-                setActionLoading((prev) => ({ ...prev, [id]: false }));
+                setActionLoading((prev) => ({...prev, [id]: false}));
             }
         },
         [loadStocktakeList]
@@ -230,7 +247,7 @@ export default function useStocktake(user, userRole) {
     // ================== Cancel ==================
     const handleCancel = useCallback(
         async (id) => {
-            setActionLoading((prev) => ({ ...prev, [id]: true }));
+            setActionLoading((prev) => ({...prev, [id]: true}));
             try {
                 const st = stocktakes.find((s) => s.id === id);
                 if (!st) throw new Error("Không tìm thấy phiếu");
@@ -291,7 +308,7 @@ export default function useStocktake(user, userRole) {
                     severity: "error",
                 });
             } finally {
-                setActionLoading((prev) => ({ ...prev, [id]: false }));
+                setActionLoading((prev) => ({...prev, [id]: false}));
             }
         },
         [stocktakes, userRole, userStoreId, loadStocktakeList]
@@ -323,6 +340,37 @@ export default function useStocktake(user, userRole) {
     useEffect(() => {
         setPage(0);
     }, [statusFilter, storeFilter, fromDate, toDate, noteFilter, codeFilter]);
+
+    // ================== Export Excel ==================
+    const handleExportExcel = useCallback(async (stocktake, details, products, zones) => {
+        try {
+            const response = await axios.get(`/stocktakes/${stocktake.id}/export-excel`, {
+                responseType: 'blob'
+            });
+
+            // Tạo tên file
+            const fileName = `KiemKe_${stocktake.name || stocktake.id}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            // Tạo blob và download
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            saveAs(blob, fileName);
+
+            setSnackbar({
+                isOpen: true,
+                message: 'Xuất Excel thành công!',
+                severity: 'success'
+            });
+        } catch (error) {
+            console.error('Export Excel error:', error);
+            setSnackbar({
+                isOpen: true,
+                message: 'Xuất Excel thất bại!',
+                severity: 'error'
+            });
+        }
+    }, [setSnackbar]);
 
     // ================== Return ==================
     return {
@@ -356,7 +404,6 @@ export default function useStocktake(user, userRole) {
         snackbar,
         setSnackbar,
         filteredStocktakes,
-        paginatedStocktakes,
         handleUpdateStatus,
         handleCancel,
         loadStocktakeList,
@@ -382,5 +429,6 @@ export default function useStocktake(user, userRole) {
         filter,
         setFilter,
         filteredDetails,
+        handleExportExcel,
     };
 }
