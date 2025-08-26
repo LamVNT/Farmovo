@@ -86,13 +86,13 @@ const StoreSelector = ({
 
     if (variant === 'simple') {
         return (
-            <FormControl size={size} sx={{ minWidth: 200 }}>
+            <FormControl size={size} sx={{ minWidth: 150 }}>
                 <Select
                     value={currentStoreId || ''}
                     onChange={(e) => handleStoreChange(e.target.value)}
                     displayEmpty
                     disabled={disabled || loading}
-                    sx={{ 
+                    sx={{
                         bgcolor: 'white',
                         '& .MuiOutlinedInput-notchedOutline': {
                             borderColor: currentStoreId ? '#28a745' : '#ced4da'
@@ -100,7 +100,7 @@ const StoreSelector = ({
                     }}
                 >
                     <MenuItem value="">
-                        <em>-- Chọn kho hàng --</em>
+                        <em>Chọn kho</em>
                     </MenuItem>
                     {stores.map(store => (
                         <MenuItem key={store.id} value={store.id}>
