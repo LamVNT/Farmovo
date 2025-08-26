@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { getAllStores, getStoreById } from "../../services/storeService";
 import { formatCurrency } from "../../utils/formatters";
+import { userService } from "../../services/userService";
 
 // S3 bucket info
 const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
@@ -19,6 +20,7 @@ const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
 const DebtDetailDialog = ({ open, onClose, debtNote }) => {
     const navigate = useNavigate();
     const [storeName, setStoreName] = useState("");
+    const [createdByUser, setCreatedByUser] = useState(null);
     
     useEffect(() => {
         const fetchStoreName = async () => {
@@ -41,7 +43,25 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                 }
             }
         };
-        if (open && debtNote && debtNote.storeId) fetchStoreName();
+
+        const fetchCreatedByUser = async () => {
+            try {
+                if (debtNote && debtNote.createdBy && debtNote.fromSource === 'MANUAL') {
+                    const user = await userService.getUserById(debtNote.createdBy);
+                    setCreatedByUser(user);
+                } else {
+                    setCreatedByUser(null);
+                }
+            } catch (error) {
+                console.error('Error fetching created by user:', error);
+                setCreatedByUser(null);
+            }
+        };
+
+        if (open && debtNote) {
+            fetchStoreName();
+            fetchCreatedByUser();
+        }
     }, [open, debtNote]);
 
     const handleSourceIdClick = () => {
@@ -208,7 +228,13 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             value={(() => {
                                 if (debtNote.fromSource === "SALE") return "Đơn Bán";
                                 if (debtNote.fromSource === "IMPORT" || debtNote.fromSource === "PURCHASE") return "Đơn Nhập";
-                                if (debtNote.fromSource === "MANUAL") return "Đơn tự nhập";
+                                if (debtNote.fromSource === "MANUAL") {
+                                    const baseText = "";
+                                    if (createdByUser) {
+                                        return `${baseText} ${createdByUser.fullName || createdByUser.username}`;
+                                    }
+                                    return baseText;
+                                }
                                 return debtNote.fromSource || "";
                             })()}
                             disabled
