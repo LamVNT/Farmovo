@@ -101,12 +101,55 @@ class UserServiceImplTest {
         newUser.setUsername("johnd");
         newUser.setPassword("password");
         newUser.setStatus(true);
-        newUser.setStore(null); // missing store
+        // No store set
 
-        // Act / Assert
+        // Act & Assert
         assertThatThrownBy(() -> userService.saveUser(newUser, principal))
                 .isInstanceOf(UserManagementException.class)
-                .hasMessageContaining("Store is required");
+                .hasMessage("Store is required");
+    }
+
+    @Test
+    @DisplayName("saveUser - Email duplicate throws exception")
+    void testSaveUser_EmailDuplicate_ThrowsException() {
+        // Arrange
+        User newUser = new User();
+        newUser.setFullName("John Doe");
+        newUser.setUsername("johnd");
+        newUser.setPassword("password");
+        newUser.setStatus(true);
+        newUser.setStore(store);
+        newUser.setEmail("test@example.com");
+
+        when(userRepository.existsByEmailAndDeletedAtIsNull("test@example.com")).thenReturn(true);
+
+        // Act & Assert
+        assertThatThrownBy(() -> userService.saveUser(newUser, principal))
+                .isInstanceOf(UserManagementException.class)
+                .hasMessage("Email đã được sử dụng bởi tài khoản khác");
+    }
+
+    @Test
+    @DisplayName("saveUser - Email not duplicate succeeds")
+    void testSaveUser_EmailNotDuplicate_Success() {
+        // Arrange
+        User newUser = new User();
+        newUser.setFullName("John Doe");
+        newUser.setUsername("johnd");
+        newUser.setPassword("password");
+        newUser.setStatus(true);
+        newUser.setStore(store);
+        newUser.setEmail("test@example.com");
+
+        when(userRepository.existsByEmailAndDeletedAtIsNull("test@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        User saved = userService.saveUser(newUser, principal);
+
+        // Assert
+        assertThat(saved).isNotNull();
+        assertThat(saved.getEmail()).isEqualTo("test@example.com");
     }
 
     @Test
@@ -147,6 +190,57 @@ class UserServiceImplTest {
         Optional<User> result = userService.updateUser(userId, new User());
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("updateUser - Email duplicate throws exception")
+    void testUpdateUser_EmailDuplicate_ThrowsException() {
+        // Arrange
+        Long userId = 1L;
+        User existing = new User();
+        existing.setId(userId);
+        existing.setFullName("Old Name");
+        existing.setUsername("olduser");
+        existing.setStatus(true);
+        existing.setStore(store);
+
+        User update = new User();
+        update.setEmail("test@example.com");
+
+        when(userRepository.findByIdAndDeletedAtIsNull(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.existsByEmailAndIdNotAndDeletedAtIsNull("test@example.com", userId)).thenReturn(true);
+
+        // Act & Assert
+        assertThatThrownBy(() -> userService.updateUser(userId, update))
+                .isInstanceOf(UserManagementException.class)
+                .hasMessage("Email đã được sử dụng bởi tài khoản khác");
+    }
+
+    @Test
+    @DisplayName("updateUser - Email not duplicate succeeds")
+    void testUpdateUser_EmailNotDuplicate_Success() {
+        // Arrange
+        Long userId = 1L;
+        User existing = new User();
+        existing.setId(userId);
+        existing.setFullName("Old Name");
+        existing.setUsername("olduser");
+        existing.setStatus(true);
+        existing.setStore(store);
+
+        User update = new User();
+        update.setEmail("test@example.com");
+
+        when(userRepository.findByIdAndDeletedAtIsNull(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.existsByEmailAndIdNotAndDeletedAtIsNull("test@example.com", userId)).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Optional<User> result = userService.updateUser(userId, update);
+
+        // Assert
+        assertThat(result).isPresent();
+        assertThat(result.get().getEmail()).isEqualTo("test@example.com");
     }
 
     @Test
