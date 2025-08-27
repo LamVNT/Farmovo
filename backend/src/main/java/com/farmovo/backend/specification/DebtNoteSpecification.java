@@ -32,11 +32,12 @@ public class DebtNoteSpecification {
         if (from == null && to == null) return null;
         return (root, query, cb) -> {
             if (from != null && to != null) {
-                return cb.between(root.get("createdAt"), from, to);
+                // Bao gồm cả ngày bắt đầu và kết thúc
+                return cb.between(root.get("debtDate"), from, to);
             } else if (from != null) {
-                return cb.greaterThanOrEqualTo(root.get("createdAt"), from);
+                return cb.greaterThanOrEqualTo(root.get("debtDate"), from);
             } else {
-                return cb.lessThanOrEqualTo(root.get("createdAt"), to);
+                return cb.lessThanOrEqualTo(root.get("debtDate"), to);
             }
         };
     }
