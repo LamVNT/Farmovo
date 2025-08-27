@@ -18,7 +18,9 @@ public class InputUserValidation {
         }
         
         // Validate password strength using PasswordValidator
+
         PasswordValidator.PasswordValidationResult passwordResult = PasswordValidator.validatePassword(password);
+
         if (!passwordResult.isValid()) {
             throw new IllegalArgumentException("Password validation failed: " + passwordResult.getErrorMessage());
         }
