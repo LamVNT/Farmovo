@@ -1,10 +1,6 @@
 package com.farmovo.backend.controller;
 
-import com.farmovo.backend.dto.response.ZoneResponseDto;
-import com.farmovo.backend.dto.response.ProductResponseDto;
-import com.farmovo.backend.dto.response.MissingZoneDto;
-import com.farmovo.backend.dto.response.StocktakeDetailDto;
-import com.farmovo.backend.dto.response.ImportDetailLotDto;
+import com.farmovo.backend.dto.response.*;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.ZoneService;
 import com.farmovo.backend.services.ProductService;
@@ -70,13 +66,13 @@ public class ImportTransactionDetailController {
 
     @GetMapping("/stocktake-lot")
     public ResponseEntity<List<ImportDetailLotDto>> getImportDetailsForStocktakeLot(
-        @RequestParam(required = false) String store,
-        @RequestParam(required = false) String zone,
-        @RequestParam(required = false) String product,
-        @RequestParam(required = false) Boolean isCheck,
-        @RequestParam(required = false) String batchCode,
-        @RequestParam(required = false) String search,
-        HttpServletRequest request
+            @RequestParam(required = false) String store,
+            @RequestParam(required = false) String zone,
+            @RequestParam(required = false) String product,
+            @RequestParam(required = false) Boolean isCheck,
+            @RequestParam(required = false) String batchCode,
+            @RequestParam(required = false) String search,
+            HttpServletRequest request
     ) {
         try {
             User user = jwtAuthenticationService.extractAuthenticatedUser(request);
@@ -84,7 +80,8 @@ public class ImportTransactionDetailController {
             if (roles.contains("STAFF") && user != null && user.getStore() != null) {
                 store = String.valueOf(user.getStore().getId());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         List<ImportDetailLotDto> result = importTransactionDetailService.findForStocktakeLot(store, zone, product, isCheck, batchCode, search);
         return ResponseEntity.ok(result);
     }
@@ -93,6 +90,13 @@ public class ImportTransactionDetailController {
     public ResponseEntity<Void> updateIsCheck(@PathVariable Long id, @RequestParam boolean isCheck) {
         importTransactionDetailService.updateIsCheck(id, isCheck);
         return ResponseEntity.ok().build();
+    }
+
+    // API lấy ImportTransactionDetail by ID (để lấy unitSalePrice)
+    @GetMapping("/by-id/{id}")
+    public ResponseEntity<ImportTransactionDetailResponse> getById(@PathVariable Long id) {
+        ImportTransactionDetailResponse detail = importTransactionDetailService.getDetailById(id);
+        return ResponseEntity.ok(detail);
     }
 
     @PatchMapping("/{id}/remain")

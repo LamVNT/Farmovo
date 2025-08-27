@@ -37,10 +37,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 import importTransactionService from '../../services/importTransactionService';
 import { userService } from '../../services/userService';
+import { customerService } from '../../services/customerService';
 import { getCategories } from '../../services/categoryService';
 import ImportSidebar from '../../components/import-transaction/ImportSidebar';
 import { getZones } from '../../services/zoneService';
-import { updateBatchRemainQuantity } from '../../services/stocktakeService';
+import { getAllStores } from '../../services/storeService';
+import { updateBatchRemainQuantity, getImportBalanceData } from '../../services/stocktakeService';
 
 const ImportBalancePage = () => {
     const navigate = useNavigate();
@@ -77,6 +79,9 @@ const ImportBalancePage = () => {
     const [batchItems, setBatchItems] = useState([]);
     const [lockedStoreId, setLockedStoreId] = useState(null);
     const [lockedStoreName, setLockedStoreName] = useState(null);
+
+    // Mode: 'update' for updating batch quantities, 'create' for creating new import transaction
+    const [mode, setMode] = useState('update');
 
     // Supplier dropdown states
     const [supplierSearch, setSupplierSearch] = useState('');
@@ -127,20 +132,68 @@ const ImportBalancePage = () => {
     // Load suppliers and stores
     useEffect(() => {
         const loadData = async () => {
+            // Load suppliers
             try {
-                const [suppliersData, storesData, nextCode] = await Promise.all([
-                    userService.getSuppliers(),
-                    userService.getStores(),
-                    importTransactionService.getNextImportCode()
-                ]);
-                
+                const suppliersData = await customerService.getSuppliers();
                 setSuppliers(suppliersData || []);
-                setStores(storesData || []);
-                setNextImportCode(nextCode || '');
                 setFilteredSuppliers(suppliersData || []);
-                setFilteredStores(storesData || []);
+
+                // Tự động chọn nhà cung cấp lẻ nếu có
+                const retailSupplier = suppliersData?.find(s => {
+                    const name = s.name?.toLowerCase() || '';
+                    return name.includes('lẻ') ||
+                           name.includes('nhà cung cấp lẻ') ||
+                           name === 'lẻ' ||
+                           name === 'nhà cung cấp lẻ' ||
+                           name.includes('retail');
+                });
+
+                if (retailSupplier) {
+                    setSelectedSupplier(retailSupplier.id);
+                    setSupplierSearch(retailSupplier.name);
+                    console.log('Auto-selected retail supplier:', retailSupplier.name);
+                } else {
+                    console.log('No retail supplier found, available:', suppliersData?.map(s => s.name));
+                }
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('Failed to load suppliers:', error);
+            }
+
+            // Load stores only for ADMIN/OWNER roles
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles].filter(Boolean);
+            const isStaff = userRoles.some(role =>
+                role === 'STAFF' || role === 'ROLE_STAFF'
+            );
+
+            if (!isStaff) {
+                try {
+                    const storesData = await getAllStores();
+                    setStores(storesData || []);
+                    setFilteredStores(storesData || []);
+                } catch (error) {
+                    console.log('Cannot load stores (no admin access)');
+                }
+            } else {
+                // For STAFF, use store from user data
+                if (user.store) {
+                    const userStore = {
+                        id: user.store.id,
+                        storeName: user.store.storeName || user.store.name,
+                        name: user.store.name || user.store.storeName
+                    };
+                    setStores([userStore]);
+                    setFilteredStores([userStore]);
+                    console.log('Using staff store from user data:', userStore.storeName);
+                }
+            }
+
+            // Load next code
+            try {
+                const nextCode = await importTransactionService.getNextCode();
+                setNextImportCode(nextCode || '');
+            } catch (error) {
+                console.error('Failed to load next code:', error);
             }
         };
         loadData();
@@ -167,9 +220,18 @@ const ImportBalancePage = () => {
     // Load stocktake data from navigation state
     useEffect(() => {
         const surplus = location.state?.surplusFromStocktake;
+        const createMode = location.state?.createImportMode; // New flag for create mode
+
         if (!surplus) {
             navigate('/import/new');
             return;
+        }
+
+        // Set mode based on navigation state
+        if (createMode) {
+            setMode('create');
+        } else {
+            setMode('update');
         }
 
         setStocktakeInfo({
@@ -182,20 +244,35 @@ const ImportBalancePage = () => {
         if (surplus.storeId) {
             setSelectedStore(surplus.storeId);
             setLockedStoreId(surplus.storeId);
-            
-            // Find store name
-            const store = stores.find(s => String(s.id) === String(surplus.storeId));
-            const storeName = store?.storeName || store?.name || `Kho ${surplus.storeId}`;
+
+            // Find store name - ưu tiên từ user data nếu là STAFF
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles].filter(Boolean);
+            const isStaff = userRoles.some(role => role === 'STAFF' || role === 'ROLE_STAFF');
+
+            let storeName;
+            if (isStaff && user.storeName && String(user.storeId) === String(surplus.storeId)) {
+                // Nếu là STAFF và storeId khớp, dùng storeName từ user data
+                storeName = user.storeName;
+            } else {
+                // Ngược lại, tìm trong danh sách stores
+                const store = stores.find(s => String(s.id) === String(surplus.storeId));
+                storeName = store?.storeName || store?.name || `Kho ${surplus.storeId}`;
+            }
+
             setLockedStoreName(storeName);
             setStoreSearch(storeName);
+
         }
 
         // Process surplus items into batch format
         if (Array.isArray(surplus.items) && surplus.items.length > 0) {
+            console.log('DEBUG: surplus.items structure:', surplus.items[0]); // Debug first item
+
             const batchProducts = surplus.items
-                .filter(d => Number(d.diff) > 0) // Only surplus items
-                .map((d, index) => ({
-                    id: d.id || `${d.productId}_${d.batchCode || d.name || index}`, // Sử dụng ID thực nếu có
+                    .filter(d => Number(d.diff) > 0) // Only surplus items
+                    .map((d, index) => ({
+                    id: `${d.productId}_${d.batchCode || d.name || 'batch'}_${index}_${Date.now()}`, // Đảm bảo ID duy nhất
                     batchCode: d.batchCode || d.name || `Lô ${index + 1}`,
                     name: d.productName || d.name || `Sản phẩm ${d.productId}`,
                     productName: d.productName || d.name || `Sản phẩm ${d.productId}`,
@@ -207,7 +284,7 @@ const ImportBalancePage = () => {
                     diff: d.diff || 0,
                     quantity: Number(d.diff) || 0, // Import quantity = diff
                     price: 0,
-                    salePrice: 0,
+                    salePrice: d.unitSalePrice || 0, // Lấy từ lô nguồn
                     total: 0,
                     zoneIds: d.zones_id && Array.isArray(d.zones_id) 
                         ? d.zones_id.map(id => Number(id))
@@ -225,6 +302,101 @@ const ImportBalancePage = () => {
             setNote(`Phiếu Nhập cân bằng cho kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''} - ${batchProducts.length} lô hàng`);
         }
     }, [location.state, navigate, stores]);
+
+    // Update store name when stores are loaded
+    useEffect(() => {
+        if (lockedStoreId && stores.length > 0 && !lockedStoreName) {
+            const store = stores.find(s => String(s.id) === String(lockedStoreId));
+            if (store) {
+                const storeName = store.storeName || store.name || `Kho ${lockedStoreId}`;
+                setLockedStoreName(storeName);
+                setStoreSearch(storeName);
+
+            }
+        }
+    }, [stores, lockedStoreId, lockedStoreName]);
+
+    // Load next import code when in create mode
+    useEffect(() => {
+        if (mode === 'create') {
+            const loadNextCode = async () => {
+                try {
+                    const code = await importTransactionService.getNextBalanceCode();
+                    setNextImportCode(code);
+                } catch (error) {
+                    console.error('Error loading next import code:', error);
+                }
+            };
+            loadNextCode();
+        }
+    }, [mode]);
+
+    // Load import data from API when in create mode (chỉ khi cần thiết)
+    useEffect(() => {
+        if (mode === 'create' && stocktakeInfo?.stocktakeId && selectedProducts.length === 0) {
+            // Chỉ gọi API khi không có dữ liệu từ surplus.items
+            const loadImportData = async () => {
+                try {
+                    const importData = await getImportBalanceData(stocktakeInfo.stocktakeId);
+                    const batchProducts = importData.map((d, index) => ({
+                        id: `${d.productId}_${d.batchCode || 'batch'}_${index}_${Date.now()}`, // Đảm bảo ID duy nhất
+                        batchCode: d.batchCode || `Lô ${index + 1}`, // Hiển thị tên lô từ API
+                        name: d.productName || d.name || `Sản phẩm ${d.productId}`,
+                        productName: d.productName || d.name || `Sản phẩm ${d.productId}`,
+                        productCode: d.productCode || '',
+                        productId: d.productId,
+                        unit: 'quả',
+                        quantity: d.importQuantity || 0,
+                        price: 0, // Đơn giá mặc định = 0 cho PCB Nhập
+                        salePrice: d.unitSalePrice || 0, // Giữ nguyên giá bán từ lô cũ
+                        total: 0, // Thành tiền = 0 vì đơn giá = 0
+                        zoneIds: d.zones_id && Array.isArray(d.zones_id)
+                            ? d.zones_id.map(id => Number(id))
+                            : [],
+                        expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
+                        originalId: d.productId,
+                    }));
+
+                    setSelectedProducts(batchProducts);
+                    setBatchItems(batchProducts);
+                    setNote(`PCB Nhập cho kiểm kê ${stocktakeInfo.stocktakeCode || stocktakeInfo.stocktakeId || ''} - ${batchProducts.length} lô hàng`);
+                    
+                    // Đặt paidAmount = 0 cho PCB Nhập
+                    setPaidAmount(0);
+                    setPaidAmountInput('0');
+                } catch (error) {
+                    console.error('Error loading import balance data:', error);
+                    setError('Không thể tải dữ liệu từ kiểm kê');
+                }
+            };
+            loadImportData();
+        }
+    }, [mode, stocktakeInfo, selectedProducts.length]);
+
+    // Filter suppliers based on search
+    useEffect(() => {
+        if (!supplierSearch.trim()) {
+            setFilteredSuppliers(suppliers);
+        } else {
+            const filtered = suppliers.filter(supplier =>
+                supplier.name?.toLowerCase().includes(supplierSearch.toLowerCase())
+            );
+            setFilteredSuppliers(filtered);
+        }
+    }, [supplierSearch, suppliers]);
+
+    // Filter stores based on search
+    useEffect(() => {
+        if (!storeSearch.trim()) {
+            setFilteredStores(stores);
+        } else {
+            const filtered = stores.filter(store =>
+                store.storeName?.toLowerCase().includes(storeSearch.toLowerCase()) ||
+                store.name?.toLowerCase().includes(storeSearch.toLowerCase())
+            );
+            setFilteredStores(filtered);
+        }
+    }, [storeSearch, stores]);
 
     // Handle column visibility toggle
     const toggleColumn = (columnName) => {
@@ -297,7 +469,10 @@ const ImportBalancePage = () => {
     };
 
     // Calculate totals
-    const totalAmount = selectedProducts.reduce((sum, product) => sum + (product.total || 0), 0);
+    const totalAmount = selectedProducts.reduce((sum, product) => {
+        // Tổng tiền luôn = 0 cho PCB Nhập vì đơn giá = 0
+        return sum + 0;
+    }, 0);
     const remainingAmount = totalAmount - paidAmount;
 
     // Format currency
@@ -310,7 +485,12 @@ const ImportBalancePage = () => {
 
     // Handle paid amount change
     const handlePaidAmountChange = (value) => {
-        const numericValue = parseFloat(value.replace(/[^\d]/g, '')) || 0;
+        // Disable paid amount changes for balance import
+        if (mode === 'create') {
+            return;
+        }
+        
+        const numericValue = parseFloat(value) || 0;
         setPaidAmount(numericValue);
         setPaidAmountInput(value);
     };
@@ -369,6 +549,74 @@ const ImportBalancePage = () => {
         } catch (err) {
             console.error('Error updating batch quantities:', err);
             setError('Không thể cập nhật số lượng lô hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle create new import transaction
+    const handleCreateImport = async () => {
+        if (!selectedStore) {
+            setError('Vui lòng chọn cửa hàng');
+            setHighlightStore(true);
+            return;
+        }
+
+        if (!selectedSupplier) {
+            setError('Vui lòng chọn nhà cung cấp');
+            setHighlightSupplier(true);
+            return;
+        }
+
+        if (selectedProducts.length === 0) {
+            setError('Vui lòng chọn ít nhất một sản phẩm');
+            setHighlightProducts(true);
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Chuẩn bị dữ liệu cho phiếu nhập
+            const importDetails = selectedProducts.map(product => ({
+                productId: product.productId,
+                importQuantity: product.quantity,
+                remainQuantity: product.quantity,
+                unitImportPrice: 0, // Đơn giá = 0 cho PCB Nhập
+                unitSalePrice: product.salePrice || 0,
+                expireDate: product.expireDate ? new Date(product.expireDate).toISOString() : null,
+                zones_id: product.zoneIds || []
+            }));
+
+            const importData = {
+                supplierId: selectedSupplier,
+                storeId: selectedStore,
+                details: importDetails,
+                totalAmount: 0, // Tổng tiền = 0 vì đơn giá = 0
+                paidAmount: 0, // Số tiền đã trả = 0 cho PCB Nhập
+                importTransactionNote: note + " - Cân bằng nhập",
+                importDate: new Date().toISOString(),
+                status: 'DRAFT',
+                stocktakeId: stocktakeInfo.stocktakeId,
+                name: nextImportCode,
+                staffId: currentUser?.id || 1
+            };
+
+            await importTransactionService.createFromBalance(importData);
+
+            setSuccess('Tạo phiếu nhập cân bằng thành công!');
+
+            // Đánh dấu đã tạo phiếu nhập cân bằng
+            localStorage.setItem(`stocktake_${stocktakeInfo.stocktakeId}_hasBalanceImport`, 'true');
+
+            // Reset form and navigate back to stocktake detail
+            setTimeout(() => {
+                navigate(`/stocktake/${stocktakeInfo.stocktakeId}`);
+            }, 2000);
+        } catch (err) {
+            console.error('Error creating import transaction:', err);
+            setError('Không thể tạo phiếu nhập cân bằng');
         } finally {
             setLoading(false);
         }
@@ -692,7 +940,7 @@ const ImportBalancePage = () => {
                                     }
                                 }}
                             >
-                                Phiếu nhập cân bằng
+                                {mode === 'create' ? 'Tạo PCB Nhập' : 'Phiếu nhập cân bằng'}
                             </Button>
                         </div>
 
@@ -715,23 +963,6 @@ const ImportBalancePage = () => {
                         </div>
                     </div>
 
-                    {/* Stocktake Info Banner */}
-                    {stocktakeInfo && (
-                        <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
-                            <div className="flex items-center">
-                                <div className="ml-3">
-                                    <p className="text-sm text-blue-800">
-                                        <strong>Phiếu nhập cân bằng từ kiểm kê:</strong> {stocktakeInfo.stocktakeCode}
-                                    </p>
-                                    <p className="text-xs text-blue-600 mt-1">
-                                        Nhập hàng để cân bằng số lượng dư từ kết quả kiểm kê. 
-                                        Vui lòng nhập đơn giá và giá bán cho từng lô hàng.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Products Table */}
                     <div style={{ height: 400, width: '100%' }}>
                         {isClient ? (
@@ -745,7 +976,7 @@ const ImportBalancePage = () => {
                                 }}
                                 pageSizeOptions={[10, 25, 50]}
                                 disableRowSelectionOnClick
-                                getRowId={(row) => row.id}
+                                getRowId={(row) => row.id || `row_${Math.random()}`}
                                 sx={{
                                     border: '1px solid #e0e0e0',
                                     borderRadius: '8px',
@@ -836,9 +1067,11 @@ const ImportBalancePage = () => {
                     highlightStore={highlightStore}
                     loading={loading}
                     onUpdateBatch={handleUpdateBatch}
+                    onCreateImport={handleCreateImport}
                     lockedStoreId={lockedStoreId}
                     lockedStoreName={lockedStoreName}
                     isBalancePage={true}
+                    mode={mode}
                 />
             </div>
         </LocalizationProvider>

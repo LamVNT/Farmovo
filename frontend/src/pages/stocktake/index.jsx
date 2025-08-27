@@ -271,6 +271,21 @@ const StockTakePage = () => {
                     </div>
                 </div>
 
+                {/* Ghi chú màu sắc */}
+                <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-6 text-sm">
+                        <span className="font-medium text-gray-700">Chú thích màu sắc:</span>
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 border-2 border-pink-300 rounded" style={{backgroundColor: "#ffeaea"}}></div>
+                            <span className="text-gray-600">Phiếu có chênh lệch</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded"></div>
+                            <span className="text-gray-600">Phiếu không có chênh lệch</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Table */}
                 {loading ? (
                     <div className="flex justify-center items-center py-12">

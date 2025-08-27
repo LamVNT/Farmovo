@@ -134,7 +134,12 @@ const AddSalePage = (props) => {
         handleCloseSummary,
         handleSelectProductInDialog,
         handleSelectBatches,
-    } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
+    } = useSaleTransaction({ 
+        isBalanceStock: props.isBalanceStock, 
+        onSubmit: props.onSubmit,
+        fromStocktake: props.fromStocktake,
+        stocktakeId: props.stocktakeId
+    });
 
     // Khởi tạo dữ liệu balance mode một lần duy nhất
     useEffect(() => {
@@ -1399,9 +1404,10 @@ const AddSalePage = (props) => {
                     try {
                         const ok = await handleConfirmSummary();
                         if (!ok) return;
-                        if (props.isBalanceStock) {
-                            props.onSuccess && props.onSuccess();
-                        } else {
+                        // Khi hoàn thành PCB, hook useSaleTransaction sẽ xử lý chuyển hướng
+                        // Không cần gọi onSuccess hoặc xử lý chuyển hướng ở đây
+                        // Chỉ xử lý trường hợp không phải PCB
+                        if (!props.isBalanceStock) {
                             window.location.href = '/sale';
                         }
                     } finally {
@@ -1416,6 +1422,7 @@ const AddSalePage = (props) => {
                     products: selectedProducts.map(p => ({
                         ...p,
                         price: p.price || p.unitSalePrice || 0,
+                        zoneReal: p.zoneReal || null, // Đảm bảo zoneReal được truyền
                     })),
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
