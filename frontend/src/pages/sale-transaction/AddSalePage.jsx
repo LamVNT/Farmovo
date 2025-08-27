@@ -1422,6 +1422,7 @@ const AddSalePage = (props) => {
                     products: selectedProducts.map(p => ({
                         ...p,
                         price: p.price || p.unitSalePrice || 0,
+                        zoneReal: p.zoneReal || null, // Đảm bảo zoneReal được truyền
                     })),
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
