@@ -1,6 +1,7 @@
 package com.farmovo.backend.dto.response;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -18,4 +19,5 @@ public class StocktakeDetailDto {
     private String zoneReal;       // Khu vực thực tế (frontend truyền lên)
     private String expireDate;     // Hạn dùng
     private Boolean isCheck;       // Đã kiểm hay chưa
+    private BigDecimal unitSalePrice; // Giá bán từ lô nguồn
 } 

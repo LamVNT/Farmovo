@@ -21,6 +21,7 @@ public interface ImportTransactionDetailLotMapper {
     @Mapping(source = "expireDate", target = "expireDate") // hạn dùng
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "isCheck", target = "isCheck")
+    @Mapping(source = "unitSalePrice", target = "unitSalePrice") // giá bán
     @Mapping(target = "zonesId", source = "zones_id", qualifiedByName = "parseZonesId")
     @Mapping(target = "zoneName", expression = "java(com.farmovo.backend.mapper.ImportTransactionDetailLotMapper.buildZoneName(detail.getZones_id(), allZones))")
     ImportDetailLotDto toDto(ImportTransactionDetail detail, @Context List<Zone> allZones);
@@ -32,6 +33,7 @@ public interface ImportTransactionDetailLotMapper {
     @Mapping(source = "expireDate", target = "expireDate")
     @Mapping(source = "remainQuantity", target = "remainQuantity")
     @Mapping(source = "isCheck", target = "isCheck")
+    @Mapping(source = "unitSalePrice", target = "unitSalePrice") // giá bán
     @Mapping(target = "zonesId", source = "zones_id", qualifiedByName = "parseZonesId")
     ImportDetailLotDto toDto(ImportTransactionDetail detail);
 

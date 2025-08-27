@@ -41,10 +41,12 @@ const ImportSidebar = ({
     onSaveDraft = () => {},
     onComplete = () => {},
     onUpdateBatch = () => {},
+    onCreateImport = () => {},
     lockedStoreId = null,
     lockedStoreName = null,
     fromStocktake = false,
     isBalancePage = false,
+    mode = 'update', // 'update' or 'create'
 }) => {
     // State cho số tiền đã trả focus
     const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
@@ -121,7 +123,8 @@ const ImportSidebar = ({
                 <div className="font-bold text-lg tracking-widest text-blue-900">{nextImportCode}</div>
             </div>
 
-            {/* Nhà cung cấp */}
+            {/* Nhà cung cấp - chỉ hiển thị khi mode create */}
+            {(!isBalancePage || mode === 'create') && (
             <div>
                 <div className="font-semibold mb-1">Nhà cung cấp</div>
                 <div className="relative">
@@ -234,6 +237,8 @@ const ImportSidebar = ({
                     )}
                 </div>
             </div>
+            )}
+
             {/* Cửa hàng */}
             <div>
                 <div className="font-semibold mb-1">Cửa hàng</div>
@@ -242,7 +247,7 @@ const ImportSidebar = ({
                         size="small"
                         fullWidth
                         placeholder={fromStocktake ? "Kho được chọn từ kiểm kê" : "Tìm cửa hàng..."}
-                        value={fromStocktake && lockedStoreName ? lockedStoreName : (storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || ''))}
+                        value={fromStocktake && lockedStoreName ? lockedStoreName : (storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || stores.find(s => String(s.id) === String(selectedStore))?.name || ''))}
                         onChange={e => {
                             if (!fromStocktake) {
                                 setStoreSearch(e.target.value);
@@ -324,7 +329,7 @@ const ImportSidebar = ({
                 {/* Thông báo về zone filtering - ngay sát ô search */}
                 {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
                     <div className="mt-0.5 text-xs text-green-600">
-                        Khu vực: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
+                        Khu vực: <strong>{stores.find(s => String(s.id) === String(selectedStore))?.storeName || stores.find(s => String(s.id) === String(selectedStore))?.name || `Kho ${selectedStore}`}</strong>
                     </div>
                 )}
 
@@ -404,6 +409,7 @@ const ImportSidebar = ({
                 </div>
             )}
 
+            {/* Số tiền đã trả - luôn hiển thị nhưng disable cho Import Balance */}
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
                 <TextField
@@ -411,6 +417,7 @@ const ImportSidebar = ({
                     fullWidth
                     type="text"
                     placeholder="Nhập số tiền đã trả"
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     value={isPaidAmountFocused && (paidAmountInput === '0' || paidAmountInput === '') ? '' : paidAmountInput}
                     onFocus={e => {
                         setIsPaidAmountFocused(true);
@@ -480,14 +487,14 @@ const ImportSidebar = ({
             </div>
 
             <div className="flex gap-2">
-                <Button 
-                    fullWidth 
-                    variant="outlined" 
+                <Button
+                    fullWidth
+                    variant="outlined"
                     onClick={() => {
                         setPaidAmount(0);
                         setPaidAmountInput('0');
                     }}
-                    disabled={paidAmount === 0}
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     sx={{
                         borderColor: '#ddd',
                         color: '#666',
@@ -503,14 +510,14 @@ const ImportSidebar = ({
                 >
                     Chưa trả
                 </Button>
-                <Button 
-                    fullWidth 
-                    variant="outlined" 
+                <Button
+                    fullWidth
+                    variant="outlined"
                     onClick={() => {
                         setPaidAmount(totalAmount);
                         setPaidAmountInput(totalAmount.toLocaleString('vi-VN'));
                     }}
-                    disabled={paidAmount === totalAmount}
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     sx={{
                         borderColor: '#ddd',
                         color: '#666',
@@ -530,32 +537,61 @@ const ImportSidebar = ({
 
             <div className="flex gap-2 pt-2">
                 {isBalancePage ? (
-                    <Button 
-                        fullWidth 
-                        variant="contained" 
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
-                        onClick={onUpdateBatch} 
-                        disabled={loading}
-                        sx={{
-                            background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
-                            boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
-                            '&:hover': {
-                                background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
-                                boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
-                                transform: 'translateY(-1px)'
-                            },
-                            '&:disabled': {
-                                background: '#ccc',
-                                boxShadow: 'none',
-                                transform: 'none'
-                            },
-                            fontWeight: 600,
-                            borderRadius: 2,
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Thêm số lượng
-                    </Button>
+                    mode === 'create' ? (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                            onClick={onCreateImport}
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                                boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                    boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Tạo PCB Nhập
+                        </Button>
+                    ) : (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                            onClick={onUpdateBatch}
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
+                                boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
+                                    boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Cập nhật lô
+                        </Button>
+                    )
                 ) : (
                     <>
                         <Button 
