@@ -1017,6 +1017,8 @@ const CreateStocktakePage = () => {
                 <StoreSelector
                     user={user}
                     userRole={userRole}
+                    variant="simple"
+                    size="small"
                     onStoreChange={(storeId, storeObj) => {
                         // Chỉ update filter nếu thực sự có thay đổi
                         const newStoreId = String(storeId);
@@ -1100,49 +1102,54 @@ const CreateStocktakePage = () => {
                 </Box>
             ) : (
                 <>
-                    {/* Tiêu đề danh sách lô hàng */}
-                    <Typography variant="subtitle1" fontWeight={600} mb={1}>
-                        Danh sách lô hàng
-                        {isStaff && filter.store && stores.length > 0 && (
-                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
-                                tại kho: {stores[0]?.storeName || `Store ${filter.store}`}
+                    {/* Header với Danh sách lô hàng bên trái và Chú thích bên phải */}
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        mb: 2,
+                        flexWrap: 'wrap',
+                        gap: 2
+                    }}>
+                        {/* Danh sách lô hàng - Max trái */}
+                        <Typography variant="subtitle1" fontWeight={600}>
+                            Danh sách lô hàng
+                            {isStaff && filter.store && stores.length > 0 && (
+                                <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
+                                    tại kho: {stores[0]?.storeName || `Store ${filter.store}`}
+                                </Typography>
+                            )}
+                            {isOwnerOrAdmin && filter.store && (
+                                <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
+                                    tại kho: {stores.find(s => s.id === filter.store)?.storeName || stores.find(s => s.id === filter.store)?.name}
+                                </Typography>
+                            )}
+                        </Typography>
+
+                        {/* Chú thích chênh lệch - Max phải */}
+                        <Box sx={{
+                            display: 'flex',
+                            gap: 2,
+                            alignItems: 'center',
+                            flexWrap: 'wrap'
+                        }}>
+                            <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                Chú thích chênh lệch:
                             </Typography>
-                        )}
-                        {isOwnerOrAdmin && filter.store && (
-                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 2, fontWeight: 400 }}>
-                                tại kho: {stores.find(s => s.id === filter.store)?.storeName || stores.find(s => s.id === filter.store)?.name}
-                            </Typography>
-                        )}
-                    </Typography>
-            
-            {/* Legend cho màu sắc chênh lệch */}
-            <Box sx={{ 
-                display: 'flex', 
-                gap: 2, 
-                mb: 2, 
-                p: 1.5, 
-                bgcolor: '#f8f9fa', 
-                borderRadius: 1, 
-                border: '1px solid #e9ecef',
-                flexWrap: 'wrap',
-                alignItems: 'center'
-            }}>
-                <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    Chú thích chênh lệch:
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#dc2626' }} />
-                    <Typography variant="body2" color="#dc2626" fontWeight={500}>
-                        Đỏ: Thực tế {'>'} Tồn kho (Cần kiểm tra lại)
-                    </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#ea580c' }} />
-                    <Typography variant="body2" color="#ea580c" fontWeight={500}>
-                        Cam: Thực tế {'<'} Tồn kho (Có thể thiếu hàng)
-                    </Typography>
-                </Box>
-            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#dc2626' }} />
+                                <Typography variant="body2" color="#dc2626" fontWeight={500}>
+                                    Đỏ: Thực tế {'>'} Tồn kho
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3dc0c9ff' }} />
+                                <Typography variant="body2" color="#3dc0c9ff" fontWeight={500}>
+                                    Xanh: Thực tế {'<'} Tồn kho
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Box>
             <TableContainer component={Paper} elevation={1} sx={{
                 mb: 2,
                 borderRadius: 2,
@@ -1388,7 +1395,7 @@ const CreateStocktakePage = () => {
                                                             size="small"
                                                             sx={{
                                                                 background: lot.diff < 0 
-                                                                    ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Cam gradient cho số âm
+                                                                    ? 'linear-gradient(135deg, #3dc0c9ff 0%, #3dc0c9ff 100%)' // Cam gradient cho số âm
                                                                     : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)', // Đỏ gradient cho số dương
                                                                 color: 'white',
                                                                 fontWeight: 600,

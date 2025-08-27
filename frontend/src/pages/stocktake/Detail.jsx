@@ -87,9 +87,103 @@ const StockTakeDetailPage = () => {
     const hasSurplus = Array.isArray(detail?.detail)
         ? detail.detail.some(d => Number(d.diff) > 0)
         : false;
-    const canBalance = detail?.status === 'COMPLETED'
-        && hasShortage
-        && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
+    
+    // Logic mới cho 3 trạng thái PCB
+    const canBalance = detail?.status === 'COMPLETED' && hasShortage;
+    
+    // Kiểm tra trạng thái PCB
+    const [pcbStatus, setPcbStatus] = useState(null);
+    
+    // Kiểm tra thông báo PCB thành công cho Staff
+    useEffect(() => {
+        if (detail?.id && (userRole === 'STAFF' || userRole === 'ROLE_STAFF')) {
+            const pcbSuccessMessage = localStorage.getItem(`stocktake_${detail.id}_pcbSuccess`);
+            if (pcbSuccessMessage) {
+                setSnackbar({ 
+                    isOpen: true, 
+                    message: pcbSuccessMessage, 
+                    severity: 'success' 
+                });
+                // Xóa thông báo khỏi localStorage sau khi hiển thị
+                localStorage.removeItem(`stocktake_${detail.id}_pcbSuccess`);
+                // Tự động ẩn thông báo sau 3 giây
+                setTimeout(() => {
+                    setSnackbar(prev => ({ ...prev, isOpen: false }));
+                }, 3000);
+            }
+        }
+    }, [detail?.id, userRole]);
+    
+    useEffect(() => {
+        if (detail?.id) {
+            // Kiểm tra từ localStorage trước
+            const hasPcb = localStorage.getItem(`stocktake_${detail.id}_hasPCB`);
+            const pcbStatusLocal = localStorage.getItem(`stocktake_${detail.id}_pcbStatus`);
+            
+            if (hasPcb) {
+                // Nếu đã có PCB trong localStorage, gọi API để cập nhật trạng thái
+                axios.get(`/sale-transactions/stocktake/${detail.id}/status`)
+                    .then(res => {
+                        setPcbStatus(res.data);
+                        // Cập nhật localStorage
+                        if (res.data.hasBalance) {
+                            localStorage.setItem(`stocktake_${detail.id}_hasPCB`, 'true');
+                            localStorage.setItem(`stocktake_${detail.id}_pcbStatus`, res.data.status);
+                        }
+                    })
+                    .catch(() => {
+                        // Fallback: sử dụng dữ liệu từ localStorage
+                        setPcbStatus({ 
+                            hasBalance: true, 
+                            status: pcbStatusLocal || 'WAITING_FOR_APPROVE' 
+                        });
+                    });
+            } else {
+                // Nếu chưa có PCB, set trạng thái là false
+                setPcbStatus({ hasBalance: false, status: null });
+            }
+        }
+    }, [detail?.id]);
+    
+    // Thêm effect để refresh trạng thái PCB khi component được mount
+    useEffect(() => {
+        const refreshPcbStatus = () => {
+            if (detail?.id) {
+                // Kiểm tra từ localStorage trước
+                const hasPcb = localStorage.getItem(`stocktake_${detail.id}_hasPCB`);
+                const pcbStatusLocal = localStorage.getItem(`stocktake_${detail.id}_pcbStatus`);
+                
+                if (hasPcb) {
+                    // Nếu đã có PCB trong localStorage, gọi API để cập nhật trạng thái
+                    axios.get(`/sale-transactions/stocktake/${detail.id}/status`)
+                        .then(res => {
+                            setPcbStatus(res.data);
+                            // Cập nhật localStorage
+                            if (res.data.hasBalance) {
+                                localStorage.setItem(`stocktake_${detail.id}_hasPCB`, 'true');
+                                localStorage.setItem(`stocktake_${detail.id}_pcbStatus`, res.data.status);
+                            }
+                        })
+                        .catch(() => {
+                            // Fallback: sử dụng dữ liệu từ localStorage
+                            setPcbStatus({ 
+                                hasBalance: false, 
+                                status: pcbStatusLocal || 'WAITING_FOR_APPROVE' 
+                            });
+                        });
+                }
+                // Nếu không có PCB, không làm gì cả (giữ nguyên trạng thái hiện tại)
+            }
+        };
+        
+        // Refresh ngay khi component mount
+        refreshPcbStatus();
+        
+        // Refresh mỗi 5 giây để cập nhật trạng thái PCB (chỉ khi đã có PCB)
+        const interval = setInterval(refreshPcbStatus, 5000);
+        
+        return () => clearInterval(interval);
+    }, [detail?.id]);
 
     // Surplus (dư hàng): real > remain
     const surplusItems = Array.isArray(detail?.detail)
@@ -122,10 +216,13 @@ const StockTakeDetailPage = () => {
                         color="secondary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
                         onClick={() => navigate('/import/balance', {
-                            state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
+                            state: {
+                                surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems },
+                                createImportMode: true
+                            }
                         })}
                     >
-                        Tạo phiếu nhập hàng
+                        Tạo PCB Nhập
                     </Button>
                 )}
                 {hasSurplus && localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
@@ -138,7 +235,8 @@ const StockTakeDetailPage = () => {
                         Đã tạo phiếu nhập
                     </Button>
                 )}
-                {canBalance && (
+                {/* Logic mới cho 3 trạng thái PCB */}
+                {canBalance && !pcbStatus?.hasBalance && (
                     <Button
                         variant="contained"
                         color="primary"
@@ -163,7 +261,33 @@ const StockTakeDetailPage = () => {
                         Cân bằng kho (Tạo PCB)
                     </Button>
                 )}
-                {/* Nút mở PCB đã liên kết nếu có */}
+                
+                {/* Trạng thái: Đã có PCB chờ duyệt */}
+                {canBalance && pcbStatus?.hasBalance && pcbStatus?.status === 'WAITING_FOR_APPROVE' && (
+                    <Button
+                        variant="outlined"
+                        color="warning"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        disabled
+                    >
+                        Đã có PCB chờ duyệt
+                    </Button>
+                )}
+                
+                {/* Trạng thái: Xem PCB (đã được duyệt) */}
+                {canBalance && pcbStatus?.hasBalance && pcbStatus?.status === 'COMPLETE' && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/balance?view=detail&id_by_stocktake=${detail.id}`)}
+                        title="Mở phiếu cân bằng đã liên kết"
+                    >
+                        Xem PCB
+                    </Button>
+                )}
+                
+                {/* Logic cũ - giữ lại để tương thích ngược */}
                 {!canBalance && detail?.hasBalance && (
                     <Button
                         variant="outlined"
@@ -230,6 +354,7 @@ const StockTakeDetailPage = () => {
                     value={filter.productName}
                     onChange={e => setFilter(f => ({ ...f, productName: e.target.value }))}
                 />
+
                 {/* Nút Export Excel chỉ hiển thị khi phiếu đã hoàn thành */}
                 {detail.status === "COMPLETED" && (
                     <Button

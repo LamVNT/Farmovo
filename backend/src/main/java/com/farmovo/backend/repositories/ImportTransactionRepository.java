@@ -34,6 +34,10 @@ public interface ImportTransactionRepository extends JpaRepository<ImportTransac
 
     long countByStocktakeId(Long stocktakeId);
 
+    // Truy vấn max số thứ tự hiện có cho mã PCBNxxxxxx
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(name, 5) AS BIGINT)), 0) FROM import_transactions WHERE name LIKE 'PCBN%'", nativeQuery = true)
+    Long getMaxPcbnSequence();
+
     @Query("SELECT COUNT(i) FROM ImportTransaction i WHERE i.deletedAt IS NULL AND i.store.id = :storeId")
     long countByStoreId(@org.springframework.data.repository.query.Param("storeId") Long storeId);
 }

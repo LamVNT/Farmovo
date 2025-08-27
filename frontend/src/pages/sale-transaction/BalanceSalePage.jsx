@@ -5,11 +5,13 @@ import {getStocktakeDiff, getStocktakeDiffForBalance} from '../../services/stock
 import saleTransactionService from '../../services/saleTransactionService';
 import { Button } from '@mui/material';
 import { useStoreForStocktake } from '../../hooks/useStoreForStocktake';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const BalanceSalePage = () => {
     const {stocktakeId} = useParams();
     const location = useLocation();
     const navigate = useNavigate();
+    const { isStaff } = useAuth(); // Sử dụng hook useAuth để kiểm tra role
     const [diffProducts, setDiffProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [batches, setBatches] = useState([]);
@@ -101,7 +103,13 @@ const BalanceSalePage = () => {
     }, [stocktakeId]);
 
     const handleSuccess = () => {
-        navigate('/balance');
+        // Nếu là Staff, chuyển về trang StockTake Detail
+        if (isStaff()) {
+            navigate(`/stocktake/${stocktakeId}`);
+        } else {
+            // Nếu là Admin/Owner, chuyển về trang danh sách phiếu cân bằng
+            navigate('/balance');
+        }
     };
 
     const handleSubmit = async (dto) => {
@@ -133,13 +141,13 @@ const BalanceSalePage = () => {
                 initialProducts={diffProducts}
                 initialNote="Cân bằng kho"
                 initialCustomer={null}
-                onSuccess={handleSuccess}
                 onSubmit={handleSubmit}
                 initialCode={nextCode}
                 customersProp={customers}
                 lockedStoreId={currentStoreId}
                 lockedStoreName={currentStoreName}
                 fromStocktake={true}
+                stocktakeId={stocktakeId}
             />
         </>
     );

@@ -61,3 +61,8 @@ export const updateBatchRemainQuantity = (batchId, remainQuantity) => {
     return axios.patch(`/import-details/${batchId}/remain`, { remainQuantity })
         .then(res => res.data);
 };
+
+// API để lấy dữ liệu stocktake cho tạo phiếu nhập cân bằng
+export const getImportBalanceData = (stocktakeId) => {
+    return axios.get(`/stocktakes/${stocktakeId}/import-balance-data`).then(res => res.data);
+};

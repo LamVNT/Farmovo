@@ -153,6 +153,30 @@ const BalanceTransactionPage = () => {
             .catch(() => setCurrentUser(null));
     }, []);
 
+    // Kiểm tra thông báo PCB thành công cho Admin/Owner
+    useEffect(() => {
+        const pcbSuccessMessage = localStorage.getItem('pcbSuccessMessage');
+        if (pcbSuccessMessage) {
+            setSuccess(pcbSuccessMessage);
+            // Xóa thông báo khỏi localStorage sau khi hiển thị
+            localStorage.removeItem('pcbSuccessMessage');
+            // Tự động ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+        }
+    }, []);
+
+    // Tự động xóa error sau 5 giây
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => {
+                setError(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
     useEffect(() => {
         loadTransactions();
     }, [page, pageSize, search, JSON.stringify(filter), JSON.stringify(customDate)]);

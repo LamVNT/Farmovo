@@ -56,6 +56,16 @@ const importTransactionService = {
         return res.data;
     },
 
+    async getNextBalanceCode() {
+        const res = await api.get('/import-transaction/next-code-balance');
+        return res.data;
+    },
+
+    async createFromBalance(dto) {
+        const res = await api.post('/import-transaction/save-from-balance', dto);
+        return res.data;
+    },
+
     async exportPdf(id) {
         try {
             const res = await api.get(`/import-transaction/${id}/export`, {
