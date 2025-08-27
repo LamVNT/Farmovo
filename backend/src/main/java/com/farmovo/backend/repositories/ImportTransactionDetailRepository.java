@@ -82,6 +82,9 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
     @Query("SELECT i.product.category.categoryName, SUM(i.remainQuantity) FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 GROUP BY i.product.category.categoryName")
     List<Object[]> getStockByCategory();
 
+    @Query("SELECT i.product.category.categoryName, SUM(i.remainQuantity) FROM ImportTransactionDetail i WHERE i.remainQuantity > 0 AND i.product.store.id = :storeId GROUP BY i.product.category.categoryName")
+    List<Object[]> getStockByCategoryByStore(@Param("storeId") Long storeId);
+
     @Query("SELECT d.product.productName, d.product.category.categoryName, SUM(d.remainQuantity) as totalQty " +
             "FROM ImportTransactionDetail d " +
             "WHERE d.importTransaction.importDate BETWEEN :from AND :to " +

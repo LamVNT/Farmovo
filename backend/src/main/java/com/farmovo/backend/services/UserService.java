@@ -2,6 +2,8 @@ package com.farmovo.backend.services;
 
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
+import com.farmovo.backend.dto.request.ProfileUpdateRequestDto;
+import com.farmovo.backend.dto.request.ChangePasswordRequestDto;
 import com.farmovo.backend.models.User;
 
 import java.security.Principal;
@@ -35,4 +37,9 @@ public interface UserService {
     User convertToEntity(UserRequestDto dto);
 
     User convertToEntity(UserUpdateRequestDto dto);
+    
+    // New methods for profile management
+    Optional<User> updateProfile(Long userId, ProfileUpdateRequestDto dto);
+    
+    boolean changePassword(Long userId, ChangePasswordRequestDto dto);
 }

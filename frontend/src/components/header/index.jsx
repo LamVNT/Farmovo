@@ -11,8 +11,11 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import {MyContext} from '../../App.jsx'
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import {getStoreById} from '../../services/storeService';
+import NotificationDropdown from './NotificationDropdown';
+import api from '../../services/axiosClient.js';
+import { useAuth } from "../../contexts/AuthorizationContext";
 
 
 const StyledBadge = styled(Badge)(({theme}) => ({
@@ -36,6 +39,20 @@ const Header = () => {
     const context = useContext(MyContext);
     const [storeName, setStoreName] = useState("");
     const [user, setUser] = useState(null);
+    const navigate = useNavigate();
+    const { logout } = useAuth();
+
+    const handleLogout = async () => {
+        try {
+            await api.post("/logout", {}, { withCredentials: true });
+        } catch (e) {
+            // ignore and still clear client state
+        }
+        logout();
+        context.setIslogin(false);
+        handleCloseMyAcc();
+        navigate("/login");
+    };
 
     React.useEffect(() => {
         // Lấy user từ localStorage
@@ -92,11 +109,7 @@ const Header = () => {
 
             <div className='part2 flex items-center justify-end gap-5'>
                 {/* Notifications */}
-                <IconButton aria-label="cart">
-                    <StyledBadge badgeContent={4} color="secondary">
-                        <FaRegBell/>
-                    </StyledBadge>
-                </IconButton>
+                <NotificationDropdown />
 
 
                 {
@@ -164,13 +177,13 @@ const Header = () => {
 
                                 <MenuItem component={Link} to="/profile" className="flex items-center gap-3">
                                     <FaRegUser className="text-[16px]"/>
-                                    <span className="text-[14px]">Profile</span>
+                                    <span className="text-[14px]">Trang cá nhân</span>
                                 </MenuItem>
 
 
-                                <MenuItem onClick={handleCloseMyAcc} className="flex items-center gap-3">
+                                <MenuItem onClick={handleLogout} className="flex items-center gap-3">
                                     <FaSignOutAlt className="text-[18px]"/> <span
-                                    className="text-[14px]">Sign Out</span>
+                                    className="text-[14px]">Đăng xuất</span>
                                 </MenuItem>
                             </Menu>
                         </div>

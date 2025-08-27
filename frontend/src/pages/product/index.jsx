@@ -183,7 +183,8 @@ const Product = () => {
             // Đảm bảo productQuantity = 0 khi tạo mới
             const submitData = {
                 ...form,
-                productQuantity: form.productQuantity || 0
+                productQuantity: form.productQuantity || 0,
+                userRole: user?.roles?.[0] || 'STAFF' // Truyền role đầu tiên của user
             };
             
             if (editMode) {
@@ -326,6 +327,7 @@ const Product = () => {
                 form={form}
                 setForm={setForm}
                 editMode={editMode}
+                existingProducts={products}
             />
             
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>

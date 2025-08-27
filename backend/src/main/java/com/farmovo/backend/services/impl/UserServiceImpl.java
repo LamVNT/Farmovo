@@ -2,8 +2,12 @@ package com.farmovo.backend.services.impl;
 
 import com.farmovo.backend.dto.request.UserRequestDto;
 import com.farmovo.backend.dto.request.UserUpdateRequestDto;
-import com.farmovo.backend.exceptions.InvalidStatusException;
+import com.farmovo.backend.dto.request.ProfileUpdateRequestDto;
+import com.farmovo.backend.dto.request.ChangePasswordRequestDto;
+import com.farmovo.backend.dto.response.UserResponseDto;
 import com.farmovo.backend.exceptions.UserManagementException;
+import com.farmovo.backend.exceptions.InvalidStatusException;
+import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.models.Authority;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.models.User;
@@ -11,15 +15,17 @@ import com.farmovo.backend.repositories.AuthorityRepository;
 import com.farmovo.backend.repositories.StoreRepository;
 import com.farmovo.backend.repositories.UserRepository;
 import com.farmovo.backend.services.UserService;
-import com.farmovo.backend.mapper.UserMapper;
 import com.farmovo.backend.validator.InputUserValidation;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.farmovo.backend.validator.PasswordValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
@@ -29,7 +35,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
-    private static final Logger logger = LogManager.getLogger(UserServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -45,6 +51,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public List<User> getAllUsers() {
@@ -86,6 +95,10 @@ public class UserServiceImpl implements UserService {
             if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
             }
+            // Mã hóa mật khẩu trước khi lưu
+            if (user.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
             // Set createdBy using the authenticated user's ID
             Long createdById = getCurrentUserId(principal);
             user.setCreatedBy(createdById);
@@ -115,7 +128,9 @@ public class UserServiceImpl implements UserService {
                 inputUserValidation.validateEmailForUpdate(user.getEmail());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
-                if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
+                if (user.getPassword() != null) {
+                    existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+                }
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
                 if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());
@@ -257,5 +272,66 @@ public class UserServiceImpl implements UserService {
                     logger.error("Current user not found: {}", username);
                     return new UserManagementException("Current user not found");
                 });
+    }
+
+    @Override
+    public Optional<User> updateProfile(Long userId, ProfileUpdateRequestDto dto) {
+        logger.info("Updating profile for user with id: {}", userId);
+        return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
+            try {
+                // Validate email format if provided
+                if (dto.getEmail() != null) {
+                    inputUserValidation.validateEmailForUpdate(dto.getEmail());
+                }
+
+                // Update only allowed fields
+                if (dto.getFullName() != null) {
+                    existingUser.setFullName(dto.getFullName());
+                }
+                if (dto.getEmail() != null) {
+                    existingUser.setEmail(dto.getEmail());
+                }
+                if (dto.getPhone() != null) {
+                    existingUser.setPhone(dto.getPhone());
+                }
+
+                return userRepository.save(existingUser);
+            } catch (IllegalArgumentException e) {
+                logger.error("Validation error: {}", e.getMessage());
+                throw new UserManagementException(e.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public boolean changePassword(Long userId, ChangePasswordRequestDto dto) {
+        logger.info("Changing password for user with id: {}", userId);
+
+        // Validate that new password and confirm password match
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new UserManagementException("New password and confirm password do not match");
+        }
+
+        // Validate new password strength
+        PasswordValidator.PasswordValidationResult validationResult =
+                PasswordValidator.validatePassword(dto.getNewPassword());
+
+        if (!validationResult.isValid()) {
+            throw new UserManagementException("Password validation failed: " + validationResult.getErrorMessage());
+        }
+
+        return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
+            // Verify current password using passwordEncoder.matches()
+            if (!passwordEncoder.matches(dto.getCurrentPassword(), existingUser.getPassword())) {
+                throw new UserManagementException("Current password is incorrect");
+            }
+
+            // Update password with encoded version
+            existingUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+            userRepository.save(existingUser);
+
+            logger.info("Password changed successfully for user id: {}", userId);
+            return true;
+        }).orElseThrow(() -> new UserManagementException("User not found"));
     }
 }

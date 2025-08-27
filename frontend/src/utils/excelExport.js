@@ -129,7 +129,7 @@ export const exportSaleTransactions = (transactions) => {
     const data = transactions.map((transaction, index) => ({
         'STT': index + 1,
         'ID': transaction.id,
-        'Thời gian bán': transaction.saleDate ? new Date(transaction.saleDate).toLocaleString('vi-VN') : '',
+        'Ngày tạo': transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('vi-VN') : (transaction.saleDate ? new Date(transaction.saleDate).toLocaleString('vi-VN') : ''),
         'Khách hàng': transaction.customerName || '',
         'Cửa hàng': transaction.storeName || '',
         'Tổng tiền': transaction.totalAmount ? transaction.totalAmount.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
@@ -149,7 +149,7 @@ export const exportSaleTransactions = (transactions) => {
     const colWidths = [
         { wch: 5 },   // STT
         { wch: 8 },   // ID
-        { wch: 20 },  // Thời gian bán
+        { wch: 20 },  // Ngày tạo
         { wch: 20 },  // Khách hàng
         { wch: 20 },  // Cửa hàng
         { wch: 15 },  // Tổng tiền
@@ -173,7 +173,7 @@ export const exportSaleTransactionDetail = (transaction, details, customerDetail
     // Sheet 1: Thông tin phiếu bán
     const transactionInfo = [
         { 'Thông tin': 'ID phiếu bán', 'Giá trị': transaction.id },
-        { 'Thông tin': 'Thời gian bán', 'Giá trị': transaction.saleDate ? new Date(transaction.saleDate).toLocaleString('vi-VN') : '' },
+        { 'Thông tin': 'Ngày tạo', 'Giá trị': transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('vi-VN') : (transaction.saleDate ? new Date(transaction.saleDate).toLocaleString('vi-VN') : '') },
         { 'Thông tin': 'Khách hàng', 'Giá trị': customerDetails ? customerDetails.name : (transaction.customerName || 'N/A') },
         { 'Thông tin': 'Cửa hàng', 'Giá trị': storeDetails ? storeDetails.storeName : (transaction.storeName || 'N/A') },
         { 'Thông tin': 'Người tạo', 'Giá trị': userDetails ? userDetails.username : (transaction.createdBy || 'N/A') },

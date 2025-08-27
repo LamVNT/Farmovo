@@ -39,59 +39,62 @@ const ZoneTable = ({
                 <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                         <TableCell sx={{ fontWeight: 'bold' }}>STT</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Zone Name</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Zone Description</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Store Name</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Tên khu vực</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Mô tả khu vực</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Tên cửa hàng</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Thao tác</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {paginatedRows.map((zone, index) => (
-                        <TableRow
-                            key={zone.id}
-                            hover
-                            selected={zone.id === hoveredZoneId}
-                            onMouseEnter={() => setHoveredZoneId(zone.id)}
-                            onMouseLeave={() => setHoveredZoneId(null)}
-                        >
-                            <TableCell sx={{ fontWeight: 'bold', color: '#666' }}>
-                                {page * rowsPerPage + index + 1}
-                            </TableCell>
-                            <TableCell>{zone.zoneName}</TableCell>
-                            <TableCell>{zone.zoneDescription}</TableCell>
-                            <TableCell>
-                                <span style={{ 
-                                    backgroundColor: '#e3f2fd', 
-                                    padding: '4px 8px', 
-                                    borderRadius: '4px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    color: '#1976d2'
-                                }}>
-                                    {zone.storeName || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell align="right">
-                                <Button 
-                                    size="small" 
-                                    variant="outlined"
-                                    onClick={() => onEdit(zone)}
-                                    sx={{ mr: 1, textTransform: 'none' }}
-                                >
-                                    Edit
-                                </Button>
-                                <Button 
-                                    size="small" 
-                                    variant="outlined"
-                                    color="error" 
-                                    onClick={() => onDelete(zone)}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    Delete
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {paginatedRows.map((zone, index) => {
+
+                        return (
+                            <TableRow
+                                key={zone.id}
+                                hover
+                                selected={zone.id === hoveredZoneId}
+                                onMouseEnter={() => setHoveredZoneId(zone.id)}
+                                onMouseLeave={() => setHoveredZoneId(null)}
+                            >
+                                <TableCell sx={{ fontWeight: 'bold', color: '#666' }}>
+                                    {page * rowsPerPage + index + 1}
+                                </TableCell>
+                                <TableCell>{zone.zoneName}</TableCell>
+                                <TableCell>{zone.zoneDescription}</TableCell>
+                                <TableCell>
+                                    <span style={{ 
+                                        backgroundColor: '#e3f2fd', 
+                                        padding: '4px 8px', 
+                                        borderRadius: '4px',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        color: '#1976d2'
+                                    }}>
+                                        {zone.storeName || zone.store?.storeName || 'Không có'}
+                                    </span>
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Button 
+                                        size="small" 
+                                        variant="outlined"
+                                        onClick={() => onEdit(zone)}
+                                        sx={{ mr: 1, textTransform: 'none' }}
+                                    >
+                                        Sửa
+                                    </Button>
+                                    <Button 
+                                        size="small" 
+                                        variant="outlined"
+                                        color="error" 
+                                        onClick={() => onDelete(zone)}
+                                        sx={{ textTransform: 'none' }}
+                                    >
+                                        Xóa
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
 

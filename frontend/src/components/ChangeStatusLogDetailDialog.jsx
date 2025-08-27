@@ -17,7 +17,7 @@ import { Close, OpenInNew, History, Info, ArrowForward } from '@mui/icons-materi
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
-const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
+const ChangeStatusLogDetailDialog = ({ open, log, sourceLogs, sourceLogsLoading, onClose, onViewSource }) => {
   if (!log) return null;
 
   const getStatusColor = (status) => {
@@ -105,30 +105,34 @@ const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
       </DialogTitle>
 
       <DialogContent sx={{ pt: 0, pb: 1 }}>
-        <Grid container spacing={1}>
-          {/* Thông tin cơ bản */}
-          <Grid item xs={12} sm={6}>
+        {/* Thông tin tổng hợp */}
             <Paper 
               elevation={0} 
               sx={{ 
-                p: 1.5, 
+            p: 2.5, 
                 border: '1px solid #e5e7eb',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <Info sx={{ color: '#667eea', fontSize: 16 }} />
-                <Typography variant="subtitle2" fontWeight={600}>
+            borderRadius: 2,
+            backgroundColor: '#fafbfc',
+            mb: 2
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Info sx={{ color: '#667eea', fontSize: 20 }} />
+            <Typography variant="h6" fontWeight={600}>
+              Thông tin chi tiết
+            </Typography>
+          </Box>
+          
+          <Grid container spacing={30}>
+            {/* Cột trái - Thông tin cơ bản */}
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={600} color="textSecondary" gutterBottom>
                   Thông tin cơ bản
                 </Typography>
-              </Box>
-              <Grid container spacing={1} sx={{ flex: 1 }}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Loại đối tượng
-                  </Typography>
+                <Box sx={{ pl: 1 }}>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">Loại đối tượng:</Typography>
                   <Chip
                     label={getModelTypeLabel(log.modelName)}
                     size="small"
@@ -139,100 +143,57 @@ const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
                       fontSize: '0.75rem'
                     }}
                   />
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    ID đối tượng
-                  </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">ID đối tượng:</Typography>
                   <Typography variant="body2" fontWeight={500}>
                     {log.modelID}
                   </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Thời gian tạo
-                  </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">Thời gian tạo:</Typography>
                   <Typography variant="body2">
                     {formatDateTime(log.createdAt)}
                   </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Người thực hiện
-                  </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">Người thực hiện:</Typography>
                   <Typography variant="body2">
                     {log.createdBy || 'Hệ thống'}
                   </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
+                  </Box>
+                </Box>
+              </Box>
           </Grid>
 
-          {/* Thông tin nguồn */}
+            {/* Cột phải - Thông tin nguồn */}
           <Grid item xs={12} sm={6}>
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: 1.5, 
-                border: '1px solid #e5e7eb',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <OpenInNew sx={{ color: '#0ea5e9', fontSize: 16 }} />
-                <Typography variant="subtitle2" fontWeight={600}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={600} color="textSecondary" gutterBottom>
                   Thông tin nguồn
                 </Typography>
-              </Box>
-              <Grid container spacing={1} sx={{ flex: 1 }}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Mã nguồn
-                  </Typography>
+                <Box sx={{ pl: 1 }}>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">Mã nguồn:</Typography>
                   <Typography variant="body2" fontWeight={500}>
                     {log.sourceName || '-'}
                   </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Loại nguồn
-                  </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="body2" color="textSecondary">Loại nguồn:</Typography>
                   <Typography variant="body2">
                     {log.sourceType ? getModelTypeLabel(log.sourceType) : '-'}
                   </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Box sx={{ flex: 1 }} />
-                </Grid>
-              </Grid>
-            </Paper>
-          </Grid>
+                  </Box>
+                </Box>
+              </Box>
 
-          {/* Thay đổi trạng thái */}
-          <Grid item xs={12} sm={6}>
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: 1.5, 
-                border: '1px solid #e5e7eb',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <ArrowForward sx={{ color: '#f59e0b', fontSize: 16 }} />
-                <Typography variant="subtitle2" fontWeight={600}>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} color="textSecondary" gutterBottom>
                   Thay đổi trạng thái
                 </Typography>
-              </Box>
-              <Grid container spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Trạng thái cũ
-                  </Typography>
+                <Box sx={{ pl: 1 }}>
+                  <Box display="flex" alignItems="center" gap={2} mb={1}>
                   <Chip
                     label={getStatusLabel(log.previousStatus) || 'N/A'}
                     size="small"
@@ -243,14 +204,7 @@ const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
                       fontWeight: 500
                     }}
                   />
-                </Grid>
-                <Grid item xs={4} sx={{ textAlign: 'center' }}>
                   <ArrowForward sx={{ color: '#667eea', fontSize: 18 }} />
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Trạng thái mới
-                  </Typography>
                   <Chip
                     label={getStatusLabel(log.nextStatus) || 'N/A'}
                     size="small"
@@ -260,24 +214,15 @@ const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
                       fontWeight: 500
                     }}
                   />
-                </Grid>
+                  </Box>
+                </Box>
+              </Box>
               </Grid>
-            </Paper>
           </Grid>
 
-          {/* Mô tả */}
-          <Grid item xs={12} sm={6}>
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: 1.5, 
-                border: '1px solid #e5e7eb',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+          {/* Mô tả thay đổi */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} color="textSecondary" gutterBottom>
                 Mô tả thay đổi
               </Typography>
               <Typography 
@@ -285,18 +230,120 @@ const ChangeStatusLogDetailDialog = ({ open, log, onClose, onViewSource }) => {
                 sx={{ 
                   whiteSpace: 'pre-wrap',
                   lineHeight: 1.4,
-                  p: 1,
+                p: 1.5,
                   backgroundColor: '#f9fafb',
                   borderRadius: 1,
-                  flex: 1,
-                  overflow: 'auto'
+                border: '1px solid #e5e7eb',
+                minHeight: 60
                 }}
               >
                 {log.description || 'Không có mô tả'}
+            </Typography>
+          </Box>
+        </Paper>
+
+        {/* Lịch sử đầy đủ của mã nguồn */}
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 2, 
+            border: '1px solid #e5e7eb',
+            backgroundColor: '#fafbfc'
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <History sx={{ color: '#667eea', fontSize: 18 }} />
+            <Typography variant="h6" fontWeight={600}>
+              Lịch sử đầy đủ của mã nguồn: {log.sourceName || `ID: ${log.modelID}`}
+            </Typography>
+          </Box>
+          
+          {sourceLogsLoading ? (
+            <Box display="flex" justifyContent="center" py={3}>
+              <Typography variant="body2" color="textSecondary">
+                Đang tải lịch sử...
               </Typography>
+            </Box>
+          ) : sourceLogs.length > 0 ? (
+            <Box>
+              <Typography variant="body2" color="textSecondary" mb={2}>
+                Tổng cộng {sourceLogs.length} bản ghi thay đổi
+              </Typography>
+              <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                {sourceLogs.map((sourceLog, index) => (
+                  <Paper
+                    key={sourceLog.id}
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      mb: 1,
+                      border: '1px solid #e5e7eb',
+                      backgroundColor: 'white',
+                      '&:hover': {
+                        backgroundColor: '#f8fafc',
+                        borderColor: '#d1d5db'
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" fontWeight={500} color="textSecondary">
+                          #{index + 1}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {formatDateTime(sourceLog.createdAt)}
+                        </Typography>
+                      </Box>
+                      {sourceLog.id === log.id && (
+                        <Chip
+                          label="Bản ghi hiện tại"
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                    
+                    <Box display="flex" alignItems="center" gap={2} mb={1}>
+                      <Chip
+                        label={getStatusLabel(sourceLog.previousStatus) || 'N/A'}
+                        size="small"
+                        sx={{
+                          backgroundColor: getStatusColor(sourceLog.previousStatus) + '15',
+                          color: getStatusColor(sourceLog.previousStatus),
+                          border: `1px solid ${getStatusColor(sourceLog.previousStatus)}`,
+                          fontWeight: 500
+                        }}
+                      />
+                      <ArrowForward sx={{ color: '#667eea', fontSize: 16 }} />
+                      <Chip
+                        label={getStatusLabel(sourceLog.nextStatus) || 'N/A'}
+                        size="small"
+                        sx={{
+                          backgroundColor: getStatusColor(sourceLog.nextStatus),
+                          color: 'white',
+                          fontWeight: 500
+                        }}
+                      />
+                    </Box>
+                    
+                    {sourceLog.description && (
+                      <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem' }}>
+                        {sourceLog.description}
+                      </Typography>
+                    )}
+                  </Paper>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box display="flex" justifyContent="center" py={3}>
+              <Typography variant="body2" color="textSecondary">
+                Không có bản ghi thay đổi nào khác
+              </Typography>
+            </Box>
+          )}
             </Paper>
-          </Grid>
-        </Grid>
       </DialogContent>
 
       <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e5e7eb' }}>

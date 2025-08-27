@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
+import com.farmovo.backend.repositories.SaleTransactionRepository;
 
 @RestController
 @RequestMapping("/api/sale-transactions")
@@ -57,6 +59,7 @@ public class SaleTransactionController {
     private final JwtAuthenticationService jwtAuthenticationService;
     private final StoreMapper storeMapper;
     private final ImportTransactionDetailService importTransactionDetailService;
+    private final SaleTransactionRepository saleTransactionRepository;
 
 
     @GetMapping("/create-form-data")
@@ -166,21 +169,32 @@ public class SaleTransactionController {
             @RequestParam(required = false) BigDecimal maxPaidAmount,
             @RequestParam(required = false) String note,
             @RequestParam(required = false) Long createdBy,
-            @PageableDefault(page = 0, size = 20, sort = "saleDate", direction = Sort.Direction.DESC) Pageable pageable
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String direction,
+            @PageableDefault(page = 0, size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         // Enforce staff-only store scoping
         try {
             User user = jwtAuthenticationService.extractAuthenticatedUser(null);
             List<String> roles = jwtAuthenticationService.getUserRoles(user);
-            if (roles.contains("STAFF") && user != null && user.getStore() != null) {
+            if (roles.contains("STAFF") && user != null && user.getStore().getId() != null) {
                 storeId = user.getStore().getId();
             }
         } catch (Exception ignored) {}
 
+        // Xử lý sắp xếp tùy chỉnh từ frontend
+        Pageable customPageable = pageable;
+        if (sort != null && direction != null) {
+            Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction) ? 
+                Sort.Direction.DESC : Sort.Direction.ASC;
+            Sort customSort = Sort.by(sortDirection, sort);
+            customPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), customSort);
+        }
+
         Page<SaleTransactionResponseDto> result = saleTransactionService.getAll(
                 name, customerName, storeName, storeId, status, fromDate,
                 toDate, minTotalAmount, maxTotalAmount, minPaidAmount,
-                maxPaidAmount, note, createdBy, pageable
+                maxPaidAmount, note, createdBy, customPageable
         );
         return ResponseEntity.ok(PageResponse.fromPage(result));
     }
@@ -188,18 +202,40 @@ public class SaleTransactionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<SaleTransactionResponseDto> getSaleTransactionById(@PathVariable Long id) {
-        log.info("Getting sale transaction by ID: {}", id);
+        SaleTransactionResponseDto result = saleTransactionService.getById(id);
+        return ResponseEntity.ok(result);
+    }
 
+    @GetMapping("/stocktake/{stocktakeId}/status")
+    public ResponseEntity<Map<String, Object>> getPcbStatusByStocktakeId(@PathVariable Long stocktakeId) {
         try {
-            SaleTransactionResponseDto transaction = saleTransactionService.getById(id);
-            log.debug("Retrieved sale transaction with ID: {}", id);
-            return ResponseEntity.ok(transaction);
-        } catch (SaleTransactionNotFoundException e) {
-            log.error("Sale transaction not found: {}", id);
-            throw e;
+            // Kiểm tra xem có PCB nào liên kết với stocktake này không
+            List<SaleTransaction> pcbs = saleTransactionRepository.findByStocktakeId(stocktakeId);
+            
+            if (pcbs.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "hasBalance", false,
+                    "status", null,
+                    "message", "Không có PCB nào liên kết với stocktake này"
+                ));
+            }
+            
+            // Lấy PCB đầu tiên (theo thiết kế, mỗi stocktake chỉ có 1 PCB)
+            SaleTransaction pcb = pcbs.get(0);
+            
+            return ResponseEntity.ok(Map.of(
+                "hasBalance", true,
+                "status", pcb.getStatus().toString(),
+                "pcbId", pcb.getId(),
+                "pcbName", pcb.getName(),
+                "createdAt", pcb.getCreatedAt(),
+                "updatedAt", pcb.getUpdatedAt()
+            ));
+            
         } catch (Exception e) {
-            log.error("Error retrieving sale transaction: {}", id, e);
-            throw new BadRequestException("Không thể lấy thông tin phiếu bán hàng: " + e.getMessage());
+            log.error("Error getting PCB status for stocktake {}: {}", stocktakeId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Không thể lấy trạng thái PCB"));
         }
     }
 

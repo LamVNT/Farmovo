@@ -15,4 +15,10 @@ public interface ChangeStatusLogService {
     ChangeStatusLogResponseDTO getChangeStatusLogById(Long id);
 
     List<ChangeStatusLogResponseDTO> getLogsByModel(String modelName, Long modelId);
+    
+    // Lấy bản ghi mới nhất cho mỗi mã nguồn
+    List<ChangeStatusLogResponseDTO> getLatestLogsForEachSource();
+    
+    // Lấy bản ghi mới nhất cho mỗi mã nguồn với filter theo modelName
+    List<ChangeStatusLogResponseDTO> getLatestLogsForEachSourceByModel(String modelName);
 } 

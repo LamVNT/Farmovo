@@ -16,7 +16,8 @@ import {
     InputAdornment,
 } from "@mui/material";
 import { addDebtNote } from "../../services/debtService";
-import { uploadEvidence, getAllStores } from "../../services/storeService";
+import { uploadEvidence, getAllStores, getStoreById } from "../../services/storeService";
+import { useAuth } from "../../contexts/AuthorizationContext";
 
 const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     const [formData, setFormData] = useState({
@@ -33,6 +34,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [error, setError] = useState("");
     const fileInputRef = useRef(null);
+    const { isStaff, user } = useAuth();
 
     const formatNumberWithDots = (value) => {
         if (value === null || value === undefined) return "";
@@ -69,20 +71,45 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
         }
     };
 
-    // Fetch stores when dialog opens
+    const formatCurrentDateTime = () => {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        const HH = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${dd}/${mm}/${yyyy} ${HH}:${min}`;
+    };
+
+    // Fetch stores when dialog opens, limit to staff's store
     useEffect(() => {
         const fetchStores = async () => {
             try {
-                const storeData = await getAllStores();
-                setStores(storeData || []);
+                if (isStaff && isStaff() && (user?.storeId || user?.store?.id)) {
+                    const staffStoreId = user?.storeId || user?.store?.id;
+                    const store = await getStoreById(staffStoreId);
+                    const oneStore = store ? [store] : [];
+                    setStores(oneStore);
+                    setFormData((prev) => ({ ...prev, storeId: store?.id || staffStoreId || "" }));
+                } else {
+                    const storeData = await getAllStores();
+                    setStores(storeData || []);
+                }
             } catch (error) {
                 console.error("Failed to fetch stores:", error);
                 setError("Không thể tải danh sách cửa hàng");
             }
         };
-        
+
         if (open) {
             fetchStores();
+        }
+    }, [open, isStaff, user?.storeId]);
+
+    // Prefill current date-time when dialog opens
+    useEffect(() => {
+        if (open) {
+            setFormData((prev) => ({ ...prev, debtDate: formatCurrentDateTime() }));
         }
     }, [open]);
 
@@ -238,6 +265,7 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                             });
                             setError("");
                         }}
+                        disabled={isStaff && isStaff()}
                         renderInput={(params) => (
                             <TextField
                                 {...params}

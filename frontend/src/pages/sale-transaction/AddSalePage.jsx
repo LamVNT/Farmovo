@@ -16,6 +16,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Popover,
+    Chip,
 } from '@mui/material';
 import {FaLock, FaCheck, FaSearch, FaEye} from 'react-icons/fa';
 import {MdKeyboardArrowDown, MdCategory} from 'react-icons/md';
@@ -36,6 +38,7 @@ import {useSaleTransaction} from '../../hooks/useSaleTransaction';
 
 // Utils
 import {formatCurrency, isValidValue} from '../../utils/formatters';
+import ZoneChips from '../../components/stocktake/ZoneChips';
 import saleTransactionService from '../../services/saleTransactionService';
 
 const AddSalePage = (props) => {
@@ -73,6 +76,11 @@ const AddSalePage = (props) => {
     const [shouldSaveTemp, setShouldSaveTemp] = useState(false);
     const [pendingNavigation, setPendingNavigation] = useState(null);
     const [isNavigatingAway, setIsNavigatingAway] = useState(false);
+    const [zonePopoverAnchor, setZonePopoverAnchor] = useState(null);
+    const [zonePopoverItems, setZonePopoverItems] = useState([]);
+
+    // Props for locked store from stocktake
+    const { lockedStoreId, lockedStoreName, fromStocktake } = props;
 
     const {
         currentUser,
@@ -126,11 +134,24 @@ const AddSalePage = (props) => {
         handleCloseSummary,
         handleSelectProductInDialog,
         handleSelectBatches,
-    } = useSaleTransaction({ isBalanceStock: props.isBalanceStock, onSubmit: props.onSubmit });
+    } = useSaleTransaction({ 
+        isBalanceStock: props.isBalanceStock, 
+        onSubmit: props.onSubmit,
+        fromStocktake: props.fromStocktake,
+        stocktakeId: props.stocktakeId
+    });
 
+    // Khởi tạo dữ liệu balance mode một lần duy nhất
     useEffect(() => {
-        if (props.isBalanceStock && !balanceModeInitialized) {
-            if (props.initialProducts) setSelectedProducts(props.initialProducts);
+        if (props.isBalanceStock && !balanceModeInitialized && props.initialProducts) {
+            // Set products với đầy đủ thông tin
+            setSelectedProducts(props.initialProducts.map((p, idx) => ({
+                ...p,
+                price: p.unitSalePrice || 0,
+                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
+                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
+            })));
+
             if (props.initialNote) setNote(props.initialNote);
             if (props.initialCustomer) setSelectedCustomer(props.initialCustomer?.id || props.initialCustomer);
             setBalanceModeInitialized(true);
@@ -142,17 +163,6 @@ const AddSalePage = (props) => {
             setSelectedProducts(prev => prev.map(p => ({...p, unit})));
         }
     }, [unit]);
-
-    useEffect(() => {
-        if (props.isBalanceStock && props.initialProducts) {
-            setSelectedProducts(props.initialProducts.map((p, idx) => ({
-                ...p,
-                price: p.unitSalePrice || 0,
-                id: p.id || p.batchId || (Date.now() + idx), // Gán id hợp lệ là số
-                proId: p.proId || p.productId || p.id || p.batchId || (Date.now() + idx) // Đảm bảo proId luôn có giá trị
-            })));
-        }
-    }, [props.isBalanceStock, props.initialProducts]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -235,14 +245,15 @@ const AddSalePage = (props) => {
     }, [batches, searchTerm, isSearchFocused, selectedStore, stores]);
 
     // Reset selectedProducts khi store thay đổi (chỉ reset bảng datagrid, giữ nguyên thông tin khác)
+    // KHÔNG reset khi đang ở chế độ balance để giữ nguyên dữ liệu prefill
     useEffect(() => {
-        if (selectedStore) {
-            // Reset selectedProducts khi store thay đổi
+        if (selectedStore && !props.isBalanceStock) {
+            // Reset selectedProducts khi store thay đổi (chỉ cho sale thường)
             setSelectedProducts([]);
             // Reset dataGridKey để refresh datagrid
             setDataGridKey(prev => prev + 1);
         }
-    }, [selectedStore]);
+    }, [selectedStore, props.isBalanceStock]);
 
     useEffect(() => {
         if (error || success) {
@@ -261,6 +272,13 @@ const AddSalePage = (props) => {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    // Auto-select store when coming from stocktake
+    useEffect(() => {
+        if (lockedStoreId && !selectedStore) {
+            setSelectedStore(String(lockedStoreId));
+        }
+    }, [lockedStoreId, selectedStore, setSelectedStore]);
 
     // Validate trước khi mở popup tóm tắt qua handleShowSummary từ hook
     const openSummaryAfterValidate = (status) => {
@@ -295,6 +313,26 @@ const AddSalePage = (props) => {
         } else {
             handleShowSummary('COMPLETE');
         }
+    };
+
+    const handleOpenZonePopover = (event, zonesIdArray) => {
+        try {
+            const items = (zonesIdArray || [])
+                .map(id => {
+                    const z = zones.find(zz => String(zz.id) === String(id));
+                    return z ? { id: z.id, name: z.zoneName } : { id, name: String(id) };
+                });
+            setZonePopoverItems(items);
+            setZonePopoverAnchor(event.currentTarget);
+        } catch (_) {
+            setZonePopoverItems([]);
+            setZonePopoverAnchor(event.currentTarget);
+        }
+    };
+
+    const handleCloseZonePopover = () => {
+        setZonePopoverAnchor(null);
+        setZonePopoverItems([]);
     };
 
     const toggleColumn = (col) => {
@@ -589,6 +627,29 @@ const AddSalePage = (props) => {
                 );
             }
         },
+        // Hiển thị khu vực thực tế (Zone) cho phiếu cân bằng dạng chips
+        props.isBalanceStock && columnVisibility['Zone'] && {
+            field: 'zone',
+            headerName: 'Khu vực thực tế',
+            width: 200,
+            renderCell: (params) => {
+                const zr = params.row.zoneReal;
+                const toArray = (val) => {
+                    if (Array.isArray(val)) return val;
+                    if (typeof val === 'string' && val.includes(',')) return val.split(',').map(s => s.trim());
+                    return val ? [val] : [];
+                };
+                const zonesId = toArray(zr).map(v => String(v));
+                return (
+                    <ZoneChips 
+                        zones={zones} 
+                        zonesId={zonesId} 
+                        actualIdx={params.rowIndex || 0}
+                        onOpenPopover={(e) => handleOpenZonePopover(e, zonesId)}
+                    />
+                );
+            }
+        },
         columnVisibility['ĐVT'] && { 
             field: 'unit', 
             headerName: 'ĐVT', 
@@ -743,51 +804,72 @@ const AddSalePage = (props) => {
             ),
             width: 150,
             valueFormatter: (params) => formatCurrency(params.value || 0),
-            renderCell: (params) => (
-                <div style={{ 
-                    display: 'flex',
-                    justifyContent: 'center', 
-                    height: '100%' 
-                }}>
-                    <TextField
-                        size="small"
-                        type="text"
-                        variant="standard"
-                        value={(params.row.price || 0).toLocaleString('vi-VN')}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d]/g, '');
-                            handlePriceChange(params.row.id, Number(value) || 0);
-                        }}
-                        onClick={e => e.stopPropagation()}
-                        InputProps={{
-                            endAdornment: <span style={{ 
-                                color: '#6b7280', 
-                                fontSize: '0.875rem',
-                                fontWeight: '500'
-                            }}>VND</span>,
-                        }}
-                        sx={{
-                            width: '100px',
-                            '& .MuiInputBase-input': {
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                textAlign: 'center',
-                                padding: '8px 4px',
-                                lineHeight: 1.2
-                            },
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                        }}
-                    />
-                </div>
-            ),
+            renderCell: (params) => {
+                // Đối với phiếu cân bằng kho, không cho phép chỉnh sửa đơn giá
+                if (props.isBalanceStock) {
+                    return (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '100%',
+                            height: '100%',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            textAlign: 'center',
+                            color: '#374151'
+                        }}>
+                            {formatCurrency(params.row.price || 0)}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        height: '100%'
+                    }}>
+                        <TextField
+                            size="small"
+                            type="text"
+                            variant="standard"
+                            value={(params.row.price || 0).toLocaleString('vi-VN')}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^\d]/g, '');
+                                handlePriceChange(params.row.id, Number(value) || 0);
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            InputProps={{
+                                endAdornment: <span style={{
+                                    color: '#6b7280',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500'
+                                }}>VND</span>,
+                            }}
+                            sx={{
+                                width: '100px',
+                                '& .MuiInputBase-input': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    textAlign: 'center',
+                                    padding: '8px 4px',
+                                    lineHeight: 1.2
+                                },
+                                '& .MuiInput-underline:before': {
+                                    borderBottomColor: 'transparent',
+                                },
+                                '& .MuiInput-underline:after': {
+                                    borderBottomColor: '#1976d2',
+                                },
+                                '& .MuiInput-underline:hover:before': {
+                                    borderBottomColor: 'transparent',
+                                },
+                            }}
+                        />
+                    </div>
+                );
+            },
         },
         columnVisibility['Thành tiền'] && {
             field: 'total',
@@ -1294,6 +1376,9 @@ const AddSalePage = (props) => {
                 paidAmountInput={paidAmountInput}
                 setPaidAmountInput={setPaidAmountInput}
                 isBalanceStock={props.isBalanceStock}
+                lockedStoreId={lockedStoreId}
+                lockedStoreName={lockedStoreName}
+                fromStocktake={fromStocktake}
             />
             <SaleProductDialog
                 open={showProductDialog}
@@ -1319,9 +1404,10 @@ const AddSalePage = (props) => {
                     try {
                         const ok = await handleConfirmSummary();
                         if (!ok) return;
-                        if (props.isBalanceStock) {
-                            props.onSuccess && props.onSuccess();
-                        } else {
+                        // Khi hoàn thành PCB, hook useSaleTransaction sẽ xử lý chuyển hướng
+                        // Không cần gọi onSuccess hoặc xử lý chuyển hướng ở đây
+                        // Chỉ xử lý trường hợp không phải PCB
+                        if (!props.isBalanceStock) {
                             window.location.href = '/sale';
                         }
                     } finally {
@@ -1336,6 +1422,7 @@ const AddSalePage = (props) => {
                     products: selectedProducts.map(p => ({
                         ...p,
                         price: p.price || p.unitSalePrice || 0,
+                        zoneReal: p.zoneReal || null, // Đảm bảo zoneReal được truyền
                     })),
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
@@ -1346,6 +1433,7 @@ const AddSalePage = (props) => {
                 loading={loading}
                 currentUser={currentUser}
                 nextCode={nextCode}
+                zones={zones}
             />
             <Dialog
                 open={showCategoryDialog}
@@ -1487,6 +1575,37 @@ const AddSalePage = (props) => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            {/* Popover hiển thị danh sách khu vực thực tế (style tương tự trang kiểm kho) */}
+            <Popover
+                open={Boolean(zonePopoverAnchor)}
+                anchorEl={zonePopoverAnchor}
+                onClose={handleCloseZonePopover}
+                anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                sx={{
+                    '& .MuiPopover-paper': {
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                        borderRadius: 3,
+                        border: '1px solid #e8e8e8',
+                        maxWidth: 320,
+                        minWidth: 200,
+                        p: 1.5,
+                        animation: 'fadeInScale 0.2s ease-out',
+                        '@keyframes fadeInScale': {
+                            '0%': { opacity: 0, transform: 'scale(0.95) translateX(-10px)' },
+                            '100%': { opacity: 1, transform: 'scale(1) translateX(0)' },
+                        },
+                    }
+                }}
+            >
+                <div style={{ display: 'flex', gap: 6, padding: 6, maxWidth: 260, flexWrap: 'wrap' }}>
+                    {zonePopoverItems.length > 0 ? zonePopoverItems.map(z => (
+                        <Chip key={String(z.id)} label={z.name} size="small" sx={{ height: 22 }} />
+                    )) : (
+                        <span style={{ padding: 8, color: '#666' }}>Không có khu vực</span>
+                    )}
+                </div>
+            </Popover>
         </div>
     );
 };

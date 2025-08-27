@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {getExpiringLotsAdvanced} from "../../services/reportService";
+import { useAuth } from '../../contexts/AuthorizationContext';
 import {
     Table,
     TableBody,
@@ -31,6 +32,7 @@ const toCSV = (rows) => {
 
 const ExpiringLotsReport = () => {
     const navigate = useNavigate();
+    const { user, isStaff } = useAuth();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [days, setDays] = useState(7);
@@ -38,9 +40,12 @@ const ExpiringLotsReport = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
+    // Lấy storeId nếu là Staff
+    const userStoreId = user && isStaff() ? user.storeId : null;
+
     const fetchData = () => {
         setLoading(true);
-        getExpiringLotsAdvanced({ days, includeZeroRemain: false })
+        getExpiringLotsAdvanced({ days, includeZeroRemain: false, storeId: userStoreId })
             .then(res => setData(res.data || res))
             .catch(() => alert("Lỗi khi lấy báo cáo lô sắp hết hạn!"))
             .finally(() => setLoading(false));
@@ -102,7 +107,14 @@ const ExpiringLotsReport = () => {
         <Box sx={{ backgroundColor: '#f9fafb', minHeight: '100vh', py: 5 }}>
             <Box sx={{maxWidth: 1300, mx: 'auto', background: '#fff', p: 4, borderRadius: 3, boxShadow: 3}}>
                 <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
-                <Typography variant="h5" fontWeight={700} mb={1}>Báo cáo lô hàng sắp hết hạn</Typography>
+                <Typography variant="h5" fontWeight={700} mb={1}>
+                  Báo cáo lô hàng sắp hết hạn
+                  {isStaff() && user?.storeName && (
+                    <Typography component="span" variant="h6" color="primary.main" sx={{ ml: 2 }}>
+                      - Kho: {user.storeName}
+                    </Typography>
+                  )}
+                </Typography>
                 <Typography variant="body2" color="text.secondary" mb={3}>Sắp xếp theo ngày hết hạn gần nhất để ưu tiên xả hàng và áp dụng khuyến mãi.</Typography>
 
                 {/* Controls */}

@@ -358,7 +358,31 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
                 row.getCreatedAt(), // thêm trường createdAt
                 row.getRemainQuantity(),
                 row.getIsCheck(),
-                zones
+                zones,
+                row.getUnitSalePrice() // thêm giá bán
+        );
+    }
+
+    @Override
+    public ImportTransactionDetailResponse getDetailById(Long id) {
+        ImportTransactionDetail detail = detailRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("ImportTransactionDetail not found with id: " + id));
+
+        return new ImportTransactionDetailResponse(
+                detail.getId(),
+                detail.getImportTransaction().getId(),
+                null, // zoneId - không cần thiết cho mục đích này
+                detail.getImportQuantity(),
+                detail.getRemainQuantity(),
+                detail.getProduct().getId(),
+                detail.getExpireDate(),
+                detail.getUnitImportPrice(),
+                detail.getUnitSalePrice(),
+                detail.getCreatedBy(),
+                detail.getCreatedAt(),
+                detail.getUpdatedAt(),
+                detail.getDeletedAt(),
+                detail.getDeletedBy()
         );
     }
 }

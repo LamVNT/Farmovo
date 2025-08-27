@@ -46,6 +46,7 @@ const ImportDetailDialog = ({
     loading = false, // Thêm prop loading
     zones = [], // Thêm zones data
     onExportPdf, // Thêm prop mới
+    isStaff = false, // Thêm prop để kiểm tra role STAFF
 }) => {
     if (!transaction) return null;
 
@@ -231,7 +232,8 @@ const ImportDetailDialog = ({
                         {loading ? 'Đang xử lý...' : 'Mở phiếu'}
                     </Button>
                 )}
-                {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && !isStaff && (
                     <Button 
                         variant="contained"
                         color="secondary"
@@ -253,7 +255,8 @@ const ImportDetailDialog = ({
                         {loading ? 'Đang xử lý...' : 'Hủy phiếu'}
                     </Button>
                 )}
-                {transaction.status === 'WAITING_FOR_APPROVE' && onCompleteTransaction && (
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {transaction.status === 'WAITING_FOR_APPROVE' && onCompleteTransaction && !isStaff && (
                     <Button 
                         variant="contained"
                         color="success"

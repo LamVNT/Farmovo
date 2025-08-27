@@ -5,16 +5,21 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { getImportsTotal } from '../../services/reportService';
 import { FaTruckLoading } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const ImportsTotal = () => {
   const navigate = useNavigate();
+  const { user, isStaff } = useAuth();
   const [from, setFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
   const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [groupBy, setGroupBy] = useState('day');
   const [rows, setRows] = useState([]);
 
+  // Lấy storeId nếu là Staff
+  const userStoreId = user && isStaff() ? user.storeId : null;
+
   const fetchData = () => {
-    getImportsTotal({ from, to, groupBy })
+    getImportsTotal({ from, to, groupBy, storeId: userStoreId })
       .then(res => setRows(res.data))
       .catch(() => alert('Lỗi khi lấy tổng tiền nhập!'));
   };
@@ -31,7 +36,14 @@ const ImportsTotal = () => {
     <Box sx={{ backgroundColor: '#f9fafb', minHeight: '100vh', py: 5 }}>
       <Box sx={{ maxWidth: 1300, mx: 'auto', p: 4, background: '#fff', borderRadius: 3, boxShadow: 3 }}>
         <Button variant="text" startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Quay lại</Button>
-        <Typography variant="h5" fontWeight={700} mb={1}><FaTruckLoading style={{ marginRight: 8 }} /> Tổng tiền Import</Typography>
+        <Typography variant="h5" fontWeight={700} mb={1}>
+          <FaTruckLoading style={{ marginRight: 8 }} /> Tổng tiền Import
+          {isStaff() && user?.storeName && (
+            <Typography component="span" variant="h6" color="primary.main" sx={{ ml: 2 }}>
+              - Kho: {user.storeName}
+            </Typography>
+          )}
+        </Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>Theo dõi tổng chi phí nhập theo Ngày / Tuần / Tháng.</Typography>
 
         <Grid container spacing={2} alignItems="center" mb={2}>

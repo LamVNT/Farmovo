@@ -17,18 +17,23 @@ public interface ReportService {
     List<ExpiringLotDto> getExpiringLots(int days, Long storeId);
 
     List<RevenueTrendDto> getRevenueTrend(String type, LocalDateTime from, LocalDateTime to);
+    List<RevenueTrendDto> getRevenueTrend(String type, LocalDateTime from, LocalDateTime to, Long storeId);
 
     List<StockByCategoryDto> getStockByCategory();
+    List<StockByCategoryDto> getStockByCategory(Long storeId);
 
     List<TopProductDto> getTopProducts(LocalDateTime from, LocalDateTime to, int limit);
+    List<TopProductDto> getTopProducts(LocalDateTime from, LocalDateTime to, int limit, Long storeId);
 
     List<TopCustomerDto> getTopCustomers(LocalDateTime from, LocalDateTime to, int limit);
+    List<TopCustomerDto> getTopCustomers(LocalDateTime from, LocalDateTime to, int limit, Long storeId);
 
     List<RemainByProductReportDto> getRemainByProductAdvanced(String zoneId, Long categoryId, String status);
 
     List<InOutSummaryDto> getInOutSummary(LocalDateTime from, LocalDateTime to, Long storeId);
 
     List<CategoryRemainSummaryDto> getRemainSummary();
+    List<CategoryRemainSummaryDto> getRemainSummary(Long storeId);
 
     // --- New reports ---
     DailyRevenueDto getDailyRevenue(LocalDateTime from, LocalDateTime to, Long storeId);

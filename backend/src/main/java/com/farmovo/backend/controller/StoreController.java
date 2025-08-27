@@ -30,7 +30,7 @@ public class StoreController {
     private UserRepository userRepository;
 
     @GetMapping("/admin/storeList")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ADMIN','ROLE_OWNER','OWNER')")
     public List<StoreResponseDto> getAllStores() {
         logger.info("Fetching all stores from table 'store'");
         try {

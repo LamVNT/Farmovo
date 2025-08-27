@@ -1,2 +1,0 @@
-# Farmovo
-Capstone project

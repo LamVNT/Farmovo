@@ -5,26 +5,26 @@ const RevenueLineChart = ({data, timeFilter, setTimeFilter}) => {
     return (
         <div className="bg-white p-5 shadow-md rounded-lg">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">Revenue Trend</h3>
+                <h3 className="font-semibold">Xu Hướng Doanh Thu</h3>
                 <FormControl size="small">
-                    <InputLabel id="time-select-label">Time</InputLabel>
+                    <InputLabel id="time-select-label">Thời Gian</InputLabel>
                     <Select
                         labelId="time-select-label"
                         value={timeFilter}
                         onChange={(e) => setTimeFilter(e.target.value)}
-                        label="Time"
+                        label="Thời Gian"
                         style={{width: 120}}
                     >
-                        <MenuItem value="weekly">Weekly</MenuItem>
-                        <MenuItem value="monthly">Monthly</MenuItem>
-                        <MenuItem value="annually">Annually</MenuItem>
+                        <MenuItem value="weekly">Theo Tuần</MenuItem>
+                        <MenuItem value="monthly">Theo Tháng</MenuItem>
+                        <MenuItem value="annually">Theo Năm</MenuItem>
                     </Select>
                 </FormControl>
             </div>
             <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data}>
                     <CartesianGrid strokeDasharray="3 3"/>
-                    <XAxis dataKey="date"/>
+                    <XAxis dataKey="label"/>
                     <YAxis/>
                     <Tooltip/>
                     <Legend/>

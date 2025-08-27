@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -46,6 +46,7 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import useChangeStatusLog from '../../hooks/useChangeStatusLog';
 import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import SnackbarAlert from '../../components/SnackbarAlert';
+import changeStatusLogService from '../../services/changeStatusLogService';
 
 const getRange = (key) => {
   const today = new Date();
@@ -134,17 +135,42 @@ const ChangeStatusLogPage = () => {
     loading,
     error,
     pagination,
+    fetchLogs,
+    getLatestLogsForEachSource,
+    getLatestLogsForEachSourceByModel,
     handlePageChange,
     handleFilterChange,
     handleSizeChange
   } = useChangeStatusLog();
 
-  const handleViewDetail = (log) => {
+  // Thêm state để quản lý chế độ hiển thị
+  const [displayMode, setDisplayMode] = useState('latest'); // 'all' hoặc 'latest' - mặc định là 'latest'
+  
+  // State để lưu trữ tất cả bản ghi thay đổi của một mã nguồn
+  const [sourceLogs, setSourceLogs] = useState([]);
+  const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
+
+  const handleViewDetail = useCallback(async (log) => {
+    console.log('handleViewDetail called with log:', log);
     setSelectedLog(log);
     setDetailDialogOpen(true);
-  };
+    
+    // Lấy tất cả bản ghi thay đổi của mã nguồn này
+    setSourceLogsLoading(true);
+    try {
+      console.log('Calling getLogsByModel with:', { modelName: log.modelName, modelId: log.modelID });
+      const response = await changeStatusLogService.getLogsByModel(log.modelName, log.modelID);
+      console.log('getLogsByModel response:', response);
+      setSourceLogs(response.data || []);
+    } catch (error) {
+      console.error('Error fetching source logs:', error);
+      setSourceLogs([]);
+    } finally {
+      setSourceLogsLoading(false);
+    }
+  }, []);
 
-  const handleViewSource = (log) => {
+  const handleViewSource = useCallback((log) => {
     if (log.sourceUrl) {
       // Map backend URL to frontend route
       let frontendUrl = '';
@@ -175,35 +201,37 @@ const ChangeStatusLogPage = () => {
         severity: 'warning'
       });
     }
-  };
+  }, [navigate]);
 
-  const handleCloseDetailDialog = () => {
+  const handleCloseDetailDialog = useCallback(() => {
     setDetailDialogOpen(false);
     setSelectedLog(null);
-  };
+    setSourceLogs([]);
+    setSourceLogsLoading(false);
+  }, []);
 
-  const handleCloseSnackbar = () => {
+  const handleCloseSnackbar = useCallback(() => {
     setSnackbar({ ...snackbar, open: false });
-  };
+  }, [snackbar]);
 
   // Filter handlers
-  const handlePresetChange = (key) => {
+  const handlePresetChange = useCallback((key) => {
     setCustomDate(getRange(key));
     setPresetLabel(labelMap[key]);
     setSelectedMode("preset");
     setShowDatePicker(false);
     setAnchorEl(null);
-  };
+  }, []);
 
-  const handleCustomChange = (range) => {
+  const handleCustomChange = useCallback((range) => {
     const start = format(range.startDate, "dd/MM/yyyy");
     const end = format(range.endDate, "dd/MM/yyyy");
     setCustomLabel(`${start} - ${end}`);
     setCustomDate([range]);
     setSelectedMode("custom");
-  };
+  }, []);
 
-  const getStatusKeys = () => {
+  const getStatusKeys = useCallback(() => {
     const keys = [];
     if (filter.status.draft) keys.push('DRAFT');
     if (filter.status.waiting) keys.push('WAITING_FOR_APPROVE');
@@ -215,31 +243,31 @@ const ChangeStatusLogPage = () => {
     if (filter.status.completed) keys.push('COMPLETED');
     if (filter.status.cancelled) keys.push('CANCELLED');
     return keys;
-  };
+  }, [filter.status]);
 
   // Action menu handlers
-  const handleActionClick = (event, row) => {
+  const handleActionClick = useCallback((event, row) => {
     setActionAnchorEl(event.currentTarget);
     setActionRow(row);
-  };
+  }, []);
 
-  const handleActionClose = () => {
+  const handleActionClose = useCallback(() => {
     setActionAnchorEl(null);
     setActionRow(null);
-  };
+  }, []);
 
-  const handleViewDetailMenu = () => {
+  const handleViewDetailMenu = useCallback(() => {
     handleViewDetail(actionRow);
     handleActionClose();
-  };
+  }, [handleViewDetail, actionRow, handleActionClose]);
 
-  const handleViewSourceMenu = () => {
+  const handleViewSourceMenu = useCallback(() => {
     handleViewSource(actionRow);
     handleActionClose();
-  };
+  }, [handleViewSource, actionRow, handleActionClose]);
 
   // Status color mapping
-  const getStatusColor = (status) => {
+  const getStatusColor = useMemo(() => (status) => {
     const statusColors = {
       'DRAFT': '#6b7280',           // Xám
       'WAITING_FOR_APPROVE': '#f59e0b', // Vàng
@@ -253,9 +281,9 @@ const ChangeStatusLogPage = () => {
       'IN_PROGRESS': '#3b82f6'      // Xanh dương
     };
     return statusColors[status] || '#6b7280';
-  };
+  }, []);
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = useMemo(() => (status) => {
     const statusLabels = {
       'DRAFT': 'Nháp',
       'WAITING_FOR_APPROVE': 'Chờ xử lý',
@@ -269,9 +297,9 @@ const ChangeStatusLogPage = () => {
       'IN_PROGRESS': 'Đang xử lý'
     };
     return statusLabels[status] || status;
-  };
+  }, []);
 
-  const getModelTypeLabel = (modelName) => {
+  const getModelTypeLabel = useMemo(() => (modelName) => {
     const modelLabels = {
       'SALE_TRANSACTION': 'Bán hàng',
       'IMPORT_TRANSACTION': 'Nhập hàng',
@@ -281,15 +309,15 @@ const ChangeStatusLogPage = () => {
       'PRODUCT': 'Sản phẩm'
     };
     return modelLabels[modelName] || modelName;
-  };
+  }, []);
 
-  const formatDateTime = (dateTime) => {
+  const formatDateTime = useMemo(() => (dateTime) => {
     if (!dateTime) return '-';
     return format(new Date(dateTime), 'dd/MM/yyyy HH:mm', { locale: vi });
-  };
+  }, []);
 
   // Table styles
-  const tableStyles = {
+  const tableStyles = useMemo(() => ({
     width: '100%',
     borderCollapse: 'separate',
     borderSpacing: 0,
@@ -300,9 +328,9 @@ const ChangeStatusLogPage = () => {
     borderRadius: 12,
     overflow: 'hidden',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-  };
+  }), []);
 
-  const thStyles = {
+  const thStyles = useMemo(() => ({
     background: '#dbeafe',
     fontWeight: 700,
     padding: '16px 12px',
@@ -316,9 +344,9 @@ const ChangeStatusLogPage = () => {
     position: 'sticky',
     top: 0,
     zIndex: 2,
-  };
+  }), []);
 
-  const tdStyles = {
+  const tdStyles = useMemo(() => ({
     padding: '16px 12px',
     borderBottom: '1px solid #f3f4f6',
     background: '#fff',
@@ -328,71 +356,101 @@ const ChangeStatusLogPage = () => {
     height: 48,
     fontFamily: 'Roboto, Arial, sans-serif',
     transition: 'all 0.2s ease',
-  };
+  }), []);
 
-  const zebra = idx => ({ 
+  const zebra = useMemo(() => (idx) => ({ 
     background: idx % 2 === 0 ? '#fafbfc' : '#fff',
     '&:hover': {
       background: '#f0f9ff',
       transform: 'translateY(-1px)',
       boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
     }
-  });
+  }), []);
 
-  // Effect để xử lý filter và pagination
+  // Effect để xử lý filter và pagination - gộp tất cả logic lại
   useEffect(() => {
-    const filterRequest = {
-      modelName: filter.modelType || '',
-      description: filter.search || '',
-      fromDate: customDate && customDate[0] ? customDate[0].startDate.toISOString() : null,
-      toDate: customDate && customDate[0] ? customDate[0].endDate.toISOString() : null
-    };
+    if (displayMode === 'latest') {
+      // Nếu đang ở chế độ hiển thị mới nhất
+      if (filter.modelType || filter.search || Object.values(filter.status).some(Boolean)) {
+        // Nếu có filter theo loại đối tượng, tìm kiếm hoặc trạng thái, áp dụng filter
+        if (filter.modelType) {
+          getLatestLogsForEachSourceByModel(filter.modelType);
+        } else {
+          // Nếu chỉ có tìm kiếm hoặc trạng thái, lọc từ dữ liệu đã có
+          getLatestLogsForEachSource();
+        }
+      } else {
+        // Nếu không có filter nào, lấy tất cả
+        getLatestLogsForEachSource();
+      }
+    } else {
+      // Nếu đang ở chế độ hiển thị tất cả
+      const filterRequest = {
+        modelName: filter.modelType || '',
+        description: filter.search || '',
+        fromDate: customDate && customDate[0] ? customDate[0].startDate.toISOString() : null,
+        toDate: customDate && customDate[0] ? customDate[0].endDate.toISOString() : null
+      };
 
-    // Thêm status filter nếu có
-    const statusKeys = getStatusKeys();
-    if (statusKeys.length > 0) {
-      filterRequest.previousStatus = statusKeys.join(',');
-      filterRequest.nextStatus = statusKeys.join(',');
+      // Thêm status filter nếu có
+      const statusKeys = getStatusKeys();
+      if (statusKeys.length > 0) {
+        filterRequest.previousStatus = statusKeys.join(',');
+        filterRequest.nextStatus = statusKeys.join(',');
+      }
+
+      // Reset page về 0 khi filter thay đổi
+      setPage(0);
+      handleFilterChange(filterRequest);
     }
+  }, [filter, customDate, displayMode, getLatestLogsForEachSource, getLatestLogsForEachSourceByModel, handleFilterChange, getStatusKeys]);
 
-    // Reset page về 0 khi filter thay đổi
-    setPage(0);
-    handleFilterChange(filterRequest);
-  }, [filter, customDate]);
-
+  // Effect để xử lý pagination
   useEffect(() => {
-    if (page >= 0) {
+    if (displayMode !== 'latest' && page >= 0) {
       handlePageChange(page);
     }
-  }, [page]);
+  }, [page, handlePageChange, displayMode]);
 
   useEffect(() => {
-    if (pageSize > 0) {
+    if (displayMode !== 'latest' && pageSize > 0) {
       setPage(0); // Reset về trang đầu khi thay đổi pageSize
       handleSizeChange(pageSize);
     }
-  }, [pageSize]);
+  }, [pageSize, handleSizeChange, displayMode]);
 
-  // Khởi tạo dữ liệu ban đầu
+  // Khởi tạo dữ liệu ban đầu và reset khi chuyển đổi chế độ
   useEffect(() => {
-    const initialFilterRequest = {
-      modelName: '',
-      description: '',
-      fromDate: null,
-      toDate: null
-    };
-    handleFilterChange(initialFilterRequest);
-  }, []);
+    setPage(0);
+    if (displayMode === 'latest') {
+      setPageSize(25); // Reset về giá trị mặc định
+      getLatestLogsForEachSource();
+    } else {
+      const initialFilterRequest = {
+        modelName: '',
+        description: '',
+        fromDate: null,
+        toDate: null
+      };
+      handleFilterChange(initialFilterRequest);
+    }
+  }, [displayMode, getLatestLogsForEachSource, handleFilterChange]);
+
+  // Khởi tạo dữ liệu ban đầu khi component mount
+  useEffect(() => {
+    // Mặc định load dữ liệu theo chế độ latest
+    getLatestLogsForEachSource();
+  }, [getLatestLogsForEachSource]);
 
   // Filter sidebar styles
-  const filterSidebarStyle = {
+  const filterSidebarStyle = useMemo(() => ({
     minWidth: 240,
     maxWidth: 320,
     transition: 'all 0.2s',
     position: 'relative',
-  };
+  }), []);
 
-  const filterHideBtnStyle = {
+  const filterHideBtnStyle = useMemo(() => ({
     position: 'absolute',
     right: -16,
     top: '50%',
@@ -413,7 +471,7 @@ const ChangeStatusLogPage = () => {
     color: '#2563eb',
     opacity: 0,
     transition: 'opacity 0.2s, background 0.2s, border 0.2s, transform 0.2s',
-  };
+  }), []);
 
   return (
     <Container maxWidth="xl">
@@ -424,8 +482,58 @@ const ChangeStatusLogPage = () => {
              Lịch sử thay đổi trạng thái
            </Typography>
            <Typography variant="body1" color="textSecondary">
-             Theo dõi và quản lý lịch sử thay đổi trạng thái của các đối tượng trong hệ thống
+             Theo dõi và quản lý lịch sử thay đổi trạng thái của các đối tượng trong hệ thống. 
+             Mặc định hiển thị bản ghi mới nhất cho mỗi mã nguồn, có thể filter theo loại đối tượng, trạng thái và tìm kiếm.
            </Typography>
+           
+           {/* Toggle chế độ hiển thị */}
+           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+             <Typography variant="body2" color="textSecondary">
+               Chế độ hiển thị:
+             </Typography>
+             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+               <Button
+                 variant={displayMode === 'latest' ? 'contained' : 'outlined'}
+                 size="small"
+                 onClick={() => setDisplayMode('latest')}
+                 sx={{
+                   borderRadius: 2,
+                   textTransform: 'none',
+                   minWidth: 100
+                 }}
+               >
+                 Mới nhất mỗi nguồn
+               </Button>
+               <Button
+                 variant={displayMode === 'all' ? 'contained' : 'outlined'}
+                 size="small"
+                 onClick={() => setDisplayMode('all')}
+                 sx={{
+                   borderRadius: 2,
+                   textTransform: 'none',
+                   minWidth: 100
+                 }}
+               >
+                 Tất cả
+               </Button>
+             </Box>
+             {displayMode === 'latest' && (
+               <Chip
+                 label="Chế độ mặc định - Chỉ hiển thị bản ghi mới nhất cho mỗi mã nguồn (có thể filter theo loại đối tượng, trạng thái và tìm kiếm)"
+                 color="success"
+                 size="small"
+                 variant="outlined"
+               />
+             )}
+             {displayMode === 'all' && (
+               <Chip
+                 label="Chế độ nâng cao - Hiển thị tất cả bản ghi với filter đầy đủ"
+                 color="info"
+                 size="small"
+                 variant="outlined"
+               />
+             )}
+           </Box>
          </Box>
 
         {/* Error Alert */}
@@ -505,19 +613,22 @@ const ChangeStatusLogPage = () => {
                             setShowDatePicker(false);
                             setAnchorEl(null);
                           }}
+                          disabled={displayMode === 'latest'}
                         />
                       }
                       label={
                         <div
                           className="flex items-center justify-between w-full cursor-pointer"
                           onClick={(e) => {
+                            if (displayMode === 'latest') return;
                             setSelectedMode("preset");
                             setShowDatePicker(false);
                             setAnchorEl(e.currentTarget);
                           }}
+                          style={{ opacity: displayMode === 'latest' ? 0.5 : 1 }}
                         >
                           <span>{presetLabel}</span>
-                          <Button size="small">▼</Button>
+                          <Button size="small" disabled={displayMode === 'latest'}>▼</Button>
                         </div>
                       }
                     />
@@ -526,10 +637,12 @@ const ChangeStatusLogPage = () => {
                         <Checkbox 
                           checked={selectedMode === "custom"} 
                           onChange={() => { 
+                            if (displayMode === 'latest') return;
                             setSelectedMode("custom"); 
                             setAnchorEl(null); 
                             setShowDatePicker(true); 
-                          }} 
+                          }}
+                          disabled={displayMode === 'latest'}
                         />
                       } 
                       label={
@@ -538,10 +651,12 @@ const ChangeStatusLogPage = () => {
                           <Button 
                             size="small" 
                             onClick={() => { 
+                              if (displayMode === 'latest') return;
                               setSelectedMode("custom"); 
                               setAnchorEl(null); 
                               setShowDatePicker(!showDatePicker); 
                             }}
+                            disabled={displayMode === 'latest'}
                           >
                             📅
                           </Button>
@@ -549,6 +664,11 @@ const ChangeStatusLogPage = () => {
                       } 
                     />
                   </div>
+                  {displayMode === 'latest' && (
+                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                      Filter thời gian không khả dụng trong chế độ mặc định "Mới nhất mỗi nguồn"
+                    </Typography>
+                  )}
                 </div>
 
                                  {/* Status filter */}
@@ -726,7 +846,9 @@ const ChangeStatusLogPage = () => {
                       </tr>
                     ) : logs.map((log, idx) => (
                                              <tr key={log.id} style={zebra(idx)}>
-                         <td style={tdStyles}>{page * pageSize + idx + 1}</td>
+                         <td style={tdStyles}>
+                           {displayMode === 'latest' ? idx + 1 : page * pageSize + idx + 1}
+                         </td>
                                                  <td style={tdStyles}>
                            <Chip
                              label={getModelTypeLabel(log.modelName)}
@@ -802,160 +924,162 @@ const ChangeStatusLogPage = () => {
               )}
             </div>
 
-                         {/* Pagination controls */}
-             <div style={{
-               display: 'flex', alignItems: 'center', padding: 12, 
-               background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-               borderRadius: 16, marginTop: 16, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14, 
-               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-               border: '1px solid #e2e8f0', width: 'fit-content', minWidth: 420
-             }}>
-              <span style={{ marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>Hiển thị</span>
-              <FormControl size="small" style={{ minWidth: 80, marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>
-                                 <Select
-                   value={pageSize}
-                   onChange={(e) => setPageSize(Number(e.target.value))}
-                                     sx={{
-                     borderRadius: 2,
-                     fontFamily: 'Roboto, Arial, sans-serif',
-                     fontSize: 14,
-                     height: 36,
-                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                     border: '1px solid #e2e8f0',
-                     padding: '4px 8px',
+                         {/* Pagination controls - chỉ hiển thị khi không ở chế độ latest */}
+             {displayMode !== 'latest' && (
+               <div style={{
+                 display: 'flex', alignItems: 'center', padding: 12, 
+                 background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                 borderRadius: 16, marginTop: 16, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14, 
+                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                 border: '1px solid #e2e8f0', width: 'fit-content', minWidth: 420
+               }}>
+                <span style={{ marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>Hiển thị</span>
+                <FormControl size="small" style={{ minWidth: 80, marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>
+                                   <Select
+                     value={pageSize}
+                     onChange={(e) => setPageSize(Number(e.target.value))}
+                                       sx={{
+                       borderRadius: 2,
+                       fontFamily: 'Roboto, Arial, sans-serif',
+                       fontSize: 14,
+                       height: 36,
+                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                       border: '1px solid #e2e8f0',
+                       padding: '4px 8px',
+                       '&:hover': {
+                         borderColor: '#667eea',
+                       },
+                       '&.Mui-focused': {
+                         borderColor: '#667eea',
+                       },
+                     }}
+                    MenuProps={{ PaperProps: { style: { fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 } } }}
+                  >
+                    {[15, 25, 50, 100].map(opt => (
+                      <MenuItem key={opt} value={opt} style={{ fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 }}>
+                        {opt} dòng
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                               <Button 
+                   size="small" 
+                   variant="outlined" 
+                   sx={{ 
+                     minWidth: 32, 
+                     borderRadius: 2, 
+                     margin: '0 2px', 
+                     padding: 0,
+                     borderColor: '#e2e8f0',
+                     color: '#64748b',
                      '&:hover': {
                        borderColor: '#667eea',
+                       backgroundColor: '#f8fafc',
                      },
-                     '&.Mui-focused': {
-                       borderColor: '#667eea',
-                     },
+                     '&:disabled': {
+                       borderColor: '#e2e8f0',
+                       color: '#cbd5e1',
+                     }
                    }}
-                  MenuProps={{ PaperProps: { style: { fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 } } }}
-                >
-                  {[15, 25, 50, 100].map(opt => (
-                    <MenuItem key={opt} value={opt} style={{ fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 }}>
-                      {opt} dòng
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-                             <Button 
-                 size="small" 
-                 variant="outlined" 
-                 sx={{ 
-                   minWidth: 32, 
-                   borderRadius: 2, 
-                   margin: '0 2px', 
-                   padding: 0,
-                   borderColor: '#e2e8f0',
-                   color: '#64748b',
-                   '&:hover': {
-                     borderColor: '#667eea',
-                     backgroundColor: '#f8fafc',
-                   },
-                   '&:disabled': {
+                   disabled={page === 0} 
+                   onClick={() => setPage(0)}
+                 >
+                   {'|<'}
+                 </Button>
+                 <Button 
+                   size="small" 
+                   variant="outlined" 
+                   sx={{ 
+                     minWidth: 32, 
+                     borderRadius: 2, 
+                     margin: '0 2px', 
+                     padding: 0,
                      borderColor: '#e2e8f0',
-                     color: '#cbd5e1',
-                   }
-                 }}
-                 disabled={page === 0} 
-                 onClick={() => setPage(0)}
-               >
-                 {'|<'}
-               </Button>
-               <Button 
-                 size="small" 
-                 variant="outlined" 
-                 sx={{ 
-                   minWidth: 32, 
-                   borderRadius: 2, 
-                   margin: '0 2px', 
-                   padding: 0,
-                   borderColor: '#e2e8f0',
-                   color: '#64748b',
-                   '&:hover': {
-                     borderColor: '#667eea',
-                     backgroundColor: '#f8fafc',
-                   },
-                   '&:disabled': {
+                     color: '#64748b',
+                     '&:hover': {
+                       borderColor: '#667eea',
+                       backgroundColor: '#f8fafc',
+                     },
+                     '&:disabled': {
+                       borderColor: '#e2e8f0',
+                       color: '#cbd5e1',
+                     }
+                   }}
+                   disabled={page === 0} 
+                   onClick={() => setPage(page - 1)}
+                 >
+                   {'<'}
+                 </Button>
+                 <input
+                   type="number"
+                   min={1}
+                   max={pagination.totalPages}
+                   value={page + 1}
+                   onChange={(e) => {
+                     let val = Number(e.target.value) - 1;
+                     if (val < 0) val = 0;
+                     if (val >= pagination.totalPages) val = pagination.totalPages - 1;
+                     setPage(val);
+                   }}
+                                   style={{
+                     width: 32, textAlign: 'center', margin: '0 4px', height: 28, border: '1px solid #e0e0e0',
+                     borderRadius: 8, fontSize: 14, fontFamily: 'Roboto, Arial, sans-serif', 
+                     boxShadow: '0 1px 2px #e5e7eb', outline: 'none'
+                   }}
+                />
+                               <Button 
+                   size="small" 
+                   variant="outlined" 
+                   sx={{ 
+                     minWidth: 32, 
+                     borderRadius: 2, 
+                     margin: '0 2px', 
+                     padding: 0,
                      borderColor: '#e2e8f0',
-                     color: '#cbd5e1',
-                   }
-                 }}
-                 disabled={page === 0} 
-                 onClick={() => setPage(page - 1)}
-               >
-                 {'<'}
-               </Button>
-               <input
-                 type="number"
-                 min={1}
-                 max={pagination.totalPages}
-                 value={page + 1}
-                 onChange={(e) => {
-                   let val = Number(e.target.value) - 1;
-                   if (val < 0) val = 0;
-                   if (val >= pagination.totalPages) val = pagination.totalPages - 1;
-                   setPage(val);
-                 }}
-                                 style={{
-                   width: 32, textAlign: 'center', margin: '0 4px', height: 28, border: '1px solid #e0e0e0',
-                   borderRadius: 8, fontSize: 14, fontFamily: 'Roboto, Arial, sans-serif', 
-                   boxShadow: '0 1px 2px #e5e7eb', outline: 'none'
-                 }}
-              />
-                             <Button 
-                 size="small" 
-                 variant="outlined" 
-                 sx={{ 
-                   minWidth: 32, 
-                   borderRadius: 2, 
-                   margin: '0 2px', 
-                   padding: 0,
-                   borderColor: '#e2e8f0',
-                   color: '#64748b',
-                   '&:hover': {
-                     borderColor: '#667eea',
-                     backgroundColor: '#f8fafc',
-                   },
-                   '&:disabled': {
+                     color: '#64748b',
+                     '&:hover': {
+                       borderColor: '#667eea',
+                       backgroundColor: '#f8fafc',
+                     },
+                     '&:disabled': {
+                       borderColor: '#e2e8f0',
+                       color: '#cbd5e1',
+                     }
+                   }}
+                   disabled={page + 1 >= pagination.totalPages} 
+                   onClick={() => setPage(page + 1)}
+                 >
+                   {'>'}
+                 </Button>
+                 <Button 
+                   size="small" 
+                   variant="outlined" 
+                   sx={{ 
+                     minWidth: 32, 
+                     borderRadius: 2, 
+                     margin: '0 2px', 
+                     padding: 0,
                      borderColor: '#e2e8f0',
-                     color: '#cbd5e1',
-                   }
-                 }}
-                 disabled={page + 1 >= pagination.totalPages} 
-                 onClick={() => setPage(page + 1)}
-               >
-                 {'>'}
-               </Button>
-               <Button 
-                 size="small" 
-                 variant="outlined" 
-                 sx={{ 
-                   minWidth: 32, 
-                   borderRadius: 2, 
-                   margin: '0 2px', 
-                   padding: 0,
-                   borderColor: '#e2e8f0',
-                   color: '#64748b',
-                   '&:hover': {
-                     borderColor: '#667eea',
-                     backgroundColor: '#f8fafc',
-                   },
-                   '&:disabled': {
-                     borderColor: '#e2e8f0',
-                     color: '#cbd5e1',
-                   }
-                 }}
-                 disabled={page + 1 >= pagination.totalPages} 
-                 onClick={() => setPage(pagination.totalPages - 1)}
-               >
-                 {'>|'}
-               </Button>
-                             <span style={{ marginLeft: 8, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 }}>
-                 {`${page * pageSize + 1} - ${Math.min((page + 1) * pageSize, pagination.totalElements)} trong ${pagination.totalElements} bản ghi`}
-               </span>
-            </div>
+                     color: '#64748b',
+                     '&:hover': {
+                       borderColor: '#667eea',
+                       backgroundColor: '#f8fafc',
+                     },
+                     '&:disabled': {
+                       borderColor: '#e2e8f0',
+                       color: '#cbd5e1',
+                     }
+                   }}
+                   disabled={page + 1 >= pagination.totalPages} 
+                   onClick={() => setPage(pagination.totalPages - 1)}
+                 >
+                   {'>|'}
+                 </Button>
+                               <span style={{ marginLeft: 8, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 }}>
+                   {`${page * pageSize + 1} - ${Math.min((page + 1) * pageSize, pagination.totalElements)} trong ${pagination.totalElements} bản ghi`}
+                 </span>
+              </div>
+             )}
           </div>
         </div>
 
@@ -963,6 +1087,8 @@ const ChangeStatusLogPage = () => {
         <ChangeStatusLogDetailDialog
           open={detailDialogOpen}
           log={selectedLog}
+          sourceLogs={sourceLogs}
+          sourceLogsLoading={sourceLogsLoading}
           onClose={handleCloseDetailDialog}
           onViewSource={handleViewSource}
         />

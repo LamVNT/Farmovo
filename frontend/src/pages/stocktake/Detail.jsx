@@ -9,11 +9,15 @@ import {
 } from "@mui/material";
 import useStocktake from "../../hooks/useStocktake";
 import SnackbarAlert from "../../components/SnackbarAlert";
+import { useStoreForStocktake } from "../../hooks/useStoreForStocktake";
 
 const StockTakeDetailPage = () => {
     const { id } = useParams();
     const user = JSON.parse(localStorage.getItem('user'));
     const userRole = user?.roles?.[0];
+
+    // Store selection for stocktake
+    const storeForStocktake = useStoreForStocktake(user, userRole);
     const {
         detail,
         setDetail,
@@ -51,6 +55,27 @@ const StockTakeDetailPage = () => {
         }
     }, [id, detail, setDetail]);
 
+    // Auto-sync store from stocktake detail for Owner/Admin (chỉ khi thực sự cần)
+    useEffect(() => {
+        if (detail && detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
+            const currentStoreId = storeForStocktake.currentStoreId;
+
+            // If no store selected or different store, sync from stocktake
+            if (!currentStoreId || String(currentStoreId) !== String(detail.storeId)) {
+                console.log('Detail.jsx - Auto-syncing store from stocktake detail:', {
+                    currentStoreId,
+                    detailStoreId: detail.storeId,
+                    detailStoreName: detail.storeName
+                });
+                const storeObj = {
+                    id: detail.storeId,
+                    storeName: detail.storeName || `Store ${detail.storeId}`
+                };
+                storeForStocktake.selectStore(storeObj);
+            }
+        }
+    }, [detail?.storeId, detail?.storeName]); // Chỉ depend vào storeId và storeName để tránh vòng lặp
+
     // Sau khi lấy detail
     const hasDiff = Array.isArray(detail?.detail)
         ? detail.detail.some(d => d.diff !== 0)
@@ -62,9 +87,103 @@ const StockTakeDetailPage = () => {
     const hasSurplus = Array.isArray(detail?.detail)
         ? detail.detail.some(d => Number(d.diff) > 0)
         : false;
-    const canBalance = detail?.status === 'COMPLETED'
-        && hasShortage
-        && detail?.hasBalance !== true; // Ẩn nếu đã có PCB COMPLETE liên kết
+    
+    // Logic mới cho 3 trạng thái PCB
+    const canBalance = detail?.status === 'COMPLETED' && hasShortage;
+    
+    // Kiểm tra trạng thái PCB
+    const [pcbStatus, setPcbStatus] = useState(null);
+    
+    // Kiểm tra thông báo PCB thành công cho Staff
+    useEffect(() => {
+        if (detail?.id && (userRole === 'STAFF' || userRole === 'ROLE_STAFF')) {
+            const pcbSuccessMessage = localStorage.getItem(`stocktake_${detail.id}_pcbSuccess`);
+            if (pcbSuccessMessage) {
+                setSnackbar({ 
+                    isOpen: true, 
+                    message: pcbSuccessMessage, 
+                    severity: 'success' 
+                });
+                // Xóa thông báo khỏi localStorage sau khi hiển thị
+                localStorage.removeItem(`stocktake_${detail.id}_pcbSuccess`);
+                // Tự động ẩn thông báo sau 3 giây
+                setTimeout(() => {
+                    setSnackbar(prev => ({ ...prev, isOpen: false }));
+                }, 3000);
+            }
+        }
+    }, [detail?.id, userRole]);
+    
+    useEffect(() => {
+        if (detail?.id) {
+            // Kiểm tra từ localStorage trước
+            const hasPcb = localStorage.getItem(`stocktake_${detail.id}_hasPCB`);
+            const pcbStatusLocal = localStorage.getItem(`stocktake_${detail.id}_pcbStatus`);
+            
+            if (hasPcb) {
+                // Nếu đã có PCB trong localStorage, gọi API để cập nhật trạng thái
+                axios.get(`/sale-transactions/stocktake/${detail.id}/status`)
+                    .then(res => {
+                        setPcbStatus(res.data);
+                        // Cập nhật localStorage
+                        if (res.data.hasBalance) {
+                            localStorage.setItem(`stocktake_${detail.id}_hasPCB`, 'true');
+                            localStorage.setItem(`stocktake_${detail.id}_pcbStatus`, res.data.status);
+                        }
+                    })
+                    .catch(() => {
+                        // Fallback: sử dụng dữ liệu từ localStorage
+                        setPcbStatus({ 
+                            hasBalance: true, 
+                            status: pcbStatusLocal || 'WAITING_FOR_APPROVE' 
+                        });
+                    });
+            } else {
+                // Nếu chưa có PCB, set trạng thái là false
+                setPcbStatus({ hasBalance: false, status: null });
+            }
+        }
+    }, [detail?.id]);
+    
+    // Thêm effect để refresh trạng thái PCB khi component được mount
+    useEffect(() => {
+        const refreshPcbStatus = () => {
+            if (detail?.id) {
+                // Kiểm tra từ localStorage trước
+                const hasPcb = localStorage.getItem(`stocktake_${detail.id}_hasPCB`);
+                const pcbStatusLocal = localStorage.getItem(`stocktake_${detail.id}_pcbStatus`);
+                
+                if (hasPcb) {
+                    // Nếu đã có PCB trong localStorage, gọi API để cập nhật trạng thái
+                    axios.get(`/sale-transactions/stocktake/${detail.id}/status`)
+                        .then(res => {
+                            setPcbStatus(res.data);
+                            // Cập nhật localStorage
+                            if (res.data.hasBalance) {
+                                localStorage.setItem(`stocktake_${detail.id}_hasPCB`, 'true');
+                                localStorage.setItem(`stocktake_${detail.id}_pcbStatus`, res.data.status);
+                            }
+                        })
+                        .catch(() => {
+                            // Fallback: sử dụng dữ liệu từ localStorage
+                            setPcbStatus({ 
+                                hasBalance: false, 
+                                status: pcbStatusLocal || 'WAITING_FOR_APPROVE' 
+                            });
+                        });
+                }
+                // Nếu không có PCB, không làm gì cả (giữ nguyên trạng thái hiện tại)
+            }
+        };
+        
+        // Refresh ngay khi component mount
+        refreshPcbStatus();
+        
+        // Refresh mỗi 5 giây để cập nhật trạng thái PCB (chỉ khi đã có PCB)
+        const interval = setInterval(refreshPcbStatus, 5000);
+        
+        return () => clearInterval(interval);
+    }, [detail?.id]);
 
     // Surplus (dư hàng): real > remain
     const surplusItems = Array.isArray(detail?.detail)
@@ -91,29 +210,84 @@ const StockTakeDetailPage = () => {
                     sx={{ fontWeight: 700, fontSize: isMobile ? 16 : 18, ml: isMobile ? 0 : 2, mt: isMobile ? 1 : 0 }}
                 />
                 {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
-                {hasSurplus && detail?.hasImport !== true && (
+                {hasSurplus && !localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
                     <Button
                         variant="contained"
                         color="secondary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate('/import/new', {
-                            state: { surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems } }
+                        onClick={() => navigate('/import/balance', {
+                            state: {
+                                surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems },
+                                createImportMode: true
+                            }
                         })}
                     >
-                        Tạo phiếu nhập hàng
+                        Tạo PCB Nhập
                     </Button>
                 )}
-                {canBalance && (
+                {hasSurplus && localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        disabled
+                    >
+                        Đã tạo phiếu nhập
+                    </Button>
+                )}
+                {/* Logic mới cho 3 trạng thái PCB */}
+                {canBalance && !pcbStatus?.hasBalance && (
                     <Button
                         variant="contained"
                         color="primary"
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate(`/sale/balance/${detail.id}`, { state: { stocktakeId: detail.id, stocktakeCode: detail.name } })}
+                        onClick={() => {
+                            // Ensure store is selected in context before navigating
+                            if (detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
+                                // For Owner/Admin, set the store from stocktake detail
+                                const storeObj = { id: detail.storeId, storeName: detail.storeName || `Store ${detail.storeId}` };
+                                storeForStocktake.selectStore(storeObj);
+                            }
+                            navigate(`/sale/balance/${detail.id}`, {
+                                state: {
+                                    stocktakeId: detail.id,
+                                    stocktakeCode: detail.name,
+                                    storeId: detail.storeId,
+                                    storeName: detail.storeName
+                                }
+                            });
+                        }}
                     >
                         Cân bằng kho (Tạo PCB)
                     </Button>
                 )}
-                {/* Nút mở PCB đã liên kết nếu có */}
+                
+                {/* Trạng thái: Đã có PCB chờ duyệt */}
+                {canBalance && pcbStatus?.hasBalance && pcbStatus?.status === 'WAITING_FOR_APPROVE' && (
+                    <Button
+                        variant="outlined"
+                        color="warning"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        disabled
+                    >
+                        Đã có PCB chờ duyệt
+                    </Button>
+                )}
+                
+                {/* Trạng thái: Xem PCB (đã được duyệt) */}
+                {canBalance && pcbStatus?.hasBalance && pcbStatus?.status === 'COMPLETE' && (
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
+                        onClick={() => navigate(`/balance?view=detail&id_by_stocktake=${detail.id}`)}
+                        title="Mở phiếu cân bằng đã liên kết"
+                    >
+                        Xem PCB
+                    </Button>
+                )}
+                
+                {/* Logic cũ - giữ lại để tương thích ngược */}
                 {!canBalance && detail?.hasBalance && (
                     <Button
                         variant="outlined"
@@ -180,6 +354,7 @@ const StockTakeDetailPage = () => {
                     value={filter.productName}
                     onChange={e => setFilter(f => ({ ...f, productName: e.target.value }))}
                 />
+
                 {/* Nút Export Excel chỉ hiển thị khi phiếu đã hoàn thành */}
                 {detail.status === "COMPLETED" && (
                     <Button
@@ -199,7 +374,8 @@ const StockTakeDetailPage = () => {
                         <TableRow sx={{ background: "#f5f5f5" }}>
                             <TableCell><b>Mã lô</b></TableCell>
                             <TableCell><b>Tên hàng</b></TableCell>
-                            {!isMobile && <TableCell><b>Khu vực hệ thống</b></TableCell>}
+                            {/* Ẩn cột Khu vực hệ thống */}
+                            {/* {!isMobile && <TableCell><b>Khu vực hệ thống</b></TableCell>} */}
                             <TableCell><b>Tồn kho</b></TableCell>
                             <TableCell><b>Thực tế</b></TableCell>
                             {!isMobile && <TableCell><b>Khu vực thực tế</b></TableCell>}
@@ -219,7 +395,8 @@ const StockTakeDetailPage = () => {
                                 <TableRow key={(d.batchCode || d.name || 'row') + '-' + (d.productId || '') + '-' + idx} hover sx={d.diff !== 0 ? { background: '#ffeaea' } : {}}>
                                     <TableCell sx={{ color: '#1976d2', fontWeight: 600 }}>{d.batchCode || d.name}</TableCell>
                                     <TableCell><b>{products.find(p => p.id === d.productId)?.productName || d.productName || d.productId}</b></TableCell>
-                                    {!isMobile && <TableCell>
+                                    {/* Ẩn giá trị cột Khu vực hệ thống */}
+                                    {/* {!isMobile && <TableCell>
                                         {d.zones_id ?
                                             (Array.isArray(d.zones_id) ?
                                                 d.zones_id.map(zid => {
@@ -229,7 +406,7 @@ const StockTakeDetailPage = () => {
                                                 : d.zones_id)
                                             : (d.zoneName || d.zoneId || '')
                                         }
-                                    </TableCell>}
+                                    </TableCell>} */}
                                     <TableCell>{d.remain}</TableCell>
                                     <TableCell>{d.real}</TableCell>
                                     {!isMobile && <TableCell>{

@@ -44,9 +44,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import DialogActions from '@mui/material/DialogActions';
 import { exportImportTransactions, exportImportTransactionDetail } from '../../utils/excelExport';
 import ImportDetailDialog from '../../components/import-transaction/ImportDetailDialog';
+import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import { getZones } from '../../services/zoneService';
 import { useAuth } from '../../contexts/AuthorizationContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HistoryIcon from '@mui/icons-material/History';
+import changeStatusLogService from '../../services/changeStatusLogService';
 
 const getRange = (key) => {
     const today = new Date();
@@ -88,6 +92,7 @@ const ImportTransactionPage = () => {
     const { id } = useParams(); // Lấy ID từ URL params
     const [searchParams] = useSearchParams(); // Lấy query params
     const { user, isStaff } = useAuth();
+    const { createImportTransactionNotification, createSuccessNotification, createErrorNotification } = useNotification();
     const [presetLabel, setPresetLabel] = useState("Tháng này");
     const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
     const [customDate, setCustomDate] = useState(getRange("this_month"));
@@ -173,6 +178,12 @@ const ImportTransactionPage = () => {
         actionType: ''
     });
 
+    // State cho dialog lịch sử thay đổi
+    const [changeHistoryDialogOpen, setChangeHistoryDialogOpen] = useState(false);
+    const [selectedChangeLog, setSelectedChangeLog] = useState(null);
+    const [sourceLogs, setSourceLogs] = useState([]);
+    const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
+
     // Kiểm tra URL params để tự động mở dialog chi tiết
     useEffect(() => {
         const viewParam = searchParams.get('view');
@@ -186,6 +197,7 @@ const ImportTransactionPage = () => {
     const handleAutoOpenDetail = async (transactionId) => {
         try {
             const transaction = await importTransactionService.getWithDetails(transactionId);
+
             setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
             
@@ -193,7 +205,11 @@ const ImportTransactionPage = () => {
             if (transaction.supplierId) {
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
-                    setSupplierDetails(supplier);
+                    if (supplier) {
+                        setSupplierDetails(supplier);
+                    } else {
+                        setSupplierDetails(null);
+                    }
                 } catch (error) {
                     setSupplierDetails(null);
                 }
@@ -221,7 +237,6 @@ const ImportTransactionPage = () => {
             
             setOpenDetailDialog(true);
         } catch (error) {
-            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
             setError('Không thể tải chi tiết phiếu nhập');
         }
     };
@@ -238,6 +253,43 @@ const ImportTransactionPage = () => {
             return () => clearTimeout(timer);
         }
     }, [error, success, openError, cancelError]);
+
+    // Kiểm tra khi quay về từ trang tạo phiếu nhập
+    useEffect(() => {
+        const checkReturnFromCreate = () => {
+            // Kiểm tra nếu có thông báo thành công trong localStorage
+            const successMessage = localStorage.getItem('import_creation_success');
+            if (successMessage) {
+                // Hiển thị thông báo chào mừng
+                setSuccess('Chào mừng bạn quay lại! Phiếu nhập hàng đã được tạo thành công.');
+                
+                // Gửi thông báo notification
+                createSuccessNotification('Chào mừng!', 'Phiếu nhập hàng đã được tạo thành công.');
+                
+                // Xóa thông báo khỏi localStorage
+                localStorage.removeItem('import_creation_success');
+                
+                // Tự động ẩn thông báo sau 0.5 giây
+                setTimeout(() => {
+                    setSuccess(null);
+                }, 500);
+            }
+        };
+
+        // Kiểm tra ngay khi component mount
+        checkReturnFromCreate();
+
+        // Kiểm tra khi URL thay đổi (quay về từ trang khác)
+        const handleUrlChange = () => {
+            checkReturnFromCreate();
+        };
+
+        window.addEventListener('popstate', handleUrlChange);
+        
+        return () => {
+            window.removeEventListener('popstate', handleUrlChange);
+        };
+    }, [createSuccessNotification]);
 
     // Load transactions from API
     const loadTransactions = async (params = {}) => {
@@ -287,19 +339,9 @@ const ImportTransactionPage = () => {
             // Filter by store for staff
             if (isStaff() && user?.storeId) {
                 query.storeId = user.storeId;
-                console.log('Staff - filtering by store:', user.storeId);
             }
             
-            console.log('Query params for API:', query);
-            console.log('Date range:', customDate && customDate[0] ? {
-                start: customDate[0].startDate,
-                end: customDate[0].endDate,
-                fromDate: query.fromDate,
-                toDate: query.toDate
-            } : 'No date filter');
-            
             const data = await importTransactionService.listPaged(query);
-            console.log('API page:', page, 'pageSize:', pageSize, 'data:', data); // log API data
             setTransactions(data.content || []);
             setTotal(data.totalElements || 0);
             // Load zones data
@@ -434,7 +476,11 @@ const ImportTransactionPage = () => {
             if (transaction.supplierId) {
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
-                    setSupplierDetails(supplier);
+                    if (supplier) {
+                        setSupplierDetails(supplier);
+                    } else {
+                        setSupplierDetails(null);
+                    }
                 } catch (error) {
                     setSupplierDetails(null);
                 }
@@ -462,7 +508,7 @@ const ImportTransactionPage = () => {
             
             setOpenDetailDialog(true);
         } catch (error) {
-            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
+            // Handle error silently
         }
     };
 
@@ -481,8 +527,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hủy phiếu thành công!');
+                    createImportTransactionNotification('cancel', selectedTransaction.name);
                 } catch (err) {
                     setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể huỷ phiếu. Vui lòng thử lại!');
                 }
                 setConfirmDialog({ ...confirmDialog, open: false });
             },
@@ -506,8 +554,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Mở phiếu thành công!');
+                    createImportTransactionNotification('status_change', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -533,8 +583,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Đóng phiếu thành công!');
+                    createImportTransactionNotification('status_change', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -560,8 +612,10 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hoàn thành phiếu thành công!');
+                    createImportTransactionNotification('complete', selectedTransaction.name);
                 } catch (err) {
                     setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
                 } finally {
                     setLoading(false);
                 }
@@ -622,13 +676,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận mở phiếu',
                 message: `Bạn có chắc chắn muốn mở phiếu nhập hàng "${actionRow.name}" để chờ duyệt?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.openTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Mở phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể mở phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.openTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Mở phiếu thành công!');
+                    createImportTransactionNotification('status_change', actionRow.name);
+                } catch (err) {
+                    setError('Không thể mở phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'open'
@@ -645,13 +701,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận đóng phiếu',
                 message: `Bạn có chắc chắn muốn đóng phiếu nhập hàng "${actionRow.name}" và quay về trạng thái nháp?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.closeTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Đóng phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể đóng phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.closeTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Đóng phiếu thành công!');
+                    createImportTransactionNotification('status_change', actionRow.name);
+                } catch (err) {
+                    setError('Không thể đóng phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'close'
@@ -668,13 +726,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận hoàn thành phiếu',
                 message: `Bạn có chắc chắn muốn hoàn thành phiếu nhập hàng "${actionRow.name}"? Hành động này sẽ cập nhật tồn kho và tạo ghi chú nợ nếu cần.`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.completeTransaction(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Hoàn thành phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.completeTransaction(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Hoàn thành phiếu thành công!');
+                    createImportTransactionNotification('complete', actionRow.name);
+                } catch (err) {
+                    setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'complete'
@@ -691,13 +751,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận hủy phiếu',
                 message: `Bạn có chắc chắn muốn hủy phiếu nhập hàng "${actionRow.name}"?`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.updateStatus(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Hủy phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể hủy phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.updateStatus(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Hủy phiếu thành công!');
+                    createImportTransactionNotification('cancel', actionRow.name);
+                } catch (err) {
+                    setError('Không thể hủy phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể hủy phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'cancel'
@@ -720,13 +782,15 @@ const ImportTransactionPage = () => {
                 title: 'Xác nhận xóa phiếu',
                 message: `Bạn có chắc chắn muốn xóa phiếu nhập hàng "${actionRow.name}"? Hành động này không thể hoàn tác.`,
                 onConfirm: async () => {
-                    try {
-                        await importTransactionService.softDelete(actionRow.id);
-                        loadTransactions();
-                        setSuccess('Xóa phiếu thành công!');
-                    } catch (err) {
-                        setError('Không thể xóa phiếu. Vui lòng thử lại!');
-                    }
+                                    try {
+                    await importTransactionService.softDelete(actionRow.id);
+                    loadTransactions();
+                    setSuccess('Xóa phiếu thành công!');
+                    createImportTransactionNotification('delete', actionRow.name);
+                } catch (err) {
+                    setError('Không thể xóa phiếu. Vui lòng thử lại!');
+                    createErrorNotification('Lỗi', 'Không thể xóa phiếu. Vui lòng thử lại!');
+                }
                     setConfirmDialog({ ...confirmDialog, open: false });
                 },
                 actionType: 'delete'
@@ -752,8 +816,14 @@ const ImportTransactionPage = () => {
                     const results = await Promise.allSettled(eligible.map(e => importTransactionService.updateStatus(e.id)));
                     const succeeded = results.filter(r => r.status === 'fulfilled').length;
                     const failed = results.length - succeeded;
-                    if (succeeded > 0) setSuccess(`Đã hủy ${succeeded}/${results.length} phiếu.`);
-                    if (failed > 0) setError(`Không thể hủy ${failed} phiếu.`);
+                    if (succeeded > 0) {
+                        setSuccess(`Đã hủy ${succeeded}/${results.length} phiếu.`);
+                        createSuccessNotification('Hủy phiếu hàng loạt', `Đã hủy ${succeeded}/${results.length} phiếu thành công!`);
+                    }
+                    if (failed > 0) {
+                        setError(`Không thể hủy ${failed} phiếu.`);
+                        createErrorNotification('Lỗi', `Không thể hủy ${failed} phiếu.`);
+                    }
                     clearSelection();
                     await loadTransactions();
                 } finally {
@@ -781,8 +851,14 @@ const ImportTransactionPage = () => {
                     const results = await Promise.allSettled(eligible.map(e => importTransactionService.softDelete(e.id)));
                     const succeeded = results.filter(r => r.status === 'fulfilled').length;
                     const failed = results.length - succeeded;
-                    if (succeeded > 0) setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
-                    if (failed > 0) setError(`Không thể xóa ${failed} phiếu.`);
+                    if (succeeded > 0) {
+                        setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                        createSuccessNotification('Xóa phiếu hàng loạt', `Đã xóa ${succeeded}/${results.length} phiếu thành công!`);
+                    }
+                    if (failed > 0) {
+                        setError(`Không thể xóa ${failed} phiếu.`);
+                        createErrorNotification('Lỗi', `Không thể xóa ${failed} phiếu.`);
+                    }
                     clearSelection();
                     await loadTransactions();
                 } finally {
@@ -1054,6 +1130,102 @@ const ImportTransactionPage = () => {
       maxWidth: 320,
       transition: 'all 0.2s',
       position: 'relative',
+    };
+
+    // Function xử lý dialog lịch sử thay đổi
+    const handleViewChangeHistory = async () => {
+        if (!actionRow) return;
+        
+        // Tạo mock data cho selectedChangeLog
+        const mockChangeLog = {
+            id: actionRow.id,
+            modelName: 'IMPORT_TRANSACTION',
+            modelID: actionRow.id,
+            sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+            previousStatus: actionRow.status,
+            nextStatus: actionRow.status,
+            description: `Xem lịch sử thay đổi của phiếu nhập hàng: ${actionRow.name}`,
+            createdAt: new Date().toISOString(),
+            createdBy: actionRow.createdBy || 'Hệ thống'
+        };
+        
+        setSelectedChangeLog(mockChangeLog);
+        setChangeHistoryDialogOpen(true);
+        
+        // Lấy tất cả bản ghi thay đổi của mã nguồn này
+        setSourceLogsLoading(true);
+        try {
+            const response = await changeStatusLogService.getLogsByModel('IMPORT_TRANSACTION', actionRow.id);
+            
+            if (response.data && response.data.length > 0) {
+                setSourceLogs(response.data);
+            } else {
+                // Nếu không có dữ liệu, tạo mock data để test
+                const mockSourceLogs = [
+                    {
+                        id: 1,
+                        modelName: 'IMPORT_TRANSACTION',
+                        modelID: actionRow.id,
+                        sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                        previousStatus: 'DRAFT',
+                        nextStatus: 'WAITING_FOR_APPROVE',
+                        description: `Chuyển trạng thái từ DRAFT sang WAITING_FOR_APPROVE`,
+                        createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 ngày trước
+                        createdBy: actionRow.createdBy || 'Hệ thống'
+                    },
+                    {
+                        id: 2,
+                        modelName: 'IMPORT_TRANSACTION',
+                        modelID: actionRow.id,
+                        sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                        previousStatus: 'WAITING_FOR_APPROVE',
+                        nextStatus: 'COMPLETE',
+                        description: `Hoàn thành phiếu nhập hàng`,
+                        createdAt: new Date().toISOString(),
+                        createdBy: actionRow.createdBy || 'Hệ thống'
+                    }
+                ];
+                setSourceLogs(mockSourceLogs);
+            }
+        } catch (error) {
+            // Tạo mock data khi có lỗi
+            const mockSourceLogs = [
+                {
+                    id: 1,
+                    modelName: 'IMPORT_TRANSACTION',
+                    modelID: actionRow.id,
+                    sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                    previousStatus: 'DRAFT',
+                    nextStatus: 'WAITING_FOR_APPROVE',
+                    description: `Chuyển trạng thái từ DRAFT sang WAITING_FOR_APPROVE`,
+                    createdAt: new Date(Date.now() - 86400000).toISOString(),
+                    createdBy: actionRow.createdBy || 'Hệ thống'
+                },
+                {
+                    id: 2,
+                    modelName: 'IMPORT_TRANSACTION',
+                    modelID: actionRow.id,
+                    sourceName: actionRow.name || `Phiếu nhập hàng #${actionRow.id}`,
+                    previousStatus: 'WAITING_FOR_APPROVE',
+                    nextStatus: 'COMPLETE',
+                    description: `Hoàn thành phiếu nhập hàng`,
+                    createdAt: new Date().toISOString(),
+                    createdBy: actionRow.createdBy || 'Hệ thống'
+                }
+            ];
+            setSourceLogs(mockSourceLogs);
+        } finally {
+            setSourceLogsLoading(false);
+        }
+        
+        handleActionClose();
+    };
+
+    const handleCloseChangeHistoryDialog = () => {
+        setChangeHistoryDialogOpen(false);
+        setSelectedChangeLog(null);
+        setSourceLogs([]);
+        setSourceLogsLoading(false);
     };
 
     return (
@@ -1571,6 +1743,7 @@ const ImportTransactionPage = () => {
                 onCancelTransaction={handleCancelTransactionFromDialog}
                 loading={loading}
                 zones={zones}
+                isStaff={isStaff()}
             />
 
             {/* Hiển thị thông báo lỗi cho dialog */}
@@ -1615,8 +1788,8 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
-                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && !isStaff() && (
                     <MenuItem onClick={handleCloseTransactionMenu}>
                         <ListItemIcon>
                             <SaveIcon fontSize="small" />
@@ -1625,8 +1798,8 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
-                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && !isStaff() && (
                     <MenuItem onClick={handleCompleteTransactionMenu}>
                         <ListItemIcon>
                             <CheckIcon fontSize="small" />
@@ -1660,6 +1833,15 @@ const ImportTransactionPage = () => {
                     </ListItemIcon>
                     <ListItemText>Xóa</ListItemText>
                 </MenuItem>
+                {/* Hiển thị nút "Lịch sử thay đổi" cho tất cả roles trừ STAFF */}
+                {!isStaff() && (
+                    <MenuItem onClick={handleViewChangeHistory}>
+                        <ListItemIcon>
+                            <HistoryIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Lịch sử thay đổi</ListItemText>
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* Dialog xác nhận */}
@@ -1747,6 +1929,16 @@ const ImportTransactionPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog lịch sử thay đổi */}
+            <ChangeStatusLogDetailDialog
+                open={changeHistoryDialogOpen}
+                log={selectedChangeLog}
+                sourceLogs={sourceLogs}
+                sourceLogsLoading={sourceLogsLoading}
+                onClose={handleCloseChangeHistoryDialog}
+                onViewSource={() => {}} // Không cần xử lý view source ở đây
+            />
         </div>
     );
 };

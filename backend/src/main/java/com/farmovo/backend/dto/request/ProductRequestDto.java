@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 @Data
 @NoArgsConstructor
@@ -15,10 +16,11 @@ public class ProductRequestDto {
     private Long id;
 
     @NotBlank(message = "Tên sản phẩm không được để trống")
-    @Size(max = 1000, message = "Tên sản phẩm tối đa 1000 ký tự")
+    @Size(min = 1, max = 100, message = "Tên sản phẩm phải từ 1 đến 100 ký tự")
+    @Pattern(regexp = "^[^<>\"'&]*$", message = "Tên sản phẩm không được chứa ký tự đặc biệt")
     private String productName;
 
-    @Size(max = 1000, message = "Mô tả tối đa 1000 ký tự")
+    @Size(max = 100, message = "Mô tả tối đa 100 ký tự")
     private String productDescription;
 
     @NotNull(message = "Số lượng không được để trống")
@@ -30,4 +32,7 @@ public class ProductRequestDto {
 
     @NotNull(message = "Cửa hàng không được để trống")
     private Long storeId;
+    
+    // Thêm field để truyền user role cho validation
+    private String userRole;
 }

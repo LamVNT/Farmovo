@@ -28,8 +28,11 @@ import {
     Cancel as CancelIcon
 } from '@mui/icons-material';
 
-const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError, zoneDescriptionError, user, stores, loading = false }) => {
-    const isOwner = user?.roles?.includes('OWNER');
+const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError, zoneDescriptionError, storeIdError, user, stores, loading = false, submitting = false }) => {
+    const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
+    
+
 
     const handleClose = () => {
         setForm({ zoneName: '', zoneDescription: '', storeId: null });
@@ -42,7 +45,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
 
     const isFormValid = () => {
         return form.zoneName && form.zoneName.trim() !== '' && 
-               (!isOwner || (isOwner && form.storeId));
+               (!isAdminOrOwner || (isAdminOrOwner && form.storeId));
     };
 
     return (
@@ -162,7 +165,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                     </Box>
 
                     {/* Store Selection Section */}
-                    {isOwner && (
+                    {isAdminOrOwner && stores && stores.length > 0 && (
                         <Box sx={{ mb: 3 }}>
                             <Box display="flex" alignItems="center" gap={1} mb={1}>
                                 <StoreIcon color="primary" />
@@ -177,7 +180,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                                     sx={{ fontSize: '0.7rem' }}
                                 />
                             </Box>
-                            <FormControl fullWidth variant="outlined">
+                            <FormControl fullWidth variant="outlined" error={Boolean(storeIdError)}>
                                 <InputLabel>Chọn cửa hàng</InputLabel>
                                 <Select
                                     value={form.storeId || ""}
@@ -202,11 +205,25 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                                         </MenuItem>
                                     ))}
                                 </Select>
+                                {storeIdError && (
+                                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                                        {storeIdError}
+                                    </Typography>
+                                )}
                             </FormControl>
                         </Box>
                     )}
+                    
+                    {/* Debug info - chỉ hiển thị trong development
+                    {process.env.NODE_ENV === 'development' && (
+                        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                                Debug: isAdminOrOwner={isAdminOrOwner.toString()}, stores={stores?.length || 0}
+                            </Typography>
+                        </Box>
+                    )} */}
 
-                                        {/* Info Alert */}
+                    {/* Info Alert */}
                     <Alert 
                         severity="info" 
                         sx={{ 
@@ -283,7 +300,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                                         <Button 
                         variant="contained"
                         onClick={handleSubmit}
-                        disabled={!isFormValid() || loading}
+                        disabled={!isFormValid() || loading || submitting}
                         startIcon={editMode ? <EditIcon /> : <SaveIcon />}
                         sx={{ 
                             borderRadius: 2,
@@ -299,7 +316,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                             }
                         }}
                     >
-                        {loading ? "Đang xử lý..." : (editMode ? "Cập nhật" : "Tạo mới")}
+                        {submitting ? "Đang xử lý..." : (editMode ? "Cập nhật" : "Tạo mới")}
                     </Button>
                 </Box>
             </DialogActions>

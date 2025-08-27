@@ -10,8 +10,9 @@ import {
     Button,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { getAllStores } from "../../services/storeService";
+import { getAllStores, getStoreById } from "../../services/storeService";
 import { formatCurrency } from "../../utils/formatters";
+import { userService } from "../../services/userService";
 
 // S3 bucket info
 const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
@@ -19,22 +20,48 @@ const S3_BUCKET_URL = "https://my-debt-images.s3.eu-north-1.amazonaws.com";
 const DebtDetailDialog = ({ open, onClose, debtNote }) => {
     const navigate = useNavigate();
     const [storeName, setStoreName] = useState("");
+    const [createdByUser, setCreatedByUser] = useState(null);
     
     useEffect(() => {
-        const fetchStores = async () => {
+        const fetchStoreName = async () => {
             try {
-                const storeData = await getAllStores();
                 if (debtNote && debtNote.storeId) {
-                    const store = storeData.find((s) => s.id === debtNote.storeId);
-                    setStoreName(store ? store.storeName : "");
+                    // Prefer fetching by ID to support STAFF role
+                    const store = await getStoreById(debtNote.storeId);
+                    setStoreName(store?.storeName || "");
                 } else {
                     setStoreName("");
                 }
             } catch (error) {
-                setStoreName("");
+                // Fallback: try loading list (may require admin/owner)
+                try {
+                    const storeData = await getAllStores();
+                    const store = (storeData || []).find((s) => s.id === debtNote?.storeId);
+                    setStoreName(store ? store.storeName : "");
+                } catch (e) {
+                    setStoreName("");
+                }
             }
         };
-        if (open && debtNote && debtNote.storeId) fetchStores();
+
+        const fetchCreatedByUser = async () => {
+            try {
+                if (debtNote && debtNote.createdBy && debtNote.fromSource === 'MANUAL') {
+                    const user = await userService.getUserById(debtNote.createdBy);
+                    setCreatedByUser(user);
+                } else {
+                    setCreatedByUser(null);
+                }
+            } catch (error) {
+                console.error('Error fetching created by user:', error);
+                setCreatedByUser(null);
+            }
+        };
+
+        if (open && debtNote) {
+            fetchStoreName();
+            fetchCreatedByUser();
+        }
     }, [open, debtNote]);
 
     const handleSourceIdClick = () => {
@@ -54,9 +81,9 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
             console.log('Navigating to sale transaction:', sourceId);
             navigate(`/sale/${sourceId}?view=detail`);
         } else if (fromSource === 'IMPORT' || fromSource === 'PURCHASE') {
-            // Chuyển sang trang chi tiết import transaction
+            // Chuyển sang trang chi tiết import transaction (dùng query để STAFF truy cập được)
             console.log('Navigating to import transaction:', sourceId);
-            navigate(`/import/${sourceId}?view=detail`);
+            navigate(`/import?view=detail&id=${sourceId}`);
         } else {
             console.log('Unknown source type:', fromSource);
             return;
@@ -201,7 +228,13 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             value={(() => {
                                 if (debtNote.fromSource === "SALE") return "Đơn Bán";
                                 if (debtNote.fromSource === "IMPORT" || debtNote.fromSource === "PURCHASE") return "Đơn Nhập";
-                                if (debtNote.fromSource === "MANUAL") return "Đơn tự nhập";
+                                if (debtNote.fromSource === "MANUAL") {
+                                    const baseText = "";
+                                    if (createdByUser) {
+                                        return `${baseText} ${createdByUser.fullName || createdByUser.username}`;
+                                    }
+                                    return baseText;
+                                }
                                 return debtNote.fromSource || "";
                             })()}
                             disabled
