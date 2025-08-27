@@ -1316,6 +1316,7 @@ const EditSalePage = () => {
                     products: selectedProducts.map(p => ({
                         ...p,
                         price: p.price || p.unitSalePrice || 0,
+                        zoneReal: p.zoneReal || null, // Đảm bảo zoneReal được truyền
                     })),
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
@@ -1326,6 +1327,7 @@ const EditSalePage = () => {
                 loading={loading}
                 currentUser={currentUser}
                 nextCode={nextCode}
+                zones={zones}
             />
             <Dialog
                 open={showCategoryDialog}

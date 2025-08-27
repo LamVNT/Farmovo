@@ -52,6 +52,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Override
     public List<User> getAllUsers() {
         logger.info("Retrieving all users (non-deleted)");
@@ -92,6 +95,10 @@ public class UserServiceImpl implements UserService {
             if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
             }
+            // Mã hóa mật khẩu trước khi lưu
+            if (user.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
             // Set createdBy using the authenticated user's ID
             Long createdById = getCurrentUserId(principal);
             user.setCreatedBy(createdById);
@@ -121,7 +128,9 @@ public class UserServiceImpl implements UserService {
                 inputUserValidation.validateEmailForUpdate(user.getEmail());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
-                if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
+                if (user.getPassword() != null) {
+                    existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+                }
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
                 if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());
@@ -312,13 +321,13 @@ public class UserServiceImpl implements UserService {
         }
 
         return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
-            // Verify current password
-            if (!existingUser.getPassword().equals(dto.getCurrentPassword())) {
+            // Verify current password using passwordEncoder.matches()
+            if (!passwordEncoder.matches(dto.getCurrentPassword(), existingUser.getPassword())) {
                 throw new UserManagementException("Current password is incorrect");
             }
 
-            // Update password
-            existingUser.setPassword(dto.getNewPassword());
+            // Update password with encoded version
+            existingUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
             userRepository.save(existingUser);
 
             logger.info("Password changed successfully for user id: {}", userId);

@@ -43,6 +43,25 @@ const SaleSummaryDialog = ({
         return () => clearInterval(interval);
     }, [open]);
 
+    // Kiểm tra xem có cần hiển thị cột khu vực thực tế không
+    const shouldShowZoneColumn = () => {
+        // Hiển thị nếu là phiếu cân bằng kho
+        if ((note || '').toLowerCase().includes('cân bằng kho')) {
+            return true;
+        }
+        // Hiển thị nếu có ít nhất một sản phẩm có zoneReal hợp lệ
+        return products.some(product => {
+            const zoneReal = product.zoneReal;
+            // Kiểm tra zoneReal có giá trị hợp lệ không
+            if (!zoneReal) return false;
+            if (Array.isArray(zoneReal) && zoneReal.length === 0) return false;
+            if (typeof zoneReal === 'string' && zoneReal.trim() === '') return false;
+            return true;
+        });
+    };
+
+    const showZoneColumn = shouldShowZoneColumn();
+
     return (
         <Dialog
             open={open}
@@ -138,7 +157,9 @@ const SaleSummaryDialog = ({
                                         Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
                                     </span>
                                 </TableCell>
-                                <TableCell className="font-semibold text-center">Khu vực thực tế</TableCell>
+                                {showZoneColumn && (
+                                    <TableCell className="font-semibold text-center">Khu vực thực tế</TableCell>
+                                )}
                                 <TableCell className="font-semibold text-right">Thành tiền</TableCell>
                             </TableRow>
                         </TableHead>
@@ -157,18 +178,20 @@ const SaleSummaryDialog = ({
                                     <TableCell className="text-center">{product.unit || 'quả'}</TableCell>
                                     <TableCell className="text-center">{product.quantity}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
-                                    <TableCell className="text-center">{
-                                        (() => {
-                                            const zr = product.zoneReal;
-                                            const toName = (zid) => {
-                                                const z = zones?.find?.(zz => String(zz.id) === String(zid));
-                                                return z ? z.zoneName : zid;
-                                            };
-                                            if (Array.isArray(zr)) return zr.map(toName).join(', ');
-                                            if (typeof zr === 'string' && zr.includes(',')) return zr.split(',').map(s => s.trim()).map(toName).join(', ');
-                                            return zr ? toName(zr) : '';
-                                        })()
-                                    }</TableCell>
+                                    {showZoneColumn && (
+                                        <TableCell className="text-center">{
+                                            (() => {
+                                                const zr = product.zoneReal;
+                                                const toName = (zid) => {
+                                                    const z = zones?.find?.(zz => String(zz.id) === String(zid));
+                                                    return z ? z.zoneName : zid;
+                                                };
+                                                if (Array.isArray(zr)) return zr.map(toName).join(', ');
+                                                if (typeof zr === 'string' && zr.includes(',')) return zr.split(',').map(s => s.trim()).map(toName).join(', ');
+                                                return zr ? toName(zr) : '';
+                                            })()
+                                        }</TableCell>
+                                    )}
                                     <TableCell className="text-right font-semibold">
                                         {formatCurrency(product.price * product.quantity)}
                                     </TableCell>

@@ -273,6 +273,15 @@ export const useSaleTransaction = (props = {}) => {
             detail: saleData.detail.map(item => ({
                 ...item,
                 proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                unitSalePrice: item.unitSalePrice || item.price || 0,
+                productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                categoryName: item.categoryName,
+                storeName: item.storeName,
+                remainQuantity: item.remainQuantity,
+                quantity: item.quantity,
+                batchCode: item.batchCode || item.name,
+                zoneReal: item.zoneReal,
             }))
         };
         
@@ -365,6 +374,15 @@ export const useSaleTransaction = (props = {}) => {
                 detail: saleData.detail.map(item => ({
                     ...item,
                     proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                    productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                    unitSalePrice: item.unitSalePrice || item.price || 0,
+                    productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                    categoryName: item.categoryName,
+                    storeName: item.storeName,
+                    remainQuantity: item.remainQuantity,
+                    quantity: item.quantity,
+                    batchCode: item.batchCode || item.name,
+                    zoneReal: item.zoneReal,
                 }))
             };
             
@@ -428,6 +446,15 @@ export const useSaleTransaction = (props = {}) => {
                     detail: saleData.detail.map(item => ({
                         ...item,
                         proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                        productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                        unitSalePrice: item.unitSalePrice || item.price || 0,
+                        productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                        categoryName: item.categoryName,
+                        storeName: item.storeName,
+                        remainQuantity: item.remainQuantity,
+                        quantity: item.quantity,
+                        batchCode: item.batchCode || item.name,
+                        zoneReal: item.zoneReal,
                     }))
                 };
                 await saleTransactionService.create(processedSaleData);

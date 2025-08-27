@@ -246,6 +246,7 @@ export const useEditSaleTransaction = (transactionId) => {
                 ...p,
                 name: p.productName || p.name || p.batchName || 'Sản phẩm',
                 unitSalePrice: p.price || p.unitSalePrice || 0,
+                zoneReal: p.zoneReal || null, // Đảm bảo zoneReal được truyền
             })),
             totalAmount: totalAmount,
             paidAmount: paidAmount,
