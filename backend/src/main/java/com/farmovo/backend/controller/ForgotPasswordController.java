@@ -130,10 +130,7 @@ public class ForgotPasswordController {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email not found: " + email));
         String encodePassword = passwordEncoder.encode(changePassword.password());
-
         userRepository.updatePassword(email, encodePassword);
-
-//        userRepository.updatePassword(email, changePassword.password());
         forgotPasswordRepository.deleteByUserId(user.getId());
 
         return ResponseEntity.ok("Password has been changed!");

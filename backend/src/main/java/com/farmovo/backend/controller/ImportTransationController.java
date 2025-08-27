@@ -232,6 +232,39 @@ public class ImportTransationController {
         return ResponseEntity.ok(nextCode);
     }
 
+    @GetMapping("/next-code-balance")
+    public ResponseEntity<String> getNextBalanceImportTransactionCode() {
+        log.debug("Getting next balance import transaction code");
+
+        String nextCode = importTransactionService.getNextBalanceImportTransactionCode();
+
+        log.debug("Next balance import transaction code: {}", nextCode);
+        return ResponseEntity.ok(nextCode);
+    }
+
+    @PostMapping("/save-from-balance")
+    public ResponseEntity<String> saveFromBalance(@RequestBody CreateImportTransactionRequestDto dto, HttpServletRequest request) {
+        log.info("Creating BALANCE import transaction");
+
+        String token = jwtUtils.getJwtFromCookies(request);
+        if (token != null && jwtUtils.validateJwtToken(token)) {
+            Long userId = jwtUtils.getUserIdFromJwtToken(token);
+            log.debug("User ID from token: {}", userId);
+
+            try {
+                importTransactionService.createBalanceImportTransaction(dto, userId);
+                log.info("Balance import transaction created successfully by user: {}", userId);
+                return ResponseEntity.ok("Tạo phiếu cân bằng nhập thành công");
+            } catch (Exception e) {
+                log.error("Error creating balance import transaction", e);
+                throw new BadRequestException("Không thể tạo phiếu cân bằng nhập: " + e.getMessage());
+            }
+        } else {
+            log.warn("Invalid or missing JWT token in request");
+            throw new BadRequestException("Token không hợp lệ hoặc đã hết hạn");
+        }
+    }
+
     @DeleteMapping("/sort-delete/{id}")
     public ResponseEntity<String> softDeleteImportTransaction(@PathVariable Long id, HttpServletRequest request) {
         String token = jwtUtils.getJwtFromCookies(request);

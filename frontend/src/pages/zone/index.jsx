@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography } from "@mui/material";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, Snackbar, Alert } from "@mui/material";
 import { FaPlus } from "react-icons/fa6";
 import ZoneFormDialog from "../../components/zone/ZoneFormDialog";
 import ZoneTable from "../../components/zone/ZoneTable";
@@ -8,6 +8,9 @@ import { getAllStores } from "../../services/storeService";
 import { userService } from "../../services/userService";
 
 const Zone = () => {
+    const zonesFetchedRef = useRef(false);
+    const userStoresFetchedRef = useRef(false);
+
     const [zones, setZones] = useState([]);
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
@@ -22,6 +25,8 @@ const Zone = () => {
     const [zoneDescriptionError, setZoneDescriptionError] = useState("");
     const [storeIdError, setStoreIdError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
+
 
     const [user, setUser] = useState(null);
     const [stores, setStores] = useState([]);
@@ -33,11 +38,13 @@ const Zone = () => {
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
     useEffect(() => {
+        // Guard chống double-invoke trong React.StrictMode
+        if (zonesFetchedRef.current) return;
+        zonesFetchedRef.current = true;
         const fetch = async () => {
             try {
                 const data = await getZones();
-                console.log("Zones loaded from API:", data);
-                // Sắp xếp zones theo thứ tự mới nhất lên đầu (ID cao nhất lên đầu)
+
                 const sortedZones = data.sort((a, b) => b.id - a.id);
                 setZones(sortedZones);
             } catch (err) {
@@ -51,25 +58,26 @@ const Zone = () => {
     }, []);
 
     useEffect(() => {
+        if (userStoresFetchedRef.current) return;
+        userStoresFetchedRef.current = true;
         const fetchUserAndStores = async () => {
             try {
                 const userData = await userService.getCurrentUser();
-                console.log("User data:", userData);
-                console.log("User roles:", userData.roles);
+
                 setUser(userData);
-                
+
                 // ADMIN và OWNER đều có thể chọn cửa hàng
                 // Kiểm tra cả trường hợp role là string và array
-                const userRoles = Array.isArray(userData.roles) ? userData.roles : [userData.roles];
-                console.log("User roles array:", userRoles);
-                
+                const userRoles = Array.isArray(userData?.roles) ? userData.roles : [userData?.roles];
+
+
                 if (userRoles.includes("OWNER") || userRoles.includes("ADMIN") || userRoles.includes("ROLE_OWNER") || userRoles.includes("ROLE_ADMIN")) {
-                    console.log("Loading stores for ADMIN/OWNER");
+
                     const storeList = await getAllStores();
-                    console.log("Stores loaded:", storeList);
+
                     setStores(storeList);
                 } else {
-                    console.log("User is STAFF, not loading stores");
+
                     setStores([]);
                 }
             } catch (err) {
@@ -89,13 +97,13 @@ const Zone = () => {
         // Kiểm tra cả trường hợp role là string và array
         const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
         const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
-        
-        const initialForm = { 
-            id: null, 
-            zoneName: "", 
-            zoneDescription: "", 
+
+        const initialForm = {
+            id: null,
+            zoneName: "",
+            zoneDescription: "",
             // STAFF thì cố định cửa hàng, ADMIN/OWNER thì để null để có thể chọn
-            storeId: isAdminOrOwner ? null : user?.storeId 
+            storeId: isAdminOrOwner ? null : user?.storeId
         };
         setForm(initialForm);
         setEditMode(false);
@@ -134,8 +142,7 @@ const Zone = () => {
         setStoreIdError(""); // Reset lỗi
         setSubmitting(true); // Bắt đầu loading
 
-        console.log("Submit form:", form);
-        console.log("User:", user);
+
 
         if (!form.zoneName.trim()) {
             setZoneNameError("Tên khu vực là bắt buộc");
@@ -153,23 +160,26 @@ const Zone = () => {
             setSubmitting(false);
             return;
         }
-        
+
         // Kiểm tra storeId cho ADMIN và OWNER
         const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
         const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
-        
-        console.log("User roles:", userRoles);
-        console.log("isAdminOrOwner:", isAdminOrOwner);
-        console.log("Form storeId:", form.storeId);
-        
+
+
+
         if (isAdminOrOwner && !form.storeId) {
             setStoreIdError("Vui lòng chọn cửa hàng cho khu vực");
             setSubmitting(false);
             return;
         }
-        
+
+        // Chỉ kiểm tra trùng tên trong cùng một cửa hàng
+        const targetStoreId = isAdminOrOwner ? form.storeId : user?.storeId;
+        const norm = (s) => (s || '').trim().toLowerCase();
         const isDuplicate = zones.some(z =>
-            z.zoneName === form.zoneName && z.id !== form.id
+            norm(z.zoneName) === norm(form.zoneName) &&
+            (z.storeId === targetStoreId || z.store?.id === targetStoreId) &&
+            z.id !== form.id
         );
         if (isDuplicate) {
             setZoneNameError("Tên khu vực đã tồn tại");
@@ -182,20 +192,18 @@ const Zone = () => {
         if (!isAdminOrOwner) {
             submitForm.storeId = user?.storeId;
         }
-        
-        console.log("Submit form final:", submitForm);
+
+
 
         try {
             if (editMode) {
-                const updated = await updateZone(form.id, submitForm);
-                console.log("Updated zone:", updated);
+                await updateZone(form.id, submitForm);
                 // Fetch lại toàn bộ danh sách zones và sắp xếp theo thứ tự mới nhất
                 const refreshedZones = await getZones();
                 const sortedZones = refreshedZones.sort((a, b) => b.id - a.id);
                 setZones(sortedZones);
             } else {
                 const created = await createZone(submitForm);
-                console.log("Created zone:", created);
                 // Thêm zone mới vào đầu danh sách thay vì cuối
                 setZones(prev => [created, ...prev]);
             }
@@ -205,7 +213,8 @@ const Zone = () => {
             setStoreIdError("");
         } catch (err) {
             console.error("Error creating/updating zone:", err);
-            setError(`Không thể ${editMode ? "cập nhật" : "tạo"} khu vực`);
+            // Hiển thị popup lỗi, giữ dialog mở
+            setSnackbar({ open: true, message: `Không thể ${editMode ? "cập nhật" : "tạo"} khu vực`, severity: 'error' });
         } finally {
             setSubmitting(false); // Kết thúc loading
         }
@@ -268,6 +277,17 @@ const Zone = () => {
                     Bạn có chắc chắn muốn xóa khu vực này không?
                 </DialogContent>
                 <DialogActions>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} severity={snackbar.severity} variant="filled">
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+
                     <Button onClick={() => setConfirmOpen(false)}>Hủy</Button>
                     <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
                 </DialogActions>

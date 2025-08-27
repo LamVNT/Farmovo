@@ -57,6 +57,9 @@ const SaleSidebar = ({
     hasChanges = false,
     onSave = null,
     selectedProducts = [], // Thêm selectedProducts vào props
+    lockedStoreId = null,
+    lockedStoreName = null,
+    fromStocktake = false,
     props,
 }) => {
     const [nextCode, setNextCode] = useState('');
@@ -499,8 +502,15 @@ const SaleSidebar = ({
                         <TextField
                             size="small"
                             fullWidth
-                            placeholder={currentUser?.roles?.includes('STAFF') ? "Cửa hàng được gán cố định" : "Tìm cửa hàng..."}
+                            placeholder={
+                                fromStocktake ? "Kho được chọn từ kiểm kê" :
+                                currentUser?.roles?.includes('STAFF') ? "Cửa hàng được gán cố định" : "Tìm cửa hàng..."
+                            }
                             value={(() => {
+                                // Nếu có lockedStoreName từ stocktake, hiển thị nó
+                                if (fromStocktake && lockedStoreName) {
+                                    return lockedStoreName;
+                                }
                                 // Nếu có originalData, hiển thị tên từ store tương ứng
                                 if (originalData && originalData.storeId) {
                                     const store = stores.find(s => String(s.id) === String(originalData.storeId));
@@ -512,13 +522,13 @@ const SaleSidebar = ({
                                 return storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.name || stores.find(s => String(s.id) === String(selectedStore))?.storeName || '');
                             })()}
                             onChange={e => {
-                                if (!currentUser?.roles?.includes('STAFF')) {
+                                if (!currentUser?.roles?.includes('STAFF') && !fromStocktake) {
                                     setStoreSearch(e.target.value);
                                     onStoreChange({ target: { value: '' } });
                                 }
                             }}
                             onFocus={() => {
-                                if (!currentUser?.roles?.includes('STAFF')) {
+                                if (!currentUser?.roles?.includes('STAFF') && !fromStocktake) {
                                     setStoreDropdownOpen(true);
                                 }
                             }}
@@ -531,22 +541,24 @@ const SaleSidebar = ({
                             }}
                             variant="outlined"
                             error={highlightStore}
-                            disabled={currentUser?.roles?.includes('STAFF')}
+                            disabled={currentUser?.roles?.includes('STAFF') || fromStocktake}
                             sx={{
                                 ...(highlightStore ? { boxShadow: '0 0 0 3px #ffbdbd', borderRadius: 1, background: '#fff6f6' } : {}),
-                                ...(currentUser?.roles?.includes('STAFF') ? {
+                                ...((currentUser?.roles?.includes('STAFF') || fromStocktake) ? {
                                     '& .MuiInputBase-input': {
-                                        backgroundColor: '#f5f5f5',
-                                        color: '#666',
-                                        cursor: 'not-allowed'
+                                        backgroundColor: fromStocktake ? '#e8f5e8' : '#f5f5f5',
+                                        color: fromStocktake ? '#2e7d32' : '#666',
+                                        cursor: 'not-allowed',
+                                        fontWeight: fromStocktake ? 600 : 'normal'
                                     },
                                     '& .MuiOutlinedInput-root': {
-                                        backgroundColor: '#f5f5f5'
+                                        backgroundColor: fromStocktake ? '#e8f5e8' : '#f5f5f5',
+                                        borderColor: fromStocktake ? '#4caf50' : undefined
                                     }
                                 } : {})
                             }}
                         />
-                        {!currentUser?.roles?.includes('STAFF') && storeDropdownOpen && filteredStores.length > 0 && (
+                        {!currentUser?.roles?.includes('STAFF') && !fromStocktake && storeDropdownOpen && filteredStores.length > 0 && (
                             <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl min-w-60 max-w-xl w-full font-medium text-base max-h-60 overflow-y-auto overflow-x-hidden transition-all duration-200"
                                 onMouseLeave={() => {
                                     setHoveredStore(null);
@@ -582,6 +594,14 @@ const SaleSidebar = ({
                                         )}
                                     </div>
                                 ))}
+                            </div>
+                        )}
+                        {fromStocktake && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center text-green-700 text-sm">
+                                    <span className="mr-2">🔒</span>
+                                    <span>Kho đã được chọn từ bản kiểm kê</span>
+                                </div>
                             </div>
                         )}
                     </div>

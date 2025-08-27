@@ -95,6 +95,10 @@ public class UserServiceImpl implements UserService {
             if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
             }
+            // Mã hóa mật khẩu trước khi lưu
+            if (user.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
             // Set createdBy using the authenticated user's ID
             Long createdById = getCurrentUserId(principal);
             user.setCreatedBy(createdById);
@@ -124,12 +128,9 @@ public class UserServiceImpl implements UserService {
                 inputUserValidation.validateEmailForUpdate(user.getEmail());
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
-//////////////
                 if (user.getPassword() != null) {
-                    String encodedPassword = passwordEncoder.encode(user.getPassword());
-                    existingUser.setPassword(encodedPassword);
+                    existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
                 }
-//////////////////
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
                 if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());

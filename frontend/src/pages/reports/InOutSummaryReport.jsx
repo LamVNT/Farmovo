@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/axiosClient';
 import dayjs from 'dayjs';
 import { FaExchangeAlt } from 'react-icons/fa';
+import { useAuth } from '../../contexts/AuthorizationContext';
 
 const toCSV = (rows) => {
   const header = ['date', 'importQuantity', 'exportQuantity', 'remainQuantity'];
@@ -14,22 +15,21 @@ const toCSV = (rows) => {
 
 const InOutSummaryReport = () => {
   const navigate = useNavigate();
+  const { user, isStaff } = useAuth();
   const [data, setData] = useState([]);
   const [from, setFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
   const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
+  // Lấy storeId nếu là Staff
+  const userStoreId = user && isStaff() ? user.storeId : null;
+
   const fetchData = () => {
-    const userRaw = localStorage.getItem('user');
-    let storeId;
-    try {
-      const user = userRaw ? JSON.parse(userRaw) : null;
-      if (user && Array.isArray(user.roles) && (user.roles.includes('STAFF') || user.roles.includes('ROLE_STAFF')) && user.storeId) {
-        storeId = user.storeId;
-      }
-    } catch (_) {}
-    api.get('/reports/inout-summary', { params: { from, to, storeId } }).then(res => setData(res.data));
+    const params = { from, to };
+    if (userStoreId) params.storeId = userStoreId;
+
+    api.get('/reports/inout-summary', { params }).then(res => setData(res.data));
   };
 
   useEffect(() => {

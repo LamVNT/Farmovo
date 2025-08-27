@@ -1,9 +1,10 @@
-import {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {useNavigate} from 'react-router-dom';
-import saleTransactionService from '../services/saleTransactionService';
 import {userService} from '../services/userService';
-import {getCategories} from '../services/categoryService';
+import saleTransactionService from '../services/saleTransactionService';
 import {getZones} from '../services/zoneService';
+import {getCategories} from '../services/categoryService';
+import {useAuth} from '../contexts/AuthorizationContext';
 
 function getVNISOString() {
     const now = new Date();
@@ -20,6 +21,7 @@ function getVNISOString() {
 export const useSaleTransaction = (props = {}) => {
     const navigate = useNavigate();
     const {isBalanceStock = false, onSubmit: onSubmitProp} = props;
+    const { isStaff } = useAuth(); // Sử dụng hook useAuth để kiểm tra role
 
     // States
     const [currentUser, setCurrentUser] = useState({name: 'User', username: 'user'});
@@ -271,6 +273,15 @@ export const useSaleTransaction = (props = {}) => {
             detail: saleData.detail.map(item => ({
                 ...item,
                 proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                unitSalePrice: item.unitSalePrice || item.price || 0,
+                productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                categoryName: item.categoryName,
+                storeName: item.storeName,
+                remainQuantity: item.remainQuantity,
+                quantity: item.quantity,
+                batchCode: item.batchCode || item.name,
+                zoneReal: item.zoneReal,
             }))
         };
         
@@ -322,9 +333,40 @@ export const useSaleTransaction = (props = {}) => {
                 await saleTransactionService.createFromBalance(payload);
             }
             setSuccess('Đã tạo phiếu cân bằng chờ duyệt!');
-            // Lưu thông báo để hiển thị ở trang index
-            localStorage.setItem('saleSuccessMessage', 'Đã tạo phiếu cân bằng chờ duyệt!');
-            try { navigate('/sale'); } catch (e) {}
+            
+            // Lưu trạng thái PCB vào localStorage để cập nhật UI
+            if (props.fromStocktake && props.stocktakeId) {
+                localStorage.setItem(`stocktake_${props.stocktakeId}_hasPCB`, 'true');
+                localStorage.setItem(`stocktake_${props.stocktakeId}_pcbStatus`, 'WAITING_FOR_APPROVE');
+                
+                // Lưu thông báo riêng cho Staff vào localStorage của stocktake
+                if (isStaff()) {
+                    localStorage.setItem(`stocktake_${props.stocktakeId}_pcbSuccess`, 'Đã tạo phiếu cân bằng chờ duyệt!');
+                }
+            }
+            
+            // Lưu thông báo cho Admin/Owner
+            if (!isStaff()) {
+                if (props.fromStocktake && props.stocktakeId) {
+                    // Nếu tạo PCB từ stocktake, lưu thông báo cho trang Balance
+                    localStorage.setItem('pcbSuccessMessage', 'Đã tạo phiếu cân bằng chờ duyệt!');
+                } else {
+                    // Nếu không phải từ stocktake, lưu thông báo cho trang Sale
+                    localStorage.setItem('saleSuccessMessage', 'Đã tạo phiếu cân bằng chờ duyệt!');
+                }
+            }
+            
+            // Luôn xử lý chuyển hướng dựa trên role, bất kể có onSubmitProp hay không
+            if (isStaff() && props.fromStocktake && props.stocktakeId) {
+                // Nếu là Staff và đang tạo PCB từ stocktake, chuyển về trang StockTake Detail
+                try { navigate(`/stocktake/${props.stocktakeId}`); } catch (e) {}
+            } else if (isBalanceStock && !isStaff()) {
+                // Nếu là Admin/Owner và đang tạo PCB, chuyển về trang Balance
+                try { navigate('/balance'); } catch (e) {}
+            } else {
+                // Các trường hợp khác, chuyển về trang sale
+                try { navigate('/sale'); } catch (e) {}
+            }
         } else {
             // Đảm bảo proId luôn có giá trị cho sale transaction thường
             const processedSaleData = {
@@ -332,6 +374,15 @@ export const useSaleTransaction = (props = {}) => {
                 detail: saleData.detail.map(item => ({
                     ...item,
                     proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                    productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                    unitSalePrice: item.unitSalePrice || item.price || 0,
+                    productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                    categoryName: item.categoryName,
+                    storeName: item.storeName,
+                    remainQuantity: item.remainQuantity,
+                    quantity: item.quantity,
+                    batchCode: item.batchCode || item.name,
+                    zoneReal: item.zoneReal,
                 }))
             };
             
@@ -342,7 +393,7 @@ export const useSaleTransaction = (props = {}) => {
             localStorage.setItem('saleSuccessMessage', 'Đã hoàn thành phiếu bán hàng!');
             try { navigate('/sale'); } catch (e) {}
         }
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp, saleDate]);
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp, saleDate, isStaff, props.fromStocktake, props.stocktakeId]);
 
     const handleCancel = useCallback(() => {
         navigate(-1);
@@ -377,6 +428,17 @@ export const useSaleTransaction = (props = {}) => {
                 } else {
                     await saleTransactionService.createFromBalance(saleData);
                 }
+                
+                // Lưu trạng thái PCB vào localStorage để cập nhật UI
+                if (props.fromStocktake && props.stocktakeId) {
+                    localStorage.setItem(`stocktake_${props.stocktakeId}_hasPCB`, 'true');
+                    localStorage.setItem(`stocktake_${props.stocktakeId}_pcbStatus`, 'WAITING_FOR_APPROVE');
+                    
+                    // Lưu thông báo riêng cho Staff vào localStorage của stocktake
+                    if (isStaff()) {
+                        localStorage.setItem(`stocktake_${props.stocktakeId}_pcbSuccess`, 'Đã tạo phiếu cân bằng chờ duyệt!');
+                    }
+                }
             } else {
                 // Đảm bảo proId luôn có giá trị cho sale transaction thường
                 const processedSaleData = {
@@ -384,6 +446,15 @@ export const useSaleTransaction = (props = {}) => {
                     detail: saleData.detail.map(item => ({
                         ...item,
                         proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                        productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                        unitSalePrice: item.unitSalePrice || item.price || 0,
+                        productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                        categoryName: item.categoryName,
+                        storeName: item.storeName,
+                        remainQuantity: item.remainQuantity,
+                        quantity: item.quantity,
+                        batchCode: item.batchCode || item.name,
+                        zoneReal: item.zoneReal,
                     }))
                 };
                 await saleTransactionService.create(processedSaleData);
@@ -394,8 +465,17 @@ export const useSaleTransaction = (props = {}) => {
                 : (isBalanceStock ? 'Đã tạo phiếu cân bằng chờ duyệt!' : 'Đã hoàn thành phiếu bán hàng!');
 
             setSuccess(successMessage);
-            // Lưu thông báo để hiển thị ở trang index
-            localStorage.setItem('saleSuccessMessage', successMessage);
+            
+            // Lưu thông báo cho Admin/Owner
+            if (!isStaff()) {
+                if (isBalanceStock && props.fromStocktake && props.stocktakeId) {
+                    // Nếu tạo PCB từ stocktake, lưu thông báo cho trang Balance
+                    localStorage.setItem('pcbSuccessMessage', successMessage);
+                } else {
+                    // Các trường hợp khác, lưu thông báo cho trang Sale
+                    localStorage.setItem('saleSuccessMessage', successMessage);
+                }
+            }
             setSelectedProducts([]);
             setSelectedCustomer('');
             setSelectedStore('');
@@ -406,15 +486,24 @@ export const useSaleTransaction = (props = {}) => {
             setSummaryData(null);
             setPendingAction(null);
             
-            // Chuyển hướng về trang index sau khi hoàn thành
-            try { navigate('/sale'); } catch (e) {}
+            // Kiểm tra role để quyết định chuyển hướng
+            if (isBalanceStock && isStaff() && props.fromStocktake && props.stocktakeId) {
+                // Nếu là Staff và đang tạo PCB từ stocktake, chuyển về trang StockTake Detail
+                try { navigate(`/stocktake/${props.stocktakeId}`); } catch (e) {}
+            } else if (isBalanceStock && !isStaff()) {
+                // Nếu là Admin/Owner và đang tạo PCB, chuyển về trang Balance
+                try { navigate('/balance'); } catch (e) {}
+            } else {
+                // Chuyển hướng về trang index sau khi hoàn thành
+                try { navigate('/sale'); } catch (e) {}
+            }
         } catch (err) {
             console.error('Error creating sale transaction:', err);
             setError(`Không thể lưu phiếu bán hàng: ${err.response?.data?.message || err.message}`);
         } finally {
             setLoading(false);
         }
-    }, [pendingAction, summaryData, selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, isBalanceStock, onSubmitProp]);
+    }, [pendingAction, summaryData, selectedCustomer, selectedStore, selectedProducts, paidAmount, totalAmount, note, isBalanceStock, onSubmitProp, isStaff, props.fromStocktake, props.stocktakeId]);
 
     const handleCloseSummary = useCallback(() => {
         setShowSummaryDialog(false);

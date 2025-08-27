@@ -96,23 +96,36 @@ const Dashboard = () => {
     const to = today.toISOString().slice(0, 10);
     const from = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+    // --- Get user info first ---
+    const { user, isStaff } = useAuth();
+
     // --- Controls for Top lists ---
     const [topLimit, setTopLimit] = useState(5);
     const [topRange, setTopRange] = useState(7); // days: 7, 30, 90
     const topTo = to;
     const topFrom = new Date(today.getTime() - (topRange - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    // Lấy dữ liệu từ API
-    const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({type, from, to});
-    const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory();
+    // Lấy storeId nếu là Staff
+    const userStoreId = user && isStaff() ? user.storeId : null;
+
+    // Lấy dữ liệu từ API với storeId cho Staff
+    const {data: revenueData, loading: loadingRevenue, error: errorRevenue} = useRevenueTrend({
+        type,
+        from,
+        to,
+        storeId: userStoreId
+    });
+    const {data: stockData, loading: loadingStock, error: errorStock} = useStockByCategory(userStoreId);
     const {data: topProducts, loading: loadingTopProducts, error: errorTopProducts} = useTopProducts({
         from: topFrom,
         to: topTo,
-        limit: topLimit
+        limit: topLimit,
+        storeId: userStoreId
     });
     const {data: topCustomers, loading: loadingTopCustomers, error: errorTopCustomers} = useTopCustomers({
         from: topFrom,
         to: topTo,
-        limit: topLimit
+        limit: topLimit,
+        storeId: userStoreId
     });
     const {data: recentImports, loading: loadingImports, error: errorImports} = useRecentImportTransactions(5);
     const {data: recentSales, loading: loadingSales, error: errorSales} = useRecentSaleTransactions(5);
@@ -120,7 +133,6 @@ const Dashboard = () => {
     const stockChartData = stockData.map(item => ({name: item.category, stock: item.stock}));
     const {summary, loading, error} = useDashboardSummary();
     const [storeName, setStoreName] = useState("");
-    const { user, isStaff } = useAuth();
 
     useEffect(() => {
         if (user && isStaff()) {
@@ -243,27 +255,36 @@ const Dashboard = () => {
                         <div>Đang tải...</div>
                     ) : errorTopProducts ? (
                         <div className="text-red-600">{errorTopProducts}</div>
-                    ) : (
-                        <table className="min-w-full text-left">
-                            <thead>
-                            <tr className="text-indigo-700">
-                                <th className="py-2 px-4">#</th>
-                                <th className="py-2 px-4">Sản phẩm</th>
-                                <th className="py-2 px-4">Nhóm</th>
-                                <th className="py-2 px-4">Số lượng</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {topProducts.map((item, idx) => (
-                                <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
-                                    <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
-                                    <td className="py-2 px-4 font-semibold">{item.productName}</td>
-                                    <td className="py-2 px-4">{item.category}</td>
-                                    <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
+                    ) : topProducts && topProducts.length > 0 ? (
+                        <>
+                            <div className="mb-2 text-sm text-gray-500">Debug: {topProducts.length} sản phẩm</div>
+                            <table className="min-w-full text-left">
+                                <thead>
+                                <tr className="text-indigo-700">
+                                    <th className="py-2 px-4">#</th>
+                                    <th className="py-2 px-4">Sản phẩm</th>
+                                    <th className="py-2 px-4">Nhóm</th>
+                                    <th className="py-2 px-4">Số lượng</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {topProducts.map((item, idx) => (
+                                    <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
+                                        <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
+                                        <td className="py-2 px-4 font-semibold">{item.productName}</td>
+                                        <td className="py-2 px-4">{item.category}</td>
+                                        <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </>
+                    ) : (
+                        <div className="text-center text-gray-500 py-8">
+                            <div className="text-lg mb-2">📊</div>
+                            <div>Không có dữ liệu sản phẩm bán chạy</div>
+                            <div className="text-sm mt-2">Khoảng thời gian: {topFrom} đến {topTo}</div>
+                        </div>
                     )}
                 </div>
                 <div

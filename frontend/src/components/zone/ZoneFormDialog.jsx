@@ -29,17 +29,10 @@ import {
 } from '@mui/icons-material';
 
 const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError, zoneDescriptionError, storeIdError, user, stores, loading = false, submitting = false }) => {
-    // Kiểm tra cả trường hợp role là string và array
     const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
     const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
     
-    console.log("ZoneFormDialog - User:", user);
-    console.log("ZoneFormDialog - User roles:", user?.roles);
-    console.log("ZoneFormDialog - User roles array:", userRoles);
-    console.log("ZoneFormDialog - isAdminOrOwner:", isAdminOrOwner);
-    console.log("ZoneFormDialog - Stores:", stores);
-    console.log("ZoneFormDialog - Stores length:", stores?.length);
-    console.log("ZoneFormDialog - Submitting:", submitting);
+
 
     const handleClose = () => {
         setForm({ zoneName: '', zoneDescription: '', storeId: null });
@@ -221,7 +214,14 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                         </Box>
                     )}
                     
-
+                    {/* Debug info - chỉ hiển thị trong development
+                    {process.env.NODE_ENV === 'development' && (
+                        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                                Debug: isAdminOrOwner={isAdminOrOwner.toString()}, stores={stores?.length || 0}
+                            </Typography>
+                        </Box>
+                    )} */}
 
                     {/* Info Alert */}
                     <Alert 

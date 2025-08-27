@@ -15,42 +15,49 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
     useEffect(() => {
         const fetchData = async () => {
             try {
-                console.log('Fetching categories, stores, and current user...');
-                const [catRes, storeRes, userRes] = await Promise.all([
-                    axios.get(`${import.meta.env.VITE_API_URL}/categories`, { withCredentials: true }),
-                    axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, {
-                        withCredentials: true
-                    }),
-                    userService.getCurrentUser()
+                console.log('Fetching current user and categories...');
+                const [userRes, catRes] = await Promise.all([
+                    userService.getCurrentUser(),
+                    axios.get(`${import.meta.env.VITE_API_URL}/categories`, { withCredentials: true })
                 ]);
-                console.log('Categories response:', catRes.data);
-                console.log('Stores response:', storeRes.data);
-                console.log('Current user:', userRes);
-                
-                setCategories(catRes.data);
-                setStores(storeRes.data.map(s => ({ id: s.id, name: s.storeName })));
-                setCurrentUser(userRes);
-                
-                // Kiểm tra xem user có role staff không
-                const hasStaffRole = userRes.roles && userRes.roles.includes('ROLE_STAFF');
-                setIsStaff(hasStaffRole);
-                
-                // Nếu là staff và đang tạo mới, set store mặc định
-                if (hasStaffRole && !editMode && userRes.storeId) {
-                    setForm(prev => ({ ...prev, storeId: userRes.storeId }));
-                }
 
-                
-                console.log('Processed stores:', storeRes.data.map(s => ({ id: s.id, name: s.storeName })));
-                console.log('Is staff:', hasStaffRole);
+                console.log('Current user:', userRes);
+                console.log('Categories response:', catRes.data);
+
+                setCategories(catRes.data);
+                setCurrentUser(userRes);
+
+                const roles = userRes?.roles || [];
+                // Kiểm tra cả 2 biến thể ROLE_STAFF và STAFF
+                const hasStaffRole = roles.includes('ROLE_STAFF') || roles.includes('STAFF');
+                setIsStaff(hasStaffRole);
+
+                if (hasStaffRole) {
+                    // Với STAFF: không gọi API /admin/storeList (tránh 401), dùng store từ user
+                    if (userRes?.storeId && userRes?.storeName) {
+                        const staffStore = [{ id: userRes.storeId, name: userRes.storeName }];
+                        setStores(staffStore);
+                        if (!editMode) {
+                            setForm(prev => ({ ...prev, storeId: userRes.storeId }));
+                        }
+                    } else {
+                        console.warn('Staff user does not have storeId/storeName');
+                        setStores([]);
+                    }
+                } else {
+                    // Với ADMIN/OWNER: lấy danh sách tất cả cửa hàng
+                    const storeRes = await axios.get(`${import.meta.env.VITE_API_URL}/admin/storeList`, { withCredentials: true });
+                    console.log('Stores response:', storeRes.data);
+                    setStores(storeRes.data.map(s => ({ id: s.id, name: s.storeName })));
+                }
             } catch (e) {
                 console.error('Lỗi tải dữ liệu:', e);
-                console.error('Error details:', e.response?.data);
+                console.error('Error details:', e.response?.data || e.message);
             }
         };
 
         if (open) fetchData();
-    }, [open, editMode]);
+    }, [open, editMode, setForm]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;

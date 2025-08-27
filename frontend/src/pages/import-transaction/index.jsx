@@ -197,29 +197,22 @@ const ImportTransactionPage = () => {
     const handleAutoOpenDetail = async (transactionId) => {
         try {
             const transaction = await importTransactionService.getWithDetails(transactionId);
-            console.log('Transaction details loaded in handleAutoOpenDetail:', transaction);
-            console.log('Transaction supplierId in handleAutoOpenDetail:', transaction.supplierId);
+
             setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
             
             // Fetch thông tin supplier
             if (transaction.supplierId) {
-                console.log('Fetching supplier with ID:', transaction.supplierId);
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
                     if (supplier) {
                         setSupplierDetails(supplier);
-                        console.log('Supplier details loaded:', supplier);
                     } else {
-                        console.warn('No supplier data returned for ID:', transaction.supplierId);
                         setSupplierDetails(null);
                     }
                 } catch (error) {
-                    console.error('Error fetching supplier:', error);
                     setSupplierDetails(null);
                 }
-            } else {
-                console.log('No supplierId found in transaction');
             }
             
             // Fetch thông tin user (người tạo)
@@ -244,7 +237,6 @@ const ImportTransactionPage = () => {
             
             setOpenDetailDialog(true);
         } catch (error) {
-            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
             setError('Không thể tải chi tiết phiếu nhập');
         }
     };
@@ -261,6 +253,43 @@ const ImportTransactionPage = () => {
             return () => clearTimeout(timer);
         }
     }, [error, success, openError, cancelError]);
+
+    // Kiểm tra khi quay về từ trang tạo phiếu nhập
+    useEffect(() => {
+        const checkReturnFromCreate = () => {
+            // Kiểm tra nếu có thông báo thành công trong localStorage
+            const successMessage = localStorage.getItem('import_creation_success');
+            if (successMessage) {
+                // Hiển thị thông báo chào mừng
+                setSuccess('Chào mừng bạn quay lại! Phiếu nhập hàng đã được tạo thành công.');
+                
+                // Gửi thông báo notification
+                createSuccessNotification('Chào mừng!', 'Phiếu nhập hàng đã được tạo thành công.');
+                
+                // Xóa thông báo khỏi localStorage
+                localStorage.removeItem('import_creation_success');
+                
+                // Tự động ẩn thông báo sau 0.5 giây
+                setTimeout(() => {
+                    setSuccess(null);
+                }, 500);
+            }
+        };
+
+        // Kiểm tra ngay khi component mount
+        checkReturnFromCreate();
+
+        // Kiểm tra khi URL thay đổi (quay về từ trang khác)
+        const handleUrlChange = () => {
+            checkReturnFromCreate();
+        };
+
+        window.addEventListener('popstate', handleUrlChange);
+        
+        return () => {
+            window.removeEventListener('popstate', handleUrlChange);
+        };
+    }, [createSuccessNotification]);
 
     // Load transactions from API
     const loadTransactions = async (params = {}) => {
@@ -310,19 +339,9 @@ const ImportTransactionPage = () => {
             // Filter by store for staff
             if (isStaff() && user?.storeId) {
                 query.storeId = user.storeId;
-                console.log('Staff - filtering by store:', user.storeId);
             }
             
-            console.log('Query params for API:', query);
-            console.log('Date range:', customDate && customDate[0] ? {
-                start: customDate[0].startDate,
-                end: customDate[0].endDate,
-                fromDate: query.fromDate,
-                toDate: query.toDate
-            } : 'No date filter');
-            
             const data = await importTransactionService.listPaged(query);
-            console.log('API page:', page, 'pageSize:', pageSize, 'data:', data); // log API data
             setTransactions(data.content || []);
             setTotal(data.totalElements || 0);
             // Load zones data
@@ -449,32 +468,22 @@ const ImportTransactionPage = () => {
 
     const handleViewDetail = async (row) => {
         try {
-            console.log('handleViewDetail called with row:', row);
-            console.log('Row supplierId:', row.supplierId);
             const transaction = await importTransactionService.getWithDetails(row.id);
-            console.log('Transaction details loaded:', transaction);
-            console.log('Transaction supplierId:', transaction.supplierId);
             setSelectedTransaction(transaction);
             setSelectedDetails(transaction.details);
             
             // Fetch thông tin supplier
             if (transaction.supplierId) {
-                console.log('Fetching supplier with ID:', transaction.supplierId);
                 try {
                     const supplier = await getCustomerById(transaction.supplierId);
                     if (supplier) {
                         setSupplierDetails(supplier);
-                        console.log('Supplier details loaded:', supplier);
                     } else {
-                        console.warn('No supplier data returned for ID:', transaction.supplierId);
                         setSupplierDetails(null);
                     }
                 } catch (error) {
-                    console.error('Error fetching supplier:', error);
                     setSupplierDetails(null);
                 }
-            } else {
-                console.log('No supplierId found in transaction');
             }
             
             // Fetch thông tin user (người tạo)
@@ -499,7 +508,7 @@ const ImportTransactionPage = () => {
             
             setOpenDetailDialog(true);
         } catch (error) {
-            console.error("Lỗi khi tải chi tiết phiếu nhập:", error);
+            // Handle error silently
         }
     };
 
@@ -1127,8 +1136,6 @@ const ImportTransactionPage = () => {
     const handleViewChangeHistory = async () => {
         if (!actionRow) return;
         
-        console.log('handleViewChangeHistory called with actionRow:', actionRow);
-        
         // Tạo mock data cho selectedChangeLog
         const mockChangeLog = {
             id: actionRow.id,
@@ -1142,23 +1149,18 @@ const ImportTransactionPage = () => {
             createdBy: actionRow.createdBy || 'Hệ thống'
         };
         
-        console.log('Created mockChangeLog:', mockChangeLog);
-        
         setSelectedChangeLog(mockChangeLog);
         setChangeHistoryDialogOpen(true);
         
         // Lấy tất cả bản ghi thay đổi của mã nguồn này
         setSourceLogsLoading(true);
         try {
-            console.log('Calling getLogsByModel with:', { modelName: 'IMPORT_TRANSACTION', modelId: actionRow.id });
             const response = await changeStatusLogService.getLogsByModel('IMPORT_TRANSACTION', actionRow.id);
-            console.log('getLogsByModel response:', response);
             
             if (response.data && response.data.length > 0) {
                 setSourceLogs(response.data);
             } else {
                 // Nếu không có dữ liệu, tạo mock data để test
-                console.log('No data returned from API, creating mock data for testing');
                 const mockSourceLogs = [
                     {
                         id: 1,
@@ -1186,7 +1188,6 @@ const ImportTransactionPage = () => {
                 setSourceLogs(mockSourceLogs);
             }
         } catch (error) {
-            console.error('Error fetching source logs:', error);
             // Tạo mock data khi có lỗi
             const mockSourceLogs = [
                 {
@@ -1742,6 +1743,7 @@ const ImportTransactionPage = () => {
                 onCancelTransaction={handleCancelTransactionFromDialog}
                 loading={loading}
                 zones={zones}
+                isStaff={isStaff()}
             />
 
             {/* Hiển thị thông báo lỗi cho dialog */}
@@ -1786,8 +1788,8 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
-                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                {/* Hiển thị nút "Đóng phiếu" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && !isStaff() && (
                     <MenuItem onClick={handleCloseTransactionMenu}>
                         <ListItemIcon>
                             <SaveIcon fontSize="small" />
@@ -1796,8 +1798,8 @@ const ImportTransactionPage = () => {
                     </MenuItem>
                 )}
                 
-                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
-                {actionRow?.status === 'WAITING_FOR_APPROVE' && (
+                {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE và không phải STAFF */}
+                {actionRow?.status === 'WAITING_FOR_APPROVE' && !isStaff() && (
                     <MenuItem onClick={handleCompleteTransactionMenu}>
                         <ListItemIcon>
                             <CheckIcon fontSize="small" />
@@ -1831,12 +1833,15 @@ const ImportTransactionPage = () => {
                     </ListItemIcon>
                     <ListItemText>Xóa</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={handleViewChangeHistory}>
-                    <ListItemIcon>
-                        <HistoryIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Lịch sử thay đổi</ListItemText>
-                </MenuItem>
+                {/* Hiển thị nút "Lịch sử thay đổi" cho tất cả roles trừ STAFF */}
+                {!isStaff() && (
+                    <MenuItem onClick={handleViewChangeHistory}>
+                        <ListItemIcon>
+                            <HistoryIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Lịch sử thay đổi</ListItemText>
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* Dialog xác nhận */}

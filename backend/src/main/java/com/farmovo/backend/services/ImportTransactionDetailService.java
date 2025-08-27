@@ -40,4 +40,7 @@ public interface ImportTransactionDetailService {
     void updateZonesId(Long id, String zonesId);
 
     List<ProductSaleResponseDto> getAvailableProductsForSale();
+
+    // Lấy ImportTransactionDetail by ID
+    ImportTransactionDetailResponse getDetailById(Long id);
 }

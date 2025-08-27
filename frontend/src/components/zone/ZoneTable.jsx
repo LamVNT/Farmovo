@@ -47,7 +47,7 @@ const ZoneTable = ({
                 </TableHead>
                 <TableBody>
                     {paginatedRows.map((zone, index) => {
-                        console.log("Zone data:", zone);
+
                         return (
                             <TableRow
                                 key={zone.id}

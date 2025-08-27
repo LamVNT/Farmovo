@@ -34,12 +34,14 @@ import CustomerManagementPage from "../pages/customer";
 import ForgotPassword from "../pages/ForgotPassword";
 import Store from "../pages/store/index.jsx";
 import EditPage from '../pages/import-transaction/EditPage';
+import ImportBalancePage from '../pages/import-transaction/ImportBalancePage';
 import { DashboardReport, RemainSummaryReport, InOutSummaryReport, DailyRevenue, SalesShiftTotal, ImportsTotal } from '../pages/reports';
 import FinancialReport from '../pages/reports/FinancialReport';
 import InventoryReport from '../pages/reports/InventoryReport';
 import ChangeStatusLogPage from "../pages/change-status-log/index.jsx";
 import BalanceSalePage from '../pages/sale-transaction/BalanceSalePage';
 import BalanceTransactionPage from "../pages/balance-transaction/index.jsx";
+import TestBalancePage from "../pages/balance/TestBalance.jsx";
 const router = createBrowserRouter([
     {
         path: "/",
@@ -166,6 +168,16 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/import/balance",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <ImportBalancePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: '/import/edit/:id',
         element: (
             <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
@@ -246,6 +258,16 @@ const router = createBrowserRouter([
             <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <BalanceSalePage/>
+                </MainLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/test/balance/:id",
+        element: (
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
+                <MainLayout>
+                    <TestBalancePage/>
                 </MainLayout>
             </ProtectedRoute>
         ),
