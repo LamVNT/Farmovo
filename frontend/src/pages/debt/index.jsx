@@ -91,8 +91,26 @@ const DebtManagement = () => {
         }
     }, [selectedCustomerId, debtNotesPage, debtNotesRowsPerPage, fetchDebtNotes, debtFromDate, debtToDate]);
 
-    const handleAddDebtNote = () => {
-        fetchDebtNotes(selectedCustomerId);
+    const handleAddDebtNote = async () => {
+        try {
+            // Refresh danh sách phiếu nợ
+            await fetchDebtNotes(selectedCustomerId);
+            
+            // Refresh danh sách khách hàng để cập nhật tổng nợ
+            const customerData = await getAllCustomers();
+            setCustomers(customerData || []);
+            
+            // Cập nhật thông tin khách hàng hiện tại
+            if (selectedCustomerId) {
+                const updatedCustomer = customerData?.find(c => c.id === selectedCustomerId);
+                if (updatedCustomer) {
+                    setCustomer(updatedCustomer);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to refresh data after adding debt note:", error);
+            setError("Không thể cập nhật dữ liệu sau khi thêm phiếu nợ");
+        }
     };
 
     const handleOpenDebtTable = (custId) => {
@@ -222,8 +240,18 @@ const DebtManagement = () => {
 
     const buildDebtFilters = () => {
         const filters = {};
-        if (debtFromDate) filters.fromDate = debtFromDate.toISOString();
-        if (debtToDate) filters.toDate = debtToDate.toISOString();
+        if (debtFromDate) {
+            // Đặt thời gian bắt đầu của ngày (00:00:00)
+            const startOfDay = new Date(debtFromDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            filters.fromDate = startOfDay.toISOString();
+        }
+        if (debtToDate) {
+            // Đặt thời gian kết thúc của ngày (23:59:59)
+            const endOfDay = new Date(debtToDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            filters.toDate = endOfDay.toISOString();
+        }
         return filters;
     };
 
