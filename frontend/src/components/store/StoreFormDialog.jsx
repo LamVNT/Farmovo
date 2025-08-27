@@ -46,6 +46,7 @@ const StoreFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode }) =
                         multiline
                         minRows={2}
                         maxRows={5}
+                        required
                     />
                 </DialogContent>
                 <DialogActions>
