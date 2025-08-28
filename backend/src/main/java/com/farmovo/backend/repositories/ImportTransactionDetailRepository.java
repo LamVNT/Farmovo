@@ -91,4 +91,8 @@ public interface ImportTransactionDetailRepository extends JpaRepository<ImportT
             "GROUP BY d.product.id, d.product.productName, d.product.category.categoryName " +
             "ORDER BY totalQty DESC")
     List<Object[]> getTopProducts(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, org.springframework.data.domain.Pageable pageable);
+
+    // Lấy tất cả ImportTransactionDetail thuộc phiếu nhập COMPLETE và còn số lượng
+    @Query("SELECT d FROM ImportTransactionDetail d JOIN d.importTransaction t WHERE t.status = 'COMPLETE' AND d.remainQuantity > 0")
+    List<ImportTransactionDetail> findCompletedDetailsWithQuantity();
 }

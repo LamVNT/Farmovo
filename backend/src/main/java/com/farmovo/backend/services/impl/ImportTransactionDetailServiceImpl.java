@@ -217,7 +217,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     @Override
     public List<ProductSaleResponseDto> getAvailableProductsForSale() {
-        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThan(0);
+        // Chỉ lấy các lô thuộc phiếu nhập COMPLETE và còn số lượng
+        List<ImportTransactionDetail> availableDetails = detailRepository.findCompletedDetailsWithQuantity();
         if (!availableDetails.isEmpty()) {
             return availableDetails.stream()
                     .map(productMapper::toDtoSale)
@@ -226,7 +227,6 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             return productService.getAllProductSaleDto();
         }
     }
-
 
     // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
     private ProductResponseDto enrichProductWithDetails(ProductResponseDto product, String zoneId) {
