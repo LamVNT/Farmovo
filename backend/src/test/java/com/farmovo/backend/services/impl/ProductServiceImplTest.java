@@ -359,4 +359,326 @@ class ProductServiceImplTest {
         assertEquals("Sản phẩm 'Trứng Ngan' đã tồn tại trong cửa hàng này", exception.getMessage());
         verify(productRepository, never()).save(any(Product.class));
     }
+
+    // ========== PRODUCT CREATION TESTS BASED ON NEW UTCID01-UTCID11 TABLE ==========
+    
+    @Test
+    @DisplayName("UTCID01: Normal - Valid product creation with Trứng gà ta bé")
+    void testCreateProduct_UTCID01_ValidProduct_TrungGaTaBe() {
+        // Arrange - UTCID01: Normal case with Trứng gà ta bé
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng gà ta bé");
+        request.setProductDescription(null);
+        request.setProductQuantity(0);
+        request.setCategoryId(1L); // Trứng vịt
+        request.setStoreId(1L); // FPT Mart
+        
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng vịt");
+        
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("FPT Mart");
+        
+        Product savedProduct = new Product();
+        savedProduct.setId(1L);
+        savedProduct.setProductName("Trứng gà ta bé");
+        savedProduct.setProductCode("SP000001");
+        
+        ProductDto expectedDto = new ProductDto();
+        expectedDto.setId(1L);
+        expectedDto.setProductName("Trứng gà ta bé");
+        
+        given(categoryRepository.findById(1L)).willReturn(Optional.of(category));
+        given(storeRepository.findById(1L)).willReturn(Optional.of(store));
+        given(productRepository.findByProductNameAndStoreIgnoreCase(anyString(), anyLong())).willReturn(Optional.empty());
+        given(productRepository.save(any(Product.class))).willReturn(savedProduct);
+        given(productMapper.toDto(savedProduct)).willReturn(expectedDto);
+        
+        // Act
+        ProductDto result = productService.createProduct(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals("Trứng gà ta bé", result.getProductName());
+        verify(productRepository, times(2)).save(any(Product.class)); // Save twice for code generation
+    }
+
+    @Test
+    @DisplayName("UTCID02: Abnormal - Negative quantity (-10)")
+    void testCreateProduct_UTCID02_NegativeQuantity_ShouldFail() {
+        // Arrange - UTCID02: Abnormal case - negative quantity
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng vịt lộn nhỏ");
+        request.setProductDescription(null);
+        request.setProductQuantity(-10);
+        request.setCategoryId(2L); // Trứng gà
+        request.setStoreId(2L); // Green Mart
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Số lượng phải lớn hơn hoặc bằng 0"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID03: Boundary - Null product name")
+    void testCreateProduct_UTCID03_NullProductName_ShouldFail() {
+        // Arrange - UTCID03: Boundary case - null product name
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName(null);
+        request.setProductDescription(null);
+        request.setProductQuantity(0);
+        request.setCategoryId(3L); // Trứng đà điểu
+        request.setStoreId(1L); // FPT Mart
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Tên sản phẩm không được để trống"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID04: Boundary - Special characters in product name")
+    void testCreateProduct_UTCID04_SpecialCharacters_ShouldFail() {
+        // Arrange - UTCID04: Boundary case - special characters in name
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng @#$%");
+        request.setProductDescription(null);
+        request.setProductQuantity(0);
+        request.setCategoryId(4L); // Trứng ngan
+        request.setStoreId(2L); // Green Mart
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Tên sản phẩm không được chứa ký tự đặc biệt"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID05: Normal - Valid product creation with Trứng gà loại 1")
+    void testCreateProduct_UTCID05_ValidProduct_TrungGaLoai1() {
+        // Arrange - UTCID05: Normal case with Trứng gà loại 1
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng gà  loại 1");
+        request.setProductDescription(null);
+        request.setProductQuantity(10);
+        request.setCategoryId(2L); // Trứng gà
+        request.setStoreId(1L); // FPT Mart
+        
+        Category category = new Category();
+        category.setId(2L);
+        category.setCategoryName("Trứng gà");
+        
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("FPT Mart");
+        
+        Product savedProduct = new Product();
+        savedProduct.setId(5L);
+        savedProduct.setProductName("Trứng gà  loại 1");
+        savedProduct.setProductCode("SP000005");
+        
+        ProductDto expectedDto = new ProductDto();
+        expectedDto.setId(5L);
+        expectedDto.setProductName("Trứng gà  loại 1");
+        
+        given(categoryRepository.findById(2L)).willReturn(Optional.of(category));
+        given(storeRepository.findById(1L)).willReturn(Optional.of(store));
+        given(productRepository.findByProductNameAndStoreIgnoreCase(anyString(), anyLong())).willReturn(Optional.empty());
+        given(productRepository.save(any(Product.class))).willReturn(savedProduct);
+        given(productMapper.toDto(savedProduct)).willReturn(expectedDto);
+        
+        // Act
+        ProductDto result = productService.createProduct(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals("Trứng gà  loại 1", result.getProductName());
+        verify(productRepository, times(2)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID06: Boundary - Product name 101 characters (should fail)")
+    void testCreateProduct_UTCID06_ProductName_101Characters_ShouldFail() {
+        // Arrange - UTCID06: Boundary case - product name exceeds max length
+        String tooLongName = "Trứng gàaaa......aa" + "A".repeat(82); // Exactly 101 characters
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName(tooLongName);
+        request.setProductDescription(null);
+        request.setProductQuantity(10);
+        request.setCategoryId(2L); // Trứng gà
+        request.setStoreId(1L); // FPT Mart
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Tên sản phẩm phải từ 1 đến 100 ký tự"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID07: Normal - Valid product creation with Trứng vịt lộn nhỏ")
+    void testCreateProduct_UTCID07_ValidProduct_TrungVitLonNho() {
+        // Arrange - UTCID07: Normal case with Trứng vịt lộn nhỏ
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng vịt lộn nhỏ");
+        request.setProductDescription("Trứng gà loại 1");
+        request.setProductQuantity(0);
+        request.setCategoryId(1L); // Trứng vịt
+        request.setStoreId(2L); // Green Mart
+        
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng vịt");
+        
+        Store store = new Store();
+        store.setId(2L);
+        store.setStoreName("Green Mart");
+        
+        Product savedProduct = new Product();
+        savedProduct.setId(7L);
+        savedProduct.setProductName("Trứng vịt lộn nhỏ");
+        savedProduct.setProductCode("SP000007");
+        
+        ProductDto expectedDto = new ProductDto();
+        expectedDto.setId(7L);
+        expectedDto.setProductName("Trứng vịt lộn nhỏ");
+        
+        given(categoryRepository.findById(1L)).willReturn(Optional.of(category));
+        given(storeRepository.findById(2L)).willReturn(Optional.of(store));
+        given(productRepository.findByProductNameAndStoreIgnoreCase(anyString(), anyLong())).willReturn(Optional.empty());
+        given(productRepository.save(any(Product.class))).willReturn(savedProduct);
+        given(productMapper.toDto(savedProduct)).willReturn(expectedDto);
+        
+        // Act
+        ProductDto result = productService.createProduct(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals("Trứng vịt lộn nhỏ", result.getProductName());
+        verify(productRepository, times(2)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID08: Boundary - Quantity 2,147,483,647 (should fail)")
+    void testCreateProduct_UTCID08_Quantity_2147483647_ShouldFail() {
+        // Arrange - UTCID08: Boundary case - quantity at max integer
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng @#$%");
+        request.setProductDescription(null);
+        request.setProductQuantity(2147483647);
+        request.setCategoryId(2L); // Trứng gà
+        request.setStoreId(1L); // FPT Mart
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Quantity must be < 2 147 483 647"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID09: Normal - Valid product creation with Trứng gà loại 1")
+    void testCreateProduct_UTCID09_ValidProduct_TrungGaLoai1_Second() {
+        // Arrange - UTCID09: Normal case with Trứng gà loại 1 (second instance)
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng gà  loại 1");
+        request.setProductDescription("Trứng gàaaa....aa(100 characters)");
+        request.setProductQuantity(10);
+        request.setCategoryId(4L); // Trứng ngan
+        request.setStoreId(2L); // Green Mart
+        
+        Category category = new Category();
+        category.setId(4L);
+        category.setCategoryName("Trứng ngan");
+        
+        Store store = new Store();
+        store.setId(2L);
+        store.setStoreName("Green Mart");
+        
+        Product savedProduct = new Product();
+        savedProduct.setId(9L);
+        savedProduct.setProductName("Trứng gà  loại 1");
+        savedProduct.setProductCode("SP000009");
+        
+        ProductDto expectedDto = new ProductDto();
+        expectedDto.setId(9L);
+        expectedDto.setProductName("Trứng gà  loại 1");
+        
+        given(categoryRepository.findById(4L)).willReturn(Optional.of(category));
+        given(storeRepository.findById(2L)).willReturn(Optional.of(store));
+        given(productRepository.findByProductNameAndStoreIgnoreCase(anyString(), anyLong())).willReturn(Optional.empty());
+        given(productRepository.save(any(Product.class))).willReturn(savedProduct);
+        given(productMapper.toDto(savedProduct)).willReturn(expectedDto);
+        
+        // Act
+        ProductDto result = productService.createProduct(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals("Trứng gà  loại 1", result.getProductName());
+        verify(productRepository, times(2)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID10: Normal - Valid product creation with Trứng gà loại 1")
+    void testCreateProduct_UTCID10_ValidProduct_TrungGaLoai1_Third() {
+        // Arrange - UTCID10: Normal case with Trứng gà loại 1 (third instance)
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName("Trứng gà  loại 1");
+        request.setProductDescription(null);
+        request.setProductQuantity(0);
+        request.setCategoryId(2L); // Trứng gà
+        request.setStoreId(1L); // FPT Mart
+        
+        Category category = new Category();
+        category.setId(2L);
+        category.setCategoryName("Trứng gà");
+        
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("FPT Mart");
+        
+        Product savedProduct = new Product();
+        savedProduct.setId(10L);
+        savedProduct.setProductName("Trứng gà  loại 1");
+        savedProduct.setProductCode("SP000010");
+        
+        ProductDto expectedDto = new ProductDto();
+        expectedDto.setId(10L);
+        expectedDto.setProductName("Trứng gà  loại 1");
+        
+        given(categoryRepository.findById(2L)).willReturn(Optional.of(category));
+        given(storeRepository.findById(1L)).willReturn(Optional.of(store));
+        given(productRepository.findByProductNameAndStoreIgnoreCase(anyString(), anyLong())).willReturn(Optional.empty());
+        given(productRepository.save(any(Product.class))).willReturn(savedProduct);
+        given(productMapper.toDto(savedProduct)).willReturn(expectedDto);
+        
+        // Act
+        ProductDto result = productService.createProduct(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals("Trứng gà  loại 1", result.getProductName());
+        verify(productRepository, times(2)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("UTCID11: Normal - Valid product creation with Trứng gàaaa......aa(101 characters)")
+    void testCreateProduct_UTCID11_ValidProduct_TrungGa101Chars() {
+        // Arrange - UTCID11: Normal case with Trứng gàaaa......aa(101 characters)
+        String longName = "Trứng gàaaa......aa" + "A".repeat(82); // Exactly 101 characters
+        ProductRequestDto request = new ProductRequestDto();
+        request.setProductName(longName);
+        request.setProductDescription("Trứng @#$%");
+//        request.setProductQuantity(2147483648); // This will cause overflow
+        request.setProductQuantity(214748348);
+        request.setCategoryId(null); // null category
+        request.setStoreId(null); // null store
+        
+        // Act & Assert
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
+        assertTrue(ex.getMessage().contains("Danh mục không được để trống"));
+        verify(productRepository, never()).save(any(Product.class));
+    }
 } 
