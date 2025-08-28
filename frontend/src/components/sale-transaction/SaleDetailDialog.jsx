@@ -66,7 +66,11 @@ const SaleDetailDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                            CHI TIẾT PHIẾU CÂN BẰNG{transaction.name ? `: ${transaction.name}` : ''}
+                            {(() => {
+                                // Kiểm tra xem có phải phiếu cân bằng không
+                                const isBalanceTransaction = (transaction.saleTransactionNote || '').toLowerCase().includes('cân bằng kho') || transaction.stocktakeId;
+                                return isBalanceTransaction ? 'CHI TIẾT PHIẾU CÂN BẰNG' : 'CHI TIẾT PHIẾU BÁN HÀNG';
+                            })()}{transaction.name ? `: ${transaction.name}` : ''}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : 
