@@ -87,7 +87,12 @@ public class UserServiceImpl implements UserService {
         try {
             inputUserValidation.validateUserFieldsForCreate(user.getFullName(), user.getUsername(), user.getPassword());
             inputUserValidation.validateUserStatus(user.getStatus());
-            inputUserValidation.validateEmailForCreate(user.getEmail());
+            
+            // Kiểm tra email duplicate khi tạo mới
+            if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                boolean isEmailExists = userRepository.existsByEmailAndDeletedAtIsNull(user.getEmail().trim());
+                inputUserValidation.validateEmailForCreate(user.getEmail(), isEmailExists);
+            }
             if (user.getStatus() == null) {
                 user.setStatus(true);
                 logger.info("Default status set to true for new user");
@@ -125,7 +130,12 @@ public class UserServiceImpl implements UserService {
                         user.getFullName(), user.getUsername(), user.getPassword()
                 );
                 inputUserValidation.validateUserStatus(user.getStatus());
-                inputUserValidation.validateEmailForUpdate(user.getEmail());
+                
+                // Kiểm tra email duplicate khi cập nhật
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                    boolean isEmailExists = userRepository.existsByEmailAndIdNotAndDeletedAtIsNull(user.getEmail().trim(), id);
+                    inputUserValidation.validateEmailForUpdate(user.getEmail(), isEmailExists, id);
+                }
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
                 if (user.getPassword() != null) {
@@ -279,9 +289,10 @@ public class UserServiceImpl implements UserService {
         logger.info("Updating profile for user with id: {}", userId);
         return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
             try {
-                // Validate email format if provided
-                if (dto.getEmail() != null) {
-                    inputUserValidation.validateEmailForUpdate(dto.getEmail());
+                // Validate email format and duplicate if provided
+                if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {
+                    boolean isEmailExists = userRepository.existsByEmailAndIdNotAndDeletedAtIsNull(dto.getEmail().trim(), userId);
+                    inputUserValidation.validateEmailForUpdate(dto.getEmail(), isEmailExists, userId);
                 }
 
                 // Update only allowed fields
