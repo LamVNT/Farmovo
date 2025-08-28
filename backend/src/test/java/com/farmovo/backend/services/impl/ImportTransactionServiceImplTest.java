@@ -228,6 +228,247 @@ class ImportTransactionServiceImplTest {
 
             assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
         }
+
+        @Test
+        @DisplayName("supplierId = Long.MIN_VALUE → ResourceNotFoundException")
+        void supplierId_min_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setSupplierId(Long.MIN_VALUE);
+            given(customerRepository.findById(Long.MIN_VALUE)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("supplierId = Long.MAX_VALUE → ResourceNotFoundException")
+        void supplierId_max_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setSupplierId(Long.MAX_VALUE);
+            given(customerRepository.findById(Long.MAX_VALUE)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("supplierId = 5L → ResourceNotFoundException theo tiền điều kiện")
+        void supplierId5_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setSupplierId(5L);
+            given(customerRepository.findById(5L)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("supplierId = 0 → ResourceNotFoundException")
+        void supplierId_zero_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setSupplierId(0L);
+            given(customerRepository.findById(0L)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("supplierId = -1 → ResourceNotFoundException")
+        void supplierId_negative_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setSupplierId(-1L);
+            given(customerRepository.findById(-1L)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("status = COMPLETE khi tạo")
+        void statusComplete_onCreate() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStatus(ImportTransactionStatus.COMPLETE);
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+            ArgumentCaptor<ImportTransaction> captor = ArgumentCaptor.forClass(ImportTransaction.class);
+            verify(importTransactionRepository, atLeastOnce()).save(captor.capture());
+            assertEquals(ImportTransactionStatus.COMPLETE, captor.getValue().getStatus());
+        }
+
+        @Test
+        @DisplayName("status = CANCEL khi tạo")
+        void statusCancel_onCreate() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStatus(ImportTransactionStatus.CANCEL);
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+            ArgumentCaptor<ImportTransaction> captor = ArgumentCaptor.forClass(ImportTransaction.class);
+            verify(importTransactionRepository, atLeastOnce()).save(captor.capture());
+            assertEquals(ImportTransactionStatus.CANCEL, captor.getValue().getStatus());
+        }
+
+        @Test
+        @DisplayName("storeId = 0 → ResourceNotFoundException")
+        void storeId_zero_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStoreId(0L);
+            given(customerRepository.findById(anyLong())).willReturn(Optional.of(new Customer()));
+            given(storeRepository.findById(0L)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("storeId = -1 → ResourceNotFoundException")
+        void storeId_negative_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStoreId(-1L);
+            given(customerRepository.findById(anyLong())).willReturn(Optional.of(new Customer()));
+            given(storeRepository.findById(-1L)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("storeId = Long.MIN_VALUE → ResourceNotFoundException")
+        void storeId_min_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStoreId(Long.MIN_VALUE);
+            given(customerRepository.findById(anyLong())).willReturn(Optional.of(new Customer()));
+            given(storeRepository.findById(Long.MIN_VALUE)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("storeId = Long.MAX_VALUE → ResourceNotFoundException")
+        void storeId_max_notFound() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStoreId(Long.MAX_VALUE);
+            given(customerRepository.findById(anyLong())).willReturn(Optional.of(new Customer()));
+            given(storeRepository.findById(Long.MAX_VALUE)).willReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("storeId null (empty/blank) → NullPointerException")
+        void storeId_null_npe() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setStoreId(null);
+            given(customerRepository.findById(anyLong())).willReturn(Optional.of(new Customer()));
+            assertThrows(NullPointerException.class, () -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("paidAmount = 0 → tạo thành công, paidAmount=0")
+        void paidAmount_zero_ok() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setPaidAmount(BigDecimal.ZERO);
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+            ArgumentCaptor<ImportTransaction> captor = ArgumentCaptor.forClass(ImportTransaction.class);
+            verify(importTransactionRepository, atLeastOnce()).save(captor.capture());
+            assertEquals(BigDecimal.ZERO, captor.getValue().getPaidAmount());
+        }
+
+        @Test
+        @DisplayName("paidAmount = 12345678901234567890 → tạo thành công")
+        void paidAmount_huge_ok() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setPaidAmount(new BigDecimal("12345678901234567890"));
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("paidAmount = 123.4567891 → tạo thành công")
+        void paidAmount_scale_ok() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setPaidAmount(new BigDecimal("123.4567891"));
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("importTransactionNote length = 1000 → tạo thành công")
+        void note_len_1000_ok() {
+            String note = "a".repeat(1000);
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setImportTransactionNote(note);
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("importTransactionNote length = 1001 → tạo thành công (không giới hạn ở service)")
+        void note_len_1001_ok() {
+            String note = "a".repeat(1001);
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setImportTransactionNote(note);
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("importTransactionNote empty → tạo thành công")
+        void note_empty_ok() {
+            CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+            dto.setImportTransactionNote("");
+            stubHappyIdLookups();
+            given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+            ImportTransaction last = new ImportTransaction();
+            last.setId(7L);
+            given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+            given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+            assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, 1L));
+        }
+
+        @Test
+        @DisplayName("userId variants → createdBy set theo tham số")
+        void createdBy_variants_set() {
+            long[] ids = new long[]{1L, 0L, 9L, -1L, Long.MAX_VALUE, Long.MIN_VALUE};
+            for (long userId : ids) {
+                CreateImportTransactionRequestDto dto = baseDtoWithOneDetail();
+                stubHappyIdLookups();
+                given(productRepository.findById(anyLong())).willReturn(Optional.of(new Product()));
+                ImportTransaction last = new ImportTransaction();
+                last.setId(7L);
+                given(importTransactionRepository.findTopByOrderByIdDesc()).willReturn(Optional.of(last));
+                given(importTransactionRepository.save(any(ImportTransaction.class))).willAnswer(inv -> inv.getArgument(0));
+
+                assertDoesNotThrow(() -> importTransactionService.createImportTransaction(dto, userId));
+                ArgumentCaptor<ImportTransaction> captor = ArgumentCaptor.forClass(ImportTransaction.class);
+                verify(importTransactionRepository, atLeastOnce()).save(captor.capture());
+                assertEquals(userId, captor.getValue().getCreatedBy());
+                clearInvocations(importTransactionRepository);
+            }
+        }
     }
 
     @Test
