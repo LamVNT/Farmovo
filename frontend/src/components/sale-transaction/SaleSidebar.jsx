@@ -455,8 +455,17 @@ const SaleSidebar = ({
                                     <div className="pt-3 border-t border-gray-100">
                                         <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                             <span className="text-sm font-medium text-gray-700">Tổng nợ:</span>
-                                            <span className={`text-sm font-bold px-2 py-1 rounded ${hoveredCustomer.totalDebt > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                                {hoveredCustomer.totalDebt?.toLocaleString('vi-VN') || '0'} VND
+                                            <span className={`text-sm font-bold px-2 py-1 rounded ${hoveredCustomer.totalDebt < 0 ? 'bg-red-100 text-red-700' : hoveredCustomer.totalDebt > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                {(() => {
+                                                    const totalDebt = hoveredCustomer.totalDebt || 0;
+                                                    if (totalDebt < 0) {
+                                                        return `-${Math.abs(totalDebt).toLocaleString('vi-VN')} VND`;
+                                                    } else if (totalDebt > 0) {
+                                                        return `+${totalDebt.toLocaleString('vi-VN')} VND`;
+                                                    } else {
+                                                        return `${totalDebt.toLocaleString('vi-VN')} VND`;
+                                                    }
+                                                })()}
                                             </span>
                                         </div>
                                     </div>
@@ -717,22 +726,22 @@ const SaleSidebar = ({
                         <div className={`text-right w-32 ${(() => {
                             const customer = customers.find(c => String(c.id) === String(selectedCustomer));
                             const totalDebt = customer?.totalDebt || 0;
-                            return totalDebt > 0 ? 'text-red-600' : totalDebt < 0 ? 'text-green-600' : 'text-gray-600';
+                            return totalDebt < 0 ? 'text-red-600' : totalDebt > 0 ? 'text-green-600' : 'text-gray-600';
                         })()}`}>
                             {(() => {
                                 const customer = customers.find(c => String(c.id) === String(selectedCustomer));
                                 const totalDebt = customer?.totalDebt || 0;
-                                if (totalDebt > 0) {
-                                    return (
-                                        <div>
-                                            <div>+{formatCurrency(totalDebt)}</div>
-                                            <div className="text-xs">(Khách nợ)</div>
-                                        </div>
-                                    );
-                                } else if (totalDebt < 0) {
+                                if (totalDebt < 0) {
                                     return (
                                         <div>
                                             <div>-{formatCurrency(Math.abs(totalDebt))}</div>
+                                            <div className="text-xs">(Khách đang nợ)</div>
+                                        </div>
+                                    );
+                                } else if (totalDebt > 0) {
+                                    return (
+                                        <div>
+                                            <div>+{formatCurrency(totalDebt)}</div>
                                             <div className="text-xs">(Cửa hàng nợ)</div>
                                         </div>
                                     );

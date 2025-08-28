@@ -53,6 +53,7 @@ import PaginationBar from "../../components/stocktake/PaginationBar";
 import { useStoreSelection } from "../../contexts/StoreSelectionContext";
 import StoreSelector from "../../components/stocktake/StoreSelector";
 import { useStoreForStocktake } from "../../hooks/useStoreForStocktake";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const CreateStocktakePage = () => {
     const { id } = useParams();
@@ -68,6 +69,10 @@ const CreateStocktakePage = () => {
 
     // Store selection for stocktake
     const storeForStocktake = useStoreForStocktake(user, userRole);
+    
+    // Notification hook
+    const { createStocktakeNotification } = useNotification();
+    
     const {
         products = [],
         zones = [],
@@ -806,6 +811,15 @@ const CreateStocktakePage = () => {
             };
             if (id) {
                 const updated = await updateStocktake(id, payload);
+                
+                // Tạo thông báo khi cập nhật stocktake
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreId;
+                    await createStocktakeNotification('update', updated?.name || 'Phiếu kiểm kê', selectedStoreId, user.id, status);
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
@@ -815,6 +829,13 @@ const CreateStocktakePage = () => {
                 // Nếu hoàn thành và có chênh lệch thì mở dialog chuyển trang chi tiết
                 const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
                 if (status === 'COMPLETED' && hasDiff) {
+                                    // Tạo thông báo cần cân bằng kho
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('balance_required', updated?.name || 'Phiếu kiểm kê', selectedStoreId, user.id, 'COMPLETED');
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo cân bằng kho:', notificationError);
+                }
                     setPostCreateDialog({ open: true, id: id, name: updated?.name || '' });
                 } else {
                     setLots([]);
@@ -823,6 +844,15 @@ const CreateStocktakePage = () => {
                 }
             } else {
                 const created = await createStocktake(payload);
+                
+                // Tạo thông báo khi tạo stocktake mới
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('create', created?.name || 'Phiếu kiểm kê mới', selectedStoreId, user.id, status);
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
@@ -832,6 +862,13 @@ const CreateStocktakePage = () => {
                 const createdId = created?.id;
                 const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
                 if (status === 'COMPLETED' && hasDiff && createdId) {
+                                    // Tạo thông báo cần cân bằng kho
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('balance_required', created?.name || 'Phiếu kiểm kê mới', selectedStoreId, user.id, 'COMPLETED');
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo cân bằng kho:', notificationError);
+                }
                     setPostCreateDialog({ open: true, id: createdId, name: created?.name || '' });
                 } else {
                     setLots([]);

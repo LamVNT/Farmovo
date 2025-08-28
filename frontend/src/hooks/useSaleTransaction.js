@@ -5,6 +5,7 @@ import saleTransactionService from '../services/saleTransactionService';
 import {getZones} from '../services/zoneService';
 import {getCategories} from '../services/categoryService';
 import {useAuth} from '../contexts/AuthorizationContext';
+import {useNotification} from '../contexts/NotificationContext';
 
 function getVNISOString() {
     const now = new Date();
@@ -22,6 +23,7 @@ export const useSaleTransaction = (props = {}) => {
     const navigate = useNavigate();
     const {isBalanceStock = false, onSubmit: onSubmitProp} = props;
     const { isStaff } = useAuth(); // Sử dụng hook useAuth để kiểm tra role
+    const { createSaleTransactionNotification } = useNotification();
 
     // States
     const [currentUser, setCurrentUser] = useState({name: 'User', username: 'user'});
@@ -255,38 +257,52 @@ export const useSaleTransaction = (props = {}) => {
 
     // Direct actions (used by AddSalePage internal showSummary)
     const handleSaveDraft = useCallback(async () => {
-        const saleData = {
-            detail: selectedProducts,
-            totalAmount,
-            paidAmount,
-            saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
-            customerId: selectedCustomer || null,
-            storeId: selectedStore || null,
-            status: 'DRAFT',
-            saleTransactionNote: note,
-        };
-        validateData(saleData);
-        
-        // Đảm bảo proId luôn có giá trị cho draft
-        const processedSaleData = {
-            ...saleData,
-            detail: saleData.detail.map(item => ({
-                ...item,
-                proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
-                productName: item.productName || item.name || item.batchName || 'Sản phẩm',
-                unitSalePrice: item.unitSalePrice || item.price || 0,
-                productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
-                categoryName: item.categoryName,
-                storeName: item.storeName,
-                remainQuantity: item.remainQuantity,
-                quantity: item.quantity,
-                batchCode: item.batchCode || item.name,
-                zoneReal: item.zoneReal,
-            }))
-        };
-        
         try {
-            await saleTransactionService.create(processedSaleData);
+            // Lấy mã phiếu thực tế trước khi tạo
+            let transactionCode;
+            try {
+                transactionCode = await saleTransactionService.getNextCode();
+            } catch (error) {
+                console.warn('Không thể lấy mã phiếu, sử dụng mã mặc định:', error);
+                transactionCode = `PB${Date.now()}`;
+            }
+
+            const saleData = {
+                detail: selectedProducts,
+                totalAmount,
+                paidAmount,
+                saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
+                customerId: selectedCustomer || null,
+                storeId: selectedStore || null,
+                status: 'DRAFT',
+                saleTransactionNote: note,
+                name: transactionCode,
+            };
+            validateData(saleData);
+            
+            // Đảm bảo proId luôn có giá trị cho draft
+            const processedSaleData = {
+                ...saleData,
+                detail: saleData.detail.map(item => ({
+                    ...item,
+                    proId: item.proId || item.batchId || item.id, // Đảm bảo proId luôn có giá trị
+                    productName: item.productName || item.name || item.batchName || 'Sản phẩm',
+                    unitSalePrice: item.unitSalePrice || item.price || 0,
+                    productCode: item.productCode || item.code || item.batchCode || item.name || 'N/A',
+                    categoryName: item.categoryName,
+                    storeName: item.storeName,
+                    remainQuantity: item.remainQuantity,
+                    quantity: item.quantity,
+                    batchCode: item.batchCode || item.name,
+                    zoneReal: item.zoneReal,
+                }))
+            };
+            
+            const result = await saleTransactionService.create(processedSaleData);
+            
+            // Tạo notification cho việc tạo phiếu nháp
+            createSaleTransactionNotification('create', result?.name || processedSaleData.name, 'draft');
+            
             setSuccess('Đã lưu phiếu bán hàng tạm thời!');
             // Lưu thông báo để hiển thị ở trang index
             localStorage.setItem('saleSuccessMessage', 'Đã lưu phiếu bán hàng tạm thời!');
@@ -295,20 +311,35 @@ export const useSaleTransaction = (props = {}) => {
             console.error('Error saving draft:', err);
             setError(`Không thể lưu phiếu bán hàng tạm thời: ${err.response?.data?.message || err.message}`);
         }
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, saleDate, navigate]);
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, saleDate, navigate, createSaleTransactionNotification]);
 
     const handleComplete = useCallback(async () => {
-        const saleData = {
-            detail: selectedProducts,
-            totalAmount,
-            paidAmount,
-            saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
-            customerId: selectedCustomer || null,
-            storeId: selectedStore || null,
-            status: isBalanceStock ? 'WAITING_FOR_APPROVE' : 'COMPLETE',
-            saleTransactionNote: note,
-        };
-        validateData(saleData);
+        try {
+            // Lấy mã phiếu thực tế trước khi tạo
+            let transactionCode;
+            try {
+                if (isBalanceStock) {
+                    transactionCode = await saleTransactionService.getNextBalanceCode();
+                } else {
+                    transactionCode = await saleTransactionService.getNextCode();
+                }
+            } catch (error) {
+                console.warn('Không thể lấy mã phiếu, sử dụng mã mặc định:', error);
+                transactionCode = isBalanceStock ? `PCB${Date.now()}` : `PB${Date.now()}`;
+            }
+
+            const saleData = {
+                detail: selectedProducts,
+                totalAmount,
+                paidAmount,
+                saleDate: saleDate ? saleDate.toISOString() : getVNISOString(),
+                customerId: selectedCustomer || null,
+                storeId: selectedStore || null,
+                status: isBalanceStock ? 'WAITING_FOR_APPROVE' : 'COMPLETE',
+                saleTransactionNote: note,
+                name: transactionCode,
+            };
+            validateData(saleData);
         if (isBalanceStock) {
             const payload = {
                 ...saleData,
@@ -328,9 +359,13 @@ export const useSaleTransaction = (props = {}) => {
                 })),
             };
             if (typeof onSubmitProp === 'function') {
-                await onSubmitProp(payload);
+                const result = await onSubmitProp(payload);
+                // Tạo notification cho việc tạo phiếu cân bằng
+                createSaleTransactionNotification('create', result?.name || payload.name, 'waiting_for_approve');
             } else {
-                await saleTransactionService.createFromBalance(payload);
+                const result = await saleTransactionService.createFromBalance(payload);
+                // Tạo notification cho việc tạo phiếu cân bằng
+                createSaleTransactionNotification('create', result?.name || payload.name, 'waiting_for_approve');
             }
             setSuccess('Đã tạo phiếu cân bằng chờ duyệt!');
             
@@ -387,13 +422,21 @@ export const useSaleTransaction = (props = {}) => {
             };
             
             console.log('handleComplete - processedSaleData:', processedSaleData);
-            await saleTransactionService.create(processedSaleData);
+            const result = await saleTransactionService.create(processedSaleData);
+            
+            // Tạo notification cho việc tạo phiếu mới
+            createSaleTransactionNotification('create', result?.name || processedSaleData.name, 'completed');
+            
             setSuccess('Đã hoàn thành phiếu bán hàng!');
             // Lưu thông báo để hiển thị ở trang index
             localStorage.setItem('saleSuccessMessage', 'Đã hoàn thành phiếu bán hàng!');
             try { navigate('/sale'); } catch (e) {}
         }
-    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp, saleDate, isStaff, props.fromStocktake, props.stocktakeId]);
+    } catch (err) {
+        console.error('Error in handleComplete:', err);
+        setError(`Không thể hoàn thành phiếu bán hàng: ${err.response?.data?.message || err.message}`);
+    }
+    }, [selectedProducts, totalAmount, paidAmount, selectedCustomer, selectedStore, note, isBalanceStock, onSubmitProp, saleDate, isStaff, props.fromStocktake, props.stocktakeId, createSaleTransactionNotification]);
 
     const handleCancel = useCallback(() => {
         navigate(-1);
@@ -405,7 +448,20 @@ export const useSaleTransaction = (props = {}) => {
             setLoading(true);
             setError(null);
 
-            const saleData = {...summaryData};
+            // Lấy mã phiếu thực tế trước khi tạo
+            let transactionCode;
+            try {
+                if (isBalanceStock) {
+                    transactionCode = await saleTransactionService.getNextBalanceCode();
+                } else {
+                    transactionCode = await saleTransactionService.getNextCode();
+                }
+            } catch (error) {
+                console.warn('Không thể lấy mã phiếu, sử dụng mã mặc định:', error);
+                transactionCode = isBalanceStock ? `PCB${Date.now()}` : `PB${Date.now()}`;
+            }
+
+            const saleData = {...summaryData, name: transactionCode};
             validateData(saleData);
 
             if (isBalanceStock) {
@@ -424,9 +480,22 @@ export const useSaleTransaction = (props = {}) => {
                     zoneReal: item.zoneReal,
                 }));
                 if (typeof onSubmitProp === 'function') {
-                    await onSubmitProp(saleData);
+                    const result = await onSubmitProp(saleData);
+                    // Tạo notification cho việc tạo phiếu cân bằng
+                    if (pendingAction === 'COMPLETE') {
+                        createSaleTransactionNotification('create', result?.name || saleData.name, 'waiting_for_approve');
+                    } else if (pendingAction === 'DRAFT') {
+                        createSaleTransactionNotification('create', result?.name || saleData.name, 'draft');
+                    }
                 } else {
-                    await saleTransactionService.createFromBalance(saleData);
+                    const result = await saleTransactionService.createFromBalance(saleData);
+                    
+                    // Tạo notification cho việc tạo phiếu cân bằng
+                    if (pendingAction === 'COMPLETE') {
+                        createSaleTransactionNotification('create', result?.name || saleData.name, 'waiting_for_approve');
+                    } else if (pendingAction === 'DRAFT') {
+                        createSaleTransactionNotification('create', result?.name || saleData.name, 'draft');
+                    }
                 }
                 
                 // Lưu trạng thái PCB vào localStorage để cập nhật UI
@@ -457,7 +526,14 @@ export const useSaleTransaction = (props = {}) => {
                         zoneReal: item.zoneReal,
                     }))
                 };
-                await saleTransactionService.create(processedSaleData);
+                const result = await saleTransactionService.create(processedSaleData);
+                
+                // Tạo notification cho việc tạo phiếu mới
+                if (pendingAction === 'COMPLETE') {
+                    createSaleTransactionNotification('create', result?.name || processedSaleData.name, 'completed');
+                } else if (pendingAction === 'DRAFT') {
+                    createSaleTransactionNotification('create', result?.name || processedSaleData.name, 'draft');
+                }
             }
 
             const successMessage = pendingAction === 'DRAFT'

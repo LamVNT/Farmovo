@@ -48,6 +48,7 @@ import { formatCurrency } from "../../utils/formatters";
 import { customerService, getCustomers, getAllCustomers } from "../../services/customerService";
 import { useAuth } from "../../contexts/AuthorizationContext";
 import changeStatusLogService from "../../services/changeStatusLogService";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const getRange = (key) => {
     const today = new Date();
@@ -87,6 +88,7 @@ const labelMap = {
 
 const SaleTransactionPage = () => {
     const { isAdmin } = useAuth();
+    const { createSaleTransactionNotification } = useNotification();
     const { id } = useParams();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams(); // Lấy query params
@@ -262,7 +264,15 @@ const SaleTransactionPage = () => {
                     console.log('Bulk soft delete results:', results);
                     const succeeded = results.filter(r => r.status === 'fulfilled').length;
                     const failed = results.length - succeeded;
-                    if (succeeded > 0) setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                    if (succeeded > 0) {
+                        setSuccess(`Đã xóa ${succeeded}/${results.length} phiếu.`);
+                        // Tạo notification cho việc xóa hàng loạt
+                        eligible.forEach((transaction, index) => {
+                            if (results[index].status === 'fulfilled') {
+                                createSaleTransactionNotification('delete', transaction.name, 'deleted');
+                            }
+                        });
+                    }
                     if (failed > 0) setError(`Không thể xóa ${failed} phiếu.`);
                     clearSelection();
                     await loadTransactions();
@@ -553,6 +563,7 @@ const SaleTransactionPage = () => {
         try {
             await saleTransactionService.cancel(row.id);
             setSuccess('Hủy phiếu thành công!');
+            createSaleTransactionNotification('cancel', row.name, 'cancelled');
             setOpenDetailDialog(false);
             setSelectedTransaction(null);
             setUserDetails(null);
@@ -570,6 +581,7 @@ const SaleTransactionPage = () => {
             await saleTransactionService.complete(row.id);
             console.log('Transaction completed successfully');
             setSuccess('Hoàn thành phiếu thành công!');
+            createSaleTransactionNotification('complete', row.name, 'completed');
             setOpenDetailDialog(false);
             setSelectedTransaction(null);
             setUserDetails(null);
@@ -586,6 +598,7 @@ const SaleTransactionPage = () => {
             try {
                 await saleTransactionService.openTransaction(selectedTransaction.id);
                 setSuccess('Mở phiếu thành công!');
+                createSaleTransactionNotification('status_change', selectedTransaction.name, 'waiting_for_approve');
                 loadTransactions();
             } catch (err) {
                 setError('Không thể mở phiếu. Vui lòng thử lại!');
@@ -598,6 +611,7 @@ const SaleTransactionPage = () => {
             try {
                 await saleTransactionService.closeTransaction(selectedTransaction.id);
                 setSuccess('Đóng phiếu thành công!');
+                createSaleTransactionNotification('status_change', selectedTransaction.name, 'draft');
                 loadTransactions();
             } catch (err) {
                 setError('Không thể đóng phiếu. Vui lòng thử lại!');
@@ -610,6 +624,7 @@ const SaleTransactionPage = () => {
             try {
                 await saleTransactionService.cancel(selectedTransaction.id);
                 setSuccess('Hủy phiếu thành công!');
+                createSaleTransactionNotification('cancel', selectedTransaction.name, 'cancelled');
                 setSelectedTransaction(null);
                 setUserDetails(null);
                 setCustomerDetails(null);
@@ -698,6 +713,7 @@ const SaleTransactionPage = () => {
                     await saleTransactionService.softDelete(actionRow.id);
                     console.log('Single soft delete successful');
                     setSuccess('Đã xóa phiếu thành công!');
+                    createSaleTransactionNotification('delete', actionRow.name, 'deleted');
                     await loadTransactions();
                 } catch (err) {
                     console.error('Error in single soft delete:', err);
@@ -745,6 +761,7 @@ const SaleTransactionPage = () => {
                         await saleTransactionService.closeTransaction(actionRow.id);
                         loadTransactions();
                         setSuccess('Đóng phiếu thành công!');
+                        createSaleTransactionNotification('status_change', actionRow.name, 'draft');
                     } catch (err) {
                         setError('Không thể đóng phiếu. Vui lòng thử lại!');
                     }
@@ -770,6 +787,7 @@ const SaleTransactionPage = () => {
                         console.log('Transaction completed successfully');
                         loadTransactions();
                         setSuccess('Hoàn thành phiếu bản nháp thành công!');
+                        createSaleTransactionNotification('complete', actionRow.name, 'completed');
                     } catch (err) {
                         console.error('Error completing draft transaction:', err);
                         setError('Không thể hoàn thành phiếu bản nháp. Vui lòng thử lại!');
@@ -794,6 +812,7 @@ const SaleTransactionPage = () => {
                         await saleTransactionService.complete(actionRow.id);
                         loadTransactions();
                         setSuccess('Hoàn thành phiếu thành công!');
+                        createSaleTransactionNotification('complete', actionRow.name, 'completed');
                     } catch (err) {
                         setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
                     }
@@ -817,6 +836,7 @@ const SaleTransactionPage = () => {
                         await saleTransactionService.cancel(actionRow.id);
                         loadTransactions();
                         setSuccess('Hủy phiếu thành công!');
+                        createSaleTransactionNotification('cancel', actionRow.name, 'cancelled');
                     } catch (err) {
                         setError('Không thể hủy phiếu. Vui lòng thử lại!');
                     }

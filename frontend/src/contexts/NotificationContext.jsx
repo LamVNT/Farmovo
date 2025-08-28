@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { notificationService } from '../services/notificationService';
+import { useAuth } from './AuthorizationContext';
+import { useStoreSelection } from './StoreSelectionContext';
 
 const NotificationContext = createContext();
 
@@ -13,181 +16,362 @@ export const useNotification = () => {
 export const NotificationProvider = ({ children }) => {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
+    const { selectedStore } = useStoreSelection();
 
-    // Thêm notification mới
-    const addNotification = useCallback((notification) => {
-        const newNotification = {
-            id: Date.now(),
-            timestamp: new Date(),
-            read: false,
-            ...notification
-        };
+    // Load notifications từ database
+    const loadNotifications = useCallback(async () => {
+        if (!user) return;
         
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        
-        // Tự động xóa notification sau 10 giây
-        setTimeout(() => {
-            removeNotification(newNotification.id);
-        }, 10000);
-    }, []);
-
-    // Xóa notification
-    const removeNotification = useCallback((id) => {
-        setNotifications(prev => {
-            const notification = prev.find(n => n.id === id);
-            if (notification && !notification.read) {
-                setUnreadCount(prev => Math.max(0, prev - 1));
+        try {
+            setLoading(true);
+            const storeId = selectedStore?.id;
+            
+            // Nếu là Staff, lấy tất cả thông báo của store
+            // Nếu là Admin/Owner, lấy thông báo của user
+            let response, count;
+            
+            if (user.roles && user.roles.includes('STAFF')) {
+                // Staff: xem tất cả thông báo của store
+                response = await notificationService.getStoreNotifications(0, 50, storeId);
+                count = await notificationService.getStoreUnreadCount(storeId);
+            } else {
+                // Admin/Owner: xem tất cả thông báo của tất cả store
+                response = await notificationService.getAllStoreNotifications(0, 50);
+                count = await notificationService.getAllStoreUnreadCount();
             }
-            return prev.filter(n => n.id !== id);
-        });
-    }, []);
+            
+            setNotifications(response.notifications || []);
+            setUnreadCount(count || 0);
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user, selectedStore?.id]);
+
+    // Load notifications khi user hoặc store thay đổi
+    useEffect(() => {
+        if (user) {
+            loadNotifications();
+        }
+    }, [user, selectedStore?.id]);
+
+    // Refresh notifications
+    const refreshNotifications = useCallback(() => {
+        if (user) {
+            loadNotifications();
+        }
+    }, [user, loadNotifications]);
 
     // Đánh dấu notification đã đọc
-    const markAsRead = useCallback((id) => {
+    const markAsRead = useCallback(async (id) => {
+        try {
+            await notificationService.markAsRead(id);
         setNotifications(prev => 
             prev.map(n => 
-                n.id === id ? { ...n, read: true } : n
+                    n.id === id ? { ...n, isRead: true } : n
             )
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
     }, []);
 
     // Đánh dấu tất cả đã đọc
-    const markAllAsRead = useCallback(() => {
-        setNotifications(prev => 
-            prev.map(n => ({ ...n, read: true }))
-        );
-        setUnreadCount(0);
-    }, []);
+    const markAllAsRead = useCallback(async () => {
+        try {
+            const storeId = selectedStore?.id;
+            
+            // Nếu là Staff, đánh dấu tất cả thông báo của store
+            // Nếu là Admin/Owner, đánh dấu tất cả thông báo của tất cả store
+            if (user.roles && user.roles.includes('STAFF')) {
+                // Staff: đánh dấu tất cả thông báo của store
+                await notificationService.markAllAsRead(storeId);
+            } else {
+                // Admin/Owner: đánh dấu tất cả thông báo của tất cả store
+                await notificationService.markAllNotificationsAsRead();
+            }
+            
+            setNotifications(prev => 
+                prev.map(n => ({ ...n, isRead: true }))
+            );
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    }, [selectedStore, user]);
 
     // Xóa tất cả notifications
-    const clearAllNotifications = useCallback(() => {
+    const clearAllNotifications = useCallback(async () => {
+        try {
+            const storeId = selectedStore?.id;
+            await notificationService.deleteAllNotifications(storeId);
         setNotifications([]);
         setUnreadCount(0);
+        } catch (error) {
+            console.error('Error clearing all notifications:', error);
+        }
+    }, [selectedStore]);
+
+    // Tạo notification cho các thao tác phổ biến (gọi API backend)
+    // Helper function để xác định trạng thái tiếng Việt
+    const getStatusText = useCallback((status) => {
+        if (!status) return 'thay đổi trạng thái';
+        
+        switch (status.toLowerCase()) {
+            case 'open':
+            case 'opened':
+                return 'mở';
+            case 'closed':
+            case 'close':
+                return 'đóng';
+            case 'completed':
+            case 'complete':
+                return 'hoàn thành';
+            case 'cancelled':
+            case 'cancel':
+                return 'hủy';
+            case 'pending':
+                return 'chờ xử lý';
+            case 'processing':
+                return 'đang xử lý';
+            case 'draft':
+                return 'nháp';
+            case 'submitted':
+                return 'đã gửi';
+            case 'approved':
+                return 'đã duyệt';
+            case 'rejected':
+                return 'từ chối';
+            default:
+                return `chuyển sang trạng thái ${status}`;
+        }
     }, []);
 
-    // Tạo notification cho các thao tác phổ biến
-    const createImportTransactionNotification = useCallback((action, transactionName) => {
-        const messages = {
-            create: `Đã tạo phiếu nhập hàng: ${transactionName}`,
-            update: `Đã cập nhật phiếu nhập hàng: ${transactionName}`,
-            status_change: `Đã thay đổi trạng thái phiếu nhập hàng: ${transactionName}`,
-            complete: `Đã hoàn thành phiếu nhập hàng: ${transactionName}`,
-            cancel: `Đã hủy phiếu nhập hàng: ${transactionName}`,
-            delete: `Đã xóa phiếu nhập hàng: ${transactionName}`
-        };
+    const createImportTransactionNotification = useCallback(async (action, transactionName, newStatus = null) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Gọi backend method để tạo notification với logic xử lý trạng thái
+            await notificationService.createImportTransactionNotification(action, transactionName, selectedStore.id, user.id, newStatus);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating import transaction notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
-        addNotification({
-            type: 'success',
-            title: 'Phiếu nhập hàng',
-            message: messages[action] || messages.create,
-            icon: '📦',
-            category: 'import_transaction'
-        });
-    }, [addNotification]);
+    const createSaleTransactionNotification = useCallback(async (action, transactionName, newStatus = null) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Gọi backend method để tạo notification với logic xử lý trạng thái
+            await notificationService.createSaleTransactionNotification(action, transactionName, selectedStore.id, user.id, newStatus);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating sale transaction notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
-    const createSaleTransactionNotification = useCallback((action, transactionName) => {
-        const messages = {
-            create: `Đã tạo phiếu bán hàng: ${transactionName}`,
-            update: `Đã cập nhật phiếu bán hàng: ${transactionName}`,
-            status_change: `Đã thay đổi trạng thái phiếu bán hàng: ${transactionName}`,
-            complete: `Đã hoàn thành phiếu bán hàng: ${transactionName}`,
-            cancel: `Đã hủy phiếu bán hàng: ${transactionName}`,
-            delete: `Đã xóa phiếu bán hàng: ${transactionName}`
-        };
+    const createProductNotification = useCallback(async (action, productName) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Xác định type dựa trên action
+            let notificationType = 'INFO';
+            let actionText = action;
+            
+            if (action === 'delete') {
+                notificationType = 'WARNING';
+                actionText = 'xóa';
+            } else if (action === 'create') {
+                notificationType = 'SUCCESS';
+                actionText = 'tạo';
+            } else if (action === 'update') {
+                notificationType = 'INFO';
+                actionText = 'cập nhật';
+            }
+            
+            // Gọi backend method để tạo notification
+            await notificationService.createProductNotification(action, productName, selectedStore.id, user.id);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating product notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
-        addNotification({
-            type: 'success',
-            title: 'Phiếu bán hàng',
-            message: messages[action] || messages.create,
-            icon: '💰',
-            category: 'sale_transaction'
-        });
-    }, [addNotification]);
-
-    const createProductNotification = useCallback((action, productName) => {
-        const messages = {
-            create: `Đã tạo sản phẩm: ${productName}`,
-            update: `Đã cập nhật sản phẩm: ${productName}`,
-            delete: `Đã xóa sản phẩm: ${productName}`
-        };
-
-        addNotification({
-            type: 'info',
-            title: 'Sản phẩm',
-            message: messages[action] || messages.create,
-            icon: '🏷️',
-            category: 'product'
-        });
-    }, [addNotification]);
-
-    const createCustomerNotification = useCallback((action, customerName) => {
-        const messages = {
-            create: `Đã tạo khách hàng: ${customerName}`,
-            update: `Đã cập nhật khách hàng: ${customerName}`,
-            delete: `Đã xóa khách hàng: ${customerName}`
-        };
-
-        addNotification({
-            type: 'info',
+    const createCustomerNotification = useCallback(async (action, customerName) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Xác định type dựa trên action
+            let notificationType = 'INFO';
+            let actionText = action;
+            
+            if (action === 'delete') {
+                notificationType = 'WARNING';
+                actionText = 'xóa';
+            } else if (action === 'create') {
+                notificationType = 'SUCCESS';
+                actionText = 'tạo';
+            } else if (action === 'update') {
+                notificationType = 'INFO';
+                actionText = 'cập nhật';
+            }
+            
+            const notificationData = {
             title: 'Khách hàng',
-            message: messages[action] || messages.create,
-            icon: '👤',
-            category: 'customer'
-        });
-    }, [addNotification]);
+                message: `Đã ${actionText} khách hàng: ${customerName}`,
+                type: notificationType,
+                category: 'CUSTOMER',
 
-    const createStocktakeNotification = useCallback((action, stocktakeName) => {
-        const messages = {
-            create: `Đã tạo kiểm kê: ${stocktakeName}`,
-            update: `Đã cập nhật kiểm kê: ${stocktakeName}`,
-            complete: `Đã hoàn thành kiểm kê: ${stocktakeName}`,
-            cancel: `Đã hủy kiểm kê: ${stocktakeName}`
-        };
+                storeId: selectedStore.id
+            };
+            
+            // Gọi backend method để tạo notification
+            await notificationService.createCustomerNotification(action, customerName, selectedStore.id, user.id);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating customer notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
-        addNotification({
-            type: 'warning',
-            title: 'Kiểm kê',
-            message: messages[action] || messages.create,
-            icon: '📊',
-            category: 'stocktake'
-        });
-    }, [addNotification]);
+    const createStocktakeNotification = useCallback(async (action, stocktakeName, storeId, userId, newStatus = null) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            await notificationService.createStocktakeNotification(action, stocktakeName, storeId, userId, newStatus);
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating stocktake notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
-    const createErrorNotification = useCallback((title, message) => {
-        addNotification({
-            type: 'error',
+    const createErrorNotification = useCallback(async (title, message) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            const notificationData = {
             title: title || 'Lỗi',
             message: message || 'Đã xảy ra lỗi',
-            icon: '❌',
-            category: 'error'
-        });
-    }, [addNotification]);
+                type: 'ERROR',
+                category: 'GENERAL',
 
-    const createSuccessNotification = useCallback((title, message) => {
-        addNotification({
-            type: 'success',
+                storeId: selectedStore.id
+            };
+            
+            await notificationService.createNotification(notificationData);
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating error notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
+
+    const createSuccessNotification = useCallback(async (title, message) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            const notificationData = {
             title: title || 'Thành công',
             message: message || 'Thao tác thành công',
-            icon: '✅',
-            category: 'success'
-        });
-    }, [addNotification]);
+                type: 'SUCCESS',
+                category: 'GENERAL',
+
+                storeId: selectedStore.id
+            };
+            
+            await notificationService.createNotification(notificationData);
+            
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating success notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
+
+    const createCategoryNotification = useCallback(async (action, categoryName) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Xác định type dựa trên action
+            let notificationType = 'INFO';
+            let actionText = action;
+            
+            if (action === 'delete') {
+                notificationType = 'WARNING';
+                actionText = 'xóa';
+            } else if (action === 'create') {
+                notificationType = 'SUCCESS';
+                actionText = 'tạo';
+            } else if (action === 'update') {
+                notificationType = 'INFO';
+                actionText = 'cập nhật';
+            }
+            
+            // Gọi backend method để tạo notification
+            await notificationService.createCategoryNotification(action, categoryName, selectedStore.id, user.id);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating category notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
+
+    const createZoneNotification = useCallback(async (action, zoneName) => {
+        if (!user || !selectedStore) return;
+        
+        try {
+            // Xác định type dựa trên action
+            let notificationType = 'INFO';
+            let actionText = action;
+            
+            if (action === 'delete') {
+                notificationType = 'WARNING';
+                actionText = 'xóa';
+            } else if (action === 'create') {
+                notificationType = 'SUCCESS';
+                actionText = 'tạo';
+            } else if (action === 'update') {
+                notificationType = 'INFO';
+                actionText = 'cập nhật';
+            }
+            
+            // Gọi backend method để tạo notification
+            await notificationService.createZoneNotification(action, zoneName, selectedStore.id, user.id);
+            
+            // Refresh notifications sau khi tạo
+            await loadNotifications();
+        } catch (error) {
+            console.error('Error creating zone notification:', error);
+        }
+    }, [user, selectedStore, loadNotifications]);
 
     const value = {
         notifications,
         unreadCount,
-        addNotification,
-        removeNotification,
+        loading,
         markAsRead,
         markAllAsRead,
         clearAllNotifications,
+        refreshNotifications,
+        // Các function tạo notification (gọi API backend)
         createImportTransactionNotification,
         createSaleTransactionNotification,
         createProductNotification,
         createCustomerNotification,
         createStocktakeNotification,
+        createCategoryNotification,
+        createZoneNotification,
         createErrorNotification,
         createSuccessNotification
     };

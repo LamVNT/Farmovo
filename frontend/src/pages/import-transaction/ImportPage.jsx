@@ -46,7 +46,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 const ImportPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { createImportTransactionNotification, createSuccessNotification } = useNotification();
+    const { createImportTransactionNotification } = useNotification();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -674,8 +674,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
@@ -746,8 +745,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
@@ -1712,8 +1710,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index

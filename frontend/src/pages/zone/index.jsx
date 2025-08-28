@@ -6,6 +6,7 @@ import ZoneTable from "../../components/zone/ZoneTable";
 import { getZones, createZone, updateZone, deleteZone } from "../../services/zoneService";
 import { getAllStores } from "../../services/storeService";
 import { userService } from "../../services/userService";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const Zone = () => {
     const zonesFetchedRef = useRef(false);
@@ -30,6 +31,8 @@ const Zone = () => {
 
     const [user, setUser] = useState(null);
     const [stores, setStores] = useState([]);
+    
+    const { createZoneNotification } = useNotification();
 
 
     // Frontend pagination
@@ -119,6 +122,10 @@ const Zone = () => {
         if (!zoneToDelete) return;
         try {
             await deleteZone(zoneToDelete.id);
+            
+            // Tạo notification cho việc xóa khu vực
+            createZoneNotification('delete', zoneToDelete.zoneName);
+            
             // Fetch lại toàn bộ danh sách zones và sắp xếp theo thứ tự mới nhất
             const refreshedZones = await getZones();
             const sortedZones = refreshedZones.sort((a, b) => b.id - a.id);
@@ -198,12 +205,20 @@ const Zone = () => {
         try {
             if (editMode) {
                 await updateZone(form.id, submitForm);
+                
+                // Tạo notification cho việc cập nhật khu vực
+                createZoneNotification('update', submitForm.zoneName);
+                
                 // Fetch lại toàn bộ danh sách zones và sắp xếp theo thứ tự mới nhất
                 const refreshedZones = await getZones();
                 const sortedZones = refreshedZones.sort((a, b) => b.id - a.id);
                 setZones(sortedZones);
             } else {
                 const created = await createZone(submitForm);
+                
+                // Tạo notification cho việc tạo khu vực mới
+                createZoneNotification('create', submitForm.zoneName);
+                
                 // Thêm zone mới vào đầu danh sách thay vì cuối
                 setZones(prev => [created, ...prev]);
             }

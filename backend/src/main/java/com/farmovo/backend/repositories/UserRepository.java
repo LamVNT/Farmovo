@@ -29,4 +29,7 @@ public interface UserRepository extends JpaRepository<User, Long>, org.springfra
     @Query("update User u set u.password = ?2 where u.email = ?1")
     void updatePassword(String email, String password);
 
+    // Thêm method để tìm user theo store
+    List<User> findByStoreId(Long storeId);
+
 }

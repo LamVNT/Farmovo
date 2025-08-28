@@ -7,6 +7,7 @@ import { productService } from '../../services/productService';
 import { toast } from 'react-hot-toast';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { useAuth } from '../../contexts/AuthorizationContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const Product = () => {
     const [products, setProducts] = useState([]);
@@ -28,6 +29,7 @@ const Product = () => {
     const [productToDelete, setProductToDelete] = useState(null);
     
     const { user, isStaff, loading: authLoading } = useAuth();
+    const { createProductNotification } = useNotification();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -153,6 +155,10 @@ const Product = () => {
         
         try {
             await productService.deleteProduct(productToDelete.id);
+            
+            // Tạo notification cho việc xóa sản phẩm
+            createProductNotification('delete', productToDelete.productName);
+            
             setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
             toast.success('Xóa sản phẩm thành công!');
         } catch (err) {
@@ -188,9 +194,17 @@ const Product = () => {
             
             if (editMode) {
                 await productService.updateProduct(form.id, submitData);
+                
+                // Tạo notification cho việc cập nhật sản phẩm
+                createProductNotification('update', submitData.productName);
+                
                 toast.success('Cập nhật sản phẩm thành công!');
             } else {
                 await productService.createProduct(submitData);
+                
+                // Tạo notification cho việc tạo sản phẩm mới
+                createProductNotification('create', submitData.productName);
+                
                 toast.success('Thêm sản phẩm mới thành công!');
             }
             handleClose();

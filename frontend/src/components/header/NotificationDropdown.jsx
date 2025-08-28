@@ -35,6 +35,7 @@ const NotificationDropdown = () => {
     const {
         notifications,
         unreadCount,
+        loading,
         markAsRead,
         markAllAsRead,
         clearAllNotifications
@@ -49,7 +50,7 @@ const NotificationDropdown = () => {
     };
 
     const handleNotificationClick = (notification) => {
-        if (!notification.read) {
+        if (!notification.isRead) {
             markAsRead(notification.id);
         }
         handleClose();
@@ -57,13 +58,13 @@ const NotificationDropdown = () => {
 
     const getNotificationIcon = (type) => {
         switch (type) {
-            case 'success':
+            case 'SUCCESS':
                 return <CheckIcon color="success" />;
-            case 'error':
+            case 'ERROR':
                 return <ErrorIcon color="error" />;
-            case 'warning':
+            case 'WARNING':
                 return <WarningIcon color="warning" />;
-            case 'info':
+            case 'INFO':
             default:
                 return <InfoIcon color="info" />;
         }
@@ -71,13 +72,13 @@ const NotificationDropdown = () => {
 
     const getNotificationColor = (type) => {
         switch (type) {
-            case 'success':
+            case 'SUCCESS':
                 return '#4caf50';
-            case 'error':
+            case 'ERROR':
                 return '#f44336';
-            case 'warning':
+            case 'WARNING':
                 return '#ff9800';
-            case 'info':
+            case 'INFO':
             default:
                 return '#2196f3';
         }
@@ -96,13 +97,19 @@ const NotificationDropdown = () => {
 
     const getCategoryLabel = (category) => {
         const labels = {
-            'import_transaction': 'Nhập hàng',
-            'sale_transaction': 'Bán hàng',
-            'product': 'Sản phẩm',
-            'customer': 'Khách hàng',
-            'stocktake': 'Kiểm kê',
-            'error': 'Lỗi',
-            'success': 'Thành công'
+            'IMPORT_TRANSACTION': 'Nhập hàng',
+            'SALE_TRANSACTION': 'Bán hàng',
+            'PRODUCT': 'Sản phẩm',
+            'CUSTOMER': 'Khách hàng',
+            'STOCKTAKE': 'Kiểm kê',
+            'USER': 'Người dùng',
+            'STORE': 'Cửa hàng',
+            'CATEGORY': 'Danh mục',
+            'ZONE': 'Khu vực',
+            'DEBT_NOTE': 'Ghi chú nợ',
+            'GENERAL': 'Chung',
+            'ERROR': 'Lỗi',
+            'SUCCESS': 'Thành công'
         };
         return labels[category] || category;
     };
@@ -201,76 +208,103 @@ const NotificationDropdown = () => {
                                     onClick={() => handleNotificationClick(notification)}
                                     sx={{
                                         p: 2,
-                                        backgroundColor: notification.read ? 'transparent' : 'rgba(25, 118, 210, 0.04)',
+                                        backgroundColor: notification.isRead ? 'transparent' : 'rgba(25, 118, 210, 0.04)',
                                         '&:hover': {
-                                            backgroundColor: notification.read 
+                                            backgroundColor: notification.isRead 
                                                 ? 'rgba(0, 0, 0, 0.04)' 
                                                 : 'rgba(25, 118, 210, 0.08)'
                                         },
                                         borderLeft: `4px solid ${getNotificationColor(notification.type)}`,
-                                        borderLeftColor: notification.read 
+                                        borderLeftColor: notification.isRead 
                                             ? 'transparent' 
                                             : getNotificationColor(notification.type)
                                     }}
                                 >
                                     <ListItemIcon sx={{ minWidth: 40 }}>
                                         <Box sx={{ fontSize: '1.5rem' }}>
-                                            {notification.icon}
+                                            {getNotificationIcon(notification.type)}
                                         </Box>
                                     </ListItemIcon>
                                     
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                                                <Typography 
-                                                    variant="subtitle2" 
-                                                    sx={{ 
-                                                        fontWeight: notification.read ? 400 : 600,
-                                                        color: notification.read ? 'text.secondary' : 'text.primary'
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        {/* Title và Time */}
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                            <Typography 
+                                                variant="subtitle2" 
+                                                sx={{ 
+                                                    fontWeight: notification.isRead ? 400 : 600,
+                                                    color: notification.isRead ? 'text.secondary' : 'text.primary',
+                                                    flex: 1,
+                                                    mr: 1
+                                                }}
+                                            >
+                                                {notification.title}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                                                {formatTime(notification.createdAt)}
+                                            </Typography>
+                                        </Box>
+                                        
+                                        {/* Message */}
+                                        <Typography 
+                                            variant="body2" 
+                                            sx={{ 
+                                                color: notification.isRead ? 'text.secondary' : 'text.primary',
+                                                mb: 1
+                                            }}
+                                        >
+                                            {notification.message}
+                                        </Typography>
+                                        
+                                        {/* User info */}
+                                        <Typography 
+                                            variant="caption" 
+                                            sx={{ 
+                                                color: 'text.secondary',
+                                                display: 'block',
+                                                mb: 1
+                                            }}
+                                        >
+                                            👤 {notification.userName}
+                                        </Typography>
+                                        
+                                        {/* Store info - chỉ hiển thị khi có store */}
+                                        {notification.storeName && (
+                                            <Typography 
+                                                variant="caption" 
+                                                sx={{ 
+                                                    color: 'text.secondary',
+                                                    display: 'block',
+                                                    mb: 1
+                                                }}
+                                            >
+                                                🏪 {notification.storeName}
+                                            </Typography>
+                                        )}
+                                        
+                                        {/* Category và Unread indicator */}
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                            <Chip
+                                                label={getCategoryLabel(notification.category)}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ 
+                                                    fontSize: '0.7rem',
+                                                    height: '20px'
+                                                }}
+                                            />
+                                            {!notification.isRead && (
+                                                <Box
+                                                    sx={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: '50%',
+                                                        backgroundColor: 'primary.main'
                                                     }}
-                                                >
-                                                    {notification.title}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {formatTime(notification.timestamp)}
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        secondary={
-                                            <Box>
-                                                <Typography 
-                                                    variant="body2" 
-                                                    sx={{ 
-                                                        color: notification.read ? 'text.secondary' : 'text.primary',
-                                                        mb: 1
-                                                    }}
-                                                >
-                                                    {notification.message}
-                                                </Typography>
-                                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                                    <Chip
-                                                        label={getCategoryLabel(notification.category)}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        sx={{ 
-                                                            fontSize: '0.7rem',
-                                                            height: '20px'
-                                                        }}
-                                                    />
-                                                    {!notification.read && (
-                                                        <Box
-                                                            sx={{
-                                                                width: 8,
-                                                                height: 8,
-                                                                borderRadius: '50%',
-                                                                backgroundColor: 'primary.main'
-                                                            }}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            </Box>
-                                        }
-                                    />
+                                                />
+                                            )}
+                                        </Box>
+                                    </Box>
                                 </ListItemButton>
                                 <Divider />
                             </React.Fragment>

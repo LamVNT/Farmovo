@@ -10,6 +10,7 @@ import {getAllStores} from "../services/storeService";
 import {getCategories} from "../services/categoryService";
 import axios from "../services/axiosClient";
 import {saveAs} from 'file-saver';
+import { useNotification } from "../contexts/NotificationContext";
 
 export default function useStocktake(user, userRole) {
     // ================== Thông tin người dùng ==================
@@ -81,6 +82,9 @@ export default function useStocktake(user, userRole) {
     // ✅ Thêm state cho Detail page
     const [detail, setDetail] = useState(null);
     const [filter, setFilter] = useState({batchCode: "", productName: ""});
+
+    // Notification hook
+    const { createStocktakeNotification } = useNotification();
 
     const filteredDetails = useMemo(() => {
         if (!detail || !Array.isArray(detail.detail)) return [];
@@ -224,6 +228,20 @@ export default function useStocktake(user, userRole) {
             setActionLoading((prev) => ({...prev, [id]: true}));
             try {
                 await updateStocktakeStatus(id, newStatus);
+                
+                // Tìm thông tin stocktake để tạo thông báo
+                const st = stocktakes.find((s) => s.id === id);
+                if (st) {
+                    try {
+                        const storeId = st.storeId || (userRole === "STAFF" ? userStoreId : null);
+                        if (storeId) {
+                            await createStocktakeNotification('status_change', st.name || 'Phiếu kiểm kê', storeId, user?.id, newStatus);
+                        }
+                    } catch (notificationError) {
+                        console.error('Lỗi khi tạo thông báo:', notificationError);
+                    }
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: `Cập nhật trạng thái thành công!`,
@@ -241,7 +259,7 @@ export default function useStocktake(user, userRole) {
                 setActionLoading((prev) => ({...prev, [id]: false}));
             }
         },
-        [loadStocktakeList]
+        [stocktakes, createStocktakeNotification, loadStocktakeList]
     );
 
     // ================== Cancel ==================
@@ -293,6 +311,16 @@ export default function useStocktake(user, userRole) {
                     status: "CANCELLED",
                     stocktakeDate: st.stocktakeDate,
                 });
+
+                // Tạo thông báo khi hủy phiếu kiểm kê
+                try {
+                    const storeId = st.storeId || (userRole === "STAFF" ? userStoreId : null);
+                    if (storeId) {
+                        await createStocktakeNotification('cancel', st.name || 'Phiếu kiểm kê', storeId, user?.id, 'CANCELLED');
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
 
                 setSnackbar({
                     isOpen: true,
