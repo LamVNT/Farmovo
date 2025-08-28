@@ -12,12 +12,12 @@ import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
 import com.farmovo.backend.exceptions.ValidationException;
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,19 +27,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
+@ExtendWith(MockitoExtension.class)
 class StocktakeControllerTest {
+
     @Mock
     private StocktakeService stocktakeService;
 
@@ -49,64 +44,85 @@ class StocktakeControllerTest {
     @Mock
     private JwtUtils jwtUtils;
 
-    private MockMvc mockMvc;
-
     @InjectMocks
     private StocktakeController stocktakeController;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
+
+    private StocktakeRequestDto validRequestDto;
+    private StocktakeResponseDto validResponseDto;
+    private StocktakeDetailDto validDetailDto;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockJwt(null);
-        objectMapper.registerModule(new JavaTimeModule());
-
+        objectMapper = new ObjectMapper();
         mockMvc = MockMvcBuilders.standaloneSetup(stocktakeController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
-    }
 
-    private void mockJwt(HttpServletRequest request) {
+        // Setup test data
+        validDetailDto = new StocktakeDetailDto();
+        validDetailDto.setBatchCode("LOT001");
+        validDetailDto.setProductId(1L);
+        validDetailDto.setReal(10);
+        validDetailDto.setZoneReal("1");
+
+        validRequestDto = new StocktakeRequestDto();
+        validRequestDto.setStocktakeDate(Instant.now());
+        validRequestDto.setStoreId(1L);
+        validRequestDto.setStatus("DRAFT");
+        validRequestDto.setDetail(List.of(validDetailDto));
+
+        validResponseDto = new StocktakeResponseDto();
+        validResponseDto.setId(1L);
+        validResponseDto.setName("KK000001");
+        validResponseDto.setStatus("DRAFT");
+
+        // Mock JWT
         when(jwtUtils.getJwtFromRequest(any())).thenReturn("token");
         when(jwtUtils.getUserIdFromJwtToken(any())).thenReturn(1L);
     }
 
-    private StocktakeRequestDto createSampleStocktakeRequest() {
-        StocktakeRequestDto req = new StocktakeRequestDto();
-        req.setStocktakeDate(Instant.now());
-        req.setStoreId(1L);
-        req.setStatus("DRAFT");
-        req.setDetail(List.of(new StocktakeDetailDto()));
-        return req;
-    }
-
     @Test
     void createStocktake_success() throws Exception {
-        StocktakeRequestDto req = createSampleStocktakeRequest();
-        when(stocktakeService.createStocktake(any(), anyLong())).thenReturn(new StocktakeResponseDto());
+        when(stocktakeService.createStocktake(any(), anyLong())).thenReturn(validResponseDto);
 
         mockMvc.perform(post("/api/stocktakes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
+                        .content(objectMapper.writeValueAsString(validRequestDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L));
     }
 
     @Test
     void getAllStocktakes_success() throws Exception {
         when(stocktakeService.getAllStocktakes(any(), any(), any(), any(), any(), anyLong()))
-                .thenReturn(List.of(new StocktakeResponseDto()));
+                .thenReturn(List.of(validResponseDto));
 
         mockMvc.perform(get("/api/stocktakes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L));
+    }
+
+    @Test
+    void getStocktakesPaged_success() throws Exception {
+        when(stocktakeService.searchStocktakes(any(), any(), any(), any(), any(), anyLong(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        mockMvc.perform(get("/api/stocktakes/paged")
+                        .param("page", "0")
+                        .param("size", "10"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void getStocktakeById_success() throws Exception {
-        when(stocktakeService.getStocktakeById(1L)).thenReturn(new StocktakeResponseDto());
+        when(stocktakeService.getStocktakeById(1L)).thenReturn(validResponseDto);
 
         mockMvc.perform(get("/api/stocktakes/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L));
     }
 
     @Test
@@ -121,7 +137,7 @@ class StocktakeControllerTest {
     @Test
     void updateStocktakeStatus_success() throws Exception {
         when(stocktakeService.updateStocktakeStatus(eq(1L), eq("COMPLETED"), anyLong()))
-                .thenReturn(new StocktakeResponseDto());
+                .thenReturn(validResponseDto);
 
         mockMvc.perform(put("/api/stocktakes/1/status?status=COMPLETED"))
                 .andExpect(status().isOk());
@@ -129,12 +145,11 @@ class StocktakeControllerTest {
 
     @Test
     void updateStocktake_success() throws Exception {
-        StocktakeRequestDto req = createSampleStocktakeRequest();
-        when(stocktakeService.updateStocktake(eq(1L), any())).thenReturn(new StocktakeResponseDto());
+        when(stocktakeService.updateStocktake(eq(1L), any())).thenReturn(validResponseDto);
 
         mockMvc.perform(put("/api/stocktakes/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(validRequestDto)))
                 .andExpect(status().isOk());
     }
 
@@ -148,47 +163,71 @@ class StocktakeControllerTest {
 
     @Test
     void getZonesWithProducts_success() throws Exception {
-        when(importTransactionDetailService.getZonesWithProducts()).thenReturn(List.of(new ZoneResponseDto()));
+        ZoneResponseDto zoneDto = new ZoneResponseDto();
+        zoneDto.setId(1L);
+        zoneDto.setZoneName("Zone A");
+        
+        when(importTransactionDetailService.getZonesWithProducts()).thenReturn(List.of(zoneDto));
 
         mockMvc.perform(get("/api/stocktakes/zones-with-products"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L));
     }
 
     @Test
     void getProductsByZone_success() throws Exception {
-        when(importTransactionDetailService.getProductsByZone(anyString())).thenReturn(List.of(new ProductResponseDto()));
+        ProductResponseDto productDto = new ProductResponseDto();
+        productDto.setId(1L);
+        productDto.setName("Product A");
+        
+        when(importTransactionDetailService.getProductsByZone(anyString())).thenReturn(List.of(productDto));
 
         mockMvc.perform(get("/api/stocktakes/products-by-zone?zoneId=1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L));
     }
 
     @Test
     void checkMissingZones_success() throws Exception {
-        when(importTransactionDetailService.checkMissingZones(any())).thenReturn(List.of(new MissingZoneDto()));
+        MissingZoneDto missingZoneDto = new MissingZoneDto();
+        missingZoneDto.setProductId(1L);
+        missingZoneDto.setProductName("Product A");
+        
+        when(importTransactionDetailService.checkMissingZones(any())).thenReturn(List.of(missingZoneDto));
 
         mockMvc.perform(post("/api/stocktakes/check-missing-zones")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(List.of(new StocktakeDetailDto()))))
-                .andExpect(status().isOk());
+                        .content(objectMapper.writeValueAsString(List.of(validDetailDto))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].productId").value(1L));
     }
 
     @Test
+    void getImportBalanceData_success() throws Exception {
+        when(stocktakeService.getStocktakeById(1L)).thenReturn(validResponseDto);
+
+        mockMvc.perform(get("/api/stocktakes/1/import-balance-data"))
+                .andExpect(status().isOk());
+    }
+
+    // Error cases
+    @Test
     void createStocktake_missingField_shouldReturnBadRequest() throws Exception {
-        StocktakeRequestDto req = new StocktakeRequestDto();
+        StocktakeRequestDto invalidRequest = new StocktakeRequestDto();
+        
         mockMvc.perform(post("/api/stocktakes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void createStocktake_serviceThrowsValidation_shouldReturnBadRequest() throws Exception {
-        StocktakeRequestDto req = createSampleStocktakeRequest();
         when(stocktakeService.createStocktake(any(), anyLong())).thenThrow(new ValidationException("detail is required"));
 
         mockMvc.perform(post("/api/stocktakes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(validRequestDto)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -211,12 +250,11 @@ class StocktakeControllerTest {
 
     @Test
     void updateStocktake_notFound_shouldReturnBadRequest() throws Exception {
-        StocktakeRequestDto req = createSampleStocktakeRequest();
         when(stocktakeService.updateStocktake(eq(2L), any())).thenThrow(new ValidationException("Stocktake not found"));
 
         mockMvc.perform(put("/api/stocktakes/2")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+                        .content(objectMapper.writeValueAsString(validRequestDto)))
                 .andExpect(status().isBadRequest());
     }
 

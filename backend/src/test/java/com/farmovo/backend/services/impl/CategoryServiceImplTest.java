@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,34 +37,50 @@ class CategoryServiceImplTest {
     @Captor
     private ArgumentCaptor<Category> categoryCaptor;
 
-    private CategoryTestData testData;
+    private CategoryRequestDto validRequestDto;
+    private CategoryResponseDto validResponseDto;
+    private Category validCategory;
+    private Category existingCategory;
 
     @BeforeEach
     void setup() {
-        testData = new CategoryTestData();
+        // Setup test data
+        validRequestDto = new CategoryRequestDto("Category A", "Desc A");
+        validResponseDto = new CategoryResponseDto(1L, "Category A", "Desc A", LocalDateTime.now(), null);
+        
+        validCategory = new Category();
+        validCategory.setId(1L);
+        validCategory.setCategoryName("Category A");
+        validCategory.setCategoryDescription("Desc A");
+        
+        existingCategory = new Category();
+        existingCategory.setId(1L);
+        existingCategory.setCategoryName("Old");
+        existingCategory.setCategoryDescription("Old Desc");
     }
 
     @Test
     void testCreateCategorySuccess() {
-        when(categoryMapper.toEntity(testData.requestDto)).thenReturn(testData.category);
-        when(categoryRepository.save(any(Category.class))).thenReturn(testData.savedCategory);
-        when(categoryMapper.toResponseDto(testData.savedCategory)).thenReturn(testData.responseDto);
+        when(categoryMapper.toEntity(validRequestDto)).thenReturn(validCategory);
+        when(categoryRepository.save(any(Category.class))).thenReturn(validCategory);
+        when(categoryMapper.toResponseDto(validCategory)).thenReturn(validResponseDto);
 
-        CategoryResponseDto result = categoryService.createCategory(testData.requestDto);
+        CategoryResponseDto result = categoryService.createCategory(validRequestDto);
 
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getName()).isEqualTo("Category A");
-        verify(categoryMapper).toEntity(testData.requestDto);
+        verify(categoryMapper).toEntity(validRequestDto);
         verify(categoryRepository).save(categoryCaptor.capture());
         assertThat(categoryCaptor.getValue().getCategoryName()).isEqualTo("Category A");
-        verify(categoryMapper).toResponseDto(testData.savedCategory);
+        verify(categoryMapper).toResponseDto(validCategory);
     }
 
     @Test
     void testCreateCategory_DuplicateName_ThrowsValidationException() {
-        when(categoryRepository.findByCategoryName(testData.requestDto.getName())).thenReturn(Optional.of(testData.category));
-        assertThatThrownBy(() -> categoryService.createCategory(testData.requestDto))
+        when(categoryRepository.findByCategoryName(validRequestDto.getName())).thenReturn(Optional.of(validCategory));
+        
+        assertThatThrownBy(() -> categoryService.createCategory(validRequestDto))
                 .isInstanceOf(com.farmovo.backend.exceptions.ValidationException.class)
                 .hasMessageContaining("Tên danh mục đã tồn tại");
     }
@@ -71,6 +88,7 @@ class CategoryServiceImplTest {
     @Test
     void testCreateCategory_EmptyName_ThrowsValidationException() {
         CategoryRequestDto invalid = new CategoryRequestDto("", "desc");
+        
         assertThatThrownBy(() -> categoryService.createCategory(invalid))
                 .isInstanceOf(com.farmovo.backend.exceptions.ValidationException.class)
                 .hasMessageContaining("Category name cannot be empty");
@@ -80,6 +98,7 @@ class CategoryServiceImplTest {
     void testCreateCategory_TooLongDescription_ThrowsValidationException() {
         String longDesc = "a".repeat(256);
         CategoryRequestDto invalid = new CategoryRequestDto("A", longDesc);
+        
         assertThatThrownBy(() -> categoryService.createCategory(invalid))
                 .isInstanceOf(com.farmovo.backend.exceptions.ValidationException.class)
                 .hasMessageContaining("Description too long");
@@ -88,24 +107,25 @@ class CategoryServiceImplTest {
     @Test
     void testUpdateCategorySuccess() {
         Long id = 1L;
-        when(categoryRepository.findById(id)).thenReturn(Optional.of(testData.existingCategory));
-        when(categoryRepository.save(any(Category.class))).thenReturn(testData.savedCategory);
-        when(categoryMapper.toResponseDto(testData.savedCategory)).thenReturn(testData.responseDto);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(existingCategory));
+        when(categoryRepository.save(any(Category.class))).thenReturn(validCategory);
+        when(categoryMapper.toResponseDto(validCategory)).thenReturn(validResponseDto);
 
-        CategoryResponseDto result = categoryService.updateCategory(id, testData.requestDto);
+        CategoryResponseDto result = categoryService.updateCategory(id, validRequestDto);
 
         assertThat(result.getName()).isEqualTo("Category A");
         assertThat(result.getDescription()).isEqualTo("Desc A");
         verify(categoryRepository).findById(id);
         verify(categoryRepository).save(categoryCaptor.capture());
         assertThat(categoryCaptor.getValue().getCategoryName()).isEqualTo("Category A");
-        verify(categoryMapper).toResponseDto(testData.savedCategory);
+        verify(categoryMapper).toResponseDto(validCategory);
     }
 
     @Test
     void testUpdateCategory_NotFound_ThrowsCategoryNotFoundException() {
         when(categoryRepository.findById(2L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> categoryService.updateCategory(2L, testData.requestDto))
+        
+        assertThatThrownBy(() -> categoryService.updateCategory(2L, validRequestDto))
                 .isInstanceOf(com.farmovo.backend.exceptions.CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found");
     }
@@ -113,9 +133,10 @@ class CategoryServiceImplTest {
     @Test
     void testUpdateCategory_DuplicateName_ThrowsValidationException() {
         Long id = 1L;
-        when(categoryRepository.findById(id)).thenReturn(Optional.of(testData.existingCategory));
-        when(categoryRepository.findByCategoryName(testData.requestDto.getName())).thenReturn(Optional.of(testData.category));
-        assertThatThrownBy(() -> categoryService.updateCategory(id, testData.requestDto))
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(existingCategory));
+        when(categoryRepository.findByCategoryName(validRequestDto.getName())).thenReturn(Optional.of(validCategory));
+        
+        assertThatThrownBy(() -> categoryService.updateCategory(id, validRequestDto))
                 .isInstanceOf(com.farmovo.backend.exceptions.ValidationException.class)
                 .hasMessageContaining("Tên danh mục đã tồn tại");
     }
@@ -123,16 +144,17 @@ class CategoryServiceImplTest {
     @Test
     void testDeleteCategorySuccess() {
         Long id = 1L;
-        when(categoryRepository.findById(id)).thenReturn(Optional.of(testData.existingCategory));
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(existingCategory));
 
         categoryService.deleteCategory(id, false);
 
-        verify(categoryRepository).delete(testData.existingCategory);
+        verify(categoryRepository).delete(existingCategory);
     }
 
     @Test
     void testDeleteCategory_NotFound_ThrowsCategoryNotFoundException() {
         when(categoryRepository.findById(2L)).thenReturn(Optional.empty());
+        
         assertThatThrownBy(() -> categoryService.deleteCategory(2L, false))
                 .isInstanceOf(com.farmovo.backend.exceptions.CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found");
@@ -159,37 +181,5 @@ class CategoryServiceImplTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getName()).isEqualTo("A");
         assertThat(result.get(1).getName()).isEqualTo("B");
-    }
-}
-
-// Helper class to manage test data
-class CategoryTestData {
-    final CategoryRequestDto requestDto = new CategoryRequestDto("Category A", "Desc A");
-    final Category category = new Category();
-    final Category savedCategory = new Category();
-    final Category existingCategory = new Category();
-    final CategoryResponseDto responseDto;
-
-    {
-        category.setId(1L);
-        category.setCategoryName("Category A");
-        category.setCategoryDescription("Desc A");
-
-        savedCategory.setId(1L);
-        savedCategory.setCategoryName("Category A");
-        savedCategory.setCategoryDescription("Desc A");
-        savedCategory.setCreatedAt(LocalDateTime.of(2024, 1, 1, 10, 0));
-
-        existingCategory.setId(1L);
-        existingCategory.setCategoryName("Old");
-        existingCategory.setCategoryDescription("Old Desc");
-
-        responseDto = new CategoryResponseDto(
-                1L,
-                "Category A",
-                "Desc A",
-                LocalDateTime.of(2024, 1, 1, 10, 0),
-                null
-        );
     }
 }
