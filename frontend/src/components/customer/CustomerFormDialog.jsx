@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
 import { customerService } from "../../services/customerService";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", totalDebt: 0, isSupplier: false });
   const [loading, setLoading] = useState(false);
+  
+  const { createCustomerNotification } = useNotification();
 
   useEffect(() => {
     if (mode === "edit" && customer) {
@@ -34,8 +37,12 @@ const CustomerFormDialog = ({ open, onClose, mode, customer }) => {
     try {
       if (mode === "add") {
         await customerService.createCustomer(form);
+        // Tạo notification cho việc tạo khách hàng mới
+        createCustomerNotification('create', form.name);
       } else if (mode === "edit" && customer) {
         await customerService.updateCustomer(customer.id, form);
+        // Tạo notification cho việc cập nhật khách hàng
+        createCustomerNotification('update', form.name);
       }
       onClose(true);
     } catch (err) {

@@ -555,7 +555,25 @@ const EditPage = () => {
     const handleExpireDateChange = (id, newDate) => {
         let formatted = '';
         if (newDate instanceof Date && !isNaN(newDate)) {
+            // Validation ngày hết hạn
+            const now = new Date();
+            const selectedDate = new Date(newDate);
+            
+            // Kiểm tra ngày hết hạn không được ở quá khứ
+            if (selectedDate < now) {
+                setError('Ngày hết hạn không được ở quá khứ.');
+                return;
+            }
+            
+            // Kiểm tra ngày hết hạn không được quá 30 ngày từ hiện tại
+            const daysDiff = Math.ceil((selectedDate - now) / (1000 * 60 * 60 * 24));
+            if (daysDiff > 30) {
+                setError('Ngày hết hạn không được quá 30 ngày từ ngày hiện tại.');
+                return;
+            }
+            
             formatted = newDate.toISOString().slice(0, 10);
+            setError(null); // Xóa lỗi nếu validation thành công
         }
         setSelectedProducts((prev) =>
             prev.map((p) =>

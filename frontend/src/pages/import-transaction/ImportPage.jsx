@@ -46,7 +46,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 const ImportPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { createImportTransactionNotification, createSuccessNotification } = useNotification();
+    const { createImportTransactionNotification } = useNotification();
     const [currentUser, setCurrentUser] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -193,6 +193,11 @@ const ImportPage = () => {
 
     // Function để thêm product mới vào bảng
     const handleAddNewProduct = (newProduct) => {
+        // Kiểm tra cửa hàng trước khi thêm sản phẩm
+        if (!checkStoreBeforeSearch()) {
+            return;
+        }
+
         // Kiểm tra xem product đã có trong bảng chưa
         if (!selectedProducts.find((p) => p.id === newProduct.id)) {
             const price = 0; // Để user nhập vào
@@ -313,6 +318,18 @@ const ImportPage = () => {
         }
     }, [selectedStore, allZones, currentUser]);
 
+    // Reset selectedProducts khi store thay đổi (chỉ reset bảng datagrid, giữ nguyên thông tin khác)
+    useEffect(() => {
+        if (selectedStore) {
+            // Reset selectedProducts khi store thay đổi
+            setSelectedProducts([]);
+            // Clear search term và filtered products
+            setSearchTerm('');
+            setFilteredProducts([]);
+            setIsSearchFocused(false);
+        }
+    }, [selectedStore]);
+
     // Clear zone selection khi store thay đổi - tách riêng để tránh infinite loop
     useEffect(() => {
         if (selectedStore) {
@@ -366,13 +383,45 @@ const ImportPage = () => {
         // Không cần setFilteredProducts ở đây nữa, đã xử lý trong useEffect
     };
 
+    // Hàm kiểm tra cửa hàng trước khi search
+    const checkStoreBeforeSearch = () => {
+        // Kiểm tra xem đã chọn store chưa (đối với ADMIN/MANAGER)
+        const isAdminOrManager = currentUser?.roles?.includes("ADMIN") || currentUser?.roles?.includes("MANAGER") || 
+                                currentUser?.roles?.includes("ROLE_ADMIN") || currentUser?.roles?.includes("ROLE_MANAGER");
+        
+        if (isAdminOrManager && !selectedStore) {
+            setError('Vui lòng chọn cửa hàng trước khi tìm kiếm sản phẩm');
+            setHighlightStore(true);
+            return false;
+        }
+        return true;
+    };
+
     // Hàm xử lý thay đổi ngày hết hạn
     const handleExpireDateChange = (id, newDate) => {
         // newDate là object Date hoặc null
         let formatted = '';
         if (newDate instanceof Date && !isNaN(newDate)) {
+            // Validation ngày hết hạn
+            const now = new Date();
+            const selectedDate = new Date(newDate);
+            
+            // Kiểm tra ngày hết hạn không được ở quá khứ
+            if (selectedDate < now) {
+                setError('Ngày hết hạn không được ở quá khứ.');
+                return;
+            }
+            
+            // Kiểm tra ngày hết hạn không được quá 30 ngày từ hiện tại
+            const daysDiff = Math.ceil((selectedDate - now) / (1000 * 60 * 60 * 24));
+            if (daysDiff > 30) {
+                setError('Ngày hết hạn không được quá 30 ngày từ ngày hiện tại.');
+                return;
+            }
+            
             // format yyyy-MM-dd để lưu backend
             formatted = newDate.toISOString().slice(0, 10);
+            setError(null); // Xóa lỗi nếu validation thành công
         }
         setSelectedProducts((prev) =>
             prev.map((p) =>
@@ -388,6 +437,11 @@ const ImportPage = () => {
 
     // Sửa handleSelectProduct để truyền unit hiện tại, price luôn là giá 1 quả
     const handleSelectProduct = (product) => {
+        // Kiểm tra cửa hàng trước khi thêm sản phẩm
+        if (!checkStoreBeforeSearch()) {
+            return;
+        }
+
         if (!selectedProducts.find((p) => p.id === product.id)) {
             const price = product.price || 0;
             const quantity = 1; // Mặc định 1 quả
@@ -548,6 +602,11 @@ const ImportPage = () => {
     };
 
     const handleSelectCategoryProduct = (product) => {
+        // Kiểm tra cửa hàng trước khi thêm sản phẩm
+        if (!checkStoreBeforeSearch()) {
+            return;
+        }
+
         if (!selectedProducts.find((p) => p.productId === product.id)) {
             const price = product.price || 0;
             const quantity = 1;
@@ -674,8 +733,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
@@ -746,8 +804,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
@@ -1712,8 +1769,7 @@ const ImportPage = () => {
             // Hiển thị thông báo thành công
             setSuccess('Tạo phiếu nhập hàng thành công!');
             
-            // Gửi thông báo notification
-            createSuccessNotification('Thành công', 'Tạo phiếu nhập hàng thành công!');
+            // Gửi thông báo notification (chỉ gọi 1 function để tránh duplicate)
             createImportTransactionNotification('create', nextImportCode);
             
             // Lưu thông báo thành công vào localStorage để hiển thị khi quay về trang index
@@ -2032,7 +2088,13 @@ const ImportPage = () => {
                                     placeholder="Tìm hàng hóa theo mã hoặc tên (F3)"
                                     value={searchTerm}
                                     onChange={handleSearchChange}
-                                    onFocus={() => setIsSearchFocused(true)}
+                                    onFocus={() => {
+                                        // Kiểm tra cửa hàng trước khi search
+                                        if (!checkStoreBeforeSearch()) {
+                                            return;
+                                        }
+                                        setIsSearchFocused(true);
+                                    }}
                                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)} // Delay để cho phép click chọn
                                     variant="outlined"
                                     InputProps={{
@@ -2067,7 +2129,7 @@ const ImportPage = () => {
                                     }}
                                 />
                                 
-                                {/* Search Dropdown - Fixed positioning */}
+                                                                {/* Search Dropdown - Fixed positioning */}
                                 {(isSearchFocused || searchTerm.trim() !== '') && (
                                     <div 
                                         className="absolute top-full mt-1 left-0 right-0 z-50 bg-white border-2 border-blue-100 shadow-2xl rounded-2xl w-full font-medium text-base max-h-80 overflow-y-auto overflow-x-hidden transition-all duration-200"
@@ -2081,28 +2143,36 @@ const ImportPage = () => {
                                             minWidth: '384px'
                                         }}
                                     >
-                                        {filteredProducts.length > 0 ? (
-                                            filteredProducts.map((product, index) => (
-                                                <div
-                                                    key={product.id || index}
-                                                    onClick={() => handleSelectProduct(product)}
-                                                    onMouseEnter={() => setActiveIndex(index)}
-                                                    onMouseLeave={() => setActiveIndex(-1)}
-                                                    className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
-                                                        ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
-                                                    `}
-                                                >
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
-                                                        <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                        {selectedStore ? (
+                                            filteredProducts.length > 0 ? (
+                                                filteredProducts.map((product, index) => (
+                                                    <div
+                                                        key={product.id || index}
+                                                        onClick={() => handleSelectProduct(product)}
+                                                        onMouseEnter={() => setActiveIndex(index)}
+                                                        onMouseLeave={() => setActiveIndex(-1)}
+                                                        className={`flex items-center gap-3 px-7 py-3 cursor-pointer border-b border-blue-100 last:border-b-0 transition-colors duration-150
+                                                            ${activeIndex === index ? 'bg-blue-100/70 text-blue-900 font-bold scale-[1.01] shadow-sm' : 'hover:bg-blue-50/80'}
+                                                        `}
+                                                    >
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="font-semibold truncate max-w-[180px]">{product.name || product.productName}</span>
+                                                            <span className="text-xs font-semibold text-blue-700 truncate">Mã: {product.code || product.productCode || 'N/A'}</span>
+                                                        </div>
+                                                        {product.price && (
+                                                            <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
+                                                        )}
                                                     </div>
-                                                    {product.price && (
-                                                        <span className="ml-2 text-xs text-green-600 font-semibold truncate max-w-[90px]">{product.price.toLocaleString('vi-VN')}₫</span>
-                                                    )}
+                                                ))
+                                            ) : (
+                                                <div className="px-7 py-4 text-center text-gray-400">
+                                                    Không tìm thấy sản phẩm
                                                 </div>
-                                            ))
+                                            )
                                         ) : (
-                                            <div className="px-7 py-4 text-center text-gray-400">Không tìm thấy sản phẩm</div>
+                                            <div className="px-7 py-4 text-center text-gray-400">
+                                                Vui lòng chọn cửa hàng trước khi tìm kiếm
+                                            </div>
                                         )}
                                     </div>
                                 )}

@@ -4,6 +4,7 @@ import com.farmovo.backend.dto.response.*;
 import com.farmovo.backend.mapper.ImportTransactionDetailLotMapper;
 import com.farmovo.backend.mapper.ProductMapper;
 import com.farmovo.backend.models.ImportTransactionDetail;
+import com.farmovo.backend.models.ImportTransactionStatus;
 import com.farmovo.backend.models.Product;
 import com.farmovo.backend.models.Store;
 import com.farmovo.backend.models.Zone;
@@ -47,7 +48,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     @Override
     public List<ZoneResponseDto> getZonesWithProducts() {
         log.debug("Fetching zones with products");
-        Set<Long> zoneIds = detailRepository.findAllZoneIdsWithProducts().stream()
+        // Chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        Set<Long> zoneIds = detailRepository.findAllZoneIdsWithProductsCompleted(ImportTransactionStatus.COMPLETE).stream()
                 .filter(Objects::nonNull)
                 .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
                 .collect(Collectors.toSet());
@@ -60,7 +62,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     @Override
     public List<ProductResponseDto> getProductsByZone(String zoneId) {
         log.debug("Fetching products for zoneId: {}", zoneId);
-        List<Long> productIds = detailRepository.findProductIdsByZoneId(zoneId);
+        // Chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<Long> productIds = detailRepository.findProductIdsByZoneIdCompleted(zoneId, ImportTransactionStatus.COMPLETE);
         List<ProductResponseDto> allProducts = productService.getAllProducts();
         // Lọc sản phẩm theo productIds và enrich thông tin từ ImportTransactionDetail
         return allProducts.stream()
@@ -72,7 +75,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     @Override
     public List<ZoneResponseDto> getZonesByProduct(Long productId) {
         log.debug("Fetching zones for productId: {}", productId);
-        Set<Long> zoneIds = detailRepository.findZoneIdsByProductId(productId).stream()
+        // Chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        Set<Long> zoneIds = detailRepository.findZoneIdsByProductIdCompleted(productId, ImportTransactionStatus.COMPLETE).stream()
                 .filter(Objects::nonNull)
                 .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
                 .collect(Collectors.toSet());
@@ -85,8 +89,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     @Override
     public List<ZoneProductDetailDto> getDetailsByZone(String zoneId) {
         log.debug("Fetching details for zoneId: {}", zoneId);
-        // Parse từng dòng kết quả từ repository
-        return detailRepository.findDetailsByZoneId(zoneId).stream()
+        // Parse từng dòng kết quả từ repository - chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        return detailRepository.findDetailsByZoneIdCompleted(zoneId, ImportTransactionStatus.COMPLETE).stream()
                 .map(row -> new ZoneProductDetailDto(
                         (Long) row[0],          // importDetailId
                         (Long) row[1],          // productId
@@ -108,8 +112,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
             Set<Long> checkedZoneIds = Optional.ofNullable(detail.getZones_id())
                     .map(zones -> zones.stream().map(Long::parseLong).collect(Collectors.toSet()))
                     .orElse(new HashSet<>());
-            // Lấy tất cả zoneId thực tế của sản phẩm từ ImportTransactionDetail
-            Set<Long> actualZoneIds = detailRepository.findZoneIdsByProductId(productId).stream()
+            // Lấy tất cả zoneId thực tế của sản phẩm từ ImportTransactionDetail (chỉ từ các phiếu nhập đã hoàn thành)
+            Set<Long> actualZoneIds = detailRepository.findZoneIdsByProductIdCompleted(productId, ImportTransactionStatus.COMPLETE).stream()
                     .filter(Objects::nonNull)
                     .flatMap(zoneIdStr -> parseZonesId(zoneIdStr).stream())
                     .collect(Collectors.toSet());
@@ -125,8 +129,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
                 List<ZoneResponseDto> checkedZonesList = allZones.stream()
                         .filter(zone -> checkedZoneIds.contains(zone.getId()))
                         .collect(Collectors.toList());
-                // Tính tổng số lượng còn lại
-                List<ImportTransactionDetail> productDetails = detailRepository.findByProductIdAndRemain(productId);
+                // Tính tổng số lượng còn lại (chỉ từ các phiếu nhập đã hoàn thành)
+                List<ImportTransactionDetail> productDetails = detailRepository.findByProductIdAndRemainQuantityGreaterThanCompleted(productId, 0, ImportTransactionStatus.COMPLETE);
                 Integer totalRemainQuantity = productDetails.stream()
                         .mapToInt(ImportTransactionDetail::getRemainQuantity)
                         .sum();
@@ -144,7 +148,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
     @Override
     public List<ImportDetailLotDto> findForStocktakeLot(String store, String zone, String product, Boolean isCheck, String batchCode, String search) {
         log.debug("Finding stocktake lots with filters: store={}, zone={}, product={}, search={}", store, zone, product, search);
-        return detailRepository.findByRemainQuantityGreaterThan(0).stream()
+        // Chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        return detailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE).stream()
                 .filter(row -> filterStocktakeLot(row, store, zone, product, isCheck, batchCode, search))
                 .map(this::mapToImportDetailLotDto)
                 .collect(Collectors.toList());
@@ -217,8 +222,13 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     @Override
     public List<ProductSaleResponseDto> getAvailableProductsForSale() {
+<<<<<<< HEAD
         // Chỉ lấy các lô thuộc phiếu nhập COMPLETE và còn số lượng
         List<ImportTransactionDetail> availableDetails = detailRepository.findCompletedDetailsWithQuantity();
+=======
+        // Chỉ lấy sản phẩm từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> availableDetails = detailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE);
+>>>>>>> origin/develop
         if (!availableDetails.isEmpty()) {
             return availableDetails.stream()
                     .map(productMapper::toDtoSale)
@@ -230,7 +240,8 @@ public class ImportTransactionDetailServiceImpl implements ImportTransactionDeta
 
     // Hàm enrich thông tin sản phẩm từ ImportTransactionDetail
     private ProductResponseDto enrichProductWithDetails(ProductResponseDto product, String zoneId) {
-        List<ImportTransactionDetail> details = detailRepository.findByZoneId(zoneId);
+        // Chỉ lấy từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> details = detailRepository.findByZoneIdCompleted(zoneId, ImportTransactionStatus.COMPLETE);
         ImportTransactionDetail detail = details.stream()
                 .filter(d -> d.getProduct().getId().equals(product.getProId()))
                 .findFirst()

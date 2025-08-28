@@ -85,6 +85,32 @@ public class InputUserValidation {
         }
     }
 
+    // Validation cho email không bị duplicate khi tạo mới
+    public void validateEmailForCreate(String email, boolean isEmailExists) {
+        // Email có thể không bắt buộc khi tạo user
+        if (email != null && !email.trim().isEmpty()) {
+            validateEmail(email);
+            
+            // Kiểm tra email đã tồn tại chưa
+            if (isEmailExists) {
+                throw new IllegalArgumentException("Email đã được sử dụng bởi tài khoản khác");
+            }
+        }
+    }
+
+    // Validation cho email không bị duplicate khi cập nhật
+    public void validateEmailForUpdate(String email, boolean isEmailExists, Long currentUserId) {
+        // Email có thể không bắt buộc khi cập nhật
+        if (email != null && !email.trim().isEmpty()) {
+            validateEmail(email);
+            
+            // Kiểm tra email đã tồn tại chưa (trừ user hiện tại)
+            if (isEmailExists) {
+                throw new IllegalArgumentException("Email đã được sử dụng bởi tài khoản khác");
+            }
+        }
+    }
+
     // Validation cho SendLoginInfoRequestDto
     public void validateSendLoginInfoRequest(SendLoginInfoRequestDto request) {
         if (request == null) {

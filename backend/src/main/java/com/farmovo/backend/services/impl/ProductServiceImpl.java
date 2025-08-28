@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -81,6 +82,48 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toDtoProSaleList(productRepository.findAllWithCategoryAndStore());
     }
 
+    /**
+     * Kiểm tra trùng lặp tên sản phẩm theo role
+     * - OWNER: Chỉ kiểm tra trùng lặp trong cùng store (có thể tạo cùng tên ở kho khác)
+     * - STAFF: Kiểm tra trùng lặp trong cùng store và category
+     */
+    private void validateProductNameDuplicate(String productName, Long storeId, Long categoryId, String userRole, Long excludeProductId) {
+        String trimmedName = productName.trim();
+        Optional<Product> existingProduct;
+        
+        if ("OWNER".equals(userRole) || "ROLE_OWNER".equals(userRole)) {
+            // Owner: Chỉ kiểm tra trùng lặp trong cùng store
+            if (excludeProductId != null) {
+                existingProduct = productRepository.findByProductNameAndStoreIgnoreCaseExcludingId(
+                    trimmedName, storeId, excludeProductId
+                );
+            } else {
+                existingProduct = productRepository.findByProductNameAndStoreIgnoreCase(
+                    trimmedName, storeId
+                );
+            }
+            
+            if (existingProduct.isPresent()) {
+                throw new IllegalArgumentException("Sản phẩm '" + trimmedName + "' đã tồn tại trong cửa hàng này");
+            }
+        } else {
+            // Staff: Kiểm tra trùng lặp trong cùng store và category
+            if (excludeProductId != null) {
+                existingProduct = productRepository.findByProductNameAndStoreAndCategoryIgnoreCaseExcludingId(
+                    trimmedName, storeId, categoryId, excludeProductId
+                );
+            } else {
+                existingProduct = productRepository.findByProductNameAndStoreAndCategoryIgnoreCase(
+                    trimmedName, storeId, categoryId
+                );
+            }
+            
+            if (existingProduct.isPresent()) {
+                throw new IllegalArgumentException("Sản phẩm '" + trimmedName + "' đã tồn tại trong danh mục và cửa hàng này");
+            }
+        }
+    }
+
     @Override
     public ProductDto createProduct(ProductRequestDto productRequestDto) {
         logger.info("Creating new product: {}", productRequestDto.getProductName());
@@ -95,11 +138,18 @@ public class ProductServiceImpl implements ProductService {
             if (productRequestDto.getStoreId() == null) {
                 throw new IllegalArgumentException("Cửa hàng không được để trống");
             }
-            // Find category and store
+            
+            // Find category and store first
             Category category = categoryRepository.findById(productRequestDto.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productRequestDto.getCategoryId()));
             Store store = storeRepository.findById(productRequestDto.getStoreId())
                     .orElseThrow(() -> new ResourceNotFoundException("Store not found with id: " + productRequestDto.getStoreId()));
+            
+            // Kiểm tra trùng lặp tên sản phẩm theo role
+            String productName = productRequestDto.getProductName();
+            String userRole = productRequestDto.getUserRole() != null ? productRequestDto.getUserRole() : "STAFF"; // Default là STAFF
+            validateProductNameDuplicate(productName, productRequestDto.getStoreId(), productRequestDto.getCategoryId(), userRole, null);
+            
             // Create new product
             Product product = new Product();
             product.setProductName(productRequestDto.getProductName());
@@ -140,10 +190,19 @@ public class ProductServiceImpl implements ProductService {
             if (productRequestDto.getStoreId() == null) {
                 throw new IllegalArgumentException("Cửa hàng không được để trống");
             }
+            
+            // Find category and store first
             Category category = categoryRepository.findById(productRequestDto.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productRequestDto.getCategoryId()));
             Store store = storeRepository.findById(productRequestDto.getStoreId())
                     .orElseThrow(() -> new ResourceNotFoundException("Store not found with id: " + productRequestDto.getStoreId()));
+            
+            // Kiểm tra trùng lặp tên sản phẩm theo role
+            // TODO: Cần truyền user role vào đây
+            String productName = productRequestDto.getProductName();
+            String userRole = productRequestDto.getUserRole() != null ? productRequestDto.getUserRole() : "STAFF"; // Default là STAFF
+            validateProductNameDuplicate(productName, productRequestDto.getStoreId(), productRequestDto.getCategoryId(), userRole, id);
+
             existingProduct.setProductName(productRequestDto.getProductName());
             existingProduct.setProductDescription(productRequestDto.getProductDescription());
             existingProduct.setProductQuantity(productRequestDto.getProductQuantity() != null ? productRequestDto.getProductQuantity() : existingProduct.getProductQuantity());

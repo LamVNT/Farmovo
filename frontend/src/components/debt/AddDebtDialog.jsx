@@ -119,11 +119,41 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
 
     const parseDebtDate = (dateStr) => {
         if (!dateStr) return new Date().toISOString();
-        const [datePart, timePart] = dateStr.split(" ");
-        const [dd, mm, yyyy] = datePart.split("/");
-        const formattedDate = `${yyyy}-${mm}-${dd}T${timePart || "00:00"}:00`;
-        const parsedDate = new Date(formattedDate);
-        return isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+        
+        try {
+            const [datePart, timePart] = dateStr.split(" ");
+            const [dd, mm, yyyy] = datePart.split("/");
+            const [hours, minutes] = (timePart || "00:00").split(":");
+            
+            // Tạo date object với múi giờ địa phương
+            const localDate = new Date(
+                parseInt(yyyy), 
+                parseInt(mm) - 1, // Month is 0-indexed
+                parseInt(dd),
+                parseInt(hours),
+                parseInt(minutes)
+            );
+            
+            // Kiểm tra date hợp lệ
+            if (isNaN(localDate.getTime())) {
+                console.warn("Invalid date format, using current time:", dateStr);
+                return new Date().toISOString();
+            }
+            
+            // Trả về ISO string với múi giờ địa phương
+            // Sử dụng cách đơn giản: tạo ISO string và điều chỉnh timezone
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const hour = String(localDate.getHours()).padStart(2, '0');
+            const minute = String(localDate.getMinutes()).padStart(2, '0');
+            
+            // Tạo ISO string với múi giờ địa phương
+            return `${year}-${month}-${day}T${hour}:${minute}:00`;
+        } catch (error) {
+            console.error("Error parsing debt date:", error, "Input:", dateStr);
+            return new Date().toISOString();
+        }
     };
 
     const handleSubmit = async () => {
@@ -148,8 +178,14 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
                 storeId: formData.storeId || null,
                 fromSource: "MANUAL", // Đánh dấu là đơn tự nhập
             };
+            
+            // Log để debug
+            console.log("Sending debt date:", data.debtDate);
+            console.log("Current local time:", new Date().toLocaleString());
+            
             const newDebtNote = await addDebtNote(data);
-            onAdd(newDebtNote);
+            
+            // Reset form trước khi gọi callback
             setFormData({
                 customerId,
                 debtAmount: "0",
@@ -162,6 +198,11 @@ const AddDebtDialog = ({ open, onClose, customerId, onAdd }) => {
             setFile(null);
             setPreviewUrl(null);
             setError("");
+            
+            // Gọi callback để refresh dữ liệu
+            onAdd(newDebtNote);
+            
+            // Đóng dialog sau cùng
             onClose();
         } catch (error) {
             console.error("Failed to add debt note:", error);

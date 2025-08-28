@@ -208,8 +208,8 @@ public class SaleTransactionController {
     @GetMapping("/stocktake/{stocktakeId}/status")
     public ResponseEntity<Map<String, Object>> getPcbStatusByStocktakeId(@PathVariable Long stocktakeId) {
         try {
-            // Kiểm tra xem có PCB nào liên kết với stocktake này không
-            List<SaleTransaction> pcbs = saleTransactionRepository.findByStocktakeId(stocktakeId);
+            // Kiểm tra xem có PCB nào liên kết với stocktake này không (chỉ lấy các PCB đã hoàn thành)
+            List<SaleTransaction> pcbs = saleTransactionRepository.findByStocktakeIdAndStatus(stocktakeId, SaleTransactionStatus.COMPLETE);
             
             if (pcbs.isEmpty()) {
                 return ResponseEntity.ok(Map.of(

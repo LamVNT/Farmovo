@@ -53,6 +53,7 @@ import PaginationBar from "../../components/stocktake/PaginationBar";
 import { useStoreSelection } from "../../contexts/StoreSelectionContext";
 import StoreSelector from "../../components/stocktake/StoreSelector";
 import { useStoreForStocktake } from "../../hooks/useStoreForStocktake";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const CreateStocktakePage = () => {
     const { id } = useParams();
@@ -68,6 +69,10 @@ const CreateStocktakePage = () => {
 
     // Store selection for stocktake
     const storeForStocktake = useStoreForStocktake(user, userRole);
+    
+    // Notification hook
+    const { createStocktakeNotification } = useNotification();
+    
     const {
         products = [],
         zones = [],
@@ -92,6 +97,7 @@ const CreateStocktakePage = () => {
         dataLoaded,
         setDataLoaded,
         loadMasterData, // <-- thêm loadMasterData từ hook
+        loadZonesByStore, // <-- thêm loadZonesByStore từ hook
     } = useStocktake(user, userRole);
 
     // Dialog sau khi tạo thành công để chuyển trang chi tiết nếu có chênh lệch
@@ -246,9 +252,14 @@ const CreateStocktakePage = () => {
                     currentStoreIdStr: currentStoreId
                 });
                 setFilter(f => ({ ...f, store: currentStoreId }));
+                
+                // Load zones theo store mới
+                if (typeof loadZonesByStore === 'function') {
+                    loadZonesByStore(Number(currentStoreId));
+                }
             }
         }
-    }, [userRole, storeForStocktake.currentStoreId]); // Bỏ filter.store khỏi dependencies để tránh vòng lặp
+    }, [userRole, storeForStocktake.currentStoreId, loadZonesByStore]); // Bỏ filter.store khỏi dependencies để tránh vòng lặp
 
     // Khởi tạo filter.store từ storeForStocktake khi component mount
     useEffect(() => {
@@ -259,6 +270,11 @@ const CreateStocktakePage = () => {
                 currentFilterStore: filter.store
             });
             setFilter(f => ({ ...f, store: String(storeForStocktake.currentStoreId) }));
+            
+            // Load zones theo store đã chọn
+            if (typeof loadZonesByStore === 'function') {
+                loadZonesByStore(Number(storeForStocktake.currentStoreId));
+            }
         } else if (userRole === 'STAFF' && !filter.store) {
             // Staff: khởi tạo từ staffStoreId
             const staffStoreIdNum = getStaffStoreId();
@@ -266,7 +282,7 @@ const CreateStocktakePage = () => {
                 setFilter(f => ({ ...f, store: String(staffStoreIdNum) }));
             }
         }
-    }, [userRole, storeForStocktake.currentStoreId]); // Chỉ chạy khi role hoặc currentStoreId thay đổi
+    }, [userRole, storeForStocktake.currentStoreId, loadZonesByStore]); // Chỉ chạy khi role hoặc currentStoreId thay đổi
 
 
     // Khi filter.store thay đổi hoặc products thay đổi, fetch lots (chỉ khi cần thiết)
@@ -279,7 +295,7 @@ const CreateStocktakePage = () => {
 
             return () => clearTimeout(timeoutId);
         }
-    }, [filter.store, filter.zone, filter.product, filter.startDate, filter.endDate, products]);
+    }, [filter.store, filter.zone, filter.product, products]);
 
     // Đảm bảo rằng khi staff được set store, lots được fetch ngay lập tức
     useEffect(() => {
@@ -313,9 +329,14 @@ const CreateStocktakePage = () => {
     // Đảm bảo luôn gọi loadMasterData khi vào trang
     useEffect(() => {
         if (typeof loadMasterData === 'function') {
-            loadMasterData();
+            // Nếu đã có store được chọn, load zones theo store đó
+            if (filter.store) {
+                loadMasterData(Number(filter.store));
+            } else {
+                loadMasterData();
+            }
         }
-    }, []);
+    }, [loadMasterData, filter.store]);
 
     // Load stores cho STAFF (để hiển thị tên store) - OWNER/ADMIN sử dụng StoreSelector
     useEffect(() => {
@@ -360,17 +381,7 @@ const CreateStocktakePage = () => {
             if (filter.zone) params.append('zone', filter.zone);
             if (filter.product) params.append('product', filter.product);
 
-            // Xử lý filter ngày tháng
-            if (filter.startDate) {
-                const startDate = new Date(filter.startDate);
-                startDate.setHours(0, 0, 0, 0);
-                params.append('createdAtFrom', startDate.toISOString());
-            }
-            if (filter.endDate) {
-                const endDate = new Date(filter.endDate);
-                endDate.setHours(23, 59, 59, 999);
-                params.append('createdAtTo', endDate.toISOString());
-            }
+            // Filter ngày tháng đã được ẩn
 
             const resData = await getStocktakeLots(Object.fromEntries(params));
 
@@ -452,50 +463,45 @@ const CreateStocktakePage = () => {
                 finalResult = [...merged, ...missingEditedLots];
 
             } else {
-                // FIXED: Có filter → vẫn preserve edited lots nhưng chỉ hiển thị những lot phù hợp với filter
-                const existingLotKeys = new Set(merged.map(lot => getLotKey(lot)));
-                const preservedEditedLots = [];
+                            // FIXED: Có filter → vẫn preserve edited lots nhưng chỉ hiển thị những lot phù hợp với filter
+            const existingLotKeys = new Set(merged.map(lot => getLotKey(lot)));
+            const preservedEditedLots = [];
 
-                // Preserve edited lots that are not in current filter result
-                for (const [lotKey, editData] of userEdits.entries()) {
-                    if (!existingLotKeys.has(lotKey)) {
-                        const existingLot = lots.find(lot => getLotKey(lot) === lotKey);
-                        if (existingLot) {
-                            // Check if this lot should be included based on current filter
-                            let shouldInclude = true;
+            // Preserve edited lots that are not in current filter result
+            for (const [lotKey, editData] of userEdits.entries()) {
+                if (!existingLotKeys.has(lotKey)) {
+                    const existingLot = lots.find(lot => getLotKey(lot) === lotKey);
+                    if (existingLot) {
+                        // Check if this lot should be included based on current filter
+                        let shouldInclude = true;
 
-                            // Check zone filter
-                            if (filter.zone && existingLot.zonesId && Array.isArray(existingLot.zonesId)) {
-                                shouldInclude = existingLot.zonesId.includes(Number(filter.zone));
+                        // Check zone filter
+                        if (filter.zone && existingLot.zonesId && Array.isArray(existingLot.zonesId)) {
+                            shouldInclude = existingLot.zonesId.includes(Number(filter.zone));
+                        }
+
+                        // Check product filter
+                        if (shouldInclude && filter.product) {
+                            shouldInclude = Number(existingLot.productId) === Number(filter.product);
+                        }
+
+                        // Filter ngày tháng đã được ẩn
+
+                        if (shouldInclude) {
+                            // Apply user edits to existing lot
+                            const editedLot = { ...existingLot };
+                            Object.keys(editData).forEach(key => {
+                                editedLot[key] = editData[key];
+                            });
+                            // Recalculate diff if real was edited
+                            if (editData.real !== undefined) {
+                                editedLot.diff = Number(editData.real) - (Number(existingLot.remainQuantity) || 0);
                             }
-
-                            // Check product filter
-                            if (shouldInclude && filter.product) {
-                                shouldInclude = Number(existingLot.productId) === Number(filter.product);
-                            }
-
-                            // Check date filter (if lot has createdAt)
-                            if (shouldInclude && (filter.startDate || filter.endDate) && existingLot.createdAt) {
-                                const lotDate = new Date(existingLot.createdAt).toISOString().split('T')[0];
-                                if (filter.startDate && lotDate < filter.startDate) shouldInclude = false;
-                                if (filter.endDate && lotDate > filter.endDate) shouldInclude = false;
-                            }
-
-                            if (shouldInclude) {
-                                // Apply user edits to existing lot
-                                const editedLot = { ...existingLot };
-                                Object.keys(editData).forEach(key => {
-                                    editedLot[key] = editData[key];
-                                });
-                                // Recalculate diff if real was edited
-                                if (editData.real !== undefined) {
-                                    editedLot.diff = Number(editData.real) - (Number(existingLot.remainQuantity) || 0);
-                                }
-                                preservedEditedLots.push(editedLot);
-                            }
+                            preservedEditedLots.push(editedLot);
                         }
                     }
                 }
+            }
 
                 finalResult = [...merged, ...preservedEditedLots];
             }
@@ -806,6 +812,15 @@ const CreateStocktakePage = () => {
             };
             if (id) {
                 const updated = await updateStocktake(id, payload);
+                
+                // Tạo thông báo khi cập nhật stocktake
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreId;
+                    await createStocktakeNotification('update', updated?.name || 'Phiếu kiểm kê', selectedStoreId, user.id, status);
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
@@ -815,6 +830,13 @@ const CreateStocktakePage = () => {
                 // Nếu hoàn thành và có chênh lệch thì mở dialog chuyển trang chi tiết
                 const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
                 if (status === 'COMPLETED' && hasDiff) {
+                                    // Tạo thông báo cần cân bằng kho
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('balance_required', updated?.name || 'Phiếu kiểm kê', selectedStoreId, user.id, 'COMPLETED');
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo cân bằng kho:', notificationError);
+                }
                     setPostCreateDialog({ open: true, id: id, name: updated?.name || '' });
                 } else {
                     setLots([]);
@@ -823,6 +845,15 @@ const CreateStocktakePage = () => {
                 }
             } else {
                 const created = await createStocktake(payload);
+                
+                // Tạo thông báo khi tạo stocktake mới
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('create', created?.name || 'Phiếu kiểm kê mới', selectedStoreId, user.id, status);
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: status === 'COMPLETED' ? "Hoàn thành phiếu kiểm kê thành công!" : "Lưu nháp phiếu kiểm kê thành công!",
@@ -832,6 +863,13 @@ const CreateStocktakePage = () => {
                 const createdId = created?.id;
                 const hasDiff = Array.isArray(lots) && lots.some(l => Number(l.diff) !== 0);
                 if (status === 'COMPLETED' && hasDiff && createdId) {
+                                    // Tạo thông báo cần cân bằng kho
+                try {
+                    const selectedStoreId = isOwnerOrAdmin ? storeForStocktake.currentStoreId : staffStoreIdNum;
+                    await createStocktakeNotification('balance_required', created?.name || 'Phiếu kiểm kê mới', selectedStoreId, user.id, 'COMPLETED');
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo cân bằng kho:', notificationError);
+                }
                     setPostCreateDialog({ open: true, id: createdId, name: created?.name || '' });
                 } else {
                     setLots([]);
@@ -1036,6 +1074,11 @@ const CreateStocktakePage = () => {
                             setLots([]);
                             setSelectedLots([]);
                             setUserEdits(new Map());
+                            
+                            // Load zones theo store mới
+                            if (typeof loadZonesByStore === 'function') {
+                                loadZonesByStore(Number(storeId));
+                            }
                         }
                     }}
                 />
@@ -1730,118 +1773,21 @@ const CreateStocktakePage = () => {
                             </FormControl>
                         </Box>
 
-                        {/* Filter Ngày tháng */}
-                        <Box>
+                        {/* Filter Ngày tháng - Đã ẩn */}
+                        {/* <Box>
                             <Typography variant="subtitle1" fontWeight={600} mb={2} color="#374151">
                                 Ngày tạo:
                             </Typography>
 
-                            {/* Các nút tiện ích */}
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                                <Button
-                                    size="small"
-                                    variant={!filter.startDate && !filter.endDate ? "contained" : "outlined"}
-                                    onClick={() => setFilter(f => ({ ...f, startDate: '', endDate: '' }))}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Tất cả
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant={filter.startDate === getTodayString() && filter.endDate === getTodayString() ? "contained" : "outlined"}
-                                    onClick={() => {
-                                        const today = getTodayString();
-                                        setFilter(f => ({ ...f, startDate: today, endDate: today }));
-                                    }}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Hôm nay
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant={filter.startDate === getYesterdayString() && filter.endDate === getYesterdayString() ? "contained" : "outlined"}
-                                    onClick={() => {
-                                        const today = getTodayString();
-                                        setFilter(f => ({ ...f, startDate: getYesterdayString(), endDate: getYesterdayString() }));
-                                    }}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Hôm qua
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant={filter.startDate === getThisWeekStart() && filter.endDate === getThisWeekEnd() ? "contained" : "outlined"}
-                                    onClick={() => {
-                                        setFilter(f => ({ ...f, startDate: getThisWeekStart(), endDate: getThisWeekEnd() }));
-                                    }}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Tuần này
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant={filter.startDate === getLastWeekStart() && filter.endDate === getLastWeekEnd() ? "contained" : "outlined"}
-                                    onClick={() => {
-                                        setFilter(f => ({ ...f, startDate: getLastWeekStart(), endDate: getLastWeekEnd() }));
-                                    }}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Tuần trước
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant={filter.startDate === getThisMonthStart() && filter.endDate === getThisMonthEnd() ? "contained" : "outlined"}
-                                    onClick={() => {
-                                        setFilter(f => ({ ...f, startDate: getThisMonthStart(), endDate: getThisMonthEnd() }));
-                                    }}
-                                    sx={{ fontSize: '0.75rem', px: 2, py: 0.5 }}
-                                >
-                                    Tháng này
-                                </Button>
-                            </Box>
-
-                            {/* Input ngày tháng */}
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField
-                                    type="date"
-                                    label="Từ ngày"
-                                    value={filter.startDate}
-                                    onChange={e => setFilter(f => ({ ...f, startDate: e.target.value }))}
-                                    size="small"
-                                    fullWidth
-                                    InputLabelProps={{ shrink: true }}
-                                    sx={{ borderRadius: 2 }}
-                                    inputProps={{
-                                        max: filter.endDate || undefined
-                                    }}
-                                />
-                                <TextField
-                                    type="date"
-                                    label="Đến ngày"
-                                    value={filter.endDate}
-                                    onChange={e => setFilter(f => ({ ...f, endDate: e.target.value }))}
-                                    size="small"
-                                    fullWidth
-                                    InputLabelProps={{ shrink: true }}
-                                    sx={{ borderRadius: 2 }}
-                                    inputProps={{
-                                        min: filter.startDate || undefined
-                                    }}
-                                />
-                            </Box>
-                            {(filter.startDate && filter.endDate && filter.startDate > filter.endDate) && (
-                                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                                    Ngày bắt đầu không được lớn hơn ngày kết thúc
-                                </Typography>
-                            )}
-                        </Box>
+                            Các nút tiện ích và input ngày tháng đã được ẩn
+                        </Box> */}
                     </Box>
                 </DialogContent>
 
                 <DialogActions sx={{ p: 3, pt: 1 }}>
                     <Button
                         onClick={() => {
-                            setFilter(f => ({ ...f, zone: '', product: '', startDate: '', endDate: '' }));
+                            setFilter(f => ({ ...f, zone: '', product: '' }));
                         }}
                         sx={{
                             color: '#6b7280',
@@ -1894,7 +1840,7 @@ const CreateStocktakePage = () => {
                     <Button onClick={() => {
                         setPostCreateDialog({ open: false, id: null, name: '' });
                         navigate('/stocktake');
-                    }} color="inherit">Ở lại</Button>
+                    }} color="inherit">Về trang kiểm kê</Button>
                     <Button onClick={() => {
                         const targetId = postCreateDialog.id || id;
                         setPostCreateDialog({ open: false, id: null, name: '' });

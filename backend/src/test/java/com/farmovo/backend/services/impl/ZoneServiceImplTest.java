@@ -4,7 +4,9 @@ import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.mapper.ZoneMapper;
 import com.farmovo.backend.models.Zone;
+import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ZoneRepository;
+import com.farmovo.backend.services.StoreService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -27,6 +30,9 @@ class ZoneServiceImplTest {
     @Mock
     private ZoneMapper zoneMapper;
 
+    @Mock
+    private StoreService storeService;
+
     @InjectMocks
     private ZoneServiceImpl zoneService;
 
@@ -39,11 +45,17 @@ class ZoneServiceImplTest {
         zoneToSave.setZoneName("Khu A");
         zoneToSave.setZoneDescription("Zone A");
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Store 1");
+
         Zone savedZone = new Zone();
         savedZone.setId(1L);
         savedZone.setZoneName("Khu A");
         savedZone.setZoneDescription("Zone A");
-        savedZone.setCreatedAt(LocalDateTime.of(2024, 1, 1, 12, 0)); // ví dụ cứng để dễ so sánh
+        savedZone.setCreatedAt(LocalDateTime.of(2024, 1, 1, 12, 0));
+        savedZone.setStore(store);
 
         ZoneResponseDto expectedDto = new ZoneResponseDto(
                 1L,
@@ -59,6 +71,7 @@ class ZoneServiceImplTest {
         );
 
         Mockito.when(zoneMapper.toEntity(request)).thenReturn(zoneToSave);
+        Mockito.when(storeService.getStoreById(1L)).thenReturn(Optional.of(store));
         Mockito.when(zoneRepository.save(Mockito.any(Zone.class))).thenReturn(savedZone);
         Mockito.when(zoneMapper.toResponseDto(savedZone)).thenReturn(expectedDto);
 
@@ -74,6 +87,7 @@ class ZoneServiceImplTest {
 
         // Verify interactions
         Mockito.verify(zoneMapper).toEntity(request);
+        Mockito.verify(storeService).getStoreById(1L);
         Mockito.verify(zoneRepository).save(Mockito.any(Zone.class));
         Mockito.verify(zoneMapper).toResponseDto(savedZone);
     }
@@ -84,16 +98,23 @@ class ZoneServiceImplTest {
         Long id = 1L;
         ZoneRequestDto request = new ZoneRequestDto("Khu B", "Updated Description", 1L);
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Store 1");
+
         Zone existingZone = new Zone();
         existingZone.setId(id);
         existingZone.setZoneName("Khu A");
         existingZone.setZoneDescription("Old Description");
+        existingZone.setStore(store);
 
         Zone updatedZone = new Zone();
         updatedZone.setId(id);
         updatedZone.setZoneName("Khu B");
         updatedZone.setZoneDescription("Updated Description");
         updatedZone.setUpdatedAt(LocalDateTime.of(2024, 1, 1, 14, 0));
+        updatedZone.setStore(store);
 
         ZoneResponseDto expectedDto = new ZoneResponseDto(
                 id,
@@ -109,6 +130,7 @@ class ZoneServiceImplTest {
         );
 
         Mockito.when(zoneRepository.findById(id)).thenReturn(java.util.Optional.of(existingZone));
+        Mockito.when(storeService.getStoreById(1L)).thenReturn(Optional.of(store));
         Mockito.when(zoneRepository.save(Mockito.any(Zone.class))).thenReturn(updatedZone);
         Mockito.when(zoneMapper.toResponseDto(updatedZone)).thenReturn(expectedDto);
 
@@ -120,6 +142,7 @@ class ZoneServiceImplTest {
         assertThat(result.getZoneDescription()).isEqualTo("Updated Description");
 
         Mockito.verify(zoneRepository).findById(id);
+        Mockito.verify(storeService).getStoreById(1L);
         Mockito.verify(zoneRepository).save(Mockito.any(Zone.class));
         Mockito.verify(zoneMapper).toResponseDto(updatedZone);
     }
@@ -130,16 +153,24 @@ class ZoneServiceImplTest {
         Long id = 1L;
         ZoneRequestDto request = new ZoneRequestDto("", "Desc", 1L);
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Store 1");
+
         Zone existingZone = new Zone();
         existingZone.setId(id);
+        existingZone.setStore(store);
 
         Mockito.when(zoneRepository.findById(id)).thenReturn(java.util.Optional.of(existingZone));
+        Mockito.when(storeService.getStoreById(1L)).thenReturn(Optional.of(store));
 
         assertThatThrownBy(() -> zoneService.updateZone(id, request))
                 .isInstanceOf(com.farmovo.backend.exceptions.ValidationException.class)
                 .hasMessageContaining("ZoneName cannot be empty");
 
         Mockito.verify(zoneRepository).findById(id);
+        Mockito.verify(storeService).getStoreById(1L);
     }
 
     @Test
@@ -218,11 +249,17 @@ class ZoneServiceImplTest {
         zoneToSave.setZoneName("Khu C");
         zoneToSave.setZoneDescription("Zone C");
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(2L);
+        store.setStoreName("Store 2");
+
         Zone savedZone = new Zone();
         savedZone.setId(3L);
         savedZone.setZoneName("Khu C");
         savedZone.setZoneDescription("Zone C");
         savedZone.setCreatedAt(LocalDateTime.of(2024, 1, 1, 15, 0));
+        savedZone.setStore(store);
 
         ZoneResponseDto expectedDto = new ZoneResponseDto(
                 3L,
@@ -238,6 +275,7 @@ class ZoneServiceImplTest {
         );
 
         Mockito.when(zoneMapper.toEntity(request)).thenReturn(zoneToSave);
+        Mockito.when(storeService.getStoreById(2L)).thenReturn(Optional.of(store));
         Mockito.when(zoneRepository.save(Mockito.any(Zone.class))).thenReturn(savedZone);
         Mockito.when(zoneMapper.toResponseDto(savedZone)).thenReturn(expectedDto);
 
@@ -255,6 +293,7 @@ class ZoneServiceImplTest {
 
         // Verify interactions
         Mockito.verify(zoneMapper).toEntity(request);
+        Mockito.verify(storeService).getStoreById(2L);
         Mockito.verify(zoneRepository).save(Mockito.any(Zone.class));
         Mockito.verify(zoneMapper).toResponseDto(savedZone);
     }
@@ -265,16 +304,23 @@ class ZoneServiceImplTest {
         Long id = 1L;
         ZoneRequestDto request = new ZoneRequestDto("Khu D", "Updated Zone D", 3L);
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(3L);
+        store.setStoreName("Store 3");
+
         Zone existingZone = new Zone();
         existingZone.setId(id);
         existingZone.setZoneName("Khu A");
         existingZone.setZoneDescription("Old Description");
+        existingZone.setStore(store);
 
         Zone updatedZone = new Zone();
         updatedZone.setId(id);
         updatedZone.setZoneName("Khu D");
         updatedZone.setZoneDescription("Updated Zone D");
         updatedZone.setUpdatedAt(LocalDateTime.of(2024, 1, 1, 16, 0));
+        updatedZone.setStore(store);
 
         ZoneResponseDto expectedDto = new ZoneResponseDto(
                 id,
@@ -290,6 +336,7 @@ class ZoneServiceImplTest {
         );
 
         Mockito.when(zoneRepository.findById(id)).thenReturn(java.util.Optional.of(existingZone));
+        Mockito.when(storeService.getStoreById(3L)).thenReturn(Optional.of(store));
         Mockito.when(zoneRepository.save(Mockito.any(Zone.class))).thenReturn(updatedZone);
         Mockito.when(zoneMapper.toResponseDto(updatedZone)).thenReturn(expectedDto);
 
@@ -297,12 +344,13 @@ class ZoneServiceImplTest {
         ZoneResponseDto result = zoneService.updateZone(id, request);
 
         // Then
-        assertThat(result.getZoneName()).isEqualTo("Z_[4;4]");
+        assertThat(result.getZoneName()).isEqualTo("Khu D");
         assertThat(result.getZoneDescription()).isEqualTo("Updated Zone D");
         assertThat(result.getStoreId()).isEqualTo(3L);
         assertThat(result.getStoreName()).isEqualTo("Store 3");
 
         Mockito.verify(zoneRepository).findById(id);
+        Mockito.verify(storeService).getStoreById(3L);
         Mockito.verify(zoneRepository).save(Mockito.any(Zone.class));
         Mockito.verify(zoneMapper).toResponseDto(updatedZone);
     }
@@ -431,21 +479,29 @@ class ZoneServiceImplTest {
         ZoneRequestDto request1 = new ZoneRequestDto("Khu A", "Zone A", 1L);
         ZoneRequestDto request2 = new ZoneRequestDto("Khu A", "Zone A Duplicate", 1L);
 
+        // Mock Store
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Store 1");
+
         Zone zone1 = new Zone();
         zone1.setId(1L);
         zone1.setZoneName("Khu A");
         zone1.setZoneDescription("Zone A");
+        zone1.setStore(store);
 
         Zone zone2 = new Zone();
         zone2.setId(2L);
         zone2.setZoneName("Khu A");
         zone2.setZoneDescription("Zone A Duplicate");
+        zone2.setStore(store);
 
         ZoneResponseDto dto1 = new ZoneResponseDto(1L, "Khu A", "Zone A", null, null, null, null, null, 1L, "Store 1");
         ZoneResponseDto dto2 = new ZoneResponseDto(2L, "Khu A", "Zone A Duplicate", null, null, null, null, null, 1L, "Store 1");
 
         Mockito.when(zoneMapper.toEntity(request1)).thenReturn(zone1);
         Mockito.when(zoneMapper.toEntity(request2)).thenReturn(zone2);
+        Mockito.when(storeService.getStoreById(1L)).thenReturn(Optional.of(store));
         Mockito.when(zoneRepository.save(Mockito.any(Zone.class))).thenReturn(zone1).thenReturn(zone2);
         Mockito.when(zoneMapper.toResponseDto(zone1)).thenReturn(dto1);
         Mockito.when(zoneMapper.toResponseDto(zone2)).thenReturn(dto2);
@@ -465,6 +521,7 @@ class ZoneServiceImplTest {
 
         // Verify interactions
         Mockito.verify(zoneMapper, Mockito.times(2)).toEntity(Mockito.any(ZoneRequestDto.class));
+        Mockito.verify(storeService, Mockito.times(2)).getStoreById(1L);
         Mockito.verify(zoneRepository, Mockito.times(2)).save(Mockito.any(Zone.class));
         Mockito.verify(zoneMapper, Mockito.times(2)).toResponseDto(Mockito.any(Zone.class));
     }

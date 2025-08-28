@@ -7,6 +7,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CustomerFormDialog from "../../components/customer/CustomerFormDialog";
 import CustomerDetailDialog from "../../components/customer/CustomerDetailDialog";
 import CustomerTable from "../../components/customer/CustomerTable";
+import { useNotification } from "../../contexts/NotificationContext";
 
 const PAGE_SIZE = 10;
 
@@ -23,6 +24,8 @@ const CustomerManagementPage = () => {
     loading,
     error
   } = useCustomers();
+  
+  const { createCustomerNotification } = useNotification();
   const [openForm, setOpenForm] = useState(false);
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -94,6 +97,10 @@ const CustomerManagementPage = () => {
     if (!customerToDelete) return;
     try {
       await customerService.deleteCustomer(customerToDelete.id, 1); // TODO: deletedBy real
+      
+      // Tạo notification cho việc xóa khách hàng
+      createCustomerNotification('delete', customerToDelete.name);
+      
       fetchCustomers();
     } catch (err) {
       // handle error appropriately

@@ -166,7 +166,12 @@ const DebtDetailDialog = ({ open, onClose, debtNote }) => {
                             name="debtDate"
                             type="datetime-local"
                             fullWidth
-                            value={debtNote.debtDate ? new Date(debtNote.debtDate).toISOString().slice(0, 16) : ""}
+                            value={debtNote.debtDate ? (() => {
+                                const date = new Date(debtNote.debtDate);
+                                // Chuyển đổi về múi giờ địa phương
+                                const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                                return localDate.toISOString().slice(0, 16);
+                            })() : ""}
                             disabled
                             InputLabelProps={{ shrink: true }}
                             label=""

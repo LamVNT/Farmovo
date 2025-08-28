@@ -172,4 +172,191 @@ class ProductServiceImplTest {
         given(productRepository.findById(2L)).willReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> productService.deleteProduct(2L));
     }
+
+    @Test
+    void createProduct_ShouldThrowException_WhenProductNameExistsInSameStoreAndCategory() {
+        // Given
+        ProductRequestDto requestDto = new ProductRequestDto();
+        requestDto.setProductName("Trứng Ngan");
+        requestDto.setCategoryId(1L);
+        requestDto.setStoreId(1L);
+        requestDto.setProductQuantity(10);
+
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng");
+
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Cửa hàng 1");
+
+        Product existingProduct = new Product();
+        existingProduct.setId(1L);
+        existingProduct.setProductName("Trứng ngan"); // Tên tương tự nhưng khác hoa thường
+        existingProduct.setCategory(category);
+        existingProduct.setStore(store);
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+        when(productRepository.findByProductNameAndStoreAndCategoryIgnoreCase("Trứng Ngan", 1L, 1L))
+                .thenReturn(Optional.of(existingProduct));
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            productService.createProduct(requestDto);
+        });
+
+        assertEquals("Sản phẩm 'Trứng Ngan' đã tồn tại trong danh mục và cửa hàng này", exception.getMessage());
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void updateProduct_ShouldThrowException_WhenProductNameExistsInSameStoreAndCategory() {
+        // Given
+        Long productId = 1L;
+        ProductRequestDto requestDto = new ProductRequestDto();
+        requestDto.setProductName("Trứng Ngan");
+        requestDto.setCategoryId(1L);
+        requestDto.setStoreId(1L);
+        requestDto.setProductQuantity(10);
+
+        Product existingProduct = new Product();
+        existingProduct.setId(productId);
+        existingProduct.setProductName("Trứng Vịt");
+
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng");
+
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Cửa hàng 1");
+
+        Product duplicateProduct = new Product();
+        duplicateProduct.setId(2L);
+        duplicateProduct.setProductName("Trứng ngan"); // Tên tương tự nhưng khác hoa thường
+
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existingProduct));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+        when(productRepository.findByProductNameAndStoreAndCategoryIgnoreCaseExcludingId("Trứng Ngan", 1L, 1L, productId))
+                .thenReturn(Optional.of(duplicateProduct));
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            productService.updateProduct(productId, requestDto);
+        });
+
+        assertEquals("Sản phẩm 'Trứng Ngan' đã tồn tại trong danh mục và cửa hàng này", exception.getMessage());
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void createProduct_OwnerCanCreateSameNameInDifferentStore() {
+        // Given: Owner tạo sản phẩm "Trứng Ngan" ở Store A
+        ProductRequestDto requestDto = new ProductRequestDto();
+        requestDto.setProductName("Trứng Ngan");
+        requestDto.setCategoryId(1L);
+        requestDto.setStoreId(1L);
+        requestDto.setProductQuantity(10);
+        requestDto.setUserRole("OWNER");
+
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng");
+
+        Store store1 = new Store();
+        store1.setId(1L);
+        store1.setStoreName("Store A");
+
+        // Không có sản phẩm trùng lặp trong Store 1
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(storeRepository.findById(1L)).thenReturn(Optional.of(store1));
+        when(productRepository.findByProductNameAndStoreIgnoreCase("Trứng Ngan", 1L))
+                .thenReturn(Optional.empty());
+
+        Product product1 = new Product();
+        product1.setId(1L);
+        product1.setProductName("Trứng Ngan");
+        product1.setCategory(category);
+        product1.setStore(store1);
+        product1.setProductCode("SP000001");
+
+        when(productRepository.save(any(Product.class))).thenReturn(product1);
+        when(productMapper.toDto(any(Product.class))).thenReturn(new ProductDto());
+
+        // When & Then: Tạo sản phẩm đầu tiên thành công
+        ProductDto result1 = productService.createProduct(requestDto);
+        assertNotNull(result1);
+        verify(productRepository).findByProductNameAndStoreIgnoreCase("Trứng Ngan", 1L);
+
+        // Given: Owner tạo sản phẩm "Trứng Ngan" ở Store B (cùng tên, khác store)
+        ProductRequestDto requestDto2 = new ProductRequestDto();
+        requestDto2.setProductName("Trứng Ngan");
+        requestDto2.setCategoryId(1L);
+        requestDto2.setStoreId(2L);
+        requestDto2.setProductQuantity(10);
+        requestDto2.setUserRole("OWNER");
+
+        Store store2 = new Store();
+        store2.setId(2L);
+        store2.setStoreName("Store B");
+
+        // Không có sản phẩm trùng lặp trong Store 2
+        when(storeRepository.findById(2L)).thenReturn(Optional.of(store2));
+        when(productRepository.findByProductNameAndStoreIgnoreCase("Trứng Ngan", 2L))
+                .thenReturn(Optional.empty());
+
+        Product product2 = new Product();
+        product2.setId(2L);
+        product2.setProductName("Trứng Ngan");
+        product2.setCategory(category);
+        product2.setStore(store2);
+        product2.setProductCode("SP000002");
+
+        when(productRepository.save(any(Product.class))).thenReturn(product2);
+
+        // When & Then: Tạo sản phẩm thứ hai thành công (cùng tên, khác store)
+        ProductDto result2 = productService.createProduct(requestDto2);
+        assertNotNull(result2);
+        verify(productRepository).findByProductNameAndStoreIgnoreCase("Trứng Ngan", 2L);
+    }
+
+    @Test
+    void createProduct_OwnerCannotCreateSameNameInSameStore() {
+        // Given: Owner tạo sản phẩm "Trứng Ngan" ở Store A
+        ProductRequestDto requestDto = new ProductRequestDto();
+        requestDto.setProductName("Trứng Ngan");
+        requestDto.setCategoryId(1L);
+        requestDto.setStoreId(1L);
+        requestDto.setProductQuantity(10);
+        requestDto.setUserRole("OWNER");
+
+        Category category = new Category();
+        category.setId(1L);
+        category.setCategoryName("Trứng");
+
+        Store store = new Store();
+        store.setId(1L);
+        store.setStoreName("Store A");
+
+        Product existingProduct = new Product();
+        existingProduct.setId(1L);
+        existingProduct.setProductName("Trứng ngan"); // Tên tương tự nhưng khác hoa thường
+        existingProduct.setCategory(category);
+        existingProduct.setStore(store);
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+        when(productRepository.findByProductNameAndStoreIgnoreCase("Trứng Ngan", 1L))
+                .thenReturn(Optional.of(existingProduct));
+
+        // When & Then: Không thể tạo sản phẩm trùng lặp trong cùng store
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            productService.createProduct(requestDto);
+        });
+
+        assertEquals("Sản phẩm 'Trứng Ngan' đã tồn tại trong cửa hàng này", exception.getMessage());
+        verify(productRepository, never()).save(any(Product.class));
+    }
 } 

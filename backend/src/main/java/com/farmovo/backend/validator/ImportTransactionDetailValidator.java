@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Component
 public class ImportTransactionDetailValidator {
@@ -32,8 +33,20 @@ public class ImportTransactionDetailValidator {
             throw new BadRequestException("Giá bán không hợp lệ.");
         }
 
-        if (dto.getExpireDate() != null && dto.getExpireDate().isBefore(LocalDateTime.now())){
-            throw new BadRequestException("Ngày hết hạn không được ở quá khứ.");
+        // Validation ngày hết hạn
+        if (dto.getExpireDate() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            
+            // Kiểm tra ngày hết hạn không được ở quá khứ
+            if (dto.getExpireDate().isBefore(now)) {
+                throw new BadRequestException("Ngày hết hạn không được ở quá khứ.");
+            }
+            
+            // Kiểm tra ngày hết hạn không được quá 30 ngày từ hiện tại
+            long daysUntilExpiry = ChronoUnit.DAYS.between(now, dto.getExpireDate());
+            if (daysUntilExpiry > 30) {
+                throw new BadRequestException("Ngày hết hạn không được quá 30 ngày từ ngày hiện tại.");
+            }
         }
     }
 }
