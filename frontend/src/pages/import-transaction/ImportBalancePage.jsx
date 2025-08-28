@@ -605,7 +605,7 @@ const ImportBalancePage = () => {
 
             await importTransactionService.createFromBalance(importData);
 
-            setSuccess('Tạo phiếu nhập cân bằng thành công!');
+            setSuccess('Cập nhật thành công!');
 
             // Đánh dấu đã tạo phiếu nhập cân bằng
             localStorage.setItem(`stocktake_${stocktakeInfo.stocktakeId}_hasBalanceImport`, 'true');
@@ -616,7 +616,7 @@ const ImportBalancePage = () => {
             }, 2000);
         } catch (err) {
             console.error('Error creating import transaction:', err);
-            setError('Không thể tạo phiếu nhập cân bằng');
+            setError('Không thể Cập nhật');
         } finally {
             setLoading(false);
         }
@@ -940,7 +940,7 @@ const ImportBalancePage = () => {
                                     }
                                 }}
                             >
-                                {mode === 'create' ? 'Tạo PCB Nhập' : 'Phiếu nhập cân bằng'}
+                                {mode === 'create' ? 'Quay lại' : 'Phiếu nhập cân bằng'}
                             </Button>
                         </div>
 

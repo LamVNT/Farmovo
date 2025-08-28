@@ -66,7 +66,7 @@ const SaleDetailDialog = ({
             <DialogTitle className="flex justify-between items-center bg-gray-50">
                 <div>
                     <Typography variant="h6" className="font-bold text-gray-800">
-                        CHI TIẾT PHIẾU BÁN HÀNG{transaction.name ? `: ${transaction.name}` : ''}
+                            CHI TIẾT PHIẾU CÂN BẰNG{transaction.name ? `: ${transaction.name}` : ''}
                     </Typography>
                     <Typography variant="body2" className="text-gray-600">
                         {status === 'DRAFT' ? '📝 Phiếu tạm thời' : 
@@ -234,31 +234,7 @@ const SaleDetailDialog = ({
                         {loading ? 'Đang xử lý...' : 'Hoàn thành'}
                     </Button>
                 )}
-                {transaction.status === 'WAITING_FOR_APPROVE' && onCloseTransaction && (
-                    <Button 
-                        variant="contained"
-                        color="secondary"
-                        onClick={onCloseTransaction}
-                        disabled={loading}
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                    >
-                        {loading ? 'Đang xử lý...' : 'Đóng phiếu'}
-                    </Button>
-                )}
-                {(transaction.status === 'DRAFT' || transaction.status === 'WAITING_FOR_APPROVE') && onCancel && (
-                    <Button 
-                        variant="contained"
-                        color="error"
-                        onClick={() => {
-                            setConfirmType('cancel');
-                            setConfirmOpen(true);
-                        }}
-                        disabled={loading}
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CancelIcon />}
-                    >
-                        {loading ? 'Đang xử lý...' : 'Hủy phiếu'}
-                    </Button>
-                )}
+                {/* Ẩn nút Đóng phiếu và Hủy phiếu khi xem chi tiết phiếu cân bằng kho */}
                 {transaction.status === 'WAITING_FOR_APPROVE' && onComplete && (
                     <Button 
                         variant="contained"
