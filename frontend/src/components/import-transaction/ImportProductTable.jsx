@@ -34,7 +34,51 @@ const ImportProductTable = ({
     onDeleteProduct,
     onToggleColumn,
     onSetAnchorEl,
+    setError, // Thêm prop setError để hiển thị lỗi validation
 }) => {
+    // Hàm validation ngày hết hạn
+    const validateExpireDate = (newDate) => {
+        if (!newDate || !(newDate instanceof Date) || isNaN(newDate)) {
+            return { isValid: false, message: 'Ngày không hợp lệ.' };
+        }
+
+        const now = new Date();
+        const selectedDate = new Date(newDate);
+        
+        // Kiểm tra ngày hết hạn không được ở quá khứ
+        if (selectedDate < now) {
+            return { isValid: false, message: 'Ngày hết hạn không được ở quá khứ.' };
+        }
+        
+        // Kiểm tra ngày hết hạn không được quá 30 ngày từ hiện tại
+        const daysDiff = Math.ceil((selectedDate - now) / (1000 * 60 * 60 * 24));
+        if (daysDiff > 30) {
+            return { isValid: false, message: 'Ngày hết hạn không được quá 30 ngày từ ngày hiện tại.' };
+        }
+        
+        return { isValid: true, message: '' };
+    };
+
+    // Hàm xử lý thay đổi ngày hết hạn với validation
+    const handleExpireDateChange = (id, newDate) => {
+        const validation = validateExpireDate(newDate);
+        
+        if (!validation.isValid) {
+            if (setError) {
+                setError(validation.message);
+            }
+            return;
+        }
+        
+        // Xóa lỗi nếu validation thành công
+        if (setError) {
+            setError(null);
+        }
+        
+        // Gọi hàm callback gốc
+        onExpireDateChange(id, newDate);
+    };
+
     // Memoized columns for DataGrid
     const columns = useMemo(() => [
         columnVisibility['STT'] && { field: 'id', headerName: 'STT', width: 80 },
@@ -54,12 +98,17 @@ const ImportProductTable = ({
                     </button>
                     <TextField
                         size="small"
-                        type="number"
+                        value={params.row.quantity || 0}
+                        onChange={(e) => onQuantityInputChange(params.row.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
                         variant="standard"
-                        value={params.row.quantity || 1}
-                        onChange={(e) => onQuantityInputChange(params.row.id, Number(e.target.value) || 1)}
                         sx={{
                             width: '60px',
+                            textAlign: 'center',
+                            '& .MuiInputBase-input': {
+                                textAlign: 'center',
+                                padding: 0,
+                            },
                             '& .MuiInput-underline:before': {
                                 borderBottomColor: 'transparent',
                             },
@@ -69,13 +118,8 @@ const ImportProductTable = ({
                             '& .MuiInput-underline:hover:before': {
                                 borderBottomColor: 'transparent',
                             },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
                         }}
+                        inputProps={{ style: { textAlign: 'center' } }}
                     />
                     <button 
                         onClick={() => onQuantityChange(params.row.id, 1)} 
@@ -84,90 +128,70 @@ const ImportProductTable = ({
                         +
                     </button>
                 </div>
-            )
+            ),
         },
         columnVisibility['Đơn giá'] && {
             field: 'unitImportPrice',
             headerName: 'Đơn giá',
-            renderHeader: () => (
-                <span>
-                    Đơn giá<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
-                </span>
-            ),
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
-                    <TextField
-                        size="small"
-                        type="number"
-                        variant="standard"
-                        value={params.row.unitImportPrice || 0}
-                        onChange={(e) => onImportPriceChange(params.row.id, Number(e.target.value) || 0)}
-                        InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
-                        }}
-                        sx={{
-                            width: '100px',
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
-                        }}
-                    />
-                </div>
+                <TextField
+                    size="small"
+                    value={params.row.unitImportPrice || 0}
+                    onChange={(e) => onImportPriceChange(params.row.id, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    variant="standard"
+                    sx={{
+                        width: '120px',
+                        textAlign: 'center',
+                        '& .MuiInputBase-input': {
+                            textAlign: 'center',
+                            padding: 0,
+                        },
+                        '& .MuiInput-underline:before': {
+                            borderBottomColor: 'transparent',
+                        },
+                        '& .MuiInput-underline:after': {
+                            borderBottomColor: '#1976d2',
+                        },
+                        '& .MuiInput-underline:hover:before': {
+                            borderBottomColor: 'transparent',
+                        },
+                    }}
+                    inputProps={{ style: { textAlign: 'center' } }}
+                />
             ),
         },
         columnVisibility['Giá bán'] && {
             field: 'unitSalePrice',
             headerName: 'Giá bán',
-            renderHeader: () => (
-                <span>
-                    Giá bán<span style={{ color: '#6b7280', fontSize: '0.875em' }}>/quả</span>
-                </span>
-            ),
             width: 150,
             renderCell: (params) => (
-                <div className="flex items-center justify-center h-full">
-                    <TextField
-                        size="small"
-                        type="number"
-                        variant="standard"
-                        value={params.row.unitSalePrice || 0}
-                        onChange={(e) => onSalePriceChange(params.row.id, Number(e.target.value) || 0)}
-                        InputProps={{
-                            endAdornment: <span className="text-gray-500">VND</span>,
-                        }}
-                        sx={{
-                            width: '100px',
-                            '& .MuiInput-underline:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& .MuiInput-underline:after': {
-                                borderBottomColor: '#1976d2',
-                            },
-                            '& .MuiInput-underline:hover:before': {
-                                borderBottomColor: 'transparent',
-                            },
-                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-                                display: 'none',
-                            },
-                            '& input[type=number]': {
-                                MozAppearance: 'textfield',
-                            }
-                        }}
-                    />
-                </div>
+                <TextField
+                    size="small"
+                    value={params.row.unitSalePrice || 0}
+                    onChange={(e) => onSalePriceChange(params.row.id, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    variant="standard"
+                    sx={{
+                        width: '120px',
+                        textAlign: 'center',
+                        '& .MuiInputBase-input': {
+                            textAlign: 'center',
+                            padding: 0,
+                        },
+                        '& .MuiInput-underline:before': {
+                            borderBottomColor: 'transparent',
+                        },
+                        '& .MuiInput-underline:after': {
+                            borderBottomColor: '#1976d2',
+                        },
+                        '& .MuiInput-underline:hover:before': {
+                            borderBottomColor: 'transparent',
+                        },
+                    }}
+                    inputProps={{ style: { textAlign: 'center' } }}
+                />
             ),
         },
         columnVisibility['Zone'] && {
@@ -211,7 +235,7 @@ const ImportProductTable = ({
                         <DatePicker
                             format="dd/MM/yyyy"
                             value={params.row.expireDate ? new Date(params.row.expireDate) : null}
-                            onChange={(date) => onExpireDateChange(params.row.id, date)}
+                            onChange={(date) => handleExpireDateChange(params.row.id, date)}
                             slotProps={{
                                 textField: {
                                     variant: 'standard',
@@ -275,7 +299,7 @@ const ImportProductTable = ({
                 </Tooltip>
             ),
         },
-    ].filter(Boolean), [columnVisibility, onQuantityChange, onQuantityInputChange, onImportPriceChange, onSalePriceChange, onZoneChange, onExpireDateChange, onDeleteProduct, zones]);
+    ].filter(Boolean), [columnVisibility, onQuantityChange, onQuantityInputChange, onImportPriceChange, onSalePriceChange, onZoneChange, handleExpireDateChange, onDeleteProduct, zones, setError]);
 
     return (
         <div>

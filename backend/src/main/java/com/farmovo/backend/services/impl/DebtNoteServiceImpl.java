@@ -4,6 +4,7 @@ import com.farmovo.backend.dto.request.DebtNoteRequestDto;
 import com.farmovo.backend.dto.response.DebtNoteResponseDto;
 import com.farmovo.backend.models.Customer;
 import com.farmovo.backend.models.DebtNote;
+import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.CustomerRepository;
 import com.farmovo.backend.repositories.DebtNoteRepository;
 import com.farmovo.backend.repositories.StoreRepository;
@@ -224,7 +225,14 @@ public class DebtNoteServiceImpl implements DebtNoteService {
         debtNote.setDebtEvidences(requestDto.getDebtEvidences() != null ? requestDto.getDebtEvidences() : "");
         debtNote.setFromSource(requestDto.getFromSource());
         debtNote.setSourceId(requestDto.getSourceId());
-        debtNote.setStore(customer.getDebtNotes().stream().findAny().map(DebtNote::getStore).orElse(null));
+        
+        // Set store từ request thay vì từ customer
+        if (requestDto.getStoreId() != null) {
+            Store store = storeRepository.findById(requestDto.getStoreId())
+                    .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + requestDto.getStoreId()));
+            debtNote.setStore(store);
+        }
+        
         debtNote.setCreatedAt(LocalDateTime.now());
         debtNote.setCreatedBy(1L);
         return debtNote;

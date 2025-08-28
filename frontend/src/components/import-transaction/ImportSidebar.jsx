@@ -118,10 +118,12 @@ const ImportSidebar = ({
             </div>
 
             {/* Mã phiếu nhập lên trên cùng */}
-            <div className="mb-2">
-                <div className="text-xs text-gray-600 font-medium">Mã phiếu nhập</div>
-                <div className="font-bold text-lg tracking-widest text-blue-900">{nextImportCode}</div>
-            </div>
+            {!(isBalancePage && mode === 'create') && (
+                <div className="mb-2">
+                    <div className="text-xs text-gray-600 font-medium">Mã phiếu nhập</div>
+                    <div className="font-bold text-lg tracking-widest text-blue-900">{nextImportCode}</div>
+                </div>
+            )}
 
             {/* Nhà cung cấp - chỉ hiển thị khi mode create */}
             {(!isBalancePage || mode === 'create') && (
@@ -562,7 +564,7 @@ const ImportSidebar = ({
                                 transition: 'all 0.2s ease'
                             }}
                         >
-                            Tạo PCB Nhập
+                            Cập Nhập
                         </Button>
                     ) : (
                         <Button

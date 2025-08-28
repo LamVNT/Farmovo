@@ -49,6 +49,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.util.StringUtils;
 import com.farmovo.backend.repositories.UserRepository;
+import com.farmovo.backend.models.ImportTransactionStatus;
 
 @Service
 public class ReportServiceImpl implements ReportService {
@@ -90,9 +91,10 @@ public class ReportServiceImpl implements ReportService {
     @Override
 	    public List<ProductRemainDto> getRemainByProduct(Long storeIdParam) {
         Long storeId = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
+        // Chỉ lấy remain từ các phiếu nhập đã hoàn thành (COMPLETE status)
         List<Object[]> result = (storeId != null)
-                ? importTransactionDetailRepository.getRemainByProductByStore(storeId)
-                : importTransactionDetailRepository.getRemainByProduct();
+                ? importTransactionDetailRepository.getRemainByProductCompletedByStore(ImportTransactionStatus.COMPLETE, storeId)
+                : importTransactionDetailRepository.getRemainByProductCompleted(ImportTransactionStatus.COMPLETE);
         List<ProductRemainDto> dtos = new ArrayList<>();
         for (Object[] row : result) {
             dtos.add(new ProductRemainDto((Long) row[0], ((Number) row[1]).intValue()));
@@ -102,7 +104,8 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<RemainByProductReportDto> getRemainByProductAdvanced(String zoneId, Long categoryId, String status) {
-        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
+        // Chỉ lấy sản phẩm từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE);
         List<RemainByProductReportDto> result = new ArrayList<>();
 
         for (ImportTransactionDetail d : details) {
@@ -204,9 +207,10 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime soon = now.plusDays(days);
         Long storeId = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
+        // Chỉ lấy expiring lots từ các phiếu nhập đã hoàn thành (COMPLETE status)
         List<ImportTransactionDetail> lots = (storeId != null)
-                ? importTransactionDetailRepository.findExpiringLotsByStore(storeId, now, soon)
-                : importTransactionDetailRepository.findExpiringLots(now, soon);
+                ? importTransactionDetailRepository.findExpiringLotsCompletedByStore(storeId, now, soon, ImportTransactionStatus.COMPLETE)
+                : importTransactionDetailRepository.findExpiringLotsCompleted(now, soon, ImportTransactionStatus.COMPLETE);
         // Map zoneId -> Zone name
         Map<Long, Zone> zoneMapById = zoneRepository.findAll().stream().collect(Collectors.toMap(Zone::getId, z -> z));
         List<ExpiringLotDto> result = new ArrayList<>();
@@ -345,7 +349,8 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<StockByCategoryDto> getStockByCategory() {
-        List<Object[]> raw = importTransactionDetailRepository.getStockByCategory();
+        // Chỉ lấy stock từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<Object[]> raw = importTransactionDetailRepository.getStockByCategoryCompleted(ImportTransactionStatus.COMPLETE);
         List<StockByCategoryDto> result = new ArrayList<>();
         for (Object[] row : raw) {
             StockByCategoryDto dto = new StockByCategoryDto();
@@ -361,7 +366,8 @@ public class ReportServiceImpl implements ReportService {
         if (storeId == null) {
             return getStockByCategory();
         }
-        List<Object[]> raw = importTransactionDetailRepository.getStockByCategoryByStore(storeId);
+        // Chỉ lấy stock từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<Object[]> raw = importTransactionDetailRepository.getStockByCategoryCompletedByStore(ImportTransactionStatus.COMPLETE, storeId);
         List<StockByCategoryDto> result = new ArrayList<>();
         for (Object[] row : raw) {
             StockByCategoryDto dto = new StockByCategoryDto();
@@ -388,6 +394,10 @@ public class ReportServiceImpl implements ReportService {
         System.out.println("DEBUG: Found " + sales.size() + " sale transactions between " + from + " and " + to);
         
         for (SaleTransaction s : sales) {
+            // Chỉ tính từ các phiếu bán đã hoàn thành (COMPLETE status)
+            if (s.getStatus() != SaleTransactionStatus.COMPLETE) {
+                continue;
+            }
             if (s.getDetail() == null || s.getDetail().isEmpty()) continue;
             try {
                 List<ProductSaleResponseDto> details = objectMapper.readValue(
@@ -619,7 +629,8 @@ public class ReportServiceImpl implements ReportService {
         // 1. Lấy tồn đầu trước ngày from - Sử dụng updated_at để nhất quán
         Integer openingStock = 0;
         Long storeIdFilter = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
-        List<ImportTransactionDetail> allDetails = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
+        // Chỉ lấy sản phẩm từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> allDetails = importTransactionDetailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE);
         
         System.out.println("Calculating opening stock before " + from.toLocalDate() + " from " + allDetails.size() + " active details");
         
@@ -662,6 +673,12 @@ public class ReportServiceImpl implements ReportService {
         System.out.println("Found " + importList.size() + " active import transactions");
         
         for (ImportTransaction imp : importList) {
+            // Chỉ tính nhập kho từ các phiếu nhập đã hoàn thành (COMPLETE status)
+            if (imp.getStatus() != ImportTransactionStatus.COMPLETE) {
+                System.out.println("  Import ID: " + imp.getId() + " - SKIPPED: Status is " + imp.getStatus() + " (not COMPLETE)");
+                continue;
+            }
+            
             // Sử dụng updated_at làm ngày chính để phản ánh thời gian thực tế của giao dịch
             LocalDateTime transactionDateTime = imp.getUpdatedAt();
             if (transactionDateTime == null) {
@@ -803,7 +820,8 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<CategoryRemainSummaryDto> getRemainSummary() {
-        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
+        // Chỉ lấy sản phẩm từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE);
         Map<String, CategoryRemainSummaryDto> categoryMap = new HashMap<>();
         Map<Long, Product> productMap = productRepository.findAll().stream().collect(Collectors.toMap(Product::getId, p -> p));
         Map<String, Zone> zoneMap = zoneRepository.findAll().stream().collect(Collectors.toMap(z -> z.getId().toString(), z -> z));
@@ -875,7 +893,8 @@ public class ReportServiceImpl implements ReportService {
             return getRemainSummary();
         }
 
-        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThan(0);
+        // Chỉ lấy sản phẩm từ các phiếu nhập đã hoàn thành (COMPLETE status)
+        List<ImportTransactionDetail> details = importTransactionDetailRepository.findByRemainQuantityGreaterThanAndImportTransactionStatus(0, ImportTransactionStatus.COMPLETE);
         Map<String, CategoryRemainSummaryDto> categoryMap = new HashMap<>();
         Map<Long, Product> productMap = productRepository.findAll().stream().collect(Collectors.toMap(Product::getId, p -> p));
         Map<String, Zone> zoneMap = zoneRepository.findAll().stream().collect(Collectors.toMap(z -> z.getId().toString(), z -> z));
@@ -1100,6 +1119,10 @@ public class ReportServiceImpl implements ReportService {
                 ? importTransactionRepository.findAllImportActiveByStore(storeId)
                 : importTransactionRepository.findAllImportActive();
         for (ImportTransaction i : imports) {
+            // Chỉ tính từ các phiếu nhập đã hoàn thành (COMPLETE status)
+            if (i.getStatus() != ImportTransactionStatus.COMPLETE) {
+                continue;
+            }
             if (i.getImportDate() == null || i.getTotalAmount() == null) continue;
             if (i.getImportDate().isBefore(from) || i.getImportDate().isAfter(to)) continue;
             if (supplierId != null && (i.getSupplier() == null || !Objects.equals(i.getSupplier().getId(), supplierId))) continue;
@@ -1130,9 +1153,10 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime soon = now.plusDays(days);
         Long storeId = (storeIdParam != null) ? storeIdParam : getCurrentUserStoreIdIfStaff();
+        // Chỉ lấy expiring lots từ các phiếu nhập đã hoàn thành (COMPLETE status)
         List<ImportTransactionDetail> lots = (storeId != null)
-                ? importTransactionDetailRepository.findExpiringLotsByStore(storeId, now, soon)
-                : importTransactionDetailRepository.findExpiringLots(now, soon);
+                ? importTransactionDetailRepository.findExpiringLotsCompletedByStore(storeId, now, soon, ImportTransactionStatus.COMPLETE)
+                : importTransactionDetailRepository.findExpiringLotsCompleted(now, soon, ImportTransactionStatus.COMPLETE);
         Map<Long, Zone> zoneMapById = zoneRepository.findAll().stream().collect(Collectors.toMap(Zone::getId, z -> z));
         List<ExpiringLotExtendedDto> result = new ArrayList<>();
         for (ImportTransactionDetail lot : lots) {

@@ -870,10 +870,7 @@ const BalanceTransactionPage = () => {
                         <ListItemText primary="Hoàn thành"/>
                     </MenuItem>
                 )}
-                <MenuItem onClick={handleDelete}>
-                    <ListItemIcon><DeleteIcon fontSize="small" color="error"/></ListItemIcon>
-                    <ListItemText primary="Xóa"/>
-                </MenuItem>
+
             </Menu>
 
             {/* Detail dialog (read-only) */}

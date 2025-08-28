@@ -49,6 +49,12 @@ public class DebtNoteController {
     @PostMapping("/debt-note")
     public ResponseEntity<DebtNoteResponseDto> addDebtNote(@RequestBody DebtNoteRequestDto requestDto) {
         logger.debug("Received request to add debt note: {}", requestDto);
+        
+        // Log thời gian nhận được để debug
+        if (requestDto.getDebtDate() != null) {
+            logger.debug("Received debt date: {}", requestDto.getDebtDate());
+        }
+        
         DebtNoteResponseDto debtNote = debtNoteService.addDebtNote(requestDto);
         logger.info("Successfully added debt note with ID: {} for customer ID: {}", debtNote.getId(), debtNote.getCustomerId());
         return ResponseEntity.status(HttpStatus.CREATED).body(debtNote);

@@ -199,7 +199,7 @@ const StockTakeDetailPage = () => {
     return (
         <Box sx={{ maxWidth: 1100, margin: '20px auto', background: '#fff', p: isMobile ? 2 : 4, borderRadius: 3, boxShadow: 2 }}>
             {/* Header: Mã kiểm kho, trạng thái, thông tin phụ */}
-            <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', mb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', mb: 1 }}>
                 <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900} mr={2} color="primary.main">
                     {detail.name || `KK${String(detail.id).padStart(6, '0')}`}
                 </Typography>
@@ -211,19 +211,24 @@ const StockTakeDetailPage = () => {
                 />
                 {/* Nút hành động ở header: Tạo phiếu nhập (dư hàng) và Cân bằng kho (thiếu hàng) */}
                 {hasSurplus && !localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
-                    <Button
-                        variant="contained"
-                        color="secondary"
-                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => navigate('/import/balance', {
-                            state: {
-                                surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems },
-                                createImportMode: true
-                            }
-                        })}
-                    >
-                        Tạo PCB Nhập
-                    </Button>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', ml: 2, mt: isMobile ? 2 : 0 }}>
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            sx={{ borderRadius: 2, fontWeight: 700 }}
+                            onClick={() => navigate('/import/balance', {
+                                state: {
+                                    surplusFromStocktake: { stocktakeId: detail.id, stocktakeCode: detail.name, storeId: detail.storeId, items: surplusItems },
+                                    createImportMode: true
+                                }
+                            })}
+                        >
+                            Cập nhật lô
+                        </Button>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Đối với chênh lệch dương
+                        </Typography>
+                    </Box>
                 )}
                 {hasSurplus && localStorage.getItem(`stocktake_${detail.id}_hasBalanceImport`) && (
                     <Button
@@ -232,35 +237,41 @@ const StockTakeDetailPage = () => {
                         sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
                         disabled
                     >
-                        Đã tạo phiếu nhập
+                        Đã cập nhật
                     </Button>
                 )}
                 {/* Logic mới cho 3 trạng thái PCB */}
                 {canBalance && !pcbStatus?.hasBalance && (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        sx={{ borderRadius: 2, fontWeight: 700, ml: 2, mt: isMobile ? 2 : 0 }}
-                        onClick={() => {
-                            // Ensure store is selected in context before navigating
-                            if (detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
-                                // For Owner/Admin, set the store from stocktake detail
-                                const storeObj = { id: detail.storeId, storeName: detail.storeName || `Store ${detail.storeId}` };
-                                storeForStocktake.selectStore(storeObj);
-                            }
-                            navigate(`/sale/balance/${detail.id}`, {
-                                state: {
-                                    stocktakeId: detail.id,
-                                    stocktakeCode: detail.name,
-                                    storeId: detail.storeId,
-                                    storeName: detail.storeName
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', ml: 2, mt: isMobile ? 2 : 0 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            sx={{ borderRadius: 2, fontWeight: 700 }}
+                            onClick={() => {
+                                // Ensure store is selected in context before navigating
+                                if (detail.storeId && storeForStocktake.shouldShowStoreSelector()) {
+                                    // For Owner/Admin, set the store from stocktake detail
+                                    const storeObj = { id: detail.storeId, storeName: detail.storeName || `Store ${detail.storeId}` };
+                                    storeForStocktake.selectStore(storeObj);
                                 }
-                            });
-                        }}
-                    >
-                        Cân bằng kho (Tạo PCB)
-                    </Button>
+                                navigate(`/sale/balance/${detail.id}`, {
+                                    state: {
+                                        stocktakeId: detail.id,
+                                        stocktakeCode: detail.name,
+                                        storeId: detail.storeId,
+                                        storeName: detail.storeName
+                                    }
+                                });
+                            }}
+                        >
+                            Cân bằng kho
+                        </Button>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Đối với chênh lệch âm
+                        </Typography>
+                    </Box>
                 )}
+
                 
                 {/* Trạng thái: Đã có PCB chờ duyệt */}
                 {canBalance && pcbStatus?.hasBalance && pcbStatus?.status === 'WAITING_FOR_APPROVE' && (
@@ -323,10 +334,10 @@ const StockTakeDetailPage = () => {
                 </Box>
             </Box>
 
-            {/* Surplus banner & actions */}
+            {/* Surplus & Shortage banner & actions */}
             {surplusItems.length > 0 && (
                 <Box sx={{
-                    mb: 2,
+                    mb: 1,
                     p: 2,
                     borderRadius: 2,
                     border: '1px solid #fde68a',
@@ -334,6 +345,19 @@ const StockTakeDetailPage = () => {
                 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
                         Phát hiện dư hàng: {surplusItems.length} lô có thực tế &gt; tồn kho
+                    </Typography>
+                </Box>
+            )}
+            {Array.isArray(detail?.detail) && detail.detail.filter(d => Number(d.diff) < 0).length > 0 && (
+                <Box sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid #b6e0fe',
+                    background: '#f0faff'
+                }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1976d2' }}>
+                        Phát hiện thiếu hàng: {detail.detail.filter(d => Number(d.diff) < 0).length} lô có thực tế &lt; tồn kho
                     </Typography>
                 </Box>
             )}

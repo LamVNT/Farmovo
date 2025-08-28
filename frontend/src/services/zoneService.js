@@ -1,9 +1,13 @@
 import api from './axiosClient';
 
 const API_URL = '/zones';
-export const getZones = async () => {
+export const getZones = async (storeId = null) => {
     try {
-        const response = await api.get(API_URL);
+        let url = API_URL;
+        if (storeId) {
+            url = `${API_URL}/zones-by-store/${storeId}`;
+        }
+        const response = await api.get(url);
         return response.data;
     } catch (error) {
         console.error('Error fetching zones:', error);

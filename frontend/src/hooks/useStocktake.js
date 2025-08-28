@@ -175,7 +175,19 @@ export default function useStocktake(user, userRole) {
     const isOwner = userRole === "OWNER" || userRole === "ROLE_OWNER";
     const isAdmin = userRole === "ADMIN" || userRole === "ROLE_ADMIN";
 
-    const loadMasterData = useCallback(async () => {
+    // Hàm load zones theo store
+    const loadZonesByStore = useCallback(async (storeId) => {
+        if (!storeId) return;
+        try {
+            const zonesRes = await getZones(storeId);
+            setZones(zonesRes || []);
+        } catch (zoneErr) {
+            console.error("Error loading zones for store:", zoneErr);
+            setZones([]);
+        }
+    }, []);
+
+    const loadMasterData = useCallback(async (selectedStoreId = null) => {
         try {
             let productsRes, zonesRes, categoriesRes, storesRes;
             if (isStaff) {
@@ -191,14 +203,13 @@ export default function useStocktake(user, userRole) {
                 setStores([]); // Staff không cần danh sách kho
             } else {
                 // Owner/Admin cần stores cho filter dropdown ở trang StockTake
-                [productsRes, zonesRes, storesRes, categoriesRes] = await Promise.all([
+                [productsRes, storesRes, categoriesRes] = await Promise.all([
                     productService.getAllProducts(),
-                    getZones(),
                     getAllStores(),
                     getCategories(),
                 ]);
                 setProducts(productsRes);
-                setZones(zonesRes);
+                
                 // Sửa tại đây: đảm bảo storesRes là mảng, nếu không thì set [] và log lỗi
                 if (Array.isArray(storesRes)) {
                     const mappedStores = storesRes.map(s => ({
@@ -211,6 +222,21 @@ export default function useStocktake(user, userRole) {
                     setStores([]);
                 }
                 setCategories(categoriesRes);
+                
+                // Load zones theo store đã chọn (nếu có)
+                if (selectedStoreId) {
+                    try {
+                        const zonesRes = await getZones(selectedStoreId);
+                        setZones(zonesRes || []);
+                    } catch (zoneErr) {
+                        console.error("Error loading zones for store:", zoneErr);
+                        setZones([]);
+                    }
+                } else {
+                    // Nếu chưa chọn store, load tất cả zones
+                    const zonesRes = await getZones();
+                    setZones(zonesRes || []);
+                }
             }
         } catch (err) {
             console.error("Error loading master data:", err);
@@ -436,6 +462,7 @@ export default function useStocktake(user, userRole) {
         handleCancel,
         loadStocktakeList,
         loadMasterData,
+        loadZonesByStore,
         editMode,
         setEditMode,
         stocktakeStatus,

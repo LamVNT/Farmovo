@@ -3,10 +3,13 @@ import com.farmovo.backend.dto.request.ZoneDto;
 import com.farmovo.backend.dto.request.ZoneRequestDto;
 import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.exceptions.ZoneNotFoundException;
+import com.farmovo.backend.exceptions.StoreNotFoundException;
 import com.farmovo.backend.mapper.ZoneMapper;
 import com.farmovo.backend.models.Zone;
+import com.farmovo.backend.models.Store;
 import com.farmovo.backend.repositories.ZoneRepository;
 import com.farmovo.backend.services.ZoneService;
+import com.farmovo.backend.services.StoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +28,9 @@ public class ZoneServiceImpl implements ZoneService {
 
     @Autowired
     private ZoneMapper zoneMapper;
+
+    @Autowired
+    private StoreService storeService;
 
     @Override
     public List<ZoneDto> getAllZoneDtos() {
@@ -50,7 +56,16 @@ public class ZoneServiceImpl implements ZoneService {
         validateZoneName(zone.getZoneName());
         validateZoneDescription(zone.getZoneDescription());
         zone.setCreatedAt(LocalDateTime.now());
-        return zoneMapper.toResponseDto(zoneRepository.save(zone));
+        
+        // Fetch Store đầy đủ để có storeName ngay lập tức
+        if (request.getStoreId() != null) {
+            Store store = storeService.getStoreById(request.getStoreId())
+                .orElseThrow(() -> new StoreNotFoundException("Store not found with id: " + request.getStoreId()));
+            zone.setStore(store);
+        }
+        
+        Zone savedZone = zoneRepository.save(zone);
+        return zoneMapper.toResponseDto(savedZone);
     }
 
     @Override
@@ -66,6 +81,13 @@ public class ZoneServiceImpl implements ZoneService {
         zone.setZoneName(request.getZoneName());
         zone.setZoneDescription(request.getZoneDescription());
         zone.setUpdatedAt(LocalDateTime.now());
+        
+        // Fetch Store đầy đủ nếu storeId thay đổi hoặc chưa có
+        if (request.getStoreId() != null && (zone.getStore() == null || !request.getStoreId().equals(zone.getStore().getId()))) {
+            Store store = storeService.getStoreById(request.getStoreId())
+                .orElseThrow(() -> new StoreNotFoundException("Store not found with id: " + request.getStoreId()));
+            zone.setStore(store);
+        }
         
         // Lưu lại và trả về kết quả
         return zoneMapper.toResponseDto(zoneRepository.save(zone));
