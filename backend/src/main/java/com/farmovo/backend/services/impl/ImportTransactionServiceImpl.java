@@ -114,10 +114,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Hoàn thành cập nhật lô cũ cho phiếu cân bằng nhập");
     }
 
-    /**
-     * Cập nhật số lượng vào lô cũ cho phiếu cân bằng nhập
-     * Đây là logic mới, không ảnh hưởng đến logic cũ
-     */
     private void updateLotsForBalanceImport(List<CreateImportTransactionRequestDto.DetailDto> details) {
         log.info("Bắt đầu cập nhật lô cũ cho phiếu cân bằng nhập, số lượng sản phẩm: {}", details.size());
         
@@ -158,9 +154,6 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         log.info("Hoàn thành cập nhật lô cũ cho phiếu cân bằng nhập");
     }
 
-    /**
-     * Cập nhật tổng số lượng sản phẩm
-     */
     private void updateProductTotalQuantity(Long productId, int addQuantity) {
         try {
             Product product = productRepository.findById(productId).orElse(null);
