@@ -45,6 +45,21 @@ public class StoreController {
         }
     }
 
+    @GetMapping("/stores")
+    public List<StoreResponseDto> getAllStoresForAuthenticatedUsers() {
+        logger.info("Fetching all stores for authenticated users");
+        try {
+            List<Store> stores = storeService.getAllStores();
+            logger.info("Found {} stores", stores.size());
+            return stores.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching stores: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
     @GetMapping("/store/{id}")
     public ResponseEntity<StoreResponseDto> getStoreById(@PathVariable Long id) {
         logger.info("Fetching store with id: {}", id);

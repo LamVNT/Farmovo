@@ -268,6 +268,8 @@ const ImportBalancePage = () => {
         // Process surplus items into batch format
         if (Array.isArray(surplus.items) && surplus.items.length > 0) {
             console.log('DEBUG: surplus.items structure:', surplus.items[0]); // Debug first item
+            console.log('DEBUG: First item zones_id:', surplus.items[0]?.zones_id);
+            console.log('DEBUG: First item zoneReal:', surplus.items[0]?.zoneReal);
 
             const batchProducts = surplus.items
                     .filter(d => Number(d.diff) > 0) // Only surplus items
@@ -286,12 +288,14 @@ const ImportBalancePage = () => {
                     price: 0,
                     salePrice: d.unitSalePrice || 0, // Lấy từ lô nguồn
                     total: 0,
-                    zoneIds: d.zones_id && Array.isArray(d.zones_id) 
-                        ? d.zones_id.map(id => Number(id))
-                        : d.zoneReal && Array.isArray(d.zoneReal)
+                    zoneIds: d.zoneReal && Array.isArray(d.zoneReal)
                         ? d.zoneReal.map(id => Number(id))
-                        : d.zoneReal 
+                        : d.zoneReal && typeof d.zoneReal === 'string' && d.zoneReal.includes(',')
+                        ? d.zoneReal.split(',').map(id => Number(id.trim())).filter(id => !isNaN(id))
+                        : d.zoneReal && !Array.isArray(d.zoneReal)
                         ? [Number(d.zoneReal)]
+                        : d.zones_id && Array.isArray(d.zones_id)
+                        ? d.zones_id.map(id => Number(id))
                         : [],
                     expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
                     originalId: d.id, // Lưu ID gốc để sử dụng khi cập nhật
@@ -300,6 +304,14 @@ const ImportBalancePage = () => {
             setSelectedProducts(batchProducts);
             setBatchItems(batchProducts);
             setNote(`Phiếu Nhập cân bằng cho kiểm kê ${surplus.stocktakeCode || surplus.stocktakeId || ''} - ${batchProducts.length} lô hàng`);
+            
+            // Debug: Log khu vực được chọn
+            console.log('DEBUG: Selected zones for each product:', batchProducts.map(p => ({
+                batchCode: p.batchCode,
+                zoneIds: p.zoneIds,
+                originalZonesId: surplus.items.find(item => item.batchCode === p.batchCode)?.zones_id,
+                originalZoneReal: surplus.items.find(item => item.batchCode === p.batchCode)?.zoneReal
+            })));
         }
     }, [location.state, navigate, stores]);
 
@@ -350,7 +362,13 @@ const ImportBalancePage = () => {
                         price: 0, // Đơn giá mặc định = 0 cho PCB Nhập
                         salePrice: d.unitSalePrice || 0, // Giữ nguyên giá bán từ lô cũ
                         total: 0, // Thành tiền = 0 vì đơn giá = 0
-                        zoneIds: d.zones_id && Array.isArray(d.zones_id)
+                        zoneIds: d.zoneReal && Array.isArray(d.zoneReal)
+                            ? d.zoneReal.map(id => Number(id))
+                            : d.zoneReal && typeof d.zoneReal === 'string' && d.zoneReal.includes(',')
+                            ? d.zoneReal.split(',').map(id => Number(id.trim())).filter(id => !isNaN(id))
+                            : d.zoneReal && !Array.isArray(d.zoneReal)
+                            ? [Number(d.zoneReal)]
+                            : d.zones_id && Array.isArray(d.zones_id)
                             ? d.zones_id.map(id => Number(id))
                             : [],
                         expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),

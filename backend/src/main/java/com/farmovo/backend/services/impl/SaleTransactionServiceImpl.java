@@ -16,6 +16,7 @@ import com.farmovo.backend.mapper.SaleTransactionMapper;
 import com.farmovo.backend.models.*;
 import com.farmovo.backend.repositories.*;
 import com.farmovo.backend.services.DebtNoteService;
+import com.farmovo.backend.services.PriceChangeNotificationService;
 import com.farmovo.backend.services.SaleTransactionService;
 import com.farmovo.backend.specification.SaleTransactionSpecification;
 import com.farmovo.backend.validator.SaleTransactionValidator;
@@ -76,6 +77,7 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final StocktakeRepository stocktakeRepository;
+    private final PriceChangeNotificationService priceChangeNotificationService;
 
     @Override
     public List<ProductSaleResponseDto> listAllProductResponseDtoByIdPro(Long productId) {
@@ -127,6 +129,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
         SaleTransaction savedTransaction = saleTransactionRepository.save(transaction);
         log.info("Sale transaction saved successfully with ID: {}", savedTransaction.getId());
 
+        // Kiểm tra và thông báo sự thay đổi giá
+        try {
+            priceChangeNotificationService.checkAndNotifyPriceChanges(dto, userId);
+        } catch (Exception e) {
+            log.warn("Failed to check price changes: {}", e.getMessage());
+            // Không làm gián đoạn quá trình lưu nếu việc kiểm tra giá thất bại
+        }
+
         /// status tạo ban đầu có thể là COMPLETE không
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {
             log.info("Handling debt note for completed transaction");
@@ -164,6 +174,14 @@ public class SaleTransactionServiceImpl implements SaleTransactionService {
 
         saleTransactionRepository.save(transaction);
         log.info("Sale transaction with ID: {} updated successfully", id);
+
+        // Kiểm tra và thông báo sự thay đổi giá
+        try {
+            priceChangeNotificationService.checkAndNotifyPriceChangesOnUpdate(transaction, dto, null);
+        } catch (Exception e) {
+            log.warn("Failed to check price changes on update: {}", e.getMessage());
+            // Không làm gián đoạn quá trình cập nhật nếu việc kiểm tra giá thất bại
+        }
 
         /// status tạo ban đầu có thể là COMPLETE không
         if (dto.getStatus() == SaleTransactionStatus.COMPLETE) {

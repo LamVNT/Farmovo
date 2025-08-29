@@ -29,8 +29,6 @@ import {
 } from '@mui/icons-material';
 
 const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zoneNameError, zoneDescriptionError, storeIdError, user, stores, loading = false, submitting = false }) => {
-    const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
-    const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
     
 
 
@@ -44,8 +42,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
     };
 
     const isFormValid = () => {
-        return form.zoneName && form.zoneName.trim() !== '' && 
-               (!isAdminOrOwner || (isAdminOrOwner && form.storeId));
+        return form.zoneName && form.zoneName.trim() !== '' && form.storeId;
     };
 
     return (
@@ -165,7 +162,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                     </Box>
 
                     {/* Store Selection Section */}
-                    {isAdminOrOwner && stores && stores.length > 0 && (
+                    {stores && stores.length > 0 && (
                         <Box sx={{ mb: 3 }}>
                             <Box display="flex" alignItems="center" gap={1} mb={1}>
                                 <StoreIcon color="primary" />
@@ -214,14 +211,7 @@ const ZoneFormDialog = ({ open, onClose, form, setForm, onSubmit, editMode, zone
                         </Box>
                     )}
                     
-                    {/* Debug info - chỉ hiển thị trong development
-                    {process.env.NODE_ENV === 'development' && (
-                        <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
-                            <Typography variant="caption" color="text.secondary">
-                                Debug: isAdminOrOwner={isAdminOrOwner.toString()}, stores={stores?.length || 0}
-                            </Typography>
-                        </Box>
-                    )} */}
+
 
                     {/* Info Alert */}
                     <Alert 

@@ -103,7 +103,6 @@ const SaleTransactionPage = () => {
     const [filter, setFilter] = useState({
         status: {
             draft: false,
-            waitingForApprove: false,
             complete: false,
             cancel: false,
         },
@@ -395,8 +394,8 @@ const SaleTransactionPage = () => {
 
             // Add status filters
             const statusKeys = getStatusKeys();
-            if (statusKeys.length > 0) {
-                queryParams.status = statusKeys.join(',');
+            if (statusKeys.length === 1) {
+                queryParams.status = statusKeys[0];
             }
 
             // Add date range (use local datetime strings, no timezone)
@@ -489,11 +488,12 @@ const SaleTransactionPage = () => {
     const getStatusKeys = () => {
         const keys = [];
         if (filter.status.draft) keys.push('DRAFT');
-        if (filter.status.waitingForApprove) keys.push('WAITING_FOR_APPROVE');
         if (filter.status.complete) keys.push('COMPLETE');
         if (filter.status.cancel) keys.push('CANCEL');
         return keys;
     };
+
+
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -1147,22 +1147,7 @@ const SaleTransactionPage = () => {
                                     </span>
                                 }
                             />
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={filter.status.waitingForApprove}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
-                                    />
-                                }
-                                label={
-                                    <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Chờ phê duyệt
-                                    </span>
-                                }
-                            />
+
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -1590,14 +1575,14 @@ const SaleTransactionPage = () => {
                         navigate(`/sale/edit/${actionRow.id}`);
                         handleActionClose();
                     }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
-                        <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+                        <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Chỉnh sửa" />
                     </MenuItem>
                 )}
                 {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là DRAFT */}
                 {actionRow?.status === 'DRAFT' && (
                     <MenuItem onClick={handleCompleteDraftTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
-                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemIcon><CheckIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Hoàn thành" />
                     </MenuItem>
                 )}
@@ -1613,7 +1598,7 @@ const SaleTransactionPage = () => {
                 {/* Hiển thị nút "Hoàn thành" chỉ khi trạng thái là WAITING_FOR_APPROVE */}
                 {actionRow?.status === 'WAITING_FOR_APPROVE' && (
                     <MenuItem onClick={handleCompleteTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0ffe2' } }}>
-                        <ListItemIcon><CheckIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemIcon><CheckIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Hoàn thành" />
                     </MenuItem>
                 )}
@@ -1621,30 +1606,17 @@ const SaleTransactionPage = () => {
                 {/* Hiển thị nút "Hủy phiếu" cho các trạng thái DRAFT và WAITING_FOR_APPROVE */}
                 {(actionRow?.status === 'DRAFT' || actionRow?.status === 'WAITING_FOR_APPROVE') && (
                     <MenuItem onClick={handleCancelTransactionMenu} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
-                        <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
+                        <ListItemIcon><CancelIcon fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Hủy phiếu" />
                     </MenuItem>
                 )}
-                <MenuItem onClick={() => {
-                    handleExportDetail(actionRow);
-                    handleActionClose();
-                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Xuất chi tiết" />
-                </MenuItem>
-                <MenuItem onClick={() => {
-                    handleExportPdf(actionRow);
-                    handleActionClose();
-                }} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
-                    <ListItemIcon><TableChartIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Xuất PDF" />
-                </MenuItem>
+
                 <MenuItem onClick={handleViewChangeHistory} sx={{ borderRadius: 1, mb: 0.5, '&:hover': { backgroundColor: '#e0f2fe' } }}>
                     <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Lịch sử thay đổi" />
                 </MenuItem>
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: 1, '&:hover': { backgroundColor: '#fee2e2' } }}>
-                    <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                    <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
                     <ListItemText primary="Xóa" />
                 </MenuItem>
             </Menu>

@@ -69,20 +69,9 @@ const Zone = () => {
 
                 setUser(userData);
 
-                // ADMIN và OWNER đều có thể chọn cửa hàng
-                // Kiểm tra cả trường hợp role là string và array
-                const userRoles = Array.isArray(userData?.roles) ? userData.roles : [userData?.roles];
-
-
-                if (userRoles.includes("OWNER") || userRoles.includes("ADMIN") || userRoles.includes("ROLE_OWNER") || userRoles.includes("ROLE_ADMIN")) {
-
-                    const storeList = await getAllStores();
-
-                    setStores(storeList);
-                } else {
-
-                    setStores([]);
-                }
+                // Tất cả user đều có thể chọn cửa hàng
+                const storeList = await getAllStores();
+                setStores(storeList);
             } catch (err) {
                 console.error("Error fetching user or stores:", err);
                 setError("Không thể tải thông tin người dùng hoặc cửa hàng");
@@ -97,16 +86,11 @@ const Zone = () => {
         ), [searchText, zones]);
 
     const handleOpenCreate = () => {
-        // Kiểm tra cả trường hợp role là string và array
-        const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
-        const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
-
         const initialForm = {
             id: null,
             zoneName: "",
             zoneDescription: "",
-            // STAFF thì cố định cửa hàng, ADMIN/OWNER thì để null để có thể chọn
-            storeId: isAdminOrOwner ? null : user?.storeId
+            storeId: null // Tất cả user đều có thể chọn cửa hàng
         };
         setForm(initialForm);
         setEditMode(false);
@@ -168,20 +152,15 @@ const Zone = () => {
             return;
         }
 
-        // Kiểm tra storeId cho ADMIN và OWNER
-        const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
-        const isAdminOrOwner = userRoles.includes('OWNER') || userRoles.includes('ADMIN') || userRoles.includes('ROLE_OWNER') || userRoles.includes('ROLE_ADMIN');
-
-
-
-        if (isAdminOrOwner && !form.storeId) {
+        // Kiểm tra storeId cho tất cả user
+        if (!form.storeId) {
             setStoreIdError("Vui lòng chọn cửa hàng cho khu vực");
             setSubmitting(false);
             return;
         }
 
         // Chỉ kiểm tra trùng tên trong cùng một cửa hàng
-        const targetStoreId = isAdminOrOwner ? form.storeId : user?.storeId;
+        const targetStoreId = form.storeId;
         const norm = (s) => (s || '').trim().toLowerCase();
         const isDuplicate = zones.some(z =>
             norm(z.zoneName) === norm(form.zoneName) &&
@@ -196,9 +175,6 @@ const Zone = () => {
 
         // Chuẩn bị dữ liệu để submit
         let submitForm = { ...form };
-        if (!isAdminOrOwner) {
-            submitForm.storeId = user?.storeId;
-        }
 
 
 

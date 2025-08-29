@@ -90,9 +90,12 @@ public interface SaleTransactionRepository extends JpaRepository<SaleTransaction
     
     // Thêm method để lấy PCB theo stocktakeId
     List<SaleTransaction> findByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
+    
+    // Thêm method để lấy PCB theo stocktakeId với nhiều status
+    List<SaleTransaction> findByStocktakeIdAndStatusIn(Long stocktakeId, List<SaleTransactionStatus> statuses);
 
     // ✅ Thêm method để load customer và store cùng với sale transaction
-    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id AND s.status = 'COMPLETE'")
+    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id")
     Optional<SaleTransaction> findByIdWithCustomerAndStore(@Param("id") Long id);
 
     // ✅ New: fetch active sales in a date range

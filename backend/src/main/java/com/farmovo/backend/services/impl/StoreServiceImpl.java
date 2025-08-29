@@ -40,9 +40,27 @@ public class StoreServiceImpl implements StoreService {
     public Store saveStore(Store store) {
         logger.info("Saving new store: {}", store.getStoreName());
         try {
+            // Validate store name
             if (store.getStoreName() == null || store.getStoreName().isBlank()) {
-                throw new IllegalArgumentException("Store name is required");
+                throw new IllegalArgumentException("Tên cửa hàng không được để trống");
             }
+            if (store.getStoreName().length() > 255) {
+                throw new IllegalArgumentException("Tên cửa hàng không vượt quá 255 kí tự");
+            }
+            
+            // Validate store address
+            if (store.getStoreAddress() == null || store.getStoreAddress().isBlank()) {
+                throw new IllegalArgumentException("Địa chỉ không được để trống");
+            }
+            if (store.getStoreAddress().length() > 255) {
+                throw new IllegalArgumentException("Địa chỉ không vượt quá 255 kí tự");
+            }
+            
+            // Validate store description (optional field but with length constraint)
+            if (store.getStoreDescription() != null && store.getStoreDescription().length() > 255) {
+                throw new IllegalArgumentException("Mô tả không vượt quá 255 kí tự");
+            }
+            
             return storeRepository.save(store);
         } catch (IllegalArgumentException e) {
             logger.error("Validation error: {}", e.getMessage());
@@ -54,9 +72,27 @@ public class StoreServiceImpl implements StoreService {
         logger.info("Updating store with id: {}", id);
         if (storeRepository.existsById(id)) {
             try {
+                // Validate store name
                 if (store.getStoreName() == null || store.getStoreName().isBlank()) {
-                    throw new IllegalArgumentException("Store name is required");
+                    throw new IllegalArgumentException("Tên cửa hàng không được để trống");
                 }
+                if (store.getStoreName().length() > 255) {
+                    throw new IllegalArgumentException("Tên cửa hàng không vượt quá 255 kí tự");
+                }
+                
+                // Validate store address
+                if (store.getStoreAddress() == null || store.getStoreAddress().isBlank()) {
+                    throw new IllegalArgumentException("Địa chỉ không được để trống");
+                }
+                if (store.getStoreAddress().length() > 255) {
+                    throw new IllegalArgumentException("Địa chỉ không vượt quá 255 kí tự");
+                }
+                
+                // Validate store description (optional field but with length constraint)
+                if (store.getStoreDescription() != null && store.getStoreDescription().length() > 255) {
+                    throw new IllegalArgumentException("Mô tả không vượt quá 255 kí tự");
+                }
+                
                 store.setId(id);
                 return Optional.of(storeRepository.save(store));
             } catch (IllegalArgumentException e) {

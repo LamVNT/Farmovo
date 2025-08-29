@@ -277,16 +277,15 @@ const Sidebar = () => {
                             </Button>
                         </Link>
                     </li>
-                    <AdminOnly>
-                        <li>
-                            <Link to="/zone">
-                                <Button
-                                    className={`w-full !capitalize !justify-start flex gap-3 text-[14px]
-                                    !font-[600] items-center !py-2 transition-all duration-200 ${
-                                        location.pathname === '/zone'
-                                            ? '!bg-[#f3f0ff] !text-[#8b5cf6] hover:!bg-[#ede9fe]' 
-                                            : '!text-[rgba(0,0,0,0.8)] hover:!bg-[#f1f1f1]'
-                                    }`}>
+                    <li>
+                        <Link to="/zone">
+                            <Button
+                                className={`w-full !capitalize !justify-start flex gap-3 text-[14px]
+                                !font-[600] items-center !py-2 transition-all duration-200 ${
+                                    location.pathname === '/zone'
+                                        ? '!bg-[#f3f0ff] !text-[#8b5cf6] hover:!bg-[#ede9fe]' 
+                                        : '!text-[rgba(0,0,0,0.8)] hover:!bg-[#f1f1f1]'
+                                }`}>
                                     <MdMap className={`text-[20px] ${
                                         location.pathname === '/zone' ? 'text-[#8b5cf6]' : ''
                                     }`}/> 
@@ -294,7 +293,6 @@ const Sidebar = () => {
                                 </Button>
                             </Link>
                         </li>
-                    </AdminOnly>
                     <AdminOnly>
                         <li>
                             <Link to="/change-status-log">

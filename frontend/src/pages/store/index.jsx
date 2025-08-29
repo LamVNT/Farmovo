@@ -134,7 +134,13 @@ const Store = () => {
                     address: row.storeAddress,
                     description: row.storeDescription
                 }))}
-                onEdit={handleOpenEdit}
+                onEdit={(rowData) => {
+                    // Tìm store gốc từ stores array
+                    const originalStore = stores.find(s => s.id === rowData.id);
+                    if (originalStore) {
+                        handleOpenEdit(originalStore);
+                    }
+                }}
                 onDelete={id => handleDeleteRequest(stores.find(s => s.id === id))}
             />
             <StoreFormDialog

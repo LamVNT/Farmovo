@@ -13,9 +13,18 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class StoreRequestDto {
     private Long id;
+    
+    @NotBlank(message = "Tên cửa hàng không được để trống")
+    @Size(max = 255, message = "Tên cửa hàng không vượt quá 255 kí tự")
     private String storeName;
+    
+    @Size(max = 255, message = "Mô tả không vượt quá 255 kí tự")
     private String storeDescription;
+    
+    @NotBlank(message = "Địa chỉ không được để trống")
+    @Size(max = 255, message = "Địa chỉ không vượt quá 255 kí tự")
     private String storeAddress;
+    
     private Long createBy;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;

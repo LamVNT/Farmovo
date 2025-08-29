@@ -195,7 +195,7 @@ const router = createBrowserRouter([
     {
         path: "/zone",
         element: (
-            <ProtectedRoute allowedRoles={["ROLE_ADMIN"]}>
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_STAFF"]}>
                 <MainLayout>
                     <Zone/>
                 </MainLayout>
