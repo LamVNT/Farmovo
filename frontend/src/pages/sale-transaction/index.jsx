@@ -103,7 +103,6 @@ const SaleTransactionPage = () => {
     const [filter, setFilter] = useState({
         status: {
             draft: false,
-            waitingForApprove: false,
             complete: false,
             cancel: false,
         },
@@ -395,8 +394,8 @@ const SaleTransactionPage = () => {
 
             // Add status filters
             const statusKeys = getStatusKeys();
-            if (statusKeys.length > 0) {
-                queryParams.status = statusKeys.join(',');
+            if (statusKeys.length === 1) {
+                queryParams.status = statusKeys[0];
             }
 
             // Add date range (use local datetime strings, no timezone)
@@ -489,11 +488,12 @@ const SaleTransactionPage = () => {
     const getStatusKeys = () => {
         const keys = [];
         if (filter.status.draft) keys.push('DRAFT');
-        if (filter.status.waitingForApprove) keys.push('WAITING_FOR_APPROVE');
         if (filter.status.complete) keys.push('COMPLETE');
         if (filter.status.cancel) keys.push('CANCEL');
         return keys;
     };
+
+
 
     const handlePresetChange = (key) => {
         setCustomDate(getRange(key));
@@ -1147,22 +1147,7 @@ const SaleTransactionPage = () => {
                                     </span>
                                 }
                             />
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={filter.status.waitingForApprove}
-                                        onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
-                                    />
-                                }
-                                label={
-                                    <span
-                                        onClick={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waitingForApprove: !prev.status.waitingForApprove } }))}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        Chờ phê duyệt
-                                    </span>
-                                }
-                            />
+
                             <FormControlLabel
                                 control={
                                     <Checkbox
