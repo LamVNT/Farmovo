@@ -40,7 +40,7 @@ const Header = () => {
     const [storeName, setStoreName] = useState("");
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { logout, isAdmin, isStaff } = useAuth();
 
     const handleLogout = async () => {
         try {
@@ -60,16 +60,19 @@ const Header = () => {
         if (userStr) {
             const u = JSON.parse(userStr);
             setUser(u);
-            // Ưu tiên lấy storeName trực tiếp
-            if (u?.storeName) setStoreName(u.storeName);
-            // Nếu không có, lấy theo storeId
-            else if (u?.storeId) {
-                getStoreById(u.storeId).then(store => {
-                    setStoreName(store.storeName || store.name || "");
-                }).catch(() => setStoreName(""));
+            // Chỉ lấy storeName nếu không phải admin
+            if (!isAdmin()) {
+                // Ưu tiên lấy storeName trực tiếp
+                if (u?.storeName) setStoreName(u.storeName);
+                // Nếu không có, lấy theo storeId
+                else if (u?.storeId) {
+                    getStoreById(u.storeId).then(store => {
+                        setStoreName(store.storeName || store.name || "");
+                    }).catch(() => setStoreName(""));
+                }
             }
         }
-    }, []);
+    }, [isAdmin]);
 
     return (
         <header
@@ -96,8 +99,8 @@ const Header = () => {
                         <RiMenu2Line/>
                     </button>
                     
-                    {/* Store Name */}
-                    {storeName && (
+                    {/* Store Name - chỉ hiển thị cho Staff, không hiển thị cho Admin */}
+                    {!isAdmin() && storeName && (
                         <span className="text-lg font-semibold text-gray-800">{storeName}</span>
                     )}
                 </div>
