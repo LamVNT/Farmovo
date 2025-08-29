@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,4 +22,5 @@ public class ImportDetailLotDto {
     private Integer remainQuantity;
     private Boolean isCheck;
     private List<Long> zonesId;
+    private BigDecimal unitSalePrice; // giá bán
 }

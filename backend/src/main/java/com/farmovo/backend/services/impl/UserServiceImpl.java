@@ -52,6 +52,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Override
     public List<User> getAllUsers() {
         logger.info("Retrieving all users (non-deleted)");
@@ -84,13 +87,22 @@ public class UserServiceImpl implements UserService {
         try {
             inputUserValidation.validateUserFieldsForCreate(user.getFullName(), user.getUsername(), user.getPassword());
             inputUserValidation.validateUserStatus(user.getStatus());
-            inputUserValidation.validateEmailForCreate(user.getEmail());
+            
+            // Kiểm tra email duplicate khi tạo mới
+            if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                boolean isEmailExists = userRepository.existsByEmailAndDeletedAtIsNull(user.getEmail().trim());
+                inputUserValidation.validateEmailForCreate(user.getEmail(), isEmailExists);
+            }
             if (user.getStatus() == null) {
                 user.setStatus(true);
                 logger.info("Default status set to true for new user");
             }
             if (user.getStore() == null) {
                 throw new UserManagementException("Store is required");
+            }
+            // Mã hóa mật khẩu trước khi lưu
+            if (user.getPassword() != null) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
             }
             // Set createdBy using the authenticated user's ID
             Long createdById = getCurrentUserId(principal);
@@ -118,10 +130,17 @@ public class UserServiceImpl implements UserService {
                         user.getFullName(), user.getUsername(), user.getPassword()
                 );
                 inputUserValidation.validateUserStatus(user.getStatus());
-                inputUserValidation.validateEmailForUpdate(user.getEmail());
+                
+                // Kiểm tra email duplicate khi cập nhật
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                    boolean isEmailExists = userRepository.existsByEmailAndIdNotAndDeletedAtIsNull(user.getEmail().trim(), id);
+                    inputUserValidation.validateEmailForUpdate(user.getEmail(), isEmailExists, id);
+                }
                 if (user.getFullName() != null) existingUser.setFullName(user.getFullName());
                 if (user.getUsername() != null) existingUser.setUsername(user.getUsername());
-                if (user.getPassword() != null) existingUser.setPassword(user.getPassword());
+                if (user.getPassword() != null) {
+                    existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+                }
                 if (user.getStatus() != null) existingUser.setStatus(user.getStatus());
                 if (user.getEmail() != null) existingUser.setEmail(user.getEmail());
                 if (user.getStore() != null) existingUser.setStore(user.getStore());
@@ -270,9 +289,10 @@ public class UserServiceImpl implements UserService {
         logger.info("Updating profile for user with id: {}", userId);
         return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
             try {
-                // Validate email format if provided
-                if (dto.getEmail() != null) {
-                    inputUserValidation.validateEmailForUpdate(dto.getEmail());
+                // Validate email format and duplicate if provided
+                if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {
+                    boolean isEmailExists = userRepository.existsByEmailAndIdNotAndDeletedAtIsNull(dto.getEmail().trim(), userId);
+                    inputUserValidation.validateEmailForUpdate(dto.getEmail(), isEmailExists, userId);
                 }
 
                 // Update only allowed fields
@@ -312,13 +332,13 @@ public class UserServiceImpl implements UserService {
         }
 
         return userRepository.findByIdAndDeletedAtIsNull(userId).map(existingUser -> {
-            // Verify current password
-            if (!existingUser.getPassword().equals(dto.getCurrentPassword())) {
+            // Verify current password using passwordEncoder.matches()
+            if (!passwordEncoder.matches(dto.getCurrentPassword(), existingUser.getPassword())) {
                 throw new UserManagementException("Current password is incorrect");
             }
 
-            // Update password
-            existingUser.setPassword(dto.getNewPassword());
+            // Update password with encoded version
+            existingUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
             userRepository.save(existingUser);
 
             logger.info("Password changed successfully for user id: {}", userId);

@@ -137,7 +137,7 @@ public class ZoneController {
 
 
     /// để get zone ở bên import nha
-    @GetMapping("/zones-by-store/{id}")
+    @GetMapping("/zones-by-store/{storeId}")
     public ResponseEntity<List<ZoneResponseDto>> getZonesByStore(@PathVariable Long storeId) {
         List<ZoneResponseDto> zones = zoneService.getZonesByStoreId(storeId);
         return ResponseEntity.ok(zones);

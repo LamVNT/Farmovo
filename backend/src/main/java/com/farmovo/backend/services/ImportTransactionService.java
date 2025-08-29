@@ -17,6 +17,8 @@ public interface ImportTransactionService {
 
     void createImportTransaction(CreateImportTransactionRequestDto dto, Long userId);
 
+    void createBalanceImportTransaction(CreateImportTransactionRequestDto dto, Long userId);
+
     @Transactional(rollbackFor = Exception.class)
     void update(Long id, CreateImportTransactionRequestDto dto);
 
@@ -49,6 +51,9 @@ public interface ImportTransactionService {
     void close(Long id);
 
     String getNextImportTransactionCode();
+
+    // Next code for balance import transactions (PCBN...)
+    String getNextBalanceImportTransactionCode();
 
     void softDeleteImportTransaction(Long id, Long userId);
 

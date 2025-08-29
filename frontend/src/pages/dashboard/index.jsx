@@ -255,27 +255,36 @@ const Dashboard = () => {
                         <div>Đang tải...</div>
                     ) : errorTopProducts ? (
                         <div className="text-red-600">{errorTopProducts}</div>
-                    ) : (
-                        <table className="min-w-full text-left">
-                            <thead>
-                            <tr className="text-indigo-700">
-                                <th className="py-2 px-4">#</th>
-                                <th className="py-2 px-4">Sản phẩm</th>
-                                <th className="py-2 px-4">Nhóm</th>
-                                <th className="py-2 px-4">Số lượng</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {topProducts.map((item, idx) => (
-                                <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
-                                    <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
-                                    <td className="py-2 px-4 font-semibold">{item.productName}</td>
-                                    <td className="py-2 px-4">{item.category}</td>
-                                    <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
+                    ) : topProducts && topProducts.length > 0 ? (
+                        <>
+                            <div className="mb-2 text-sm text-gray-500">Debug: {topProducts.length} sản phẩm</div>
+                            <table className="min-w-full text-left">
+                                <thead>
+                                <tr className="text-indigo-700">
+                                    <th className="py-2 px-4">#</th>
+                                    <th className="py-2 px-4">Sản phẩm</th>
+                                    <th className="py-2 px-4">Nhóm</th>
+                                    <th className="py-2 px-4">Số lượng</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {topProducts.map((item, idx) => (
+                                    <tr key={item.productName + idx} className="hover:bg-indigo-50 transition-all">
+                                        <td className="py-2 px-4 font-bold">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}</td>
+                                        <td className="py-2 px-4 font-semibold">{item.productName}</td>
+                                        <td className="py-2 px-4">{item.category}</td>
+                                        <td className="py-2 px-4 text-indigo-700 font-bold">{item.quantity}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </>
+                    ) : (
+                        <div className="text-center text-gray-500 py-8">
+                            <div className="text-lg mb-2">📊</div>
+                            <div>Không có dữ liệu sản phẩm bán chạy</div>
+                            <div className="text-sm mt-2">Khoảng thời gian: {topFrom} đến {topTo}</div>
+                        </div>
                     )}
                 </div>
                 <div

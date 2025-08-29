@@ -41,10 +41,12 @@ const ImportSidebar = ({
     onSaveDraft = () => {},
     onComplete = () => {},
     onUpdateBatch = () => {},
+    onCreateImport = () => {},
     lockedStoreId = null,
     lockedStoreName = null,
     fromStocktake = false,
     isBalancePage = false,
+    mode = 'update', // 'update' or 'create'
 }) => {
     // State cho số tiền đã trả focus
     const [isPaidAmountFocused, setIsPaidAmountFocused] = useState(false);
@@ -116,12 +118,15 @@ const ImportSidebar = ({
             </div>
 
             {/* Mã phiếu nhập lên trên cùng */}
-            <div className="mb-2">
-                <div className="text-xs text-gray-600 font-medium">Mã phiếu nhập</div>
-                <div className="font-bold text-lg tracking-widest text-blue-900">{nextImportCode}</div>
-            </div>
+            {!(isBalancePage && mode === 'create') && (
+                <div className="mb-2">
+                    <div className="text-xs text-gray-600 font-medium">Mã phiếu nhập</div>
+                    <div className="font-bold text-lg tracking-widest text-blue-900">{nextImportCode}</div>
+                </div>
+            )}
 
-            {/* Nhà cung cấp */}
+            {/* Nhà cung cấp - chỉ hiển thị khi mode create */}
+            {(!isBalancePage || mode === 'create') && (
             <div>
                 <div className="font-semibold mb-1">Nhà cung cấp</div>
                 <div className="relative">
@@ -234,6 +239,8 @@ const ImportSidebar = ({
                     )}
                 </div>
             </div>
+            )}
+
             {/* Cửa hàng */}
             <div>
                 <div className="font-semibold mb-1">Cửa hàng</div>
@@ -242,7 +249,7 @@ const ImportSidebar = ({
                         size="small"
                         fullWidth
                         placeholder={fromStocktake ? "Kho được chọn từ kiểm kê" : "Tìm cửa hàng..."}
-                        value={fromStocktake && lockedStoreName ? lockedStoreName : (storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || ''))}
+                        value={fromStocktake && lockedStoreName ? lockedStoreName : (storeSearch || (stores.find(s => String(s.id) === String(selectedStore))?.storeName || stores.find(s => String(s.id) === String(selectedStore))?.name || ''))}
                         onChange={e => {
                             if (!fromStocktake) {
                                 setStoreSearch(e.target.value);
@@ -324,7 +331,7 @@ const ImportSidebar = ({
                 {/* Thông báo về zone filtering - ngay sát ô search */}
                 {(currentUser?.roles?.includes("ROLE_MANAGER") || currentUser?.roles?.includes("ROLE_ADMIN")) && selectedStore && (
                     <div className="mt-0.5 text-xs text-green-600">
-                        Khu vực: <strong>{stores.find(s => s.id === selectedStore)?.storeName}</strong>
+                        Khu vực: <strong>{stores.find(s => String(s.id) === String(selectedStore))?.storeName || stores.find(s => String(s.id) === String(selectedStore))?.name || `Kho ${selectedStore}`}</strong>
                     </div>
                 )}
 
@@ -372,22 +379,22 @@ const ImportSidebar = ({
                     <div className={`text-right w-32 ${(() => {
                         const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
                         const totalDebt = supplier?.totalDebt || 0;
-                        return totalDebt > 0 ? 'text-red-600' : totalDebt < 0 ? 'text-green-600' : 'text-gray-600';
+                        return totalDebt < 0 ? 'text-red-600' : totalDebt > 0 ? 'text-green-600' : 'text-gray-600';
                     })()}`}>
                         {(() => {
                             const supplier = suppliers.find(s => String(s.id) === String(selectedSupplier));
                             const totalDebt = supplier?.totalDebt || 0;
-                            if (totalDebt > 0) {
-                                return (
-                                    <div>
-                                        <div>+{totalDebt.toLocaleString('vi-VN')} VND</div>
-                                        <div className="text-xs">(Nhà cung cấp nợ)</div>
-                                    </div>
-                                );
-                            } else if (totalDebt < 0) {
+                            if (totalDebt < 0) {
                                 return (
                                     <div>
                                         <div>-{Math.abs(totalDebt).toLocaleString('vi-VN')} VND</div>
+                                        <div className="text-xs">(Khách đang nợ)</div>
+                                    </div>
+                                );
+                            } else if (totalDebt > 0) {
+                                return (
+                                    <div>
+                                        <div>+{totalDebt.toLocaleString('vi-VN')} VND</div>
                                         <div className="text-xs">(Cửa hàng nợ)</div>
                                     </div>
                                 );
@@ -404,6 +411,7 @@ const ImportSidebar = ({
                 </div>
             )}
 
+            {/* Số tiền đã trả - luôn hiển thị nhưng disable cho Import Balance */}
             <div>
                 <div className="font-semibold mb-1">Số tiền đã trả</div>
                 <TextField
@@ -411,6 +419,7 @@ const ImportSidebar = ({
                     fullWidth
                     type="text"
                     placeholder="Nhập số tiền đã trả"
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     value={isPaidAmountFocused && (paidAmountInput === '0' || paidAmountInput === '') ? '' : paidAmountInput}
                     onFocus={e => {
                         setIsPaidAmountFocused(true);
@@ -480,14 +489,14 @@ const ImportSidebar = ({
             </div>
 
             <div className="flex gap-2">
-                <Button 
-                    fullWidth 
-                    variant="outlined" 
+                <Button
+                    fullWidth
+                    variant="outlined"
                     onClick={() => {
                         setPaidAmount(0);
                         setPaidAmountInput('0');
                     }}
-                    disabled={paidAmount === 0}
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     sx={{
                         borderColor: '#ddd',
                         color: '#666',
@@ -503,14 +512,14 @@ const ImportSidebar = ({
                 >
                     Chưa trả
                 </Button>
-                <Button 
-                    fullWidth 
-                    variant="outlined" 
+                <Button
+                    fullWidth
+                    variant="outlined"
                     onClick={() => {
                         setPaidAmount(totalAmount);
                         setPaidAmountInput(totalAmount.toLocaleString('vi-VN'));
                     }}
-                    disabled={paidAmount === totalAmount}
+                    disabled={isBalancePage && mode === 'create'} // Chỉ disable cho Import Balance create mode
                     sx={{
                         borderColor: '#ddd',
                         color: '#666',
@@ -530,32 +539,61 @@ const ImportSidebar = ({
 
             <div className="flex gap-2 pt-2">
                 {isBalancePage ? (
-                    <Button 
-                        fullWidth 
-                        variant="contained" 
-                        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
-                        onClick={onUpdateBatch} 
-                        disabled={loading}
-                        sx={{
-                            background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
-                            boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
-                            '&:hover': {
-                                background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
-                                boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
-                                transform: 'translateY(-1px)'
-                            },
-                            '&:disabled': {
-                                background: '#ccc',
-                                boxShadow: 'none',
-                                transform: 'none'
-                            },
-                            fontWeight: 600,
-                            borderRadius: 2,
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Thêm số lượng
-                    </Button>
+                    mode === 'create' ? (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                            onClick={onCreateImport}
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                                boxShadow: '0 3px 15px rgba(76, 175, 80, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
+                                    boxShadow: '0 5px 20px rgba(76, 175, 80, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Cập Nhập
+                        </Button>
+                    ) : (
+                        <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
+                            onClick={onUpdateBatch}
+                            disabled={loading}
+                            sx={{
+                                background: 'linear-gradient(45deg, #ff7043 30%, #ff8a65 90%)',
+                                boxShadow: '0 3px 15px rgba(255, 112, 67, 0.3)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #f4511e 30%, #ff7043 90%)',
+                                    boxShadow: '0 5px 20px rgba(255, 112, 67, 0.4)',
+                                    transform: 'translateY(-1px)'
+                                },
+                                '&:disabled': {
+                                    background: '#ccc',
+                                    boxShadow: 'none',
+                                    transform: 'none'
+                                },
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Cập nhật lô
+                        </Button>
+                    )
                 ) : (
                     <>
                         <Button 
@@ -728,8 +766,17 @@ const ImportSidebar = ({
                             <div className="pt-3 border-t border-gray-100">
                                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                     <span className="text-sm font-medium text-gray-700">Tổng nợ:</span>
-                                    <span className={`text-sm font-bold px-2 py-1 rounded ${hoveredSupplier.totalDebt > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                        {hoveredSupplier.totalDebt?.toLocaleString('vi-VN') || '0'} VND
+                                    <span className={`text-sm font-bold px-2 py-1 rounded ${hoveredSupplier.totalDebt < 0 ? 'bg-red-100 text-red-700' : hoveredSupplier.totalDebt > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                        {(() => {
+                                            const totalDebt = hoveredSupplier.totalDebt || 0;
+                                            if (totalDebt < 0) {
+                                                return `-${Math.abs(totalDebt).toLocaleString('vi-VN')} VND`;
+                                            } else if (totalDebt > 0) {
+                                                return `+${totalDebt.toLocaleString('vi-VN')} VND`;
+                                            } else {
+                                                return `${totalDebt.toLocaleString('vi-VN')} VND`;
+                                            }
+                                        })()}
                                     </span>
                                 </div>
                             </div>

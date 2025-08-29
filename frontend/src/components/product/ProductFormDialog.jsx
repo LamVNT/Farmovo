@@ -6,11 +6,75 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { userService } from '../../services/userService';
 
-const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode }) => {
+const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode, existingProducts = [] }) => {
     const [categories, setCategories] = useState([]);
     const [stores, setStores] = useState([]);
     const [currentUser, setCurrentUser] = useState(null);
     const [isStaff, setIsStaff] = useState(false);
+    const [nameError, setNameError] = useState('');
+
+    // Validation function để kiểm tra trùng lặp tên sản phẩm
+    const validateProductName = (name) => {
+        if (!name || name.trim() === '') {
+            setNameError('');
+            return true;
+        }
+        
+        const trimmedName = name.trim();
+        const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('ROLE_OWNER');
+        
+        const isDuplicate = existingProducts.some(product => {
+            if (isOwner) {
+                // Owner: Chỉ kiểm tra trùng lặp trong cùng store
+                const sameStore = product.storeId === form.storeId;
+                const sameName = product.productName?.trim().toLowerCase() === trimmedName.toLowerCase();
+                const isCurrentProduct = editMode && product.id === form.id;
+                
+                return sameStore && sameName && !isCurrentProduct;
+            } else {
+                // Staff: Kiểm tra trùng lặp trong cùng store và category
+                const sameStore = product.storeId === form.storeId;
+                const sameCategory = product.categoryId === form.categoryId;
+                const sameName = product.productName?.trim().toLowerCase() === trimmedName.toLowerCase();
+                const isCurrentProduct = editMode && product.id === form.id;
+                
+                return sameStore && sameCategory && sameName && !isCurrentProduct;
+            }
+        });
+        
+        if (isDuplicate) {
+            if (isOwner) {
+                setNameError('Sản phẩm này đã tồn tại trong cửa hàng');
+            } else {
+                setNameError('Sản phẩm này đã tồn tại trong danh mục và cửa hàng');
+            }
+            return false;
+        } else {
+            setNameError('');
+            return true;
+        }
+    };
+
+    // Xử lý thay đổi tên sản phẩm
+    const handleNameChange = (e) => {
+        const { name, value } = e.target;
+        setForm(prev => ({ ...prev, [name]: value }));
+        
+        // Validate tên sản phẩm khi thay đổi
+        if (name === 'productName') {
+            validateProductName(value);
+        }
+    };
+
+    // Xử lý thay đổi store hoặc category để re-validate tên sản phẩm
+    const handleStoreOrCategoryChange = (field, value) => {
+        setForm(prev => ({ ...prev, [field]: value }));
+        
+        // Re-validate tên sản phẩm khi store hoặc category thay đổi
+        if (form.productName) {
+            validateProductName(form.productName);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -111,8 +175,10 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                         name="productName" 
                         fullWidth
                         value={form.productName || ''} 
-                        onChange={handleChange} 
+                        onChange={handleNameChange} 
                         required
+                        error={!!nameError}
+                        helperText={nameError}
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
@@ -143,7 +209,7 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                         options={categories}
                         getOptionLabel={(opt) => opt.name}
                         value={categories.find(c => c.id === form.categoryId) || null}
-                        onChange={(e, val) => setForm(prev => ({ ...prev, categoryId: val?.id || null }))}
+                        onChange={(e, val) => handleStoreOrCategoryChange('categoryId', val?.id || null)}
                         renderInput={(params) => (
                             <TextField 
                                 {...params} 
@@ -165,10 +231,7 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                         options={stores}
                         getOptionLabel={(opt) => opt.name}
                         value={stores.find(s => s.id === form.storeId) || null}
-                        onChange={(e, val) => {
-                            console.log('Store selected:', val);
-                            setForm(prev => ({ ...prev, storeId: val?.id || null }));
-                        }}
+                        onChange={(e, val) => handleStoreOrCategoryChange('storeId', val?.id || null)}
                         disabled={isStaff}
                         renderInput={(params) => (
                             <TextField 
@@ -235,6 +298,12 @@ const ProductFormDialog = ({ open, onClose, onSubmit, form, setForm, editMode })
                     onClick={() => {
                         console.log('Form data before submit:', form);
                         console.log('Stores available:', stores);
+                        
+                        // Kiểm tra validation trước khi submit
+                        if (form.productName && !validateProductName(form.productName)) {
+                            return; // Không submit nếu có lỗi validation
+                        }
+                        
                         onSubmit();
                     }}
                     sx={{ 

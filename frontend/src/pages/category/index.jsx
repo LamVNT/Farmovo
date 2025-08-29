@@ -9,6 +9,7 @@ import TablePagination from '@mui/material/TablePagination';
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SnackbarAlert from "../../components/SnackbarAlert";
 import useCategory from "../../hooks/useCategory";
+import { useNotification } from "../../contexts/NotificationContext";
 
 
 const Category = () => {
@@ -20,6 +21,8 @@ const Category = () => {
         handleUpdate,
         handleDelete,
     } = useCategory();
+    
+    const { createCategoryNotification } = useNotification();
     const [searchText, setSearchText] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -52,7 +55,15 @@ const Category = () => {
             onConfirm: async () => {
                 setConfirmDialog(prev => ({...prev, isOpen: false}));
                 try {
+                    // Tìm tên danh mục trước khi xóa để tạo notification
+                    const categoryToDelete = categories.find(cat => cat.id === id);
+                    const categoryName = categoryToDelete ? categoryToDelete.name : 'Danh mục';
+                    
                     await handleDelete(id);
+                    
+                    // Tạo notification cho việc xóa danh mục
+                    createCategoryNotification('delete', categoryName);
+                    
                     setSnackbar({isOpen: true, message: "Xóa danh mục thành công!", severity: "success"});
                 } catch (err) {
                     setSnackbar({isOpen: true, message: err.message || "Xóa danh mục thất bại!", severity: "error"});
@@ -69,9 +80,17 @@ const Category = () => {
         try {
             if (editMode) {
                 const updated = await handleUpdate(form.id, form);
+                
+                // Tạo notification cho việc cập nhật danh mục
+                createCategoryNotification('update', form.name);
+                
                 setSnackbar({isOpen: true, message: "Cập nhật danh mục thành công!", severity: "success"});
             } else {
                 const created = await handleCreate(form);
+                
+                // Tạo notification cho việc tạo danh mục mới
+                createCategoryNotification('create', form.name);
+                
                 setSnackbar({isOpen: true, message: "Tạo mới danh mục thành công!", severity: "success"});
             }
             setOpenDialog(false);

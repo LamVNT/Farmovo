@@ -14,86 +14,89 @@ import java.math.BigDecimal;
 public interface SaleTransactionRepository extends JpaRepository<SaleTransaction, Long>, JpaSpecificationExecutor<SaleTransaction> {
     Optional<SaleTransaction> findTopByOrderByIdDesc();
 
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.status = 'COMPLETE'")
     List<SaleTransaction> findAllSaleActive();
 
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.store.id = :storeId")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.store.id = :storeId AND s.status = 'COMPLETE'")
     List<SaleTransaction> findAllSaleActiveByStore(@Param("storeId") Long storeId);
 
-    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL")
+    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.status = 'COMPLETE'")
     BigDecimal sumTotalAmount();
 
-    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.store.id = :storeId")
+    @Query("SELECT COALESCE(SUM(s.totalAmount), 0) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.store.id = :storeId AND s.status = 'COMPLETE'")
     BigDecimal sumTotalAmountByStoreId(@Param("storeId") Long storeId);
 
-    @Query("SELECT COUNT(s) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.store.id = :storeId")
+    @Query("SELECT COUNT(s) FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.store.id = :storeId AND s.status = 'COMPLETE'")
     long countByStoreId(@Param("storeId") Long storeId);
 
     // Use native Postgres DATE() to group by day
     @Query(value = "SELECT DATE(sale_date) AS date, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND status = 'COMPLETE' " +
             "GROUP BY DATE(sale_date) ORDER BY date", nativeQuery = true)
     List<Object[]> getRevenueByDay(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Use native Postgres EXTRACT for month grouping
     @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, EXTRACT(MONTH FROM sale_date) AS month, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND status = 'COMPLETE' " +
             "GROUP BY year, month ORDER BY year, month", nativeQuery = true)
     List<Object[]> getRevenueByMonth(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Use native Postgres EXTRACT for year grouping
     @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND status = 'COMPLETE' " +
             "GROUP BY year ORDER BY year", nativeQuery = true)
     List<Object[]> getRevenueByYear(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Store-specific revenue queries
     @Query(value = "SELECT DATE(sale_date) AS date, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId AND status = 'COMPLETE' " +
             "GROUP BY DATE(sale_date) ORDER BY date", nativeQuery = true)
     List<Object[]> getRevenueByDayAndStore(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, @Param("storeId") Long storeId);
 
     @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, EXTRACT(MONTH FROM sale_date) AS month, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId AND status = 'COMPLETE' " +
             "GROUP BY year, month ORDER BY year, month", nativeQuery = true)
     List<Object[]> getRevenueByMonthAndStore(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, @Param("storeId") Long storeId);
 
     @Query(value = "SELECT EXTRACT(YEAR FROM sale_date) AS year, COALESCE(SUM(total_amount), 0) AS total " +
             "FROM sale_transactions " +
-            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId " +
+            "WHERE deleted_at IS NULL AND sale_date BETWEEN :from AND :to AND store_id = :storeId AND status = 'COMPLETE' " +
             "GROUP BY year ORDER BY year", nativeQuery = true)
     List<Object[]> getRevenueByYearAndStore(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, @Param("storeId") Long storeId);
 
     // Thống kê khách hàng top theo doanh thu
-    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to GROUP BY s.customer.id, s.customer.name ORDER BY totalAmount DESC")
+    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to AND s.status = 'COMPLETE' GROUP BY s.customer.id, s.customer.name ORDER BY totalAmount DESC")
     List<Object[]> getTopCustomers(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, org.springframework.data.domain.Pageable pageable);
 
-    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to AND s.store.id = :storeId GROUP BY s.customer.id, s.customer.name ORDER BY totalAmount DESC")
+    @Query("SELECT s.customer.name, SUM(s.totalAmount) as totalAmount, COUNT(s.id) as orderCount FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to AND s.store.id = :storeId AND s.status = 'COMPLETE' GROUP BY s.customer.id, s.customer.name ORDER BY totalAmount DESC")
     List<Object[]> getTopCustomersByStore(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to, @Param("storeId") Long storeId, org.springframework.data.domain.Pageable pageable);
 
     // Truy vấn max số thứ tự hiện có cho mã PCBxxxxxx
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(name, 4) AS BIGINT)), 0) FROM sale_transactions WHERE name LIKE 'PCB%'", nativeQuery = true)
     Long getMaxPcbSequence();
 
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.deletedBy IS NULL AND s.status = 'COMPLETE' ORDER BY s.createdAt DESC")
     List<SaleTransaction> findRecentSales(org.springframework.data.domain.Pageable pageable);
 
     // PCB linkage helpers
     boolean existsByStocktakeId(Long stocktakeId);
     long countByStocktakeId(Long stocktakeId);
     long countByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
+    
+    // Thêm method để lấy PCB theo stocktakeId
+    List<SaleTransaction> findByStocktakeIdAndStatus(Long stocktakeId, SaleTransactionStatus status);
 
     // ✅ Thêm method để load customer và store cùng với sale transaction
-    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id")
+    @Query("SELECT s FROM SaleTransaction s LEFT JOIN FETCH s.customer LEFT JOIN FETCH s.store WHERE s.id = :id AND s.status = 'COMPLETE'")
     Optional<SaleTransaction> findByIdWithCustomerAndStore(@Param("id") Long id);
 
     // ✅ New: fetch active sales in a date range
-    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to")
+    @Query("SELECT s FROM SaleTransaction s WHERE s.deletedAt IS NULL AND s.saleDate BETWEEN :from AND :to AND s.status = 'COMPLETE'")
     List<SaleTransaction> findAllSaleActiveBetween(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 }
 

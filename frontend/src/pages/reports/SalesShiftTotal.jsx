@@ -33,9 +33,16 @@ const SalesShiftTotal = () => {
   }, []);
 
   const setShift = (shift) => {
-    if (shift === 'morning') { setFromTime('06:00'); setToTime('14:00'); }
-    else if (shift === 'afternoon') { setFromTime('14:00'); setToTime('22:00'); }
-    else { setFromTime('22:00'); setToTime('06:00'); }
+    if (shift === 'morning') { 
+      setFromTime('06:00'); 
+      setToTime('12:00'); 
+    } else if (shift === 'afternoon') { 
+      setFromTime('12:00'); 
+      setToTime('18:00'); 
+    } else { 
+      setFromTime('18:00'); 
+      setToTime('06:00'); 
+    }
   };
 
   return (
@@ -69,9 +76,15 @@ const SalesShiftTotal = () => {
         </Grid>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} mb={3}>
-          <Button size="small" variant="outlined" onClick={() => { setShift('morning'); fetchData(); }}>Ca sáng (06:00 - 14:00)</Button>
-          <Button size="small" variant="outlined" onClick={() => { setShift('afternoon'); fetchData(); }}>Ca chiều (14:00 - 22:00)</Button>
-          <Button size="small" variant="outlined" onClick={() => { setShift('night'); fetchData(); }}>Ca tối (22:00 - 06:00)</Button>
+          <Button size="small" variant="outlined" onClick={() => { setShift('morning'); fetchData(); }}>
+            Ca sáng (06:00 - 12:00)
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => { setShift('afternoon'); fetchData(); }}>
+            Ca chiều (12:00 - 18:00)
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => { setShift('night'); fetchData(); }}>
+            Ca tối (18:00 - 06:00)
+          </Button>
         </Stack>
 
         <Paper sx={{ p: 2, borderRadius: 3 }}>

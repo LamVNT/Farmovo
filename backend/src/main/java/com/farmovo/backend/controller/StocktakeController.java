@@ -1,6 +1,8 @@
 package com.farmovo.backend.controller;
 
 import com.farmovo.backend.dto.request.StocktakeRequestDto;
+import com.farmovo.backend.dto.request.CreateImportTransactionRequestDto;
+import com.farmovo.backend.dto.response.ImportBalanceDataDto;
 import com.farmovo.backend.dto.response.MissingZoneDto;
 import com.farmovo.backend.dto.response.ProductResponseDto;
 import com.farmovo.backend.dto.response.StocktakeDetailDto;
@@ -9,6 +11,7 @@ import com.farmovo.backend.dto.response.ZoneResponseDto;
 import com.farmovo.backend.jwt.JwtUtils;
 import com.farmovo.backend.services.ImportTransactionDetailService;
 import com.farmovo.backend.services.StocktakeService;
+import com.farmovo.backend.services.BalanceStockService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class StocktakeController {
 
     private final StocktakeService stocktakeService;
     private final ImportTransactionDetailService importTransactionDetailService;
+    private final BalanceStockService balanceStockService;
     private final JwtUtils jwtUtils;
 
     @PostMapping
@@ -113,6 +117,21 @@ public class StocktakeController {
     public ResponseEntity<List<MissingZoneDto>> checkMissingZones(
             @RequestBody List<StocktakeDetailDto> stocktakeDetails) {
         return ResponseEntity.ok(importTransactionDetailService.checkMissingZones(stocktakeDetails));
+    }
+
+    @GetMapping("/{id}/import-balance-data")
+    public ResponseEntity<List<ImportBalanceDataDto>> getImportBalanceData(@PathVariable Long id) {
+        StocktakeResponseDto stocktake = stocktakeService.getStocktakeById(id);
+
+        // Chỉ lấy những item có diff > 0 (thừa hàng) để tạo phiếu nhập
+        List<StocktakeDetailDto> surplusItems = stocktake.getRawDetail().stream()
+                .filter(detail -> detail.getDiff() != null && detail.getDiff() > 0)
+                .collect(java.util.stream.Collectors.toList());
+
+        List<ImportBalanceDataDto> importBalanceData =
+                balanceStockService.convertStocktakeDetailToImportBalanceData(surplusItems);
+
+        return ResponseEntity.ok(importBalanceData);
     }
 
     private Long extractUserIdFromRequest(HttpServletRequest request) {

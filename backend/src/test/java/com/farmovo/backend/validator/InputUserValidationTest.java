@@ -145,6 +145,56 @@ class InputUserValidationTest {
     }
 
     @Test
+    @DisplayName("validateEmailForCreate - Email duplicate")
+    void testValidateEmailForCreate_DuplicateEmail() {
+        // Given
+        String email = "test@example.com";
+        boolean isEmailExists = true;
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> inputUserValidation.validateEmailForCreate(email, isEmailExists));
+        assertEquals("Email đã được sử dụng bởi tài khoản khác", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("validateEmailForCreate - Email không duplicate")
+    void testValidateEmailForCreate_NotDuplicateEmail() {
+        // Given
+        String email = "test@example.com";
+        boolean isEmailExists = false;
+
+        // When & Then
+        assertDoesNotThrow(() -> inputUserValidation.validateEmailForCreate(email, isEmailExists));
+    }
+
+    @Test
+    @DisplayName("validateEmailForUpdate - Email duplicate")
+    void testValidateEmailForUpdate_DuplicateEmail() {
+        // Given
+        String email = "test@example.com";
+        boolean isEmailExists = true;
+        Long currentUserId = 1L;
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> inputUserValidation.validateEmailForUpdate(email, isEmailExists, currentUserId));
+        assertEquals("Email đã được sử dụng bởi tài khoản khác", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("validateEmailForUpdate - Email không duplicate")
+    void testValidateEmailForUpdate_NotDuplicateEmail() {
+        // Given
+        String email = "test@example.com";
+        boolean isEmailExists = false;
+        Long currentUserId = 1L;
+
+        // When & Then
+        assertDoesNotThrow(() -> inputUserValidation.validateEmailForUpdate(email, isEmailExists, currentUserId));
+    }
+
+    @Test
     @DisplayName("validateSendLoginInfoRequest - Request hợp lệ")
     void testValidateSendLoginInfoRequest_ValidRequest() {
         // When & Then

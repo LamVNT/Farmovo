@@ -6,19 +6,12 @@ import {
   Alert,
   TextField,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Checkbox,
-  FormControlLabel,
-  FormLabel,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   CircularProgress,
   IconButton,
   Menu,
+  MenuItem,
+  FormControl,
+  Select,
   ListItemIcon,
   ListItemText,
   Chip
@@ -27,62 +20,22 @@ import {
   Visibility,
   OpenInNew,
   MoreHoriz,
-  ExpandMore,
   Search,
-  FilterList,
   Clear
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { DateRange } from "react-date-range";
-import 'react-date-range/dist/styles.css';
-import 'react-date-range/dist/theme/default.css';
-import {
-  format, subDays, startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth, startOfQuarter, endOfQuarter,
-  startOfYear, endOfYear
-} from "date-fns";
+import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
+
 import useChangeStatusLog from '../../hooks/useChangeStatusLog';
 import ChangeStatusLogDetailDialog from '../../components/ChangeStatusLogDetailDialog';
 import SnackbarAlert from '../../components/SnackbarAlert';
 import changeStatusLogService from '../../services/changeStatusLogService';
 
-const getRange = (key) => {
-  const today = new Date();
-  switch (key) {
-    case "today": return [{ startDate: today, endDate: today, key: 'selection' }];
-    case "yesterday": {
-      const y = subDays(today, 1);
-      return [{ startDate: y, endDate: y, key: 'selection' }];
-    }
-    case "this_week": return [{ startDate: startOfWeek(today), endDate: endOfWeek(today), key: 'selection' }];
-    case "last_week": {
-      const lastWeekStart = startOfWeek(subDays(today, 7));
-      const lastWeekEnd = endOfWeek(subDays(today, 7));
-      return [{ startDate: lastWeekStart, endDate: lastWeekEnd, key: 'selection' }];
-    }
-    case "this_month": return [{ startDate: startOfMonth(today), endDate: endOfMonth(today), key: 'selection' }];
-    case "last_month": {
-      const lastMonth = subDays(startOfMonth(today), 1);
-      return [{ startDate: startOfMonth(lastMonth), endDate: endOfMonth(lastMonth), key: 'selection' }];
-    }
-    case "this_quarter": return [{ startDate: startOfQuarter(today), endDate: endOfQuarter(today), key: 'selection' }];
-    case "this_year": return [{ startDate: startOfYear(today), endDate: endOfYear(today), key: 'selection' }];
-    default: return [{ startDate: today, endDate: today, key: 'selection' }];
-  }
-};
 
-const labelMap = {
-  today: "Hôm nay",
-  yesterday: "Hôm qua",
-  this_week: "Tuần này",
-  last_week: "Tuần trước",
-  this_month: "Tháng này",
-  last_month: "Tháng trước",
-  this_quarter: "Quý này",
-  this_year: "Năm nay"
-};
+
+
+
 
 const ChangeStatusLogPage = () => {
   const navigate = useNavigate();
@@ -94,28 +47,9 @@ const ChangeStatusLogPage = () => {
     severity: 'info'
   });
 
-  // Filter states
-  const [presetLabel, setPresetLabel] = useState("Tháng này");
-  const [customLabel, setCustomLabel] = useState("Lựa chọn khác");
-  const [customDate, setCustomDate] = useState(getRange("this_month"));
-  const [selectedMode, setSelectedMode] = useState("preset");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const openPopover = Boolean(anchorEl);
+
 
   const [filter, setFilter] = useState({
-    status: {
-      draft: false,
-      waiting: false,
-      complete: false,
-      cancel: false,
-      pending: false,
-      approved: false,
-      rejected: false,
-      completed: false,
-      cancelled: false
-    },
-    modelType: '',
     search: ''
   });
 
@@ -124,8 +58,6 @@ const ChangeStatusLogPage = () => {
   const [pageSize, setPageSize] = useState(25);
 
   // UI states
-  const [showFilter, setShowFilter] = useState(true);
-  const [showFilterBtn, setShowFilterBtn] = useState(false);
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [actionRow, setActionRow] = useState(null);
   const mainAreaRef = useRef(null);
@@ -135,20 +67,21 @@ const ChangeStatusLogPage = () => {
     loading,
     error,
     pagination,
-    fetchLogs,
     getLatestLogsForEachSource,
-    getLatestLogsForEachSourceByModel,
-    handlePageChange,
-    handleFilterChange,
-    handleSizeChange
+    getLatestLogsForEachSourceByModel
   } = useChangeStatusLog();
 
-  // Thêm state để quản lý chế độ hiển thị
-  const [displayMode, setDisplayMode] = useState('latest'); // 'all' hoặc 'latest' - mặc định là 'latest'
+  // Luôn sử dụng chế độ mới nhất mỗi nguồn
+  const displayMode = 'latest';
   
   // State để lưu trữ tất cả bản ghi thay đổi của một mã nguồn
   const [sourceLogs, setSourceLogs] = useState([]);
   const [sourceLogsLoading, setSourceLogsLoading] = useState(false);
+  
+  // State để kiểm soát việc gọi API
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+
 
   const handleViewDetail = useCallback(async (log) => {
     console.log('handleViewDetail called with log:', log);
@@ -214,36 +147,9 @@ const ChangeStatusLogPage = () => {
     setSnackbar({ ...snackbar, open: false });
   }, [snackbar]);
 
-  // Filter handlers
-  const handlePresetChange = useCallback((key) => {
-    setCustomDate(getRange(key));
-    setPresetLabel(labelMap[key]);
-    setSelectedMode("preset");
-    setShowDatePicker(false);
-    setAnchorEl(null);
-  }, []);
 
-  const handleCustomChange = useCallback((range) => {
-    const start = format(range.startDate, "dd/MM/yyyy");
-    const end = format(range.endDate, "dd/MM/yyyy");
-    setCustomLabel(`${start} - ${end}`);
-    setCustomDate([range]);
-    setSelectedMode("custom");
-  }, []);
 
-  const getStatusKeys = useCallback(() => {
-    const keys = [];
-    if (filter.status.draft) keys.push('DRAFT');
-    if (filter.status.waiting) keys.push('WAITING_FOR_APPROVE');
-    if (filter.status.complete) keys.push('COMPLETE');
-    if (filter.status.cancel) keys.push('CANCEL');
-    if (filter.status.pending) keys.push('PENDING');
-    if (filter.status.approved) keys.push('APPROVED');
-    if (filter.status.rejected) keys.push('REJECTED');
-    if (filter.status.completed) keys.push('COMPLETED');
-    if (filter.status.cancelled) keys.push('CANCELLED');
-    return keys;
-  }, [filter.status]);
+
 
   // Action menu handlers
   const handleActionClick = useCallback((event, row) => {
@@ -301,12 +207,12 @@ const ChangeStatusLogPage = () => {
 
   const getModelTypeLabel = useMemo(() => (modelName) => {
     const modelLabels = {
-      'SALE_TRANSACTION': 'Bán hàng',
-      'IMPORT_TRANSACTION': 'Nhập hàng',
-      'STOCKTAKE': 'Kiểm kê',
-      'DEBT_NOTE': 'Ghi nợ',
-      'CUSTOMER': 'Khách hàng',
-      'PRODUCT': 'Sản phẩm'
+      'SaleTransaction': 'Bán hàng',
+      'ImportTransaction': 'Nhập hàng',
+      'Stocktake': 'Kiểm kê',
+      'DebtNote': 'Ghi nợ',
+      'Customer': 'Khách hàng',
+      'Product': 'Sản phẩm'
     };
     return modelLabels[modelName] || modelName;
   }, []);
@@ -321,7 +227,7 @@ const ChangeStatusLogPage = () => {
     width: '100%',
     borderCollapse: 'separate',
     borderSpacing: 0,
-    minWidth: 1100,
+    minWidth: 1200,
     background: '#fff',
     fontFamily: 'Roboto, Arial, sans-serif',
     fontSize: 15,
@@ -367,111 +273,83 @@ const ChangeStatusLogPage = () => {
     }
   }), []);
 
-  // Effect để xử lý filter và pagination - gộp tất cả logic lại
+  // Pagination logic cho chế độ latest
+  const paginatedLogs = useMemo(() => {
+    if (!logs || logs.length === 0) return [];
+    
+    const startIndex = page * pageSize;
+    const endIndex = startIndex + pageSize;
+    return logs.slice(startIndex, endIndex);
+  }, [logs, page, pageSize]);
+
+  const totalPages = useMemo(() => {
+    if (!logs || logs.length === 0) return 0;
+    return Math.ceil(logs.length / pageSize);
+  }, [logs, pageSize]);
+
+  const totalElements = useMemo(() => {
+    return logs ? logs.length : 0;
+  }, [logs]);
+
+
+
+    // Effect để xử lý search filter và pagination
   useEffect(() => {
-    if (displayMode === 'latest') {
-      // Nếu đang ở chế độ hiển thị mới nhất
-      if (filter.modelType || filter.search || Object.values(filter.status).some(Boolean)) {
-        // Nếu có filter theo loại đối tượng, tìm kiếm hoặc trạng thái, áp dụng filter
-        if (filter.modelType) {
-          getLatestLogsForEachSourceByModel(filter.modelType);
-        } else {
-          // Nếu chỉ có tìm kiếm hoặc trạng thái, lọc từ dữ liệu đã có
-          getLatestLogsForEachSource();
-        }
-      } else {
-        // Nếu không có filter nào, lấy tất cả
+    if (!isInitialized) return;
+    
+    // Debounce để tránh gọi API quá nhiều
+    const timeoutId = setTimeout(() => {
+      console.log('Effect triggered - search:', filter.search, 'page:', page, 'pageSize:', pageSize);
+      
+      // Luôn sử dụng chế độ mới nhất mỗi nguồn
+      if (logs.length === 0) {
+        console.log('Calling getLatestLogsForEachSource (no logs available)');
         getLatestLogsForEachSource();
+      } else {
+        console.log('Logs already available, no need to call API');
       }
-    } else {
-      // Nếu đang ở chế độ hiển thị tất cả
-      const filterRequest = {
-        modelName: filter.modelType || '',
-        description: filter.search || '',
-        fromDate: customDate && customDate[0] ? customDate[0].startDate.toISOString() : null,
-        toDate: customDate && customDate[0] ? customDate[0].endDate.toISOString() : null
-      };
+    }, 300); // Debounce 300ms
 
-      // Thêm status filter nếu có
-      const statusKeys = getStatusKeys();
-      if (statusKeys.length > 0) {
-        filterRequest.previousStatus = statusKeys.join(',');
-        filterRequest.nextStatus = statusKeys.join(',');
-      }
+    return () => clearTimeout(timeoutId);
+  }, [filter.search, page, pageSize, isInitialized, getLatestLogsForEachSource, logs.length]);
 
-      // Reset page về 0 khi filter thay đổi
-      setPage(0);
-      handleFilterChange(filterRequest);
-    }
-  }, [filter, customDate, displayMode, getLatestLogsForEachSource, getLatestLogsForEachSourceByModel, handleFilterChange, getStatusKeys]);
+  
 
-  // Effect để xử lý pagination
+
+
+  // Effect để xử lý pagination - chế độ latest vẫn cần pagination
   useEffect(() => {
-    if (displayMode !== 'latest' && page >= 0) {
-      handlePageChange(page);
+    if (page >= 0 && isInitialized) {
+      console.log('Page changed to:', page, '- latest mode with pagination');
+      // Chế độ latest vẫn cần pagination để hiển thị đúng số dòng
     }
-  }, [page, handlePageChange, displayMode]);
+  }, [page, isInitialized]);
 
   useEffect(() => {
-    if (displayMode !== 'latest' && pageSize > 0) {
+    if (pageSize > 0 && isInitialized) {
       setPage(0); // Reset về trang đầu khi thay đổi pageSize
-      handleSizeChange(pageSize);
+      console.log('Page size changed to:', pageSize, '- latest mode with pagination');
+      // Chế độ latest vẫn cần pagination để hiển thị đúng số dòng
     }
-  }, [pageSize, handleSizeChange, displayMode]);
-
-  // Khởi tạo dữ liệu ban đầu và reset khi chuyển đổi chế độ
-  useEffect(() => {
-    setPage(0);
-    if (displayMode === 'latest') {
-      setPageSize(25); // Reset về giá trị mặc định
-      getLatestLogsForEachSource();
-    } else {
-      const initialFilterRequest = {
-        modelName: '',
-        description: '',
-        fromDate: null,
-        toDate: null
-      };
-      handleFilterChange(initialFilterRequest);
-    }
-  }, [displayMode, getLatestLogsForEachSource, handleFilterChange]);
+  }, [pageSize, isInitialized]);
 
   // Khởi tạo dữ liệu ban đầu khi component mount
   useEffect(() => {
+    if (!isInitialized) {
+      console.log('Initializing component...');
     // Mặc định load dữ liệu theo chế độ latest
     getLatestLogsForEachSource();
-  }, [getLatestLogsForEachSource]);
+      setIsInitialized(true);
+    }
+  }, [isInitialized, getLatestLogsForEachSource]);
 
-  // Filter sidebar styles
-  const filterSidebarStyle = useMemo(() => ({
-    minWidth: 240,
-    maxWidth: 320,
-    transition: 'all 0.2s',
-    position: 'relative',
-  }), []);
+  
 
-  const filterHideBtnStyle = useMemo(() => ({
-    position: 'absolute',
-    right: -16,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    zIndex: 9999,
-    background: '#fff',
-    border: '2px solid #3b82f6',
-    borderRadius: '50%',
-    padding: 0,
-    width: 36,
-    height: 36,
-    cursor: 'pointer',
-    boxShadow: '0 2px 8px #b6d4fe, 2px 0 8px #e5e7eb',
-    fontSize: 20,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#2563eb',
-    opacity: 0,
-    transition: 'opacity 0.2s, background 0.2s, border 0.2s, transform 0.2s',
-  }), []);
+
+
+
+
+
 
   return (
     <Container maxWidth="xl">
@@ -486,53 +364,14 @@ const ChangeStatusLogPage = () => {
              Mặc định hiển thị bản ghi mới nhất cho mỗi mã nguồn, có thể filter theo loại đối tượng, trạng thái và tìm kiếm.
            </Typography>
            
-           {/* Toggle chế độ hiển thị */}
+                       {/* Mô tả chế độ hiển thị */}
            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-             <Typography variant="body2" color="textSecondary">
-               Chế độ hiển thị:
-             </Typography>
-             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-               <Button
-                 variant={displayMode === 'latest' ? 'contained' : 'outlined'}
-                 size="small"
-                 onClick={() => setDisplayMode('latest')}
-                 sx={{
-                   borderRadius: 2,
-                   textTransform: 'none',
-                   minWidth: 100
-                 }}
-               >
-                 Mới nhất mỗi nguồn
-               </Button>
-               <Button
-                 variant={displayMode === 'all' ? 'contained' : 'outlined'}
-                 size="small"
-                 onClick={() => setDisplayMode('all')}
-                 sx={{
-                   borderRadius: 2,
-                   textTransform: 'none',
-                   minWidth: 100
-                 }}
-               >
-                 Tất cả
-               </Button>
-             </Box>
-             {displayMode === 'latest' && (
                <Chip
                  label="Chế độ mặc định - Chỉ hiển thị bản ghi mới nhất cho mỗi mã nguồn (có thể filter theo loại đối tượng, trạng thái và tìm kiếm)"
                  color="success"
                  size="small"
                  variant="outlined"
                />
-             )}
-             {displayMode === 'all' && (
-               <Chip
-                 label="Chế độ nâng cao - Hiển thị tất cả bản ghi với filter đầy đủ"
-                 color="info"
-                 size="small"
-                 variant="outlined"
-               />
-             )}
            </Box>
          </Box>
 
@@ -547,240 +386,14 @@ const ChangeStatusLogPage = () => {
           className="flex flex-col lg:flex-row gap-4 mb-5"
           ref={mainAreaRef}
           style={{ position: 'relative' }}
-          onMouseEnter={() => setShowFilterBtn(true)}
-          onMouseLeave={() => setShowFilterBtn(false)}
         >
-          {/* Nút hiện filter khi đang ẩn */}
-          {!showFilter && showFilterBtn && (
-            <button
-              style={{
-                position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 20,
-                background: '#fff', border: '2px solid #3b82f6', borderRadius: '50%', padding: 0, width: 36, height: 36,
-                cursor: 'pointer', boxShadow: '0 2px 8px #b6d4fe, 2px 0 8px #e5e7eb', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb',
-                opacity: 1, transition: 'opacity 0.2s, background 0.2s, border 0.2s, transform 0.2s',
-              }}
-              onClick={() => setShowFilter(true)}
-              title='Hiện bộ lọc'
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-            </button>
-          )}
 
-          {/* Filter sidebar */}
-          <div
-            className={showFilter ? "w-full lg:w-1/5 relative group" : "relative group"}
-            style={{
-              ...filterSidebarStyle,
-              width: showFilter ? undefined : 0,
-              minWidth: showFilter ? 240 : 0,
-              maxWidth: showFilter ? 320 : 0,
-              overflow: 'hidden',
-              transition: 'all 0.4s cubic-bezier(.4,2,.6,1)',
-              paddingRight: showFilter ? undefined : 0,
-            }}
-          >
-            {showFilter && (
-              <>
-                <button
-                  style={{ ...filterHideBtnStyle, opacity: 0 }}
-                  className="filter-hide-btn"
-                  onClick={() => setShowFilter(false)}
-                  title='Ẩn bộ lọc'
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                </button>
-                <style>{`
-                  .group:hover .filter-hide-btn { opacity: 1 !important; }
-                  .filter-hide-btn:hover {
-                    background: #e0edff !important;
-                    border-color: #2563eb !important;
-                    color: #1d4ed8 !important;
-                    transform: scale(1.08);
-                    box-shadow: 0 4px 16px #b6d4fe;
-                  }
-                `}</style>
 
-                                 {/* Time filter */}
-                 <div className="bg-white p-4 rounded-lg shadow-lg mb-4 border border-gray-100">
-                   <FormLabel className="mb-3 font-semibold text-gray-700">Lọc theo thời gian</FormLabel>
-                  <div className="flex flex-col gap-2">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={selectedMode === "preset"}
-                          onChange={() => {
-                            setSelectedMode("preset");
-                            setShowDatePicker(false);
-                            setAnchorEl(null);
-                          }}
-                          disabled={displayMode === 'latest'}
-                        />
-                      }
-                      label={
-                        <div
-                          className="flex items-center justify-between w-full cursor-pointer"
-                          onClick={(e) => {
-                            if (displayMode === 'latest') return;
-                            setSelectedMode("preset");
-                            setShowDatePicker(false);
-                            setAnchorEl(e.currentTarget);
-                          }}
-                          style={{ opacity: displayMode === 'latest' ? 0.5 : 1 }}
-                        >
-                          <span>{presetLabel}</span>
-                          <Button size="small" disabled={displayMode === 'latest'}>▼</Button>
-                        </div>
-                      }
-                    />
-                    <FormControlLabel 
-                      control={
-                        <Checkbox 
-                          checked={selectedMode === "custom"} 
-                          onChange={() => { 
-                            if (displayMode === 'latest') return;
-                            setSelectedMode("custom"); 
-                            setAnchorEl(null); 
-                            setShowDatePicker(true); 
-                          }}
-                          disabled={displayMode === 'latest'}
-                        />
-                      } 
-                      label={
-                        <div className="flex items-center justify-between w-full">
-                          <span>{customLabel}</span>
-                          <Button 
-                            size="small" 
-                            onClick={() => { 
-                              if (displayMode === 'latest') return;
-                              setSelectedMode("custom"); 
-                              setAnchorEl(null); 
-                              setShowDatePicker(!showDatePicker); 
-                            }}
-                            disabled={displayMode === 'latest'}
-                          >
-                            📅
-                          </Button>
-                        </div>
-                      } 
-                    />
-                  </div>
-                  {displayMode === 'latest' && (
-                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                      Filter thời gian không khả dụng trong chế độ mặc định "Mới nhất mỗi nguồn"
-                    </Typography>
-                  )}
-                </div>
-
-                                 {/* Status filter */}
-                 <div className="bg-white p-4 rounded-lg shadow-lg mb-4 border border-gray-100">
-                   <FormLabel className="font-semibold mb-3 block text-gray-700">Trạng thái</FormLabel>
-                  <FormControl component="fieldset" className="flex flex-col gap-2">
-                                         <FormControlLabel
-                       control={
-                         <Checkbox
-                           checked={filter.status.draft}
-                           onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, draft: !prev.status.draft } }))}
-                         />
-                       }
-                       label="Nháp"
-                     />
-                     <FormControlLabel
-                       control={
-                         <Checkbox
-                           checked={filter.status.waiting}
-                           onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, waiting: !prev.status.waiting } }))}
-                         />
-                       }
-                       label="Chờ xử lý"
-                     />
-                     <FormControlLabel
-                       control={
-                         <Checkbox
-                           checked={filter.status.complete}
-                           onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, complete: !prev.status.complete } }))}
-                         />
-                       }
-                       label="Hoàn thành"
-                     />
-                     <FormControlLabel
-                       control={
-                         <Checkbox
-                           checked={filter.status.cancel}
-                           onChange={() => setFilter(prev => ({ ...prev, status: { ...prev.status, cancel: !prev.status.cancel } }))}
-                         />
-                       }
-                       label="Đã hủy"
-                     />
-                  </FormControl>
-                </div>
-
-                                 {/* Model type filter */}
-                 <Accordion className="bg-white rounded-lg shadow-lg mb-4 w-full border border-gray-100">
-                   <AccordionSummary expandIcon={<ExpandMore />}>
-                     <span className="font-semibold text-gray-700">Loại đối tượng</span>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <FormControl fullWidth size="small">
-                      <Select
-                        value={filter.modelType}
-                        onChange={(e) => setFilter({ ...filter, modelType: e.target.value })}
-                        displayEmpty
-                      >
-                        <MenuItem value="">Tất cả</MenuItem>
-                        <MenuItem value="SALE_TRANSACTION">Bán hàng</MenuItem>
-                        <MenuItem value="IMPORT_TRANSACTION">Nhập hàng</MenuItem>
-                        <MenuItem value="STOCKTAKE">Kiểm kê</MenuItem>
-                        <MenuItem value="DEBT_NOTE">Ghi nợ</MenuItem>
-                        <MenuItem value="CUSTOMER">Khách hàng</MenuItem>
-                        <MenuItem value="PRODUCT">Sản phẩm</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </AccordionDetails>
-                </Accordion>
-
-                {/* Preset date popover */}
-                <Menu 
-                  open={openPopover} 
-                  anchorEl={anchorEl} 
-                  onClose={() => setAnchorEl(null)} 
-                  anchorOrigin={{ vertical: "bottom", horizontal: "left" }} 
-                  transformOrigin={{ vertical: "top", horizontal: "left" }}
-                >
-                  <div className="p-4 grid grid-cols-2 gap-2">
-                    {Object.entries(labelMap).map(([key, label]) => (
-                      <Button key={key} size="small" variant="outlined" onClick={() => handlePresetChange(key)}>
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                </Menu>
-
-                {/* Custom date picker */}
-                {showDatePicker && selectedMode === "custom" && (
-                  <ClickAwayListener onClickAway={() => setShowDatePicker(false)}>
-                    <div className="absolute z-50 top-0 left-full ml-4 bg-white p-4 rounded shadow-lg border w-max">
-                      <DateRange 
-                        editableDateInputs={true} 
-                        onChange={(item) => handleCustomChange(item.selection)} 
-                        moveRangeOnFirstSelection={false} 
-                        ranges={customDate} 
-                        direction="horizontal" 
-                      />
-                      <div className="mt-2 text-right">
-                        <Button variant="contained" size="small" onClick={() => setShowDatePicker(false)}>
-                          Áp dụng
-                        </Button>
-                      </div>
-                    </div>
-                  </ClickAwayListener>
-                )}
-              </>
-            )}
-          </div>
 
           {/* Main content area */}
-          <div className={showFilter ? "w-full lg:w-4/5" : "w-full"} style={{ transition: 'all 0.4s cubic-bezier(.4,2,.6,1)' }}>
-                         <div className="mb-4 w-1/2">
+          <div className="w-full" style={{ transition: 'all 0.4s cubic-bezier(.4,2,.6,1)' }}>
+                         <div className="mb-4 w-full max-w-md">
+                           <div className="flex items-center gap-2">
                <TextField 
                  label="Tìm kiếm mô tả..." 
                  size="small" 
@@ -798,7 +411,34 @@ const ChangeStatusLogPage = () => {
                      },
                    },
                  }}
-               />
+                               InputProps={{
+                                 endAdornment: filter.search && (
+                                   <IconButton
+                                     size="small"
+                                     onClick={() => setFilter({ ...filter, search: '' })}
+                                     sx={{ color: '#9ca3af' }}
+                                   >
+                                     <Clear fontSize="small" />
+                                   </IconButton>
+                                 ),
+                               }}
+                             />
+                             {filter.search && (
+                               <Button
+                                 size="small"
+                                 variant="outlined"
+                                 onClick={() => setFilter({ ...filter, search: '' })}
+                                 sx={{
+                                   borderColor: '#e5e7eb',
+                                   color: '#6b7280',
+                                   minWidth: 'auto',
+                                   px: 2,
+                                 }}
+                               >
+                                 Xóa
+                               </Button>
+                             )}
+                           </div>
              </div>
             
                          <div style={{ 
@@ -807,23 +447,27 @@ const ChangeStatusLogPage = () => {
                overflowX: 'auto', 
                borderRadius: 12, 
                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-               border: '1px solid #e5e7eb'
+               border: '1px solid #e5e7eb',
+               width: '100%'
              }}>
               {loading ? (
                 <div className="flex justify-center items-center h-full">
-                  <CircularProgress />
+                  <div className="text-center">
+                    <CircularProgress size={40} />
+                    <div className="mt-2 text-gray-600">Đang tải dữ liệu...</div>
+                  </div>
                 </div>
               ) : (
                 <table style={tableStyles}>
                   <colgroup>
-                    <col style={{ width: 60 }} /> {/* STT */}
-                    <col style={{ width: 120 }} /> {/* Loại */}
-                    <col style={{ width: 120 }} /> {/* Mã nguồn */}
-                    <col style={{ width: 120 }} /> {/* Trạng thái cũ */}
-                    <col style={{ width: 120 }} /> {/* Trạng thái mới */}
-                    <col style={{ width: 200 }} /> {/* Mô tả */}
-                    <col style={{ width: 150 }} /> {/* Thời gian */}
-                    <col style={{ width: 80 }} /> {/* Hành động */}
+                    <col style={{ width: 80 }} />
+                    <col style={{ width: 140 }} />
+                    <col style={{ width: 140 }} />
+                    <col style={{ width: 140 }} />
+                    <col style={{ width: 140 }} />
+                    <col style={{ width: 300 }} />
+                    <col style={{ width: 160 }} />
+                    <col style={{ width: 100 }} />
                   </colgroup>
                   <thead>
                     <tr>
@@ -838,16 +482,16 @@ const ChangeStatusLogPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.length === 0 ? (
+                    {paginatedLogs.length === 0 ? (
                       <tr>
                         <td colSpan={8} style={{ textAlign: 'center', ...tdStyles }}>
                           Không có dữ liệu
                         </td>
                       </tr>
-                    ) : logs.map((log, idx) => (
+                    ) : paginatedLogs.map((log, idx) => (
                                              <tr key={log.id} style={zebra(idx)}>
                          <td style={tdStyles}>
-                           {displayMode === 'latest' ? idx + 1 : page * pageSize + idx + 1}
+                           {page * pageSize + idx + 1}
                          </td>
                                                  <td style={tdStyles}>
                            <Chip
@@ -924,17 +568,17 @@ const ChangeStatusLogPage = () => {
               )}
             </div>
 
-                         {/* Pagination controls - chỉ hiển thị khi không ở chế độ latest */}
-             {displayMode !== 'latest' && (
+                                                  {/* Pagination controls - nhỏ gọn ở góc trái như import */}
+             {totalElements > 0 && (
                <div style={{
-                 display: 'flex', alignItems: 'center', padding: 12, 
-                 background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                 borderRadius: 16, marginTop: 16, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14, 
-                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                 border: '1px solid #e2e8f0', width: 'fit-content', minWidth: 420
+                 display: 'flex', alignItems: 'center', padding: 10, 
+                 background: '#f8fafc',
+                 borderRadius: 8, marginTop: 16, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14, 
+                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                 border: '1px solid #e2e8f0', width: 'fit-content'
                }}>
                 <span style={{ marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>Hiển thị</span>
-                <FormControl size="small" style={{ minWidth: 80, marginRight: 6, fontFamily: 'Roboto, Arial, sans-serif' }}>
+                 <FormControl size="small" style={{ minWidth: 70, marginRight: 12, fontFamily: 'Roboto, Arial, sans-serif' }}>
                                    <Select
                      value={pageSize}
                      onChange={(e) => setPageSize(Number(e.target.value))}
@@ -966,9 +610,9 @@ const ChangeStatusLogPage = () => {
                    size="small" 
                    variant="outlined" 
                    sx={{ 
-                     minWidth: 32, 
+                     minWidth: 30, 
                      borderRadius: 2, 
-                     margin: '0 2px', 
+                     margin: '0 1px', 
                      padding: 0,
                      borderColor: '#e2e8f0',
                      color: '#64748b',
@@ -990,9 +634,9 @@ const ChangeStatusLogPage = () => {
                    size="small" 
                    variant="outlined" 
                    sx={{ 
-                     minWidth: 32, 
+                     minWidth: 30, 
                      borderRadius: 2, 
-                     margin: '0 2px', 
+                     margin: '0 1px', 
                      padding: 0,
                      borderColor: '#e2e8f0',
                      color: '#64748b',
@@ -1010,30 +654,35 @@ const ChangeStatusLogPage = () => {
                  >
                    {'<'}
                  </Button>
-                 <input
-                   type="number"
-                   min={1}
-                   max={pagination.totalPages}
-                   value={page + 1}
-                   onChange={(e) => {
-                     let val = Number(e.target.value) - 1;
-                     if (val < 0) val = 0;
-                     if (val >= pagination.totalPages) val = pagination.totalPages - 1;
-                     setPage(val);
+                 
+                 {/* Current Page */}
+                 <Button
+                   size="small"
+                   variant="outlined"
+                   sx={{
+                     minWidth: 36,
+                     borderRadius: 2,
+                     margin: '0 3px',
+                     padding: '4px 6px',
+                     borderColor: '#3b82f6',
+                     color: '#3b82f6',
+                     backgroundColor: '#fff',
+                     fontWeight: 600,
+                     '&:hover': {
+                       borderColor: '#2563eb',
+                       backgroundColor: '#f0f9ff',
+                     }
                    }}
-                                   style={{
-                     width: 32, textAlign: 'center', margin: '0 4px', height: 28, border: '1px solid #e0e0e0',
-                     borderRadius: 8, fontSize: 14, fontFamily: 'Roboto, Arial, sans-serif', 
-                     boxShadow: '0 1px 2px #e5e7eb', outline: 'none'
-                   }}
-                />
+                 >
+                   {page + 1}
+                 </Button>
                                <Button 
                    size="small" 
                    variant="outlined" 
                    sx={{ 
-                     minWidth: 32, 
+                     minWidth: 30, 
                      borderRadius: 2, 
-                     margin: '0 2px', 
+                     margin: '0 1px', 
                      padding: 0,
                      borderColor: '#e2e8f0',
                      color: '#64748b',
@@ -1046,8 +695,8 @@ const ChangeStatusLogPage = () => {
                        color: '#cbd5e1',
                      }
                    }}
-                   disabled={page + 1 >= pagination.totalPages} 
-                   onClick={() => setPage(page + 1)}
+                                       disabled={page + 1 >= totalPages} 
+                    onClick={() => setPage(page + 1)}
                  >
                    {'>'}
                  </Button>
@@ -1055,9 +704,9 @@ const ChangeStatusLogPage = () => {
                    size="small" 
                    variant="outlined" 
                    sx={{ 
-                     minWidth: 32, 
+                     minWidth: 30, 
                      borderRadius: 2, 
-                     margin: '0 2px', 
+                     margin: '0 1px', 
                      padding: 0,
                      borderColor: '#e2e8f0',
                      color: '#64748b',
@@ -1070,13 +719,20 @@ const ChangeStatusLogPage = () => {
                        color: '#cbd5e1',
                      }
                    }}
-                   disabled={page + 1 >= pagination.totalPages} 
-                   onClick={() => setPage(pagination.totalPages - 1)}
+                                       disabled={page + 1 >= totalPages} 
+                    onClick={() => setPage(totalPages - 1)}
                  >
                    {'>|'}
                  </Button>
-                               <span style={{ marginLeft: 8, fontFamily: 'Roboto, Arial, sans-serif', fontSize: 14 }}>
-                   {`${page * pageSize + 1} - ${Math.min((page + 1) * pageSize, pagination.totalElements)} trong ${pagination.totalElements} bản ghi`}
+                 
+                 {/* Total Records Info */}
+                 <span style={{ 
+                   marginLeft: 8, 
+                   fontFamily: 'Roboto, Arial, sans-serif', 
+                   color: '#64748b',
+                   fontSize: 14
+                 }}>
+                                       {page * pageSize + 1} - {Math.min((page + 1) * pageSize, totalElements)} / {totalElements}
                  </span>
               </div>
              )}

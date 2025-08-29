@@ -263,8 +263,8 @@ const ImportTransactionPage = () => {
                 // Hiển thị thông báo chào mừng
                 setSuccess('Chào mừng bạn quay lại! Phiếu nhập hàng đã được tạo thành công.');
                 
-                // Gửi thông báo notification
-                createSuccessNotification('Chào mừng!', 'Phiếu nhập hàng đã được tạo thành công.');
+                            // Không gửi notification nữa vì đã có notification từ ImportPage
+            // createSuccessNotification('Chào mừng!', 'Phiếu nhập hàng đã được tạo thành công.');
                 
                 // Xóa thông báo khỏi localStorage
                 localStorage.removeItem('import_creation_success');
@@ -289,7 +289,7 @@ const ImportTransactionPage = () => {
         return () => {
             window.removeEventListener('popstate', handleUrlChange);
         };
-    }, [createSuccessNotification]);
+    }, []);
 
     // Load transactions from API
     const loadTransactions = async (params = {}) => {
@@ -527,7 +527,7 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hủy phiếu thành công!');
-                    createImportTransactionNotification('cancel', selectedTransaction.name);
+                    createImportTransactionNotification('cancel', selectedTransaction.name, 'cancelled');
                 } catch (err) {
                     setCancelError('Không thể huỷ phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể huỷ phiếu. Vui lòng thử lại!');
@@ -554,7 +554,7 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Mở phiếu thành công!');
-                    createImportTransactionNotification('status_change', selectedTransaction.name);
+                    createImportTransactionNotification('status_change', selectedTransaction.name, 'waiting_for_approve');
                 } catch (err) {
                     setOpenError('Không thể mở phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
@@ -583,7 +583,7 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Đóng phiếu thành công!');
-                    createImportTransactionNotification('status_change', selectedTransaction.name);
+                    createImportTransactionNotification('status_change', selectedTransaction.name, 'draft');
                 } catch (err) {
                     setOpenError('Không thể đóng phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
@@ -612,7 +612,7 @@ const ImportTransactionPage = () => {
                     setOpenDetailDialog(false);
                     loadTransactions();
                     setSuccess('Hoàn thành phiếu thành công!');
-                    createImportTransactionNotification('complete', selectedTransaction.name);
+                    createImportTransactionNotification('complete', selectedTransaction.name, 'completed');
                 } catch (err) {
                     setOpenError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
@@ -680,7 +680,7 @@ const ImportTransactionPage = () => {
                     await importTransactionService.openTransaction(actionRow.id);
                     loadTransactions();
                     setSuccess('Mở phiếu thành công!');
-                    createImportTransactionNotification('status_change', actionRow.name);
+                    createImportTransactionNotification('status_change', actionRow.name, 'waiting_for_approve');
                 } catch (err) {
                     setError('Không thể mở phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể mở phiếu. Vui lòng thử lại!');
@@ -705,7 +705,7 @@ const ImportTransactionPage = () => {
                     await importTransactionService.closeTransaction(actionRow.id);
                     loadTransactions();
                     setSuccess('Đóng phiếu thành công!');
-                    createImportTransactionNotification('status_change', actionRow.name);
+                    createImportTransactionNotification('status_change', actionRow.name, 'draft');
                 } catch (err) {
                     setError('Không thể đóng phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể đóng phiếu. Vui lòng thử lại!');
@@ -730,7 +730,7 @@ const ImportTransactionPage = () => {
                     await importTransactionService.completeTransaction(actionRow.id);
                     loadTransactions();
                     setSuccess('Hoàn thành phiếu thành công!');
-                    createImportTransactionNotification('complete', actionRow.name);
+                    createImportTransactionNotification('complete', actionRow.name, 'completed');
                 } catch (err) {
                     setError('Không thể hoàn thành phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể hoàn thành phiếu. Vui lòng thử lại!');
@@ -755,7 +755,7 @@ const ImportTransactionPage = () => {
                     await importTransactionService.updateStatus(actionRow.id);
                     loadTransactions();
                     setSuccess('Hủy phiếu thành công!');
-                    createImportTransactionNotification('cancel', actionRow.name);
+                    createImportTransactionNotification('cancel', actionRow.name, 'cancelled');
                 } catch (err) {
                     setError('Không thể hủy phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể hủy phiếu. Vui lòng thử lại!');
@@ -786,7 +786,7 @@ const ImportTransactionPage = () => {
                     await importTransactionService.softDelete(actionRow.id);
                     loadTransactions();
                     setSuccess('Xóa phiếu thành công!');
-                    createImportTransactionNotification('delete', actionRow.name);
+                    createImportTransactionNotification('delete', actionRow.name, 'deleted');
                 } catch (err) {
                     setError('Không thể xóa phiếu. Vui lòng thử lại!');
                     createErrorNotification('Lỗi', 'Không thể xóa phiếu. Vui lòng thử lại!');

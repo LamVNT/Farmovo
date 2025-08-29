@@ -10,6 +10,7 @@ import {getAllStores} from "../services/storeService";
 import {getCategories} from "../services/categoryService";
 import axios from "../services/axiosClient";
 import {saveAs} from 'file-saver';
+import { useNotification } from "../contexts/NotificationContext";
 
 export default function useStocktake(user, userRole) {
     // ================== Thông tin người dùng ==================
@@ -81,6 +82,9 @@ export default function useStocktake(user, userRole) {
     // ✅ Thêm state cho Detail page
     const [detail, setDetail] = useState(null);
     const [filter, setFilter] = useState({batchCode: "", productName: ""});
+
+    // Notification hook
+    const { createStocktakeNotification } = useNotification();
 
     const filteredDetails = useMemo(() => {
         if (!detail || !Array.isArray(detail.detail)) return [];
@@ -171,7 +175,19 @@ export default function useStocktake(user, userRole) {
     const isOwner = userRole === "OWNER" || userRole === "ROLE_OWNER";
     const isAdmin = userRole === "ADMIN" || userRole === "ROLE_ADMIN";
 
-    const loadMasterData = useCallback(async () => {
+    // Hàm load zones theo store
+    const loadZonesByStore = useCallback(async (storeId) => {
+        if (!storeId) return;
+        try {
+            const zonesRes = await getZones(storeId);
+            setZones(zonesRes || []);
+        } catch (zoneErr) {
+            console.error("Error loading zones for store:", zoneErr);
+            setZones([]);
+        }
+    }, []);
+
+    const loadMasterData = useCallback(async (selectedStoreId = null) => {
         try {
             let productsRes, zonesRes, categoriesRes, storesRes;
             if (isStaff) {
@@ -187,14 +203,13 @@ export default function useStocktake(user, userRole) {
                 setStores([]); // Staff không cần danh sách kho
             } else {
                 // Owner/Admin cần stores cho filter dropdown ở trang StockTake
-                [productsRes, zonesRes, storesRes, categoriesRes] = await Promise.all([
+                [productsRes, storesRes, categoriesRes] = await Promise.all([
                     productService.getAllProducts(),
-                    getZones(),
                     getAllStores(),
                     getCategories(),
                 ]);
                 setProducts(productsRes);
-                setZones(zonesRes);
+                
                 // Sửa tại đây: đảm bảo storesRes là mảng, nếu không thì set [] và log lỗi
                 if (Array.isArray(storesRes)) {
                     const mappedStores = storesRes.map(s => ({
@@ -207,6 +222,21 @@ export default function useStocktake(user, userRole) {
                     setStores([]);
                 }
                 setCategories(categoriesRes);
+                
+                // Load zones theo store đã chọn (nếu có)
+                if (selectedStoreId) {
+                    try {
+                        const zonesRes = await getZones(selectedStoreId);
+                        setZones(zonesRes || []);
+                    } catch (zoneErr) {
+                        console.error("Error loading zones for store:", zoneErr);
+                        setZones([]);
+                    }
+                } else {
+                    // Nếu chưa chọn store, load tất cả zones
+                    const zonesRes = await getZones();
+                    setZones(zonesRes || []);
+                }
             }
         } catch (err) {
             console.error("Error loading master data:", err);
@@ -224,6 +254,20 @@ export default function useStocktake(user, userRole) {
             setActionLoading((prev) => ({...prev, [id]: true}));
             try {
                 await updateStocktakeStatus(id, newStatus);
+                
+                // Tìm thông tin stocktake để tạo thông báo
+                const st = stocktakes.find((s) => s.id === id);
+                if (st) {
+                    try {
+                        const storeId = st.storeId || (userRole === "STAFF" ? userStoreId : null);
+                        if (storeId) {
+                            await createStocktakeNotification('status_change', st.name || 'Phiếu kiểm kê', storeId, user?.id, newStatus);
+                        }
+                    } catch (notificationError) {
+                        console.error('Lỗi khi tạo thông báo:', notificationError);
+                    }
+                }
+                
                 setSnackbar({
                     isOpen: true,
                     message: `Cập nhật trạng thái thành công!`,
@@ -241,7 +285,7 @@ export default function useStocktake(user, userRole) {
                 setActionLoading((prev) => ({...prev, [id]: false}));
             }
         },
-        [loadStocktakeList]
+        [stocktakes, createStocktakeNotification, loadStocktakeList]
     );
 
     // ================== Cancel ==================
@@ -293,6 +337,16 @@ export default function useStocktake(user, userRole) {
                     status: "CANCELLED",
                     stocktakeDate: st.stocktakeDate,
                 });
+
+                // Tạo thông báo khi hủy phiếu kiểm kê
+                try {
+                    const storeId = st.storeId || (userRole === "STAFF" ? userStoreId : null);
+                    if (storeId) {
+                        await createStocktakeNotification('cancel', st.name || 'Phiếu kiểm kê', storeId, user?.id, 'CANCELLED');
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi tạo thông báo:', notificationError);
+                }
 
                 setSnackbar({
                     isOpen: true,
@@ -408,6 +462,7 @@ export default function useStocktake(user, userRole) {
         handleCancel,
         loadStocktakeList,
         loadMasterData,
+        loadZonesByStore,
         editMode,
         setEditMode,
         stocktakeStatus,

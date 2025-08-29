@@ -31,8 +31,8 @@ function App() {
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
             <AuthorizationProvider>
-                <NotificationProvider>
-                    <StoreSelectionProvider>
+                <StoreSelectionProvider>
+                    <NotificationProvider>
                         <MyContext.Provider value={values}>
                         <RouterProvider router={router} />
                         <Toaster
@@ -65,8 +65,8 @@ function App() {
                         }}
                     />
                         </MyContext.Provider>
-                    </StoreSelectionProvider>
-                </NotificationProvider>
+                    </NotificationProvider>
+                </StoreSelectionProvider>
             </AuthorizationProvider>
         </LocalizationProvider>
     );

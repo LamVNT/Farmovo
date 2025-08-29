@@ -61,6 +61,8 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
     private final ImportTransactionMapper importTransactionMapper;
     private final ImportTransactionDetailValidator detailValidator;
     private final DebtNoteService debtNoteService;
+    private final ImportTransactionDetailRepository importTransactionDetailRepository;
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -72,13 +74,21 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         ImportTransaction transaction = new ImportTransaction();
         mapDtoToTransaction(transaction, dto, true, userId);
 
-        // Sinh mã name tự động
-        Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
-                .map(ImportTransaction::getId)
-                .orElse(0L);
-        String newName = String.format("PN%06d", lastId + 1);
+        // Sinh mã name tự động - phân biệt phiếu cân bằng nhập và phiếu nhập thường
+        String newName;
+        if (dto.getImportTransactionNote() != null && dto.getImportTransactionNote().contains("Cân bằng nhập")) {
+            // Sinh mã PCBN000xxx cho phiếu cân bằng nhập
+            newName = getNextBalanceImportTransactionCode();
+            log.debug("Generated balance import transaction code: {}", newName);
+        } else {
+            // Logic cũ, sinh mã PN000xxx cho phiếu nhập thường
+            Long lastId = importTransactionRepository.findTopByOrderByIdDesc()
+                    .map(ImportTransaction::getId)
+                    .orElse(0L);
+            newName = String.format("PN%06d", lastId + 1);
+            log.debug("Generated regular import transaction code: {}", newName);
+        }
         transaction.setName(newName);
-        log.debug("Generated transaction code: {}", newName);
 
         ImportTransaction savedTransaction = importTransactionRepository.save(transaction);
 
@@ -88,6 +98,77 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         // Sinh mã LH000000 cho từng detail
         generateDetailCodes(savedTransaction);
         log.info("Import transaction created. Total: {}, Paid: {}", transaction.getTotalAmount(), transaction.getPaidAmount());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void createBalanceImportTransaction(CreateImportTransactionRequestDto dto, Long userId) {
+        log.info("Bắt đầu cập nhật lô cũ cho phiếu cân bằng nhập, số lượng sản phẩm: {}",
+                dto.getDetails() != null ? dto.getDetails().size() : 0);
+
+        // CHỈ CẬP NHẬT LÔ CŨ - KHÔNG TẠO PHIẾU NHẬP MỚI
+        if (dto.getStocktakeId() != null && dto.getDetails() != null) {
+            updateLotsForBalanceImport(dto.getDetails());
+        }
+
+        log.info("Hoàn thành cập nhật lô cũ cho phiếu cân bằng nhập");
+    }
+
+    private void updateLotsForBalanceImport(List<CreateImportTransactionRequestDto.DetailDto> details) {
+        log.info("Bắt đầu cập nhật lô cũ cho phiếu cân bằng nhập, số lượng sản phẩm: {}", details.size());
+        
+        for (CreateImportTransactionRequestDto.DetailDto detail : details) {
+            try {
+                // Bước 1: Tìm lô cũ của sản phẩm này
+                List<ImportTransactionDetail> existingLots = importTransactionDetailRepository.findByProductId(detail.getProductId());
+                
+                if (existingLots.isEmpty()) {
+                    log.warn("Không tìm thấy lô nào cho sản phẩm ID: {}", detail.getProductId());
+                    continue;
+                }
+                
+                // Bước 2: Chọn lô đầu tiên để cập nhật (có thể cải thiện logic này sau)
+                ImportTransactionDetail selectedLot = existingLots.get(0);
+                
+                // Bước 3: Cộng thêm số lượng vào lô cũ
+                int currentQuantity = selectedLot.getRemainQuantity() != null ? selectedLot.getRemainQuantity() : 0;
+                int addQuantity = detail.getImportQuantity() != null ? detail.getImportQuantity() : 0;
+                int newQuantity = currentQuantity + addQuantity;
+                
+                selectedLot.setRemainQuantity(newQuantity);
+                
+                // Bước 4: Lưu lô đã cập nhật
+                importTransactionDetailRepository.save(selectedLot);
+                
+                // Bước 5: Cập nhật tổng số lượng sản phẩm
+                updateProductTotalQuantity(detail.getProductId(), addQuantity);
+                
+                log.info("Đã cập nhật lô: Sản phẩm {}, Lô {}, Số lượng cũ: {} + Thêm: {} = Mới: {}",
+                        detail.getProductName(), selectedLot.getName(), currentQuantity, addQuantity, newQuantity);
+                
+            } catch (Exception e) {
+                log.error("Lỗi khi cập nhật lô cho sản phẩm ID: {}", detail.getProductId(), e);
+            }
+        }
+        
+        log.info("Hoàn thành cập nhật lô cũ cho phiếu cân bằng nhập");
+    }
+
+    private void updateProductTotalQuantity(Long productId, int addQuantity) {
+        try {
+            Product product = productRepository.findById(productId).orElse(null);
+            if (product != null) {
+                int currentTotal = product.getProductQuantity() != null ? product.getProductQuantity() : 0;
+                int newTotal = currentTotal + addQuantity;
+                product.setProductQuantity(newTotal);
+                productRepository.save(product);
+                
+                log.info("Đã cập nhật tổng số lượng sản phẩm: {} - Cũ: {} + Thêm: {} = Mới: {}",
+                        product.getProductName(), currentTotal, addQuantity, newTotal);
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi cập nhật tổng số lượng sản phẩm ID: {}", productId, e);
+        }
     }
 
     @Override
@@ -307,6 +388,17 @@ public class ImportTransactionServiceImpl implements ImportTransactionService {
         String nextCode = String.format("PN%06d", lastId + 1);
 
         log.debug("Generated next import transaction code: {}", nextCode);
+        return nextCode;
+    }
+
+    @Override
+    public String getNextBalanceImportTransactionCode() {
+        log.debug("Getting next balance import transaction code");
+
+        Long nextSeq = importTransactionRepository.getMaxPcbnSequence() + 1;
+        String nextCode = String.format("PCBN%06d", nextSeq);
+
+        log.debug("Generated next balance import transaction code: {}", nextCode);
         return nextCode;
     }
 
