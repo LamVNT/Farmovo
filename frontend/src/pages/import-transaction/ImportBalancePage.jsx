@@ -298,7 +298,7 @@ const ImportBalancePage = () => {
                         ? d.zones_id.map(id => Number(id))
                         : [],
                     expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
-                    originalId: d.id, // Lưu ID gốc để sử dụng khi cập nhật
+                    originalId: d.id || d.batchId || d.productId, // Lưu ID gốc để sử dụng khi cập nhật
                 }));
 
             setSelectedProducts(batchProducts);
@@ -311,6 +311,14 @@ const ImportBalancePage = () => {
                 zoneIds: p.zoneIds,
                 originalZonesId: surplus.items.find(item => item.batchCode === p.batchCode)?.zones_id,
                 originalZoneReal: surplus.items.find(item => item.batchCode === p.batchCode)?.zoneReal
+            })));
+            
+            // Debug: Log thông tin chi tiết về originalId
+            console.log('DEBUG: Original ID mapping:', batchProducts.map(p => ({
+                batchCode: p.batchCode,
+                originalId: p.originalId,
+                originalItemId: surplus.items.find(item => item.batchCode === p.batchCode)?.id,
+                originalItem: surplus.items.find(item => item.batchCode === p.batchCode)
             })));
         }
     }, [location.state, navigate, stores]);
@@ -372,7 +380,7 @@ const ImportBalancePage = () => {
                             ? d.zones_id.map(id => Number(id))
                             : [],
                         expireDate: d.expireDate ? String(d.expireDate).slice(0,10) : new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0,10),
-                        originalId: d.productId,
+                        originalId: d.id || d.batchId || d.productId,
                     }));
 
                     setSelectedProducts(batchProducts);
@@ -531,28 +539,103 @@ const ImportBalancePage = () => {
         setError(null);
 
         try {
+            console.log('DEBUG: Starting batch update for products:', selectedProducts);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
             // Cập nhật số lượng từng lô hàng
             for (const product of selectedProducts) {
+                console.log('DEBUG: Processing product:', {
+                    batchCode: product.batchCode,
+                    originalId: product.originalId,
+                    remainQuantity: product.remainQuantity,
+                    quantity: product.quantity,
+                    zoneIds: product.zoneIds
+                });
+                
                 // Sử dụng ID gốc của lô hàng nếu có
                 const batchId = product.originalId;
                 
-                if (batchId && !isNaN(batchId)) {
+                console.log(`DEBUG: Validating batch ID: ${batchId}, type: ${typeof batchId}, isNaN: ${isNaN(batchId)}`);
+                
+                if (batchId && !isNaN(batchId) && batchId > 0) {
                     try {
                         // Tính số lượng mới = số lượng hiện tại + số lượng thêm vào
                         const currentQuantity = product.remainQuantity || 0;
                         const additionalQuantity = product.quantity || 0;
                         const newTotalQuantity = currentQuantity + additionalQuantity;
                         
+                        console.log(`DEBUG: Updating batch ${batchId}: ${currentQuantity} + ${additionalQuantity} = ${newTotalQuantity}`);
+                        
+                        // Validate dữ liệu trước khi gọi API
+                        if (newTotalQuantity < 0) {
+                            throw new Error(`Số lượng mới không được âm: ${newTotalQuantity}`);
+                        }
+                        
+                        console.log(`DEBUG: Calling API updateBatchRemainQuantity(${batchId}, ${newTotalQuantity})`);
+                        console.log(`DEBUG: API endpoint: /import-details/${batchId}/remain`);
+                        console.log(`DEBUG: Request payload: { remainQuantity: ${newTotalQuantity} }`);
+                        
                         // Cập nhật số lượng còn lại của lô hàng
-                        await updateBatchRemainQuantity(batchId, newTotalQuantity);
-                        console.log(`Updated batch ${batchId}: ${currentQuantity} + ${additionalQuantity} = ${newTotalQuantity}`);
+                        try {
+                            const result = await updateBatchRemainQuantity(batchId, newTotalQuantity);
+                            console.log(`DEBUG: Update result for batch ${batchId}:`, result);
+                            
+                            // Kiểm tra kết quả từ API
+                            if (!result) {
+                                throw new Error('API trả về kết quả rỗng');
+                            }
+                            
+                            // Kiểm tra xem có phải là error response không
+                            if (result.error || result.message) {
+                                throw new Error(result.error || result.message || 'API trả về lỗi');
+                            }
+                        } catch (apiError) {
+                            console.error(`ERROR: API call failed for batch ${batchId}:`, apiError);
+                            console.error(`ERROR: API error details:`, {
+                                message: apiError.message,
+                                response: apiError.response,
+                                status: apiError.response?.status,
+                                data: apiError.response?.data
+                            });
+                            throw new Error(`Gọi API thất bại: ${apiError.message || apiError}`);
+                        }
+                        
+                        // Cập nhật khu vực mới (zoneReal) vào lô hàng nếu có
+                        if (product.zoneIds && product.zoneIds.length > 0) {
+                            try {
+                                // Gọi API để cập nhật zones_id của lô hàng
+                                const zonesIdString = product.zoneIds.join(',');
+                                console.log(`DEBUG: Updating zones for batch ${batchId}: to "${zonesIdString}"`);
+                                
+                                // Tạm thời comment out vì chưa có API update zones
+                                // await updateBatchZones(batchId, zonesIdString);
+                                console.log(`DEBUG: Zones update skipped for now - API not implemented`);
+                            } catch (zoneError) {
+                                console.warn(`Warning: Could not update zones for batch ${batchId}:`, zoneError);
+                            }
+                        }
+                        
+                        console.log(`SUCCESS: Updated batch ${batchId}: ${currentQuantity} + ${additionalQuantity} = ${newTotalQuantity}`);
+                        successCount++;
                     } catch (batchError) {
-                        console.error(`Error updating batch ${batchId}:`, batchError);
+                        console.error(`ERROR: Failed to update batch ${batchId}:`, batchError);
+                        errorCount++;
                         // Tiếp tục với các lô khác nếu có lỗi
                     }
                 } else {
-                    console.warn(`No valid batch ID found for product:`, product);
+                    console.warn(`WARNING: No valid batch ID found for product:`, product);
+                    errorCount++;
                 }
+            }
+            
+            console.log(`DEBUG: Update completed. Success: ${successCount}, Errors: ${errorCount}`);
+            
+            if (errorCount > 0) {
+                setError(`Cập nhật hoàn tất với ${errorCount} lỗi. Vui lòng kiểm tra console để biết chi tiết.`);
+            } else {
+                setSuccess(`Cập nhật thành công ${successCount} lô hàng!`);
             }
             
             setSuccess('Cập nhật số lượng lô hàng thành công!');
@@ -565,8 +648,8 @@ const ImportBalancePage = () => {
                 navigate(`/stocktake/${stocktakeInfo.stocktakeId}`);
             }, 2000);
         } catch (err) {
-            console.error('Error updating batch quantities:', err);
-            setError('Không thể cập nhật số lượng lô hàng');
+            console.error('ERROR: Failed to update batch quantities:', err);
+            setError('Không thể cập nhật số lượng lô hàng: ' + (err.message || err));
         } finally {
             setLoading(false);
         }
