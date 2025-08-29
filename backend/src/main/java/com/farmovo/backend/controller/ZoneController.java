@@ -33,28 +33,7 @@ public class ZoneController {
     @GetMapping
     public ResponseEntity<List<ZoneResponseDto>> getAllZones(HttpServletRequest request) {
         try {
-            String token = jwtUtils.getJwtFromRequest(request);
-            if (token == null) {
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-            
-            if (!jwtUtils.validateJwtToken(token)) {
-                // Token không hợp lệ -> coi như không đăng nhập, trả về all zones (public)
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-
-            Long userId = jwtUtils.getUserIdFromJwtToken(token);
-            if (userId == null) {
-                return ResponseEntity.ok(zoneService.getAllZones());
-            }
-            
-            User user = userService.getUserById(userId).orElse(null);
-            if (user != null && user.getAuthorities() != null) {
-                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
-                if (isStaff && user.getStore() != null) {
-                    return ResponseEntity.ok(zoneService.getZonesByStoreId(user.getStore().getId()));
-                }
-            }
+            // Tất cả user đều thấy tất cả zones
             return ResponseEntity.ok(zoneService.getAllZones());
         } catch (Exception e) {
             logger.error("Error in getAllZones: ", e);
@@ -75,17 +54,7 @@ public class ZoneController {
                 return ResponseEntity.status(401).build(); // Unauthorized
             }
             
-            User user = userService.getUserById(userId).orElse(null);
-            if (user != null && user.getAuthorities() != null) {
-                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
-                if (isStaff) {
-                    // Staff chỉ được tạo zone trong kho của mình
-                    if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
-                        return ResponseEntity.status(403).build(); // Forbidden
-                    }
-                }
-                // Owner được tạo ở bất kỳ kho nào
-            }
+            // Tất cả user đều có thể tạo zone ở bất kỳ cửa hàng nào
             return ResponseEntity.ok(zoneService.createZone(request));
         } catch (Exception e) {
             logger.error("Error in createZone: ", e);
@@ -106,17 +75,7 @@ public class ZoneController {
                 return ResponseEntity.status(401).build(); // Unauthorized
             }
             
-            User user = userService.getUserById(userId).orElse(null);
-            if (user != null && user.getAuthorities() != null) {
-                boolean isStaff = RoleUtils.hasRole(user.getAuthorities(), "STAFF");
-                if (isStaff) {
-                    // Staff chỉ được cập nhật zone trong kho của mình
-                    if (user.getStore() == null || !user.getStore().getId().equals(request.getStoreId())) {
-                        return ResponseEntity.status(403).build(); // Forbidden
-                    }
-                }
-                // Owner được cập nhật ở bất kỳ kho nào
-            }
+            // Tất cả user đều có thể cập nhật zone ở bất kỳ cửa hàng nào
             return ResponseEntity.ok(zoneService.updateZone(id, request));
         } catch (Exception e) {
             logger.error("Error in updateZone: ", e);

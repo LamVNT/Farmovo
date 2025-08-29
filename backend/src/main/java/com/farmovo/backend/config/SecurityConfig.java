@@ -67,12 +67,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/sale-transactions/**").authenticated()
                         .requestMatchers("/api/reports/**").authenticated()
                         .requestMatchers("/api/change-statuslog/**").authenticated()
+                        .requestMatchers("/api/stores").authenticated()
 
                         // Admin-only paths (backup security)
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/api/users").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/api/stores/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers("/api/zones/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        // Zones - tất cả user đã đăng nhập đều có thể truy cập
+                        .requestMatchers("/api/zones/**").authenticated()
 
                         .anyRequest().authenticated()
                 )

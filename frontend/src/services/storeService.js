@@ -5,7 +5,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}`;
 export const getAllStores = async () => {
     if (import.meta.env.MODE === 'development') console.log("Fetching all stores");
     try {
-        const response = await axios.get(`${API_URL}/admin/storeList`, {
+        const response = await axios.get(`${API_URL}/stores`, {
             withCredentials: true, // Sử dụng cookie để xác thực
         });
         if (import.meta.env.MODE === 'development') console.log(`Successfully fetched ${response.data.length} stores`);

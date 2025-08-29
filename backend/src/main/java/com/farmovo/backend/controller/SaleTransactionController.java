@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.Map;
+import java.util.Arrays;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -209,8 +210,11 @@ public class SaleTransactionController {
     @GetMapping("/stocktake/{stocktakeId}/status")
     public ResponseEntity<Map<String, Object>> getPcbStatusByStocktakeId(@PathVariable Long stocktakeId) {
         try {
-            // Kiểm tra xem có PCB nào liên kết với stocktake này không (chỉ lấy các PCB đã hoàn thành)
-            List<SaleTransaction> pcbs = saleTransactionRepository.findByStocktakeIdAndStatus(stocktakeId, SaleTransactionStatus.COMPLETE);
+            // Kiểm tra xem có PCB nào liên kết với stocktake này không (lấy cả COMPLETE và WAITING_FOR_APPROVE)
+            List<SaleTransaction> pcbs = saleTransactionRepository.findByStocktakeIdAndStatusIn(
+                stocktakeId, 
+                Arrays.asList(SaleTransactionStatus.COMPLETE, SaleTransactionStatus.WAITING_FOR_APPROVE)
+            );
             
             if (pcbs.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
